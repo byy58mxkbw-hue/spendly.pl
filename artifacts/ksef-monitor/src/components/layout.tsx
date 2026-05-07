@@ -33,20 +33,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {navItems.map(({ path, label, icon: Icon }) => {
             const active = location === path || location.startsWith(path + "/");
             return (
-              <Link key={path} href={path}>
-                <a
-                  data-testid={`nav-${path.replace("/", "")}`}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  )}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {label}
-                  {active && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
-                </a>
+              <Link
+                key={path}
+                href={path}
+                data-testid={`nav-${path.replace("/", "")}`}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                {label}
+                {active && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
               </Link>
             );
           })}
