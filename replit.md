@@ -1,10 +1,11 @@
-# [Project name]
+# CennikPro
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Aplikacja SaaS dla restauracji do monitorowania cen surowców z faktur KSeF. Właściciel restauracji importuje faktury od swoich dostawców, śledzi zmiany cen składników i reaguje na podwyżki zanim uderzą w food cost.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
+- `pnpm --filter @workspace/ksef-monitor run dev` — run the frontend (port 22900)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -14,31 +15,56 @@ _Replace the heading above with the project's name, and this line with one sente
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
+- API: Express 5 at `/api` path
 - DB: PostgreSQL + Drizzle ORM
+- Auth: Clerk (via `@clerk/express` on server, `@clerk/react` on client)
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
+- Frontend: React + Vite + shadcn/ui + Tailwind, recharts, wouter routing
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — OpenAPI spec (source of truth for all API contracts)
+- `lib/api-zod/src/generated/api.ts` — generated Zod schemas (from codegen)
+- `lib/api-client-react/src/generated/api.ts` — generated React Query hooks
+- `lib/db/src/schema/` — Drizzle ORM schemas (suppliers, products, invoices, invoice-items, price-alerts)
+- `artifacts/api-server/src/routes/` — Express route handlers
+- `artifacts/ksef-monitor/src/pages/` — React frontend pages
+- `artifacts/ksef-monitor/src/components/layout.tsx` — sidebar + layout shell
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- `invoice_date` stored as TEXT (YYYY-MM-DD) in PostgreSQL — use substring/string ops for grouping, not date_trunc directly with Drizzle column refs
+- `db.execute(sql\`...\`)` returns `{ rows: [...] }` not an array — always access `.rows` property
+- When using raw SQL GROUP BY with Drizzle, use positional GROUP BY (e.g., `GROUP BY 1, 2, 3`) and `sql.raw()` for LIMIT to avoid parameter binding issues
+- Clerk auth uses `publishableKeyFromHost` to support both dev and prod domains; proxy via `/clerk` path
+- All prices formatted with Polish locale (`pl-PL`, `PLN` currency)
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- **Dashboard** — summary stats, monthly food cost bar chart, recent purchases with price change indicators, top price changes
+- **Dostawcy** — list of suppliers as cards, add/delete, click-through to supplier detail with invoice history
+- **Produkty** — searchable table of all tracked products with latest/previous price and % change, click for price history chart
+- **Faktury** — list of imported invoices, import new invoice with optional KSeF XML content
+- **Alerty cenowe** — configure price change thresholds per product/supplier, view triggered alerts
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Polish UI language throughout
+- Prices formatted: `new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(price)`
+- Dates formatted: `new Date(date).toLocaleDateString('pl-PL')`
+- Design style: clean, minimal, lots of whitespace — inspired by cheff.it
+- Primary accent color: teal `hsl(173, 80%, 40%)`
+- No emojis in UI
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- **Always restart api-server after changing route files** — it runs a pre-built dist bundle
+- `lib/api-zod/src/index.ts` must only export `export * from "./generated/api"` — orval overwrites it
+- `invoice_date` column is type TEXT not DATE — use string functions for date operations in raw SQL
+- `db.execute()` returns `QueryResult` not `Row[]` — use `.rows` to get the array
+- Price/quantity columns are `numeric` type — pass numeric values not text strings when inserting
 
 ## Pointers
 

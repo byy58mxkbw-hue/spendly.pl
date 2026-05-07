@@ -3,13 +3,26 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: KSeF Monitor Cen - API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: suppliers
+    description: Supplier management
+  - name: products
+    description: Product management
+  - name: invoices
+    description: Invoice management
+  - name: price-alerts
+    description: Price alert management
+  - name: dashboard
+    description: Dashboard summaries
+  - name: reports
+    description: Reporting and exports
+
 paths:
   /healthz:
     get:
@@ -24,6 +37,382 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /suppliers:
+    get:
+      operationId: listSuppliers
+      tags: [suppliers]
+      summary: List all suppliers
+      responses:
+        "200":
+          description: List of suppliers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Supplier"
+    post:
+      operationId: createSupplier
+      tags: [suppliers]
+      summary: Create a new supplier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSupplierBody"
+      responses:
+        "201":
+          description: Created supplier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+
+  /suppliers/{id}:
+    get:
+      operationId: getSupplier
+      tags: [suppliers]
+      summary: Get a supplier by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Supplier details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "404":
+          description: Not found
+    put:
+      operationId: updateSupplier
+      tags: [suppliers]
+      summary: Update a supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSupplierBody"
+      responses:
+        "200":
+          description: Updated supplier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteSupplier
+      tags: [suppliers]
+      summary: Delete a supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List all products
+      parameters:
+        - name: supplierId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+
+  /products/{id}/price-history:
+    get:
+      operationId: getProductPriceHistory
+      tags: [products]
+      summary: Get price history for a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: supplierId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Price history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PriceHistoryEntry"
+
+  /products/top-price-changes:
+    get:
+      operationId: getTopPriceChanges
+      tags: [products]
+      summary: Get products with biggest price changes
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Top price change products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PriceChangeProduct"
+
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List all invoices
+      parameters:
+        - name: supplierId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+
+  /invoices/import:
+    post:
+      operationId: importInvoice
+      tags: [invoices]
+      summary: Import invoice from KSeF XML
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportInvoiceBody"
+      responses:
+        "201":
+          description: Imported invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWithItems"
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get invoice details with items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice with line items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWithItems"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteInvoice
+      tags: [invoices]
+      summary: Delete an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /price-alerts:
+    get:
+      operationId: listPriceAlerts
+      tags: [price-alerts]
+      summary: List price alerts
+      responses:
+        "200":
+          description: List of price alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PriceAlert"
+    post:
+      operationId: createPriceAlert
+      tags: [price-alerts]
+      summary: Create a price alert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePriceAlertBody"
+      responses:
+        "201":
+          description: Created alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceAlert"
+
+  /price-alerts/{id}:
+    delete:
+      operationId: deletePriceAlert
+      tags: [price-alerts]
+      summary: Delete a price alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/food-cost-monthly:
+    get:
+      operationId: getFoodCostMonthly
+      tags: [dashboard]
+      summary: Get monthly food cost breakdown
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Monthly food cost data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyFoodCost"
+
+  /dashboard/recent-purchases:
+    get:
+      operationId: getRecentPurchases
+      tags: [dashboard]
+      summary: Get recent purchases comparison
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recent purchases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecentPurchase"
+
+  /dashboard/active-alerts:
+    get:
+      operationId: getDashboardActiveAlerts
+      tags: [dashboard]
+      summary: Get triggered price alerts for dashboard
+      responses:
+        "200":
+          description: Active triggered alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TriggeredAlert"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +423,389 @@ components:
       required:
         - status
 
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        taxId:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        invoiceCount:
+          type: integer
+        lastInvoiceDate:
+          type: ["string", "null"]
+        totalSpend:
+          type: ["number", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - taxId
+        - isActive
+        - invoiceCount
+        - createdAt
+
+    CreateSupplierBody:
+      type: object
+      properties:
+        name:
+          type: string
+        taxId:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+      required:
+        - name
+        - taxId
+
+    UpdateSupplierBody:
+      type: object
+      properties:
+        name:
+          type: string
+        taxId:
+          type: string
+        email:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        unit:
+          type: string
+        category:
+          type: ["string", "null"]
+        latestPrice:
+          type: ["number", "null"]
+        previousPrice:
+          type: ["number", "null"]
+        priceChangePercent:
+          type: ["number", "null"]
+        supplierId:
+          type: ["integer", "null"]
+        supplierName:
+          type: ["string", "null"]
+        lastPurchaseDate:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - unit
+
+    PriceHistoryEntry:
+      type: object
+      properties:
+        date:
+          type: string
+        price:
+          type: number
+        invoiceId:
+          type: integer
+        invoiceNumber:
+          type: string
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+      required:
+        - date
+        - price
+        - invoiceId
+        - invoiceNumber
+        - supplierId
+        - supplierName
+
+    PriceChangeProduct:
+      type: object
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        unit:
+          type: string
+        currentPrice:
+          type: number
+        previousPrice:
+          type: number
+        changePercent:
+          type: number
+        changeDirection:
+          type: string
+          enum: [up, down]
+        supplierName:
+          type: string
+        lastDate:
+          type: string
+      required:
+        - productId
+        - productName
+        - unit
+        - currentPrice
+        - previousPrice
+        - changePercent
+        - changeDirection
+        - supplierName
+        - lastDate
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+        totalAmount:
+          type: number
+        itemCount:
+          type: integer
+        importedAt:
+          type: string
+      required:
+        - id
+        - supplierId
+        - supplierName
+        - invoiceNumber
+        - invoiceDate
+        - totalAmount
+        - itemCount
+        - importedAt
+
+    InvoiceItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        invoiceId:
+          type: integer
+        productId:
+          type: ["integer", "null"]
+        productName:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+        unitPrice:
+          type: number
+        totalPrice:
+          type: number
+        vatRate:
+          type: ["number", "null"]
+      required:
+        - id
+        - invoiceId
+        - productName
+        - quantity
+        - unit
+        - unitPrice
+        - totalPrice
+
+    InvoiceWithItems:
+      type: object
+      properties:
+        id:
+          type: integer
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+        totalAmount:
+          type: number
+        importedAt:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceItem"
+      required:
+        - id
+        - supplierId
+        - supplierName
+        - invoiceNumber
+        - invoiceDate
+        - totalAmount
+        - importedAt
+        - items
+
+    ImportInvoiceBody:
+      type: object
+      properties:
+        supplierId:
+          type: integer
+        xmlContent:
+          type: string
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+      required:
+        - supplierId
+        - invoiceDate
+
+    PriceAlert:
+      type: object
+      properties:
+        id:
+          type: integer
+        productName:
+          type: string
+        supplierId:
+          type: ["integer", "null"]
+        supplierName:
+          type: ["string", "null"]
+        thresholdPercent:
+          type: number
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - productName
+        - thresholdPercent
+        - isActive
+        - createdAt
+
+    CreatePriceAlertBody:
+      type: object
+      properties:
+        productName:
+          type: string
+        supplierId:
+          type: ["integer", "null"]
+        thresholdPercent:
+          type: number
+      required:
+        - productName
+        - thresholdPercent
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalSuppliers:
+          type: integer
+        activeSuppliers:
+          type: integer
+        totalInvoices:
+          type: integer
+        totalSpendThisMonth:
+          type: number
+        totalSpendLastMonth:
+          type: number
+        spendChangePercent:
+          type: number
+        trackedProducts:
+          type: integer
+        activeAlerts:
+          type: integer
+        avgPriceChange:
+          type: number
+      required:
+        - totalSuppliers
+        - activeSuppliers
+        - totalInvoices
+        - totalSpendThisMonth
+        - totalSpendLastMonth
+        - spendChangePercent
+        - trackedProducts
+        - activeAlerts
+        - avgPriceChange
+
+    MonthlyFoodCost:
+      type: object
+      properties:
+        month:
+          type: string
+        year:
+          type: integer
+        totalAmount:
+          type: number
+        invoiceCount:
+          type: integer
+        label:
+          type: string
+      required:
+        - month
+        - year
+        - totalAmount
+        - invoiceCount
+        - label
+
+    RecentPurchase:
+      type: object
+      properties:
+        productName:
+          type: string
+        unit:
+          type: string
+        currentPrice:
+          type: number
+        previousPrice:
+          type: ["number", "null"]
+        changePercent:
+          type: ["number", "null"]
+        supplierName:
+          type: string
+        purchaseDate:
+          type: string
+      required:
+        - productName
+        - unit
+        - currentPrice
+        - supplierName
+        - purchaseDate
+
+    TriggeredAlert:
+      type: object
+      properties:
+        productName:
+          type: string
+        supplierName:
+          type: ["string", "null"]
+        currentPrice:
+          type: number
+        previousPrice:
+          type: number
+        changePercent:
+          type: number
+        thresholdPercent:
+          type: number
+        alertDate:
+          type: string
+      required:
+        - productName
+        - currentPrice
+        - previousPrice
+        - changePercent
+        - thresholdPercent
+        - alertDate

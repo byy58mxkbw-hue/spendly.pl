@@ -1,0 +1,275 @@
+import { Layout, PageHeader } from "@/components/layout";
+import {
+  useGetDashboardSummary,
+  useGetFoodCostMonthly,
+  useGetRecentPurchases,
+  useGetDashboardActiveAlerts,
+  useGetTopPriceChanges,
+} from "@workspace/api-client-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { TrendingUp, TrendingDown, Minus, Users, Package, FileText, Bell } from "lucide-react";
+import { formatPrice, formatPercent, formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function StatCard({
+  label,
+  value,
+  change,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  change?: number | null;
+  icon: React.ElementType;
+}) {
+  const isPositive = (change ?? 0) > 0;
+  const isNegative = (change ?? 0) < 0;
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-6" data-testid="stat-card">
+      <div className="flex items-start justify-between mb-4">
+        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+          <Icon className="w-5 h-5" />
+        </div>
+        {change != null && (
+          <div
+            className={cn(
+              "flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
+              isPositive && "bg-destructive/10 text-destructive",
+              isNegative && "bg-emerald-500/10 text-emerald-600",
+              !isPositive && !isNegative && "bg-muted text-muted-foreground"
+            )}
+          >
+            {isPositive ? <TrendingUp className="w-3 h-3" /> : isNegative ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+            {formatPercent(change)}
+          </div>
+        )}
+      </div>
+      <p className="text-2xl font-bold text-foreground mb-1">{value}</p>
+      <p className="text-sm text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function PriceChangeBadge({ change }: { change: number | null | undefined }) {
+  if (change == null) return <span className="text-muted-foreground text-xs">—</span>;
+  const up = change > 0;
+  const down = change < 0;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full",
+        up && "bg-destructive/10 text-destructive",
+        down && "bg-emerald-500/10 text-emerald-600",
+        !up && !down && "bg-muted text-muted-foreground"
+      )}
+      data-testid="price-change-badge"
+    >
+      {up ? <TrendingUp className="w-3 h-3" /> : down ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+      {formatPercent(change)}
+    </span>
+  );
+}
+
+export default function Dashboard() {
+  const { data: summary, isLoading: summaryLoading } = useGetDashboardSummary();
+  const { data: monthly, isLoading: monthlyLoading } = useGetFoodCostMonthly({ months: 12 });
+  const { data: recent, isLoading: recentLoading } = useGetRecentPurchases({ limit: 8 });
+  const { data: activeAlerts } = useGetDashboardActiveAlerts();
+  const { data: topChanges } = useGetTopPriceChanges({ limit: 5, days: 30 });
+
+  return (
+    <Layout>
+      <div className="px-8 py-8">
+        <PageHeader
+          title="Dashboard"
+          subtitle="Przegląd kosztów i zmian cen surowców"
+        />
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {summaryLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-xl p-6">
+                <Skeleton className="w-10 h-10 rounded-lg mb-4" />
+                <Skeleton className="h-7 w-28 mb-2" />
+                <Skeleton className="h-4 w-36" />
+              </div>
+            ))
+          ) : summary ? (
+            <>
+              <StatCard
+                label="Wydatki w tym miesiącu"
+                value={formatPrice(summary.totalSpendThisMonth)}
+                change={summary.spendChangePercent}
+                icon={FileText}
+              />
+              <StatCard
+                label="Aktywni dostawcy"
+                value={String(summary.activeSuppliers)}
+                icon={Users}
+              />
+              <StatCard
+                label="Śledzone produkty"
+                value={String(summary.trackedProducts)}
+                icon={Package}
+              />
+              <StatCard
+                label="Aktywne alerty"
+                value={String(summary.activeAlerts)}
+                icon={Bell}
+              />
+            </>
+          ) : null}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Monthly food cost chart */}
+          <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6">
+            <h2 className="font-semibold text-foreground mb-1">Food Cost miesięcznie</h2>
+            <p className="text-sm text-muted-foreground mb-6">Łączne wydatki na surowce (zł)</p>
+            {monthlyLoading ? (
+              <Skeleton className="h-48 w-full rounded-lg" />
+            ) : monthly && monthly.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={monthly} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value: number) => [formatPrice(value), "Wydatki"]}
+                  />
+                  <Bar dataKey="totalAmount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+                Brak danych. Zaimportuj faktury, aby zobaczyć wykres.
+              </div>
+            )}
+          </div>
+
+          {/* Active alerts */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h2 className="font-semibold text-foreground mb-1">Przekroczone alerty</h2>
+            <p className="text-sm text-muted-foreground mb-4">Produkty z przekroczonym progiem</p>
+            {activeAlerts && activeAlerts.length > 0 ? (
+              <div className="space-y-3">
+                {activeAlerts.slice(0, 5).map((alert, i) => (
+                  <div key={i} className="flex items-start justify-between gap-2" data-testid={`alert-item-${i}`}>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{alert.productName}</p>
+                      <p className="text-xs text-muted-foreground">{alert.supplierName ?? "Wszyscy dostawcy"}</p>
+                    </div>
+                    <PriceChangeBadge change={alert.changePercent} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground text-center py-8">
+                Brak aktywnych alertów
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent purchases */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h2 className="font-semibold text-foreground mb-1">Ostatnie zakupy</h2>
+            <p className="text-sm text-muted-foreground mb-4">Porównanie z poprzednią ceną</p>
+            {recentLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
+              </div>
+            ) : recent && recent.length > 0 ? (
+              <div className="space-y-2">
+                {recent.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0" data-testid={`purchase-item-${i}`}>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
+                      <p className="text-xs text-muted-foreground">{item.supplierName} · {formatDate(item.purchaseDate)}</p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-sm font-semibold text-foreground">
+                        {formatPrice(item.currentPrice)}/{item.unit}
+                      </span>
+                      <PriceChangeBadge change={item.changePercent} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground text-center py-8">
+                Brak zakupów. Zaimportuj faktury.
+              </div>
+            )}
+          </div>
+
+          {/* Top price changes */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h2 className="font-semibold text-foreground mb-1">Największe zmiany cen</h2>
+            <p className="text-sm text-muted-foreground mb-4">Produkty z najwyższą zmianą ceny</p>
+            {topChanges && topChanges.length > 0 ? (
+              <div className="space-y-2">
+                {topChanges.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0" data-testid={`top-change-${i}`}>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
+                      <p className="text-xs text-muted-foreground">{item.supplierName} · {formatDate(item.lastDate)}</p>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-foreground">{formatPrice(item.currentPrice)}</p>
+                        <p className="text-xs text-muted-foreground line-through">{formatPrice(item.previousPrice)}</p>
+                      </div>
+                      <span
+                        className={cn(
+                          "text-xs font-medium px-2 py-0.5 rounded-full",
+                          item.changeDirection === "up"
+                            ? "bg-destructive/10 text-destructive"
+                            : "bg-emerald-500/10 text-emerald-600"
+                        )}
+                      >
+                        {item.changeDirection === "up" ? "+" : "-"}{item.changePercent.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground text-center py-8">
+                Brak wystarczającej historii cen.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+}

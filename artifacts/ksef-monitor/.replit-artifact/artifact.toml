@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "KSeF Monitor Cen"
+version = "1.0.0"
+id = "artifacts/ksef-monitor"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22900
+
+[services.development]
+run = "pnpm --filter @workspace/ksef-monitor run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ksef-monitor", "run", "build" ]
+publicDir = "artifacts/ksef-monitor/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22900"
+BASE_PATH = "/"
