@@ -6,7 +6,6 @@ import {
   getGetProductPriceHistoryQueryKey,
 } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -14,6 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   LineChart,
   Line,
@@ -23,9 +29,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Search, TrendingUp, TrendingDown, Minus, Package } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, Minus, Package, ArrowDownAZ, ArrowUpZA, TrendingUp as PriceIcon, Building2 } from "lucide-react";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+type SortKey = "name-asc" | "name-desc" | "price-desc" | "price-asc" | "change-desc" | "supplier-asc";
 
 function PriceChangeBadge({ change }: { change: number | null | undefined }) {
   if (change == null) return <span className="text-muted-foreground text-sm">—</span>;
@@ -136,13 +144,39 @@ function PriceHistoryModal({ productId, productName, onClose }: { productId: num
   );
 }
 
+function sortProducts<T extends { name: string; supplierName?: string | null; latestPrice?: number | null; priceChangePercent?: number | null }>(
+  list: T[],
+  sort: SortKey
+): T[] {
+  return [...list].sort((a, b) => {
+    switch (sort) {
+      case "name-asc":
+        return a.name.localeCompare(b.name, "pl");
+      case "name-desc":
+        return b.name.localeCompare(a.name, "pl");
+      case "price-desc":
+        return (b.latestPrice ?? 0) - (a.latestPrice ?? 0);
+      case "price-asc":
+        return (a.latestPrice ?? 0) - (b.latestPrice ?? 0);
+      case "change-desc":
+        return Math.abs(b.priceChangePercent ?? 0) - Math.abs(a.priceChangePercent ?? 0);
+      case "supplier-asc":
+        return (a.supplierName ?? "").localeCompare(b.supplierName ?? "", "pl");
+      default:
+        return 0;
+    }
+  });
+}
+
 export default function Products() {
   const { data: products, isLoading } = useListProducts();
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortKey>("name-asc");
   const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
 
-  const filtered = products?.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = sortProducts(
+    products?.filter((p) => p.name.toLowerCase().includes(search.toLowerCase())) ?? [],
+    sort
   );
 
   return (
@@ -153,16 +187,43 @@ export default function Products() {
           subtitle="Ceny surowców i historia zmian"
         />
 
-        <div className="mb-6 relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Szukaj produktu..."
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            data-testid="input-search-products"
-          />
+        <div className="mb-6 flex gap-3 items-center">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Szukaj produktu..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              data-testid="input-search-products"
+            />
+          </div>
+          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <SelectTrigger className="w-52" data-testid="select-sort-products">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name-asc">
+                <span className="flex items-center gap-2"><ArrowDownAZ className="w-3.5 h-3.5" />Nazwa A–Z</span>
+              </SelectItem>
+              <SelectItem value="name-desc">
+                <span className="flex items-center gap-2"><ArrowUpZA className="w-3.5 h-3.5" />Nazwa Z–A</span>
+              </SelectItem>
+              <SelectItem value="price-desc">
+                <span className="flex items-center gap-2"><PriceIcon className="w-3.5 h-3.5" />Największa cena</span>
+              </SelectItem>
+              <SelectItem value="price-asc">
+                <span className="flex items-center gap-2"><TrendingDown className="w-3.5 h-3.5" />Najniższa cena</span>
+              </SelectItem>
+              <SelectItem value="change-desc">
+                <span className="flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5" />Największa zmiana %</span>
+              </SelectItem>
+              <SelectItem value="supplier-asc">
+                <span className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5" />Dostawca A–Z</span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="bg-card border border-border rounded-xl overflow-hidden">
