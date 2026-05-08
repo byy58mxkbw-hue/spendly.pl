@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useListProducts,
+  useListSuppliers,
   useGetProductPriceHistory,
   getGetProductPriceHistoryQueryKey,
 } from "@workspace/api-client-react";
@@ -170,12 +171,18 @@ function sortProducts<T extends { name: string; supplierName?: string | null; la
 
 export default function Products() {
   const { data: products, isLoading } = useListProducts();
+  const { data: suppliers } = useListSuppliers();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
 
   const filtered = sortProducts(
-    products?.filter((p) => p.name.toLowerCase().includes(search.toLowerCase())) ?? [],
+    products?.filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+      const matchesSupplier = supplierFilter === "all" || p.supplierName === supplierFilter;
+      return matchesSearch && matchesSupplier;
+    }) ?? [],
     sort
   );
 
@@ -187,8 +194,8 @@ export default function Products() {
           subtitle="Ceny surowców i historia zmian"
         />
 
-        <div className="mb-6 flex gap-3 items-center">
-          <div className="relative max-w-sm flex-1">
+        <div className="mb-6 flex gap-3 items-center flex-wrap">
+          <div className="relative max-w-sm flex-1 min-w-48">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="search"
@@ -199,8 +206,24 @@ export default function Products() {
               data-testid="input-search-products"
             />
           </div>
+
+          <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+            <SelectTrigger className="w-52" data-testid="select-filter-supplier">
+              <Building2 className="w-3.5 h-3.5 text-muted-foreground mr-1" />
+              <SelectValue placeholder="Wszyscy dostawcy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Wszyscy dostawcy</SelectItem>
+              {suppliers?.map((s) => (
+                <SelectItem key={s.id} value={s.name}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-            <SelectTrigger className="w-52" data-testid="select-sort-products">
+            <SelectTrigger className="w-48" data-testid="select-sort-products">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -224,6 +247,15 @@ export default function Products() {
               </SelectItem>
             </SelectContent>
           </Select>
+
+          {(supplierFilter !== "all" || search) && (
+            <button
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              onClick={() => { setSupplierFilter("all"); setSearch(""); }}
+            >
+              Wyczyść filtry
+            </button>
+          )}
         </div>
 
         <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -284,7 +316,9 @@ export default function Products() {
             <div className="py-12 text-center">
               <Package className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">
-                {search ? "Nie znaleziono produktów." : "Brak produktów. Zaimportuj faktury, aby zobaczyć produkty."}
+                {search || supplierFilter !== "all"
+                  ? "Nie znaleziono produktów pasujących do filtrów."
+                  : "Brak produktów. Zaimportuj faktury, aby zobaczyć produkty."}
               </p>
             </div>
           )}
