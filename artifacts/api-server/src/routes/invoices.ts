@@ -202,46 +202,45 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     })
     .returning();
 
-  // Create or find products and insert items
-  const insertedItems = await Promise.all(
-    parsedItems.map(async (item) => {
-      // Try to find existing product
-      let [product] = await db
-        .select()
-        .from(productsTable)
-        .where(eq(productsTable.name, item.productName))
-        .limit(1);
+  // Create or find products and insert items — sequential to avoid race conditions
+  const insertedItems: Array<{
+    id: number; invoiceId: number; productId: number; productName: string;
+    quantity: number; unit: string; unitPrice: number; totalPrice: number; vatRate: number | null;
+  }> = [];
 
-      if (!product) {
-        [product] = await db
-          .insert(productsTable)
-          .values({ name: item.productName, unit: item.unit })
-          .returning();
-      }
+  for (const item of parsedItems) {
+    // Upsert product: insert if not exists, return existing on conflict
+    const [product] = await db
+      .insert(productsTable)
+      .values({ name: item.productName, unit: item.unit })
+      .onConflictDoUpdate({
+        target: productsTable.name,
+        set: { unit: item.unit },
+      })
+      .returning();
 
-      const [invoiceItem] = await db
-        .insert(invoiceItemsTable)
-        .values({
-          invoiceId: invoice.id,
-          productId: product.id,
-          productName: item.productName,
-          quantity: item.quantity.toString(),
-          unit: item.unit,
-          unitPrice: item.unitPrice.toString(),
-          totalPrice: item.totalPrice.toString(),
-          vatRate: item.vatRate != null ? item.vatRate.toString() : null,
-        })
-        .returning();
+    const [invoiceItem] = await db
+      .insert(invoiceItemsTable)
+      .values({
+        invoiceId: invoice.id,
+        productId: product.id,
+        productName: item.productName,
+        quantity: item.quantity.toString(),
+        unit: item.unit,
+        unitPrice: item.unitPrice.toString(),
+        totalPrice: item.totalPrice.toString(),
+        vatRate: item.vatRate != null ? item.vatRate.toString() : null,
+      })
+      .returning();
 
-      return {
-        ...invoiceItem,
-        quantity: parseFloat(invoiceItem.quantity),
-        unitPrice: parseFloat(invoiceItem.unitPrice),
-        totalPrice: parseFloat(invoiceItem.totalPrice),
-        vatRate: invoiceItem.vatRate != null ? parseFloat(invoiceItem.vatRate) : null,
-      };
-    }),
-  );
+    insertedItems.push({
+      ...invoiceItem,
+      quantity: parseFloat(invoiceItem.quantity),
+      unitPrice: parseFloat(invoiceItem.unitPrice),
+      totalPrice: parseFloat(invoiceItem.totalPrice),
+      vatRate: invoiceItem.vatRate != null ? parseFloat(invoiceItem.vatRate) : null,
+    });
+  }
 
   res.status(201).json({
     ...invoice,
