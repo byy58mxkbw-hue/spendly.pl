@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Package, FileText, Bell, LogOut, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, Package, FileText, Bell, LogOut, ChevronRight, BarChart2 } from "lucide-react";
 import { useUser, useClerk } from "@clerk/react";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ const navItems = [
   { path: "/products", label: "Produkty", icon: Package },
   { path: "/invoices", label: "Faktury", icon: FileText },
   { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
+  { path: "/reports", label: "Raporty", icon: BarChart2 },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

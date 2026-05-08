@@ -318,6 +318,52 @@ export const GetRecentPurchasesResponse = zod.array(
 );
 
 /**
+ * @summary Get monthly purchase report with supplier breakdown
+ */
+export const GetMonthlyReportQueryParams = zod.object({
+  month: zod.coerce
+    .string()
+    .optional()
+    .describe("Month in YYYY-MM format (defaults to current month)"),
+});
+
+export const GetMonthlyReportResponse = zod.object({
+  month: zod.string(),
+  totalSpend: zod.number(),
+  invoiceCount: zod.number(),
+  productCount: zod.number(),
+  suppliers: zod.array(
+    zod.object({
+      supplierId: zod.number(),
+      supplierName: zod.string(),
+      totalSpend: zod.number(),
+      invoiceCount: zod.number(),
+      productCount: zod.number(),
+      topProducts: zod.array(
+        zod.object({
+          productName: zod.string(),
+          unit: zod.string(),
+          totalQuantity: zod.number(),
+          avgPrice: zod.number(),
+          totalCost: zod.number(),
+          supplierName: zod.string().nullish(),
+        }),
+      ),
+    }),
+  ),
+  topProducts: zod.array(
+    zod.object({
+      productName: zod.string(),
+      unit: zod.string(),
+      totalQuantity: zod.number(),
+      avgPrice: zod.number(),
+      totalCost: zod.number(),
+      supplierName: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
  * @summary Get triggered price alerts for dashboard
  */
 export const GetDashboardActiveAlertsResponseItem = zod.object({

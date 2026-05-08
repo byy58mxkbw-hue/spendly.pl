@@ -398,6 +398,26 @@ paths:
                 items:
                   $ref: "#/components/schemas/RecentPurchase"
 
+  /reports/monthly:
+    get:
+      operationId: getMonthlyReport
+      tags: [reports]
+      summary: Get monthly purchase report with supplier breakdown
+      parameters:
+        - name: month
+          in: query
+          required: false
+          description: "Month in YYYY-MM format (defaults to current month)"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Monthly report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyReport"
+
   /dashboard/active-alerts:
     get:
       operationId: getDashboardActiveAlerts
@@ -784,6 +804,80 @@ components:
         - currentPrice
         - supplierName
         - purchaseDate
+
+    ReportProductRow:
+      type: object
+      properties:
+        productName:
+          type: string
+        unit:
+          type: string
+        totalQuantity:
+          type: number
+        avgPrice:
+          type: number
+        totalCost:
+          type: number
+        supplierName:
+          type: ["string", "null"]
+      required:
+        - productName
+        - unit
+        - totalQuantity
+        - avgPrice
+        - totalCost
+
+    ReportSupplierRow:
+      type: object
+      properties:
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+        totalSpend:
+          type: number
+        invoiceCount:
+          type: integer
+        productCount:
+          type: integer
+        topProducts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportProductRow"
+      required:
+        - supplierId
+        - supplierName
+        - totalSpend
+        - invoiceCount
+        - productCount
+        - topProducts
+
+    MonthlyReport:
+      type: object
+      properties:
+        month:
+          type: string
+        totalSpend:
+          type: number
+        invoiceCount:
+          type: integer
+        productCount:
+          type: integer
+        suppliers:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportSupplierRow"
+        topProducts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportProductRow"
+      required:
+        - month
+        - totalSpend
+        - invoiceCount
+        - productCount
+        - suppliers
+        - topProducts
 
     TriggeredAlert:
       type: object

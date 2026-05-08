@@ -14,6 +14,7 @@ import SupplierDetail from "@/pages/supplier-detail";
 import Products from "@/pages/products";
 import Invoices from "@/pages/invoices";
 import PriceAlerts from "@/pages/price-alerts";
+import Reports from "@/pages/reports";
 
 const queryClient = new QueryClient();
 
@@ -192,6 +193,9 @@ function AppRouter() {
             </Route>
             <Route path="/price-alerts">
               <ProtectedRoute><PriceAlerts /></ProtectedRoute>
+            </Route>
+            <Route path="/reports">
+              <ProtectedRoute><Reports /></ProtectedRoute>
             </Route>
             <Route component={NotFound} />
           </Switch>

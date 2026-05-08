@@ -188,6 +188,34 @@ export interface RecentPurchase {
   purchaseDate: string;
 }
 
+export interface ReportProductRow {
+  productName: string;
+  unit: string;
+  totalQuantity: number;
+  avgPrice: number;
+  totalCost: number;
+  /** @nullable */
+  supplierName?: string | null;
+}
+
+export interface ReportSupplierRow {
+  supplierId: number;
+  supplierName: string;
+  totalSpend: number;
+  invoiceCount: number;
+  productCount: number;
+  topProducts: ReportProductRow[];
+}
+
+export interface MonthlyReport {
+  month: string;
+  totalSpend: number;
+  invoiceCount: number;
+  productCount: number;
+  suppliers: ReportSupplierRow[];
+  topProducts: ReportProductRow[];
+}
+
 export interface TriggeredAlert {
   productName: string;
   /** @nullable */
@@ -226,4 +254,11 @@ export type GetFoodCostMonthlyParams = {
 
 export type GetRecentPurchasesParams = {
   limit?: number;
+};
+
+export type GetMonthlyReportParams = {
+  /**
+   * Month in YYYY-MM format (defaults to current month)
+   */
+  month?: string;
 };
