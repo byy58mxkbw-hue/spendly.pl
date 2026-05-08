@@ -73,7 +73,10 @@ router.get("/products", async (req, res): Promise<void> => {
     }),
   );
 
-  res.json(enriched.filter((p) => !category || p.category === category));
+  // Only return products that have at least one purchase (have a supplier linked)
+  res.json(
+    enriched.filter((p) => p.supplierName != null && (!category || p.category === category))
+  );
 });
 
 router.get("/products/top-price-changes", async (req, res): Promise<void> => {
