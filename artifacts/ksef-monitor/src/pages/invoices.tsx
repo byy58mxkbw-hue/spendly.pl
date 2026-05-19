@@ -42,7 +42,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Plus, FileText, Trash2, Upload, CheckCircle2, AlertCircle, Package,
-  ChevronUp, ChevronDown, ChevronsUpDown,
+  ChevronUp, ChevronDown, ChevronsUpDown, Search, X,
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -175,6 +175,7 @@ export default function Invoices() {
 
   // Filter & sort state
   const [activeSupplier, setActiveSupplier] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("invoiceDate");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -281,6 +282,15 @@ export default function Invoices() {
       ? invoices.filter((inv) => inv.supplierId === activeSupplier)
       : invoices;
 
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (inv) =>
+          inv.invoiceNumber.toLowerCase().includes(q) ||
+          inv.supplierName.toLowerCase().includes(q)
+      );
+    }
+
     list = [...list].sort((a, b) => {
       let cmp = 0;
       if (sortField === "invoiceDate") {
@@ -296,7 +306,7 @@ export default function Invoices() {
     });
 
     return list;
-  }, [invoices, activeSupplier, sortField, sortDir]);
+  }, [invoices, activeSupplier, searchQuery, sortField, sortDir]);
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
@@ -322,6 +332,31 @@ export default function Invoices() {
             </Button>
           }
         />
+
+        {/* Search by invoice number or supplier */}
+        {!isLoading && (invoices?.length ?? 0) > 0 && (
+          <div className="relative max-w-md mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              type="search"
+              placeholder="Szukaj po numerze faktury lub dostawcy..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-9"
+              data-testid="input-search-invoices"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                aria-label="Wyczyść wyszukiwanie"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Supplier filter pills */}
         {!isLoading && supplierList.length > 1 && (
