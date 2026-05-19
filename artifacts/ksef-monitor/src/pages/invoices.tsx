@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useListInvoices,
@@ -40,11 +40,15 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, FileText, Trash2, Upload, CheckCircle2, AlertCircle, Package } from "lucide-react";
+import {
+  Plus, FileText, Trash2, Upload, CheckCircle2, AlertCircle, Package,
+  ChevronUp, ChevronDown, ChevronsUpDown,
+} from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-// --- Client-side KSeF XML preview parser ---
+// ─── Client-side KSeF XML preview parser ────────────────────────────────────
+
 interface ParsedItem {
   productName: string;
   quantity: number;
@@ -126,7 +130,20 @@ function parseXmlPreview(xml: string): XmlPreview | null {
     return null;
   }
 }
-// ---
+
+// ─── Sorting ────────────────────────────────────────────────────────────────
+
+type SortField = "invoiceDate" | "importedAt" | "supplierName" | "totalAmount";
+type SortDir = "asc" | "desc";
+
+function SortIcon({ field, activeField, dir }: { field: SortField; activeField: SortField; dir: SortDir }) {
+  if (field !== activeField) return <ChevronsUpDown className="w-3 h-3 ml-0.5 text-muted-foreground/40 inline" />;
+  return dir === "asc"
+    ? <ChevronUp className="w-3 h-3 ml-0.5 text-primary inline" />
+    : <ChevronDown className="w-3 h-3 ml-0.5 text-primary inline" />;
+}
+
+// ─── Form schema ─────────────────────────────────────────────────────────────
 
 const importSchema = z.object({
   supplierId: z.string().min(1, "Wybierz dostawcę"),
@@ -136,6 +153,8 @@ const importSchema = z.object({
 });
 
 type ImportFormValues = z.infer<typeof importSchema>;
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function Invoices() {
   const queryClient = useQueryClient();
@@ -147,6 +166,11 @@ export default function Invoices() {
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [xmlPreview, setXmlPreview] = useState<XmlPreview | null>(null);
+
+  // Filter & sort state
+  const [activeSupplier, setActiveSupplier] = useState<number | null>(null);
+  const [sortField, setSortField] = useState<SortField>("invoiceDate");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const form = useForm<ImportFormValues>({
     resolver: zodResolver(importSchema),
@@ -163,7 +187,6 @@ export default function Invoices() {
     const preview = parseXmlPreview(xml);
     setXmlPreview(preview);
     if (preview) {
-      // Auto-fill fields if empty
       if (preview.invoiceNumber && !form.getValues("invoiceNumber")) {
         form.setValue("invoiceNumber", preview.invoiceNumber);
       }
@@ -207,6 +230,51 @@ export default function Invoices() {
     );
   }
 
+  // Unique suppliers from invoice list (preserves order by name)
+  const supplierList = useMemo(() => {
+    if (!invoices) return [];
+    const seen = new Map<number, string>();
+    invoices.forEach((inv) => {
+      if (!seen.has(inv.supplierId)) seen.set(inv.supplierId, inv.supplierName);
+    });
+    return Array.from(seen.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pl"));
+  }, [invoices]);
+
+  // Filtered + sorted invoices
+  const displayedInvoices = useMemo(() => {
+    if (!invoices) return [];
+    let list = activeSupplier != null
+      ? invoices.filter((inv) => inv.supplierId === activeSupplier)
+      : invoices;
+
+    list = [...list].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === "invoiceDate") {
+        cmp = a.invoiceDate.localeCompare(b.invoiceDate);
+      } else if (sortField === "importedAt") {
+        cmp = a.importedAt.localeCompare(b.importedAt);
+      } else if (sortField === "supplierName") {
+        cmp = a.supplierName.localeCompare(b.supplierName, "pl");
+      } else if (sortField === "totalAmount") {
+        cmp = a.totalAmount - b.totalAmount;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return list;
+  }, [invoices, activeSupplier, sortField, sortDir]);
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+  }
+
   const xmlContent = form.watch("xmlContent");
   const isValidXml = xmlContent && xmlContent.trim().length > 0;
 
@@ -223,55 +291,141 @@ export default function Invoices() {
           }
         />
 
+        {/* Supplier filter pills */}
+        {!isLoading && supplierList.length > 1 && (
+          <div className="flex items-center gap-1.5 flex-wrap mb-4">
+            <button
+              onClick={() => setActiveSupplier(null)}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                activeSupplier === null
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              )}
+            >
+              Wszyscy
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full",
+                activeSupplier === null ? "bg-white/20" : "bg-muted"
+              )}>
+                {invoices?.length ?? 0}
+              </span>
+            </button>
+
+            {supplierList.map((s) => {
+              const count = invoices?.filter((inv) => inv.supplierId === s.id).length ?? 0;
+              const isActive = activeSupplier === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setActiveSupplier(isActive ? null : s.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  )}
+                >
+                  {s.name}
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-full",
+                    isActive ? "bg-white/20" : "bg-muted"
+                  )}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Table */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-6 py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30">
+          {/* Column headers with sort */}
+          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30 select-none">
             <div className="w-8"></div>
             <div>Faktura</div>
-            <div className="text-right w-36">Dostawca</div>
-            <div className="text-right w-24">Data</div>
-            <div className="text-right w-28">Kwota</div>
+            <button
+              className="text-right w-32 hover:text-foreground transition-colors cursor-pointer flex items-center justify-end gap-0.5"
+              onClick={() => toggleSort("supplierName")}
+            >
+              Dostawca <SortIcon field="supplierName" activeField={sortField} dir={sortDir} />
+            </button>
+            <button
+              className="text-right w-24 hover:text-foreground transition-colors cursor-pointer flex items-center justify-end gap-0.5"
+              onClick={() => toggleSort("invoiceDate")}
+            >
+              Data faktury <SortIcon field="invoiceDate" activeField={sortField} dir={sortDir} />
+            </button>
+            <button
+              className="text-right w-32 hover:text-foreground transition-colors cursor-pointer flex items-center justify-end gap-0.5"
+              onClick={() => toggleSort("importedAt")}
+            >
+              Dodano <SortIcon field="importedAt" activeField={sortField} dir={sortDir} />
+            </button>
+            <button
+              className="text-right w-28 hover:text-foreground transition-colors cursor-pointer flex items-center justify-end gap-0.5"
+              onClick={() => toggleSort("totalAmount")}
+            >
+              Kwota <SortIcon field="totalAmount" activeField={sortField} dir={sortDir} />
+            </button>
             <div className="w-8"></div>
           </div>
 
           {isLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-6 py-4 items-center">
+                <div key={i} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-4 items-center">
                   <Skeleton className="w-8 h-8 rounded-lg" />
                   <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="w-6 h-6 rounded" />
                 </div>
               ))}
             </div>
-          ) : invoices && invoices.length > 0 ? (
+          ) : displayedInvoices.length > 0 ? (
             <div className="divide-y divide-border">
-              {invoices.map((invoice) => (
+              {displayedInvoices.map((invoice) => (
                 <div
                   key={invoice.id}
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 px-6 py-4 items-center hover:bg-secondary/40 transition-colors group"
+                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-4 items-center hover:bg-secondary/40 transition-colors group"
                   data-testid={`invoice-row-${invoice.id}`}
                 >
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     <FileText className="w-4 h-4" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{invoice.invoiceNumber}</p>
+
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{invoice.invoiceNumber}</p>
                     <p className="text-xs text-muted-foreground">{invoice.itemCount} pozycji</p>
                   </div>
-                  <div className="text-right w-36">
-                    <p className="text-sm text-foreground truncate max-w-[140px]">{invoice.supplierName}</p>
+
+                  <div className="text-right w-32">
+                    <p className="text-sm text-foreground truncate max-w-[128px]">{invoice.supplierName}</p>
                   </div>
+
                   <div className="text-right w-24">
                     <p className="text-sm text-muted-foreground">{formatDate(invoice.invoiceDate)}</p>
                   </div>
+
+                  <div className="text-right w-32">
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(invoice.importedAt).toLocaleDateString("pl-PL")}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/60">
+                      {new Date(invoice.importedAt).toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+
                   <div className="text-right w-28">
                     <p className="text-sm font-semibold text-foreground">{formatPrice(invoice.totalAmount)}</p>
                   </div>
+
                   <button
-                    className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
+                    className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all shrink-0"
                     onClick={() => setDeleteId(invoice.id)}
                     data-testid={`btn-delete-invoice-${invoice.id}`}
                   >
@@ -279,6 +433,18 @@ export default function Invoices() {
                   </button>
                 </div>
               ))}
+            </div>
+          ) : invoices && invoices.length > 0 ? (
+            // Has invoices but none match the active supplier filter
+            <div className="py-12 text-center">
+              <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-foreground font-medium mb-1">Brak faktur dla tego dostawcy</p>
+              <button
+                className="text-xs text-primary hover:underline"
+                onClick={() => setActiveSupplier(null)}
+              >
+                Pokaż wszystkie
+              </button>
             </div>
           ) : (
             <div className="py-16 text-center">
@@ -292,6 +458,24 @@ export default function Invoices() {
               </Button>
             </div>
           )}
+
+          {/* Footer summary */}
+          {!isLoading && displayedInvoices.length > 0 && (
+            <div className="px-6 py-3 border-t border-border bg-secondary/20 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {displayedInvoices.length} {displayedInvoices.length === 1 ? "faktura" : displayedInvoices.length < 5 ? "faktury" : "faktur"}
+                {activeSupplier != null && (
+                  <> · <button className="text-primary hover:underline" onClick={() => setActiveSupplier(null)}>wyczyść filtr</button></>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Łącznie:{" "}
+                <span className="font-semibold text-foreground">
+                  {formatPrice(displayedInvoices.reduce((s, inv) => s + inv.totalAmount, 0))}
+                </span>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Import dialog */}
@@ -302,7 +486,6 @@ export default function Invoices() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                {/* XML first — auto-fills below */}
                 <FormField
                   control={form.control}
                   name="xmlContent"
@@ -337,7 +520,6 @@ export default function Invoices() {
                   )}
                 />
 
-                {/* XML Preview */}
                 {xmlPreview && xmlPreview.items.length > 0 && (
                   <div className="rounded-lg border border-border bg-secondary/30 overflow-hidden">
                     <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
