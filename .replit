@@ -37,3 +37,8 @@ externalPort = 80
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+KSEF_ENCRYPTION_KEY = "/OkLi6CUr/IQLm4TMgXLBHKduCGK4USD4Hv0+WpCmnPOf7HD6KHQFd9fqUrD0eij"
