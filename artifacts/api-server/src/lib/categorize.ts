@@ -2,6 +2,40 @@ type CategoryRule = { id: string; keywords: string[] };
 
 const CATEGORY_RULES: CategoryRule[] = [
   {
+    id: "alkohole",
+    keywords: [
+      // Piwo
+      "piwo", "piwa", "piwem", "piw ", "lager", "ale ", "ipa ", "porter",
+      "stout", "weizen", "bock", "wheat beer", "craft beer", "bz ", "bz",
+      "litovel", "tyskie", "żywiec", "lech ", "heineken", "carlsberg",
+      "desperados", "corona ", "budweiser", "hoegaarden", "leffe",
+      // Wino
+      "wino ", "wina ", "win ", "vino", "rouge", "blanc", "rosé",
+      "primitivo", "sauvignon", "chardonnay", "merlot", "cabernet",
+      "pinot", "shiraz", "riesling", "sangiovese", "tempranillo",
+      "prosecco", "cava ", "szampan", "szampana", "igrist",
+      "igt ", "doc ", "aoc ", "dop ", "cz/w", "b/w", "b/wyt",
+      "b/pw", "cz/pw", "czerwone wino", "białe wino",
+      // Mocne alkohole
+      "wódka", "wódki", "vodka", "wyborowa", "absolut", "belvedere",
+      "żubrówka", "sobieski", "finlandia", "stanislav", "bols ",
+      "whisky", "whiskey", "bourbon", "scotch", "rum ", "rumu ",
+      "tequila", "mezcal", "gin ", "gins", "cognac", "koniak",
+      "brandy", "calvados", "armagnac", "grappa", "schnaps",
+      "spirytus", "bimber", "nalewka", "nalewki",
+      // Likiery
+      "likier", "likieru", "liqueur", "triple sec", "creme de",
+      "aperol", "campari", "amaretto", "baileys", "kahlua",
+      "grand marnier", "drambuie", "tatratea", "jagermeister",
+      "becherovka", "fernet", "chartreuse", "cointreau",
+      "sambuca", "limoncello", "wermut", "vermouth", "bitter",
+      // Cydr
+      "cydr", "cyder", "cider",
+      // Ogólne
+      "alkohol", "alcopop",
+    ],
+  },
+  {
     id: "miesa",
     keywords: [
       "kurczak", "kurczaka", "wieprzow", "wołow", "wołowina", "wołowe",
@@ -49,15 +83,14 @@ const CATEGORY_RULES: CategoryRule[] = [
     id: "napoje",
     keywords: [
       "woda ", "wody ", "sok ", "soku ", "sokow", "napój", "napoje",
-      "piwo", "wino ", "wina ", "win ", "kawa", "kawow", "herbata", "herbat",
+      "kawa", "kawow", "herbata", "herbat",
       "lemoniada", "shake", "syrop", "syropu", "energetyk", "isotonic",
       "mineraln", "gazowany", "niegazowany",
-      // Marki
+      // Marki napojów bezalkoholowych
       "coca-cola", "coca cola", "fanta", "sprite", "sprit", "cappy",
       "kinley", "tymb ", "tymbark", "schweppes", "pepsi", "7up", "mirinda",
       "lipton", "nestea", "red bull", "monster ", "powerade", "gatorade",
       "rgb x24", "0,25 rgb", "butelka szk", "but szk", "drs ", "nektar ",
-      "igrist", "szampan", "prosecco", "nalewka",
     ],
   },
   {
