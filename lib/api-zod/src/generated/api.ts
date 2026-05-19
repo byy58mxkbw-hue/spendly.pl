@@ -116,8 +116,41 @@ export const ListProductsResponseItem = zod.object({
   supplierId: zod.number().nullish(),
   supplierName: zod.string().nullish(),
   lastPurchaseDate: zod.string().nullish(),
+  supplierCount: zod.number().optional(),
 });
 export const ListProductsResponse = zod.array(ListProductsResponseItem);
+
+/**
+ * @summary Compare prices across suppliers for a product
+ */
+export const GetProductSupplierComparisonParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetProductSupplierComparisonResponse = zod.object({
+  productId: zod.number(),
+  productName: zod.string(),
+  unit: zod.string(),
+  supplierCount: zod.number(),
+  suppliers: zod.array(
+    zod.object({
+      supplierId: zod.number(),
+      supplierName: zod.string(),
+      latestPrice: zod.number(),
+      avgPrice: zod.number(),
+      minPrice: zod.number(),
+      maxPrice: zod.number(),
+      purchaseCount: zod.number(),
+      lastPurchaseDate: zod.string(),
+      priceHistory: zod.array(
+        zod.object({
+          date: zod.string(),
+          price: zod.number(),
+        }),
+      ),
+    }),
+  ),
+});
 
 /**
  * @summary Get price history for a product

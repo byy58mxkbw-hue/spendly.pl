@@ -39,6 +39,7 @@ import type {
   Product,
   RecentPurchase,
   Supplier,
+  SupplierComparison,
   TriggeredAlert,
   UpdateSupplierBody,
 } from "./api.schemas";
@@ -633,6 +634,98 @@ export function useListProducts<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListProductsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Compare prices across suppliers for a product
+ */
+export const getGetProductSupplierComparisonUrl = (id: number) => {
+  return `/api/products/${id}/supplier-comparison`;
+};
+
+export const getProductSupplierComparison = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SupplierComparison> => {
+  return customFetch<SupplierComparison>(
+    getGetProductSupplierComparisonUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetProductSupplierComparisonQueryKey = (id: number) => {
+  return [`/api/products/${id}/supplier-comparison`] as const;
+};
+
+export const getGetProductSupplierComparisonQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProductSupplierComparison>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProductSupplierComparison>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetProductSupplierComparisonQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getProductSupplierComparison>>
+  > = ({ signal }) =>
+    getProductSupplierComparison(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProductSupplierComparison>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProductSupplierComparisonQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProductSupplierComparison>>
+>;
+export type GetProductSupplierComparisonQueryError = ErrorType<void>;
+
+/**
+ * @summary Compare prices across suppliers for a product
+ */
+
+export function useGetProductSupplierComparison<
+  TData = Awaited<ReturnType<typeof getProductSupplierComparison>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProductSupplierComparison>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProductSupplierComparisonQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -155,6 +155,27 @@ paths:
                 items:
                   $ref: "#/components/schemas/Product"
 
+  /products/{id}/supplier-comparison:
+    get:
+      operationId: getProductSupplierComparison
+      tags: [products]
+      summary: Compare prices across suppliers for a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Supplier comparison data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierComparison"
+        "404":
+          description: Not found
+
   /products/{id}/price-history:
     get:
       operationId: getProductPriceHistory
@@ -526,10 +547,79 @@ components:
           type: ["string", "null"]
         lastPurchaseDate:
           type: ["string", "null"]
+        supplierCount:
+          type: integer
       required:
         - id
         - name
         - unit
+
+    SupplierComparisonPricePoint:
+      type: object
+      properties:
+        date:
+          type: string
+        price:
+          type: number
+      required:
+        - date
+        - price
+
+    SupplierComparisonEntry:
+      type: object
+      properties:
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+        latestPrice:
+          type: number
+        avgPrice:
+          type: number
+        minPrice:
+          type: number
+        maxPrice:
+          type: number
+        purchaseCount:
+          type: integer
+        lastPurchaseDate:
+          type: string
+        priceHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupplierComparisonPricePoint"
+      required:
+        - supplierId
+        - supplierName
+        - latestPrice
+        - avgPrice
+        - minPrice
+        - maxPrice
+        - purchaseCount
+        - lastPurchaseDate
+        - priceHistory
+
+    SupplierComparison:
+      type: object
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        unit:
+          type: string
+        supplierCount:
+          type: integer
+        suppliers:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupplierComparisonEntry"
+      required:
+        - productId
+        - productName
+        - unit
+        - supplierCount
+        - suppliers
 
     PriceHistoryEntry:
       type: object

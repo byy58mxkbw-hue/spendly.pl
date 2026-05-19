@@ -63,6 +63,32 @@ export interface Product {
   supplierName?: string | null;
   /** @nullable */
   lastPurchaseDate?: string | null;
+  supplierCount?: number;
+}
+
+export interface SupplierComparisonPricePoint {
+  date: string;
+  price: number;
+}
+
+export interface SupplierComparisonEntry {
+  supplierId: number;
+  supplierName: string;
+  latestPrice: number;
+  avgPrice: number;
+  minPrice: number;
+  maxPrice: number;
+  purchaseCount: number;
+  lastPurchaseDate: string;
+  priceHistory: SupplierComparisonPricePoint[];
+}
+
+export interface SupplierComparison {
+  productId: number;
+  productName: string;
+  unit: string;
+  supplierCount: number;
+  suppliers: SupplierComparisonEntry[];
 }
 
 export interface PriceHistoryEntry {
