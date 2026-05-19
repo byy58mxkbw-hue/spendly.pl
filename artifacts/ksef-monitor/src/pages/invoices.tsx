@@ -159,7 +159,7 @@ type ImportFormValues = z.infer<typeof importSchema>;
 export default function Invoices() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: invoices, isLoading } = useListInvoices();
+  const { data: invoices, isLoading } = useListInvoices({ limit: 1000 });
   const { data: suppliers } = useListSuppliers();
   const importInvoice = useImportInvoice();
   const deleteInvoice = useDeleteInvoice();
