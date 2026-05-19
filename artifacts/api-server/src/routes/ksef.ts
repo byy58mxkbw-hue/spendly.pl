@@ -170,6 +170,24 @@ interface MatchResult {
   missingProducts: string[];
 }
 
+async function findOrCreateProductByName(
+  name: string,
+  unit: string,
+): Promise<number> {
+  const trimmed = name.trim();
+  const [existing] = await db
+    .select({ id: productsTable.id })
+    .from(productsTable)
+    .where(sql`LOWER(${productsTable.name}) = LOWER(${trimmed})`)
+    .limit(1);
+  if (existing) return existing.id;
+  const [created] = await db
+    .insert(productsTable)
+    .values({ name: trimmed, unit: unit?.trim() || "szt" })
+    .returning({ id: productsTable.id });
+  return created.id;
+}
+
 async function tryMatch(parsed: ParsedFa3): Promise<MatchResult> {
   const sellerNip = parsed.header.sellerNip ?? "";
   let supplier: { id: number; name: string } | null = null;
@@ -368,12 +386,23 @@ async function runSync(
       const parsed = parseFA3Xml(xml, ref.ksefReferenceNumber);
 
       const match = await tryMatch(parsed);
-      const allProductsMatched =
-        match.supplier !== null &&
-        parsed.items.length > 0 &&
-        match.itemProductIds.every((id) => id != null);
+      const canAutoImport =
+        match.supplier !== null && parsed.items.length > 0;
 
-      if (allProductsMatched && match.supplier) {
+      if (canAutoImport && match.supplier) {
+        // Auto-create any missing products so we don't block import on them.
+        const resolvedProductIds: number[] = [];
+        for (let i = 0; i < parsed.items.length; i++) {
+          let pid = match.itemProductIds[i];
+          if (pid == null) {
+            pid = await findOrCreateProductByName(
+              parsed.items[i].name,
+              parsed.items[i].unit,
+            );
+          }
+          resolvedProductIds.push(pid);
+        }
+
         await db.transaction(async (tx) => {
           const totalAmount =
             parsed.header.totalGross ??
@@ -397,10 +426,9 @@ async function runSync(
 
           for (let i = 0; i < parsed.items.length; i++) {
             const item = parsed.items[i];
-            const productId = match.itemProductIds[i]!;
             await tx.insert(invoiceItemsTable).values({
               invoiceId: inv.id,
-              productId,
+              productId: resolvedProductIds[i],
               productName: item.name,
               quantity: item.quantity.toString(),
               unit: item.unit,
@@ -451,6 +479,76 @@ async function runSync(
       const msg = `Faktura ${ref.ksefReferenceNumber}: ${m.message}`;
       summary.errors.push(msg);
       req.log.error({ ksefRef: ref.ksefReferenceNumber, err: describeDbErr(err) }, "KSeF per-invoice fetch failed");
+    }
+  }
+
+  // Retry existing pending invoices: if a supplier was added in the meantime,
+  // auto-create any missing products and import them now. Failures here are
+  // tracked separately so a bad legacy pending row cannot stall the watermark.
+  let pendingRetryFailed = 0;
+  const stillPending = await db
+    .select()
+    .from(ksefPendingInvoicesTable)
+    .where(eq(ksefPendingInvoicesTable.status, "pending"));
+  for (const row of stillPending) {
+    try {
+      const parsed = row.parsedJson as ParsedFa3;
+      if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) continue;
+      const match = await tryMatch(parsed);
+      if (!match.supplier) continue;
+
+      const resolvedProductIds: number[] = [];
+      for (let i = 0; i < parsed.items.length; i++) {
+        let pid = match.itemProductIds[i];
+        if (pid == null) {
+          pid = await findOrCreateProductByName(parsed.items[i].name, parsed.items[i].unit);
+        }
+        resolvedProductIds.push(pid);
+      }
+
+      const totalAmount =
+        parsed.header.totalGross ?? parsed.items.reduce((s, i) => s + i.gross, 0);
+
+      await db.transaction(async (tx) => {
+        const inserted = await tx
+          .insert(invoicesTable)
+          .values({
+            supplierId: match.supplier!.id,
+            invoiceNumber: parsed.header.invoiceNumber ?? row.ksefNumber,
+            invoiceDate: parsed.header.invoiceDate ?? isoDate(now),
+            totalAmount: totalAmount.toFixed(2),
+            xmlContent: row.rawXml,
+            ksefNumber: row.ksefNumber,
+          })
+          .onConflictDoNothing({ target: invoicesTable.ksefNumber })
+          .returning();
+        const inv = inserted[0];
+        if (inv) {
+          for (let i = 0; i < parsed.items.length; i++) {
+            const item = parsed.items[i];
+            await tx.insert(invoiceItemsTable).values({
+              invoiceId: inv.id,
+              productId: resolvedProductIds[i],
+              productName: item.name,
+              quantity: item.quantity.toString(),
+              unit: item.unit,
+              unitPrice: item.unitPrice.toString(),
+              totalPrice: item.net.toString(),
+              vatRate: item.vatRate != null ? item.vatRate.toString() : null,
+            });
+          }
+        }
+        await tx
+          .update(ksefPendingInvoicesTable)
+          .set({ status: "accepted" })
+          .where(eq(ksefPendingInvoicesTable.id, row.id));
+      });
+      summary.imported++;
+      summary.pending = Math.max(0, summary.pending - 1);
+    } catch (err) {
+      pendingRetryFailed++;
+      summary.errors.push(`Pending ${row.ksefNumber}: ${mapKsefError(err).message}`);
+      req.log.error({ pendingId: row.id, err: describeDbErr(err) }, "KSeF pending retry failed");
     }
   }
 
