@@ -5,7 +5,6 @@ import {
   useImportInvoice,
   useListSuppliers,
   useDeleteInvoice,
-  getListInvoicesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -216,7 +215,9 @@ export default function Invoices() {
       },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+          // Importing an invoice affects suppliers (invoice counts), products,
+          // dashboard summary, reports etc. — invalidate everything to be safe.
+          queryClient.invalidateQueries();
           setShowImport(false);
           setXmlPreview(null);
           setDuplicateConflict(null);
@@ -256,7 +257,8 @@ export default function Invoices() {
       { id: deleteId },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+          // Deleting affects suppliers, products, dashboard, reports etc.
+          queryClient.invalidateQueries();
           setDeleteId(null);
         },
       }
