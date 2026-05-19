@@ -7,6 +7,7 @@ import {
   GetInvoiceParams,
   DeleteInvoiceParams,
 } from "@workspace/api-zod";
+import { categorizeProduct } from "../lib/categorize";
 
 const router: IRouter = Router();
 
@@ -209,13 +210,14 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   }> = [];
 
   for (const item of parsedItems) {
-    // Upsert product: insert if not exists, return existing on conflict
+    // Upsert product: insert if not exists, assign category automatically
+    const category = categorizeProduct(item.productName);
     const [product] = await db
       .insert(productsTable)
-      .values({ name: item.productName, unit: item.unit })
+      .values({ name: item.productName, unit: item.unit, category })
       .onConflictDoUpdate({
         target: productsTable.name,
-        set: { unit: item.unit },
+        set: { unit: item.unit, category },
       })
       .returning();
 

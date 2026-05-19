@@ -59,6 +59,8 @@ async function buildAll() {
       "@prisma/client",
       "@mikro-orm/*",
       "@grpc/*",
+      "@clerk/shared",
+      "@clerk/shared/*",
       "@swc/*",
       "@aws-sdk/*",
       "@azure/*",
