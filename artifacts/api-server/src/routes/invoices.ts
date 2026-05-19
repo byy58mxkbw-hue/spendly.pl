@@ -184,8 +184,31 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   const parsedItems = parsed2?.items ?? [];
 
   // Use XML-extracted values as fallback when not provided by user
+  const hasExplicitNumber = Boolean(invoiceNumber || parsed2?.invoiceNumber);
   const finalInvoiceNumber = invoiceNumber || parsed2?.invoiceNumber || `FV/${Date.now()}`;
   const finalInvoiceDate = invoiceDate || parsed2?.invoiceDate || new Date().toISOString().split("T")[0];
+
+  // Duplicate detection: same supplier + same invoice number = already imported
+  if (hasExplicitNumber) {
+    const [existing] = await db
+      .select({ id: invoicesTable.id, importedAt: invoicesTable.importedAt })
+      .from(invoicesTable)
+      .where(
+        and(
+          eq(invoicesTable.supplierId, supplierId),
+          eq(invoicesTable.invoiceNumber, finalInvoiceNumber),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      res.status(409).json({
+        error: `Faktura "${finalInvoiceNumber}" od dostawcy ${supplier.name} została już zaimportowana ${new Date(existing.importedAt).toLocaleString("pl-PL")}.`,
+        existingInvoiceId: existing.id,
+      });
+      return;
+    }
+  }
 
   // Use XML total if available and no items parsed (e.g. just header)
   const calculatedTotal = parsedItems.reduce((sum, item) => sum + item.totalPrice, 0);

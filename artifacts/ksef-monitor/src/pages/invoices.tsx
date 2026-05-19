@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 // ─── Client-side KSeF XML preview parser ────────────────────────────────────
 
@@ -158,6 +159,7 @@ type ImportFormValues = z.infer<typeof importSchema>;
 
 export default function Invoices() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: invoices, isLoading } = useListInvoices();
   const { data: suppliers } = useListSuppliers();
   const importInvoice = useImportInvoice();
@@ -212,6 +214,22 @@ export default function Invoices() {
           setShowImport(false);
           setXmlPreview(null);
           form.reset();
+          toast({ title: "Faktura zaimportowana", description: "Pozycje zostały dodane do bazy." });
+        },
+        onError: (err: unknown) => {
+          // Surface server error message (e.g. duplicate invoice 409)
+          let message = "Nie udało się zaimportować faktury. Spróbuj ponownie.";
+          const e = err as { response?: { status?: number; data?: { error?: string } }; message?: string };
+          if (e?.response?.data?.error) {
+            message = e.response.data.error;
+          } else if (e?.message) {
+            message = e.message;
+          }
+          toast({
+            variant: "destructive",
+            title: e?.response?.status === 409 ? "Faktura już istnieje" : "Błąd importu",
+            description: message,
+          });
         },
       }
     );
