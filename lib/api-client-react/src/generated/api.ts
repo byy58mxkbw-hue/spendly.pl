@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AcceptKsefPendingBody,
   CreatePriceAlertBody,
   CreateSupplierBody,
   DashboardSummary,
@@ -29,7 +30,12 @@ import type {
   ImportInvoiceBody,
   Invoice,
   InvoiceWithItems,
+  KsefConfigView,
+  KsefPendingInvoiceDetail,
+  KsefPendingInvoiceSummary,
+  KsefSyncResult,
   ListInvoicesParams,
+  ListKsefPendingParams,
   ListProductsParams,
   MonthlyFoodCost,
   MonthlyReport,
@@ -41,6 +47,7 @@ import type {
   Supplier,
   SupplierComparison,
   TriggeredAlert,
+  UpdateKsefConfigBody,
   UpdateProductBody,
   UpdateSupplierBody,
 } from "./api.schemas";
@@ -2009,6 +2016,603 @@ export function useGetMonthlyReport<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get current KSeF configuration (masked token)
+ */
+export const getGetKsefConfigUrl = () => {
+  return `/api/ksef/config`;
+};
+
+export const getKsefConfig = async (
+  options?: RequestInit,
+): Promise<KsefConfigView | null> => {
+  return customFetch<KsefConfigView | null>(getGetKsefConfigUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetKsefConfigQueryKey = () => {
+  return [`/api/ksef/config`] as const;
+};
+
+export const getGetKsefConfigQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKsefConfig>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getKsefConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetKsefConfigQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getKsefConfig>>> = ({
+    signal,
+  }) => getKsefConfig({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getKsefConfig>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetKsefConfigQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getKsefConfig>>
+>;
+export type GetKsefConfigQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get current KSeF configuration (masked token)
+ */
+
+export function useGetKsefConfig<
+  TData = Awaited<ReturnType<typeof getKsefConfig>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getKsefConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetKsefConfigQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save/update KSeF NIP and authorization token
+ */
+export const getUpdateKsefConfigUrl = () => {
+  return `/api/ksef/config`;
+};
+
+export const updateKsefConfig = async (
+  updateKsefConfigBody: UpdateKsefConfigBody,
+  options?: RequestInit,
+): Promise<KsefConfigView | null> => {
+  return customFetch<KsefConfigView | null>(getUpdateKsefConfigUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateKsefConfigBody),
+  });
+};
+
+export const getUpdateKsefConfigMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateKsefConfig>>,
+    TError,
+    { data: BodyType<UpdateKsefConfigBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateKsefConfig>>,
+  TError,
+  { data: BodyType<UpdateKsefConfigBody> },
+  TContext
+> => {
+  const mutationKey = ["updateKsefConfig"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateKsefConfig>>,
+    { data: BodyType<UpdateKsefConfigBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateKsefConfig(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateKsefConfigMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateKsefConfig>>
+>;
+export type UpdateKsefConfigMutationBody = BodyType<UpdateKsefConfigBody>;
+export type UpdateKsefConfigMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save/update KSeF NIP and authorization token
+ */
+export const useUpdateKsefConfig = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateKsefConfig>>,
+    TError,
+    { data: BodyType<UpdateKsefConfigBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateKsefConfig>>,
+  TError,
+  { data: BodyType<UpdateKsefConfigBody> },
+  TContext
+> => {
+  return useMutation(getUpdateKsefConfigMutationOptions(options));
+};
+
+/**
+ * @summary Pull new buyer invoices from KSeF for the configured NIP
+ */
+export const getSyncKsefInvoicesUrl = () => {
+  return `/api/ksef/sync`;
+};
+
+export const syncKsefInvoices = async (
+  options?: RequestInit,
+): Promise<KsefSyncResult> => {
+  return customFetch<KsefSyncResult>(getSyncKsefInvoicesUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncKsefInvoicesMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncKsefInvoices>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncKsefInvoices>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["syncKsefInvoices"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncKsefInvoices>>,
+    void
+  > = () => {
+    return syncKsefInvoices(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncKsefInvoicesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncKsefInvoices>>
+>;
+
+export type SyncKsefInvoicesMutationError = ErrorType<void>;
+
+/**
+ * @summary Pull new buyer invoices from KSeF for the configured NIP
+ */
+export const useSyncKsefInvoices = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncKsefInvoices>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncKsefInvoices>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncKsefInvoicesMutationOptions(options));
+};
+
+/**
+ * @summary List invoices pulled from KSeF that need manual review
+ */
+export const getListKsefPendingUrl = (params?: ListKsefPendingParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/ksef/pending?${stringifiedParams}`
+    : `/api/ksef/pending`;
+};
+
+export const listKsefPending = async (
+  params?: ListKsefPendingParams,
+  options?: RequestInit,
+): Promise<KsefPendingInvoiceSummary[]> => {
+  return customFetch<KsefPendingInvoiceSummary[]>(
+    getListKsefPendingUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListKsefPendingQueryKey = (params?: ListKsefPendingParams) => {
+  return [`/api/ksef/pending`, ...(params ? [params] : [])] as const;
+};
+
+export const getListKsefPendingQueryOptions = <
+  TData = Awaited<ReturnType<typeof listKsefPending>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListKsefPendingParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listKsefPending>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListKsefPendingQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listKsefPending>>> = ({
+    signal,
+  }) => listKsefPending(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listKsefPending>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListKsefPendingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listKsefPending>>
+>;
+export type ListKsefPendingQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List invoices pulled from KSeF that need manual review
+ */
+
+export function useListKsefPending<
+  TData = Awaited<ReturnType<typeof listKsefPending>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListKsefPendingParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listKsefPending>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListKsefPendingQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get one pending invoice with parsed items and matching suggestions
+ */
+export const getGetKsefPendingUrl = (id: number) => {
+  return `/api/ksef/pending/${id}`;
+};
+
+export const getKsefPending = async (
+  id: number,
+  options?: RequestInit,
+): Promise<KsefPendingInvoiceDetail> => {
+  return customFetch<KsefPendingInvoiceDetail>(getGetKsefPendingUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetKsefPendingQueryKey = (id: number) => {
+  return [`/api/ksef/pending/${id}`] as const;
+};
+
+export const getGetKsefPendingQueryOptions = <
+  TData = Awaited<ReturnType<typeof getKsefPending>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKsefPending>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetKsefPendingQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getKsefPending>>> = ({
+    signal,
+  }) => getKsefPending(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getKsefPending>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetKsefPendingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getKsefPending>>
+>;
+export type GetKsefPendingQueryError = ErrorType<void>;
+
+/**
+ * @summary Get one pending invoice with parsed items and matching suggestions
+ */
+
+export function useGetKsefPending<
+  TData = Awaited<ReturnType<typeof getKsefPending>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getKsefPending>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetKsefPendingQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Accept a pending invoice with user-provided supplier / product mapping
+ */
+export const getAcceptKsefPendingUrl = (id: number) => {
+  return `/api/ksef/pending/${id}/accept`;
+};
+
+export const acceptKsefPending = async (
+  id: number,
+  acceptKsefPendingBody: AcceptKsefPendingBody,
+  options?: RequestInit,
+): Promise<InvoiceWithItems> => {
+  return customFetch<InvoiceWithItems>(getAcceptKsefPendingUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(acceptKsefPendingBody),
+  });
+};
+
+export const getAcceptKsefPendingMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptKsefPending>>,
+    TError,
+    { id: number; data: BodyType<AcceptKsefPendingBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof acceptKsefPending>>,
+  TError,
+  { id: number; data: BodyType<AcceptKsefPendingBody> },
+  TContext
+> => {
+  const mutationKey = ["acceptKsefPending"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof acceptKsefPending>>,
+    { id: number; data: BodyType<AcceptKsefPendingBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return acceptKsefPending(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AcceptKsefPendingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof acceptKsefPending>>
+>;
+export type AcceptKsefPendingMutationBody = BodyType<AcceptKsefPendingBody>;
+export type AcceptKsefPendingMutationError = ErrorType<void>;
+
+/**
+ * @summary Accept a pending invoice with user-provided supplier / product mapping
+ */
+export const useAcceptKsefPending = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptKsefPending>>,
+    TError,
+    { id: number; data: BodyType<AcceptKsefPendingBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof acceptKsefPending>>,
+  TError,
+  { id: number; data: BodyType<AcceptKsefPendingBody> },
+  TContext
+> => {
+  return useMutation(getAcceptKsefPendingMutationOptions(options));
+};
+
+/**
+ * @summary Mark a pending invoice as rejected (kept for audit)
+ */
+export const getRejectKsefPendingUrl = (id: number) => {
+  return `/api/ksef/pending/${id}/reject`;
+};
+
+export const rejectKsefPending = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRejectKsefPendingUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRejectKsefPendingMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectKsefPending>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectKsefPending>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["rejectKsefPending"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectKsefPending>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return rejectKsefPending(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectKsefPendingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectKsefPending>>
+>;
+
+export type RejectKsefPendingMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark a pending invoice as rejected (kept for audit)
+ */
+export const useRejectKsefPending = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectKsefPending>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof rejectKsefPending>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getRejectKsefPendingMutationOptions(options));
+};
 
 /**
  * @summary Get triggered price alerts for dashboard

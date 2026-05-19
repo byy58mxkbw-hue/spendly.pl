@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Package, FileText, Bell, LogOut, ChevronRight, BarChart2 } from "lucide-react";
+import { LayoutDashboard, Users, Package, FileText, Bell, LogOut, ChevronRight, BarChart2, Inbox, Settings } from "lucide-react";
 import { useUser, useClerk } from "@clerk/react";
 import { cn } from "@/lib/utils";
 
@@ -8,8 +8,10 @@ const navItems = [
   { path: "/suppliers", label: "Dostawcy", icon: Users },
   { path: "/products", label: "Produkty", icon: Package },
   { path: "/invoices", label: "Faktury", icon: FileText },
+  { path: "/pending-invoices", label: "Do przeglądu", icon: Inbox },
   { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
   { path: "/reports", label: "Raporty", icon: BarChart2 },
+  { path: "/settings/ksef", label: "Ustawienia KSeF", icon: Settings },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

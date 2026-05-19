@@ -6,6 +6,7 @@ import invoicesRouter from "./invoices";
 import priceAlertsRouter from "./price-alerts";
 import dashboardRouter from "./dashboard";
 import reportsRouter from "./reports";
+import ksefRouter from "./ksef";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(invoicesRouter);
 router.use(priceAlertsRouter);
 router.use(dashboardRouter);
 router.use(reportsRouter);
+router.use(ksefRouter);
 
 export default router;

@@ -1,0 +1,375 @@
+import { useEffect, useMemo, useState } from "react";
+import { Layout, PageHeader } from "@/components/layout";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  useListKsefPending,
+  useGetKsefPending,
+  useAcceptKsefPending,
+  useRejectKsefPending,
+  useListSuppliers,
+  useListProducts,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { formatPrice, formatDate } from "@/lib/format";
+import { AlertTriangle, CheckCircle2, X, Inbox, ChevronDown, FileCode } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export default function PendingInvoices() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [status, setStatus] = useState<"pending" | "accepted" | "rejected">("pending");
+  const { data: pending, isLoading } = useListKsefPending({ status });
+  const [openId, setOpenId] = useState<number | null>(null);
+
+  return (
+    <Layout>
+      <div className="px-8 py-8">
+        <PageHeader
+          title="Faktury do przeglądu"
+          subtitle="Faktury pobrane z KSeF, dla których brakuje dopasowania dostawcy lub produktów"
+          action={
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Status:</span>
+              <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+                <SelectTrigger className="w-40" data-testid="select-pending-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Oczekujące</SelectItem>
+                  <SelectItem value="accepted">Zaakceptowane</SelectItem>
+                  <SelectItem value="rejected">Odrzucone</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          }
+        />
+
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          {isLoading ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="px-6 py-4 flex items-center gap-4">
+                  <Skeleton className="w-8 h-8 rounded-lg" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+              ))}
+            </div>
+          ) : (pending?.length ?? 0) === 0 ? (
+            <div className="py-16 text-center">
+              <Inbox className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-foreground font-medium mb-1">
+                {status === "pending"
+                  ? "Brak faktur do przeglądu"
+                  : status === "accepted"
+                    ? "Brak zaakceptowanych faktur"
+                    : "Brak odrzuconych faktur"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {status === "pending"
+                  ? "Wszystkie faktury z KSeF zostały dopasowane lub jeszcze nie wykonano synchronizacji."
+                  : "Faktury pojawią się tu po decyzji."}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {pending!.map((row) => (
+                <button
+                  key={row.id}
+                  onClick={() => setOpenId(row.id)}
+                  className="w-full px-6 py-4 flex items-start gap-4 hover:bg-secondary/40 transition-colors text-left"
+                  data-testid={`pending-row-${row.id}`}
+                >
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {row.invoiceNumber ?? row.ksefNumber}
+                      </p>
+                      <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                        KSeF: {row.ksefNumber.slice(-12)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {row.sellerName ?? "Nieznany dostawca"}
+                      {row.sellerNip ? ` · NIP ${row.sellerNip}` : ""}
+                      {row.invoiceDate ? ` · ${formatDate(row.invoiceDate)}` : ""}
+                    </p>
+                    <p className="text-xs text-amber-700 mt-1">{row.reason}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {row.totalGross != null && (
+                      <p className="text-sm font-semibold text-foreground">
+                        {formatPrice(row.totalGross)}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {new Date(row.createdAt).toLocaleDateString("pl-PL")}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {openId != null && (
+        <PendingDetailDialog
+          id={openId}
+          onClose={() => setOpenId(null)}
+          onActionDone={() => {
+            queryClient.invalidateQueries();
+            setOpenId(null);
+            toast({ title: "Zaktualizowano" });
+          }}
+        />
+      )}
+    </Layout>
+  );
+}
+
+function PendingDetailDialog({
+  id,
+  onClose,
+  onActionDone,
+}: {
+  id: number;
+  onClose: () => void;
+  onActionDone: () => void;
+}) {
+  const { toast } = useToast();
+  const { data: detail, isLoading } = useGetKsefPending(id);
+  const { data: suppliers } = useListSuppliers();
+  const { data: products } = useListProducts();
+  const accept = useAcceptKsefPending();
+  const reject = useRejectKsefPending();
+
+  const [supplierId, setSupplierId] = useState<string>("");
+  const [mapping, setMapping] = useState<Record<number, string>>({});
+  const [showXml, setShowXml] = useState(false);
+
+  useEffect(() => {
+    if (!detail) return;
+    if (detail.suggestedSupplierId != null) {
+      setSupplierId(String(detail.suggestedSupplierId));
+    }
+    const m: Record<number, string> = {};
+    detail.items.forEach((it, i) => {
+      if (it.suggestedProductId != null) m[i] = String(it.suggestedProductId);
+    });
+    setMapping(m);
+  }, [detail]);
+
+  const allMapped = useMemo(() => {
+    if (!detail) return false;
+    if (!supplierId) return false;
+    return detail.items.every((_, i) => mapping[i]);
+  }, [detail, supplierId, mapping]);
+
+  function onAccept() {
+    if (!detail || !supplierId) return;
+    accept.mutate(
+      {
+        id,
+        data: {
+          supplierId: parseInt(supplierId, 10),
+          itemMappings: detail.items.map((_, i) => ({
+            index: i,
+            productId: parseInt(mapping[i], 10),
+          })),
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Faktura zaimportowana", description: "Dodano do bazy." });
+          onActionDone();
+        },
+        onError: (err: unknown) => {
+          const e = err as { response?: { data?: { error?: string } }; message?: string };
+          toast({
+            variant: "destructive",
+            title: "Błąd",
+            description: e?.response?.data?.error ?? e?.message ?? "Nie udało się zaakceptować faktury.",
+          });
+        },
+      },
+    );
+  }
+
+  function onReject() {
+    reject.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          toast({ title: "Odrzucono fakturę" });
+          onActionDone();
+        },
+      },
+    );
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {detail?.invoiceNumber ?? detail?.ksefNumber ?? "Faktura KSeF"}
+          </DialogTitle>
+        </DialogHeader>
+
+        {isLoading || !detail ? (
+          <div className="space-y-3 py-4">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Numer KSeF</p>
+                <p className="font-mono text-xs">{detail.ksefNumber}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Data faktury</p>
+                <p>{formatDate(detail.invoiceDate)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Sprzedawca (z XML)</p>
+                <p>{detail.sellerName ?? "—"}</p>
+                {detail.sellerNip && (
+                  <p className="text-xs text-muted-foreground">NIP {detail.sellerNip}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Kwota brutto</p>
+                <p className="font-semibold">{formatPrice(detail.totalGross)}</p>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+              <strong>Powód:</strong> {detail.reason}
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Dopasuj dostawcę</label>
+              <Select value={supplierId} onValueChange={setSupplierId}>
+                <SelectTrigger data-testid="select-pending-supplier">
+                  <SelectValue placeholder="Wybierz dostawcę z bazy" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers?.map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.name}
+                      {s.taxId ? ` · NIP ${s.taxId}` : ""}
+                      {detail.suggestedSupplierId === s.id ? " (sugerowany)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Collapsible open={showXml} onOpenChange={setShowXml}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between px-3 py-2 border border-border rounded-lg text-sm hover:bg-secondary/50"
+                  data-testid="btn-toggle-raw-xml"
+                >
+                  <span className="flex items-center gap-2 text-foreground">
+                    <FileCode className="w-4 h-4 text-muted-foreground" />
+                    Podgląd surowego XML faktury
+                  </span>
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", showXml && "rotate-180")} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <pre className="mt-2 max-h-72 overflow-auto rounded-lg border border-border bg-secondary/30 p-3 text-[11px] font-mono leading-snug text-foreground whitespace-pre-wrap break-all" data-testid="pre-raw-xml">
+                  {detail.rawXml}
+                </pre>
+              </CollapsibleContent>
+            </Collapsible>
+
+            <div>
+              <p className="text-sm font-medium mb-2">Dopasuj produkty ({detail.items.length})</p>
+              <div className="rounded-lg border border-border divide-y divide-border">
+                {detail.items.map((item, i) => (
+                  <div key={i} className="px-4 py-3 grid grid-cols-[1fr_220px] gap-3 items-center">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.quantity} {item.unit} × {formatPrice(item.unitPrice)} = {formatPrice(item.gross)}
+                        {item.gtin ? ` · GTIN ${item.gtin}` : ""}
+                      </p>
+                    </div>
+                    <Select
+                      value={mapping[i] ?? ""}
+                      onValueChange={(v) => setMapping((m) => ({ ...m, [i]: v }))}
+                    >
+                      <SelectTrigger
+                        className={cn(!mapping[i] && "border-amber-300")}
+                        data-testid={`select-product-${i}`}
+                      >
+                        <SelectValue placeholder="Wybierz produkt" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products?.map((p) => (
+                          <SelectItem key={p.id} value={String(p.id)}>
+                            {p.name}
+                            {item.suggestedProductId === p.id ? " (sugerowany)" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={onReject}
+            disabled={reject.isPending || detail?.status !== "pending"}
+            data-testid="btn-reject-pending"
+          >
+            <X className="w-4 h-4 mr-1" /> Odrzuć
+          </Button>
+          <Button
+            onClick={onAccept}
+            disabled={!allMapped || accept.isPending || detail?.status !== "pending"}
+            data-testid="btn-accept-pending"
+          >
+            <CheckCircle2 className="w-4 h-4 mr-1" />
+            {accept.isPending ? "Importuję..." : "Zaakceptuj i zaimportuj"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

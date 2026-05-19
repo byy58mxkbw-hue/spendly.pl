@@ -5,7 +5,10 @@ import {
   useImportInvoice,
   useListSuppliers,
   useDeleteInvoice,
+  useSyncKsefInvoices,
+  useGetKsefConfig,
 } from "@workspace/api-client-react";
+import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,11 +44,85 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Plus, FileText, Trash2, Upload, CheckCircle2, AlertCircle, Package,
-  ChevronUp, ChevronDown, ChevronsUpDown, Search, X,
+  ChevronUp, ChevronDown, ChevronsUpDown, Search, X, RefreshCw,
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+
+// ─── KSeF sync button ───────────────────────────────────────────────────────
+
+function InvoicesHeaderActions({ onImportClick }: { onImportClick: () => void }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data: config } = useGetKsefConfig();
+  const sync = useSyncKsefInvoices();
+
+  function handleSync() {
+    if (!config) {
+      toast({
+        variant: "destructive",
+        title: "Brak konfiguracji",
+        description: "Przejdź do Ustawień KSeF i wpisz NIP oraz token.",
+      });
+      return;
+    }
+    sync.mutate(undefined, {
+      onSuccess: (res) => {
+        queryClient.invalidateQueries();
+        const errs = res.errors && res.errors.length > 0 ? ` Błędów: ${res.errors.length}.` : "";
+        toast({
+          title: "Synchronizacja zakończona",
+          description: `Zaimportowano: ${res.imported}, do przeglądu: ${res.pending}, nieudanych: ${res.failed}.${errs}`,
+        });
+      },
+      onError: (err: unknown) => {
+        const e = err as { response?: { data?: { error?: string } }; message?: string };
+        toast({
+          variant: "destructive",
+          title: "Błąd synchronizacji",
+          description: e?.response?.data?.error ?? e?.message ?? "Nie udało się zsynchronizować z KSeF.",
+        });
+      },
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      {config && (
+        <span className="text-xs text-muted-foreground hidden sm:inline" data-testid="text-last-sync">
+          Ostatnia synchronizacja:{" "}
+          <span className="font-medium text-foreground">
+            {config.lastSyncedAt
+              ? new Date(config.lastSyncedAt).toLocaleString("pl-PL")
+              : "nigdy"}
+          </span>
+        </span>
+      )}
+      {config ? (
+        <Button
+          variant="outline"
+          onClick={handleSync}
+          disabled={sync.isPending}
+          className="gap-2"
+          data-testid="btn-sync-ksef"
+        >
+          <RefreshCw className={cn("w-4 h-4", sync.isPending && "animate-spin")} />
+          {sync.isPending ? "Synchronizuję..." : "Synchronizuj z KSeF"}
+        </Button>
+      ) : (
+        <Link href="/settings/ksef">
+          <Button variant="outline" className="gap-2" data-testid="btn-configure-ksef">
+            <RefreshCw className="w-4 h-4" /> Skonfiguruj KSeF
+          </Button>
+        </Link>
+      )}
+      <Button onClick={onImportClick} className="gap-2" data-testid="btn-import-invoice">
+        <Plus className="w-4 h-4" /> Importuj fakturę
+      </Button>
+    </div>
+  );
+}
 
 // ─── Client-side KSeF XML preview parser ────────────────────────────────────
 
@@ -328,11 +405,7 @@ export default function Invoices() {
         <PageHeader
           title="Faktury"
           subtitle="Historia zaimportowanych faktur KSeF"
-          action={
-            <Button onClick={() => setShowImport(true)} className="gap-2" data-testid="btn-import-invoice">
-              <Plus className="w-4 h-4" /> Importuj fakturę
-            </Button>
-          }
+          action={<InvoicesHeaderActions onImportClick={() => setShowImport(true)} />}
         />
 
         {/* Search by invoice number or supplier */}

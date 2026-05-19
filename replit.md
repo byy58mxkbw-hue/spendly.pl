@@ -10,7 +10,7 @@ Aplikacja SaaS dla restauracji do monitorowania cen surowców z faktur KSeF. Wł
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL` — Postgres connection string; `KSEF_ENCRYPTION_KEY` — 32+ char secret used to AES-256-GCM encrypt the KSeF token at rest
 
 ## Stack
 
@@ -48,6 +48,8 @@ Aplikacja SaaS dla restauracji do monitorowania cen surowców z faktur KSeF. Wł
 - **Produkty** — searchable table of all tracked products with latest/previous price and % change, click for price history chart
 - **Faktury** — list of imported invoices, import new invoice with optional KSeF XML content
 - **Alerty cenowe** — configure price change thresholds per product/supplier, view triggered alerts
+- **KSeF sync** — manual "Synchronizuj z KSeF" button on Faktury pulls buyer invoices via prod API v2; auto-imports when supplier (by NIP) and all products (by name) match, else queues into **Do przeglądu** for manual supplier/product mapping
+- **Ustawienia KSeF** — store NIP + token (token encrypted at rest with `KSEF_ENCRYPTION_KEY`, masked to last 4 chars on read)
 
 ## User preferences
 

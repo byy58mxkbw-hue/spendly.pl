@@ -10,6 +10,7 @@ export const invoicesTable = pgTable("invoices", {
   invoiceDate: text("invoice_date").notNull(),
   totalAmount: numeric("total_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   xmlContent: text("xml_content"),
+  ksefNumber: text("ksef_number").unique(),
   importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

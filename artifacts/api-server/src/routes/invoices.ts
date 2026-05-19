@@ -229,7 +229,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
 
   // Create or find products and insert items — sequential to avoid race conditions
   const insertedItems: Array<{
-    id: number; invoiceId: number; productId: number; productName: string;
+    id: number; invoiceId: number; productId: number | null; productName: string;
     quantity: number; unit: string; unitPrice: number; totalPrice: number; vatRate: number | null;
   }> = [];
 

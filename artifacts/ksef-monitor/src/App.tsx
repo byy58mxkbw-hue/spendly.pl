@@ -15,6 +15,8 @@ import Products from "@/pages/products";
 import Invoices from "@/pages/invoices";
 import PriceAlerts from "@/pages/price-alerts";
 import Reports from "@/pages/reports";
+import PendingInvoices from "@/pages/pending-invoices";
+import SettingsKsef from "@/pages/settings-ksef";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -207,6 +209,12 @@ function AppRouter() {
             </Route>
             <Route path="/reports">
               <ProtectedRoute><Reports /></ProtectedRoute>
+            </Route>
+            <Route path="/pending-invoices">
+              <ProtectedRoute><PendingInvoices /></ProtectedRoute>
+            </Route>
+            <Route path="/settings/ksef">
+              <ProtectedRoute><SettingsKsef /></ProtectedRoute>
             </Route>
             <Route component={NotFound} />
           </Switch>
