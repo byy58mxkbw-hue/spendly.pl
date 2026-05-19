@@ -344,6 +344,7 @@ export const GetRecentPurchasesQueryParams = zod.object({
 });
 
 export const GetRecentPurchasesResponseItem = zod.object({
+  productId: zod.number().nullish(),
   productName: zod.string(),
   unit: zod.string(),
   currentPrice: zod.number(),

@@ -170,6 +170,7 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
       }
 
       return {
+        productId: item.productId,
         productName: item.productName,
         unit: item.unit,
         currentPrice: parseFloat(item.unitPrice),

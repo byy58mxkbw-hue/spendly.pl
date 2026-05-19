@@ -310,7 +310,7 @@ function PriceChangeBadge({ change }: { change: number | null | undefined }) {
   );
 }
 
-function PriceHistoryModal({ productId, productName, onClose }: { productId: number; productName: string; onClose: () => void }) {
+export function PriceHistoryModal({ productId, productName, onClose }: { productId: number; productName: string; onClose: () => void }) {
   const { data: history, isLoading } = useGetProductPriceHistory(productId, undefined, {
     query: { enabled: true, queryKey: getGetProductPriceHistoryQueryKey(productId) },
   });

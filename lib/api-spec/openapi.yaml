@@ -877,6 +877,8 @@ components:
     RecentPurchase:
       type: object
       properties:
+        productId:
+          type: ["integer", "null"]
         productName:
           type: string
         unit:

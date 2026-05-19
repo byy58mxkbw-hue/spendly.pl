@@ -24,7 +24,7 @@ const queryClient = new QueryClient({
       // delete on other pages.
       refetchOnMount: "always",
       refetchOnWindowFocus: true,
-      staleTime: 0,
+      staleTime: 30_000,
     },
   },
 });

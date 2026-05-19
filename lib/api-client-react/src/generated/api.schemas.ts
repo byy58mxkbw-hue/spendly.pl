@@ -205,6 +205,8 @@ export interface MonthlyFoodCost {
 }
 
 export interface RecentPurchase {
+  /** @nullable */
+  productId?: number | null;
   productName: string;
   unit: string;
   currentPrice: number;

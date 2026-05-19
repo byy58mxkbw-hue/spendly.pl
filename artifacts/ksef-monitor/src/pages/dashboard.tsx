@@ -21,6 +21,7 @@ import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CATEGORIES, categorizeProduct } from "@/lib/categories";
+import { PriceHistoryModal } from "./products";
 
 function StatCard({
   label,
@@ -91,6 +92,7 @@ export default function Dashboard() {
   const { data: topChanges } = useGetTopPriceChanges({ limit: 100, days: 30 });
 
   const [topChangesCategory, setTopChangesCategory] = useState<string>("wszystkie");
+  const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
 
   // Categorize all returned items
   const categorizedTopChanges = useMemo(() => {
@@ -237,20 +239,31 @@ export default function Dashboard() {
               </div>
             ) : recent && recent.length > 0 ? (
               <div className="space-y-2">
-                {recent.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0" data-testid={`purchase-item-${i}`}>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
-                      <p className="text-xs text-muted-foreground">{item.supplierName} · {formatDate(item.purchaseDate)}</p>
+                {recent.map((item, i) => {
+                  const clickable = item.productId != null;
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => clickable && setSelectedProduct({ id: item.productId as number, name: item.productName })}
+                      className={cn(
+                        "flex items-center justify-between py-2 border-b border-border last:border-0 -mx-2 px-2 rounded-lg transition-colors",
+                        clickable && "cursor-pointer hover:bg-muted/50"
+                      )}
+                      data-testid={`purchase-item-${i}`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
+                        <p className="text-xs text-muted-foreground">{item.supplierName} · {formatDate(item.purchaseDate)}</p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-sm font-semibold text-foreground">
+                          {formatPrice(item.currentPrice)}/{item.unit}
+                        </span>
+                        <PriceChangeBadge change={item.changePercent} />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className="text-sm font-semibold text-foreground">
-                        {formatPrice(item.currentPrice)}/{item.unit}
-                      </span>
-                      <PriceChangeBadge change={item.changePercent} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-sm text-muted-foreground text-center py-8">
@@ -333,7 +346,12 @@ export default function Dashboard() {
             {displayedTopChanges.length > 0 ? (
               <div className="space-y-2">
                 {displayedTopChanges.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0" data-testid={`top-change-${i}`}>
+                  <div
+                    key={i}
+                    onClick={() => setSelectedProduct({ id: item.productId, name: item.productName })}
+                    className="flex items-center justify-between py-2 border-b border-border last:border-0 -mx-2 px-2 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                    data-testid={`top-change-${i}`}
+                  >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
                       <p className="text-xs text-muted-foreground">{item.supplierName} · {formatDate(item.lastDate)}</p>
@@ -365,6 +383,14 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {selectedProduct && (
+        <PriceHistoryModal
+          productId={selectedProduct.id}
+          productName={selectedProduct.name}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
     </Layout>
   );
 }
