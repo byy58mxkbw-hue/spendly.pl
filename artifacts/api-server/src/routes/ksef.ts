@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
@@ -31,6 +31,27 @@ import {
 import { decryptSecret, encryptSecret, maskToken } from "../lib/encryption";
 
 const router: IRouter = Router();
+
+// Per-process lock to prevent two parallel syncs from racing on KSeF rate limits
+// and tripping our own UNIQUE(ksef_number) constraints.
+const syncInFlight = new Set<number>();
+
+function describeDbErr(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as { message?: string; cause?: { code?: string; detail?: string; constraint?: string; message?: string } };
+    const cause = e.cause;
+    if (cause) {
+      return [
+        cause.message ?? "",
+        cause.code ? `code=${cause.code}` : "",
+        cause.constraint ? `constraint=${cause.constraint}` : "",
+        cause.detail ? `detail=${cause.detail}` : "",
+      ].filter(Boolean).join(" | ");
+    }
+    return e.message ?? String(err);
+  }
+  return String(err);
+}
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -191,7 +212,28 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
     });
     return;
   }
+  if (syncInFlight.has(cfg.id)) {
+    res.status(409).json({
+      error: "Synchronizacja KSeF już trwa. Poczekaj na jej zakończenie.",
+    });
+    return;
+  }
+  syncInFlight.add(cfg.id);
+  // Safety net: also release on socket close in case the handler is killed
+  // before finally{} runs (e.g. process abort).
+  res.on("close", () => syncInFlight.delete(cfg.id));
+  try {
+    await runSync(req, res, cfg);
+  } finally {
+    syncInFlight.delete(cfg.id);
+  }
+});
 
+async function runSync(
+  req: Request,
+  res: Response,
+  cfg: NonNullable<Awaited<ReturnType<typeof loadConfig>>>,
+): Promise<void> {
   let token: string;
   try {
     token = decryptSecret(cfg.encryptedToken);
@@ -222,42 +264,83 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
   }
 
   const now = new Date();
-  const dateFrom = cfg.lastSyncedAt
-    ? isoDate(cfg.lastSyncedAt)
-    : isoDate(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
-  const dateTo = isoDate(now);
+  const overallFrom = cfg.lastSyncedAt
+    ? cfg.lastSyncedAt
+    : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  let pageOffset = 0;
-  const allRefs: Array<{ ksefReferenceNumber: string }> = [];
-  while (true) {
-    let page;
-    try {
-      page = await client.listInvoices(session, {
-        subjectType: "buyer",
-        nip: cfg.nip,
-        dateFrom,
-        dateTo,
-        pageOffset,
-      });
-    } catch (err) {
-      const m = mapKsefError(err);
-      req.log.warn({ err: String(err) }, "KSeF listInvoices failed");
-      res.status(m.status).json({ error: m.message });
-      return;
+  // KSeF refuses queries whose paginated result exceeds 10 000. To stay safe
+  // for high-volume buyers, we walk the date range in 7-day windows and cap
+  // pagination at 9 900 per window (pageSize 100 × 99 pages).
+  const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+  const PAGE_SIZE = 100;
+  const MAX_PAGE_OFFSET = 9900;
+
+  const allRefsMap = new Map<string, { ksefReferenceNumber: string }>();
+  let truncatedWindow = false;
+  for (let winStart = new Date(overallFrom); winStart < now; winStart = new Date(winStart.getTime() + WINDOW_MS)) {
+    const winEndMs = Math.min(winStart.getTime() + WINDOW_MS - 1, now.getTime());
+    const winEnd = new Date(winEndMs);
+    // Pass full ISO datetimes to avoid day-boundary overlap between adjacent windows.
+    const dateFrom = winStart.toISOString();
+    const dateTo = winEnd.toISOString();
+
+    let pageOffset = 0;
+    while (true) {
+      let page;
+      try {
+        page = await client.listInvoices(session, {
+          subjectType: "buyer",
+          nip: cfg.nip,
+          dateFrom,
+          dateTo,
+          pageOffset,
+          pageSize: PAGE_SIZE,
+        });
+      } catch (err) {
+        const m = mapKsefError(err);
+        req.log.warn({ err: String(err), dateFrom, dateTo, pageOffset }, "KSeF listInvoices failed");
+        res.status(m.status).json({ error: m.message });
+        return;
+      }
+
+      for (const inv of page.invoices) {
+        if (inv.ksefReferenceNumber) {
+          allRefsMap.set(inv.ksefReferenceNumber, inv);
+        }
+      }
+      if (page.isTruncated) {
+        truncatedWindow = true;
+        summary.errors.push(
+          `Okno ${dateFrom.slice(0, 10)}…${dateTo.slice(0, 10)} przekroczyło limit KSeF — część faktur pominięta.`,
+        );
+        break;
+      }
+      if (!page.hasMore || page.invoices.length === 0) break;
+      pageOffset = page.nextOffset;
+      if (pageOffset > MAX_PAGE_OFFSET) {
+        truncatedWindow = true;
+        summary.errors.push(
+          `Okno ${dateFrom.slice(0, 10)}…${dateTo.slice(0, 10)} przekroczyło ${MAX_PAGE_OFFSET} wyników — część faktur pominięta.`,
+        );
+        break;
+      }
     }
-
-    allRefs.push(...page.invoices);
-    if (!page.hasMore || page.invoices.length === 0) break;
-    pageOffset = page.nextOffset;
-    if (pageOffset > 5000) break; // safety cap
   }
+  const allRefs = Array.from(allRefsMap.values());
 
   if (allRefs.length === 0) {
-    await db
-      .update(ksefConfigTable)
-      .set({ lastSyncedAt: now })
-      .where(eq(ksefConfigTable.id, cfg.id));
-    res.json({ ...summary, lastSyncedAt: now.toISOString() });
+    let updatedLastSyncedAt: Date | null = cfg.lastSyncedAt;
+    if (!truncatedWindow) {
+      await db
+        .update(ksefConfigTable)
+        .set({ lastSyncedAt: now })
+        .where(eq(ksefConfigTable.id, cfg.id));
+      updatedLastSyncedAt = now;
+    }
+    res.json({
+      ...summary,
+      lastSyncedAt: updatedLastSyncedAt ? updatedLastSyncedAt.toISOString() : null,
+    });
     return;
   }
 
@@ -296,7 +379,7 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
             parsed.header.totalGross ??
             parsed.items.reduce((s, i) => s + i.gross, 0);
 
-          const [inv] = await tx
+          const inserted = await tx
             .insert(invoicesTable)
             .values({
               supplierId: match.supplier!.id,
@@ -307,7 +390,10 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
               xmlContent: xml,
               ksefNumber: ref.ksefReferenceNumber,
             })
+            .onConflictDoNothing({ target: invoicesTable.ksefNumber })
             .returning();
+          const inv = inserted[0];
+          if (!inv) return; // already imported in a concurrent run
 
           for (let i = 0; i < parsed.items.length; i++) {
             const item = parsed.items[i];
@@ -342,18 +428,21 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
         }
         if (parsed.items.length === 0) reasons.push("brak pozycji w XML");
 
-        await db.insert(ksefPendingInvoicesTable).values({
-          ksefNumber: ref.ksefReferenceNumber,
-          sellerNip: parsed.header.sellerNip,
-          sellerName: parsed.header.sellerName,
-          invoiceNumber: parsed.header.invoiceNumber,
-          invoiceDate: parsed.header.invoiceDate,
-          totalGross: parsed.header.totalGross != null ? parsed.header.totalGross.toString() : null,
-          rawXml: xml,
-          parsedJson: parsed,
-          reason: reasons.join("; ") || "wymaga ręcznego przeglądu",
-          status: "pending",
-        });
+        await db
+          .insert(ksefPendingInvoicesTable)
+          .values({
+            ksefNumber: ref.ksefReferenceNumber,
+            sellerNip: parsed.header.sellerNip,
+            sellerName: parsed.header.sellerName,
+            invoiceNumber: parsed.header.invoiceNumber,
+            invoiceDate: parsed.header.invoiceDate,
+            totalGross: parsed.header.totalGross != null ? parsed.header.totalGross.toString() : null,
+            rawXml: xml,
+            parsedJson: parsed,
+            reason: reasons.join("; ") || "wymaga ręcznego przeglądu",
+            status: "pending",
+          })
+          .onConflictDoNothing({ target: ksefPendingInvoicesTable.ksefNumber });
         summary.pending++;
       }
     } catch (err) {
@@ -361,14 +450,14 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
       const m = mapKsefError(err);
       const msg = `Faktura ${ref.ksefReferenceNumber}: ${m.message}`;
       summary.errors.push(msg);
-      req.log.error({ ksefRef: ref.ksefReferenceNumber, err: String(err) }, "KSeF per-invoice fetch failed");
+      req.log.error({ ksefRef: ref.ksefReferenceNumber, err: describeDbErr(err) }, "KSeF per-invoice fetch failed");
     }
   }
 
-  // Only advance the watermark when no per-invoice failures occurred,
-  // so failed refs aren't skipped on the next sync.
+  // Only advance the watermark when no per-invoice failures occurred and no
+  // window was truncated, so skipped refs aren't lost on the next sync.
   let updatedLastSyncedAt: Date | null = cfg.lastSyncedAt;
-  if (summary.failed === 0) {
+  if (summary.failed === 0 && !truncatedWindow) {
     await db
       .update(ksefConfigTable)
       .set({ lastSyncedAt: now })
@@ -380,7 +469,7 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
     ...summary,
     lastSyncedAt: updatedLastSyncedAt ? updatedLastSyncedAt.toISOString() : null,
   });
-});
+}
 
 // ─── Pending review ──────────────────────────────────────────────────────────
 

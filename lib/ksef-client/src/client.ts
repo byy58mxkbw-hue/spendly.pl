@@ -44,6 +44,7 @@ export interface ListInvoicesResult {
   invoices: KsefInvoiceListItem[];
   hasMore: boolean;
   nextOffset: number;
+  isTruncated: boolean;
 }
 
 type Logger = {
@@ -105,6 +106,8 @@ interface PublicKeyCertificatesResponse {
 interface ChallengeResponse {
   challenge: string;
   timestamp: string | number;
+  /** Current Unix time in milliseconds — what must be used in the encrypted plaintext. */
+  timestampMs?: number;
 }
 
 interface AuthSubmitResponse {
@@ -298,12 +301,26 @@ export class KsefClient {
       headers: { "Content-Type": "application/json" },
       body: "{}",
     });
-    if (!challenge?.challenge || challenge.timestamp == null) {
+    if (!challenge?.challenge || (challenge.timestampMs == null && challenge.timestamp == null)) {
       throw new KsefAuthError("KSeF nie zwrócił poprawnego challenge.");
     }
 
-    // 3. Encrypt `token|timestamp` with RSA-OAEP-SHA256
-    const plaintext = Buffer.from(`${token}|${challenge.timestamp}`, "utf-8");
+    // 3. Encrypt `token|timestampMs` with RSA-OAEP-SHA256.
+    // KSeF requires the Unix-ms numeric timestamp from `challenge.timestampMs`,
+    // NOT the ISO `challenge.timestamp` field (which would yield auth status 450
+    // "Uwierzytelnianie zakończone niepowodzeniem z powodu błędnego tokenu").
+    const tsForEncryption =
+      typeof challenge.timestampMs === "number"
+        ? challenge.timestampMs
+        : typeof challenge.timestamp === "number"
+          ? challenge.timestamp
+          : Date.parse(String(challenge.timestamp));
+    if (!Number.isFinite(tsForEncryption)) {
+      throw new KsefAuthError(
+        "KSeF zwrócił challenge z nieprawidłowym znacznikiem czasu.",
+      );
+    }
+    const plaintext = Buffer.from(`${token}|${tsForEncryption}`, "utf-8");
     const encrypted = publicEncrypt(
       {
         key: publicKey,
@@ -429,87 +446,79 @@ export class KsefClient {
     params: ListInvoicesParams,
   ): Promise<ListInvoicesResult> {
     const pageOffset = params.pageOffset ?? 0;
-    const pageSize = params.pageSize ?? 100;
+    // KSeF 2.0 metadata query requires pageSize between 10 and 250.
+    const pageSize = Math.min(250, Math.max(10, params.pageSize ?? 100));
 
     const subjectType = params.subjectType === "buyer" ? "Subject2" : "Subject1";
 
+    // Endpoint: POST /invoices/query/metadata. Body is the filter object directly
+    // (NOT wrapped in `{filters: ...}`). Response: {hasMore, isTruncated, invoices[]}.
     const res = await this.request<{
       invoices?: Array<Record<string, unknown>>;
-      invoiceHeaderList?: Array<Record<string, unknown>>;
       hasMore?: boolean;
-      totalCount?: number;
-      totalElements?: number;
-    }>(`/invoices/query?pageOffset=${pageOffset}&pageSize=${pageSize}`, {
+      isTruncated?: boolean;
+    }>(`/invoices/query/metadata?pageOffset=${pageOffset}&pageSize=${pageSize}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session.sessionToken}`,
       },
       body: JSON.stringify({
-        filters: {
-          subjectType,
-          dateRange: {
-            dateType: "Invoicing",
-            from: params.dateFrom.includes("T")
-              ? params.dateFrom
-              : `${params.dateFrom}T00:00:00+00:00`,
-            to: params.dateTo.includes("T")
-              ? params.dateTo
-              : `${params.dateTo}T23:59:59+00:00`,
-          },
+        subjectType,
+        dateRange: {
+          dateType: "Invoicing",
+          from: params.dateFrom.includes("T")
+            ? params.dateFrom
+            : `${params.dateFrom}T00:00:00+00:00`,
+          to: params.dateTo.includes("T")
+            ? params.dateTo
+            : `${params.dateTo}T23:59:59+00:00`,
         },
       }),
     });
 
-    const raw = res.invoices ?? res.invoiceHeaderList ?? [];
-    const invoices: KsefInvoiceListItem[] = raw.map((row) => {
-      const subjectBy = (row.subjectBy ?? row.subject1 ?? {}) as Record<string, unknown>;
-      const subjectTo = (row.subjectTo ?? row.subject2 ?? {}) as Record<string, unknown>;
-      return {
-        ksefReferenceNumber:
-          (row.ksefReferenceNumber as string) ??
-          (row.ksefNumber as string) ??
-          (row.referenceNumber as string) ??
-          "",
-        invoiceNumber:
-          (row.invoiceNumber as string) ??
-          (row.invoicingNumber as string) ??
-          "",
-        issueDate:
-          (row.invoicingDate as string) ??
-          (row.issueDate as string) ??
-          (row.invoiceDate as string) ??
-          (row.acquisitionTimestamp as string) ??
-          "",
-        sellerNip:
-          (row.sellerNip as string) ??
-          ((subjectBy.identifier as { value?: string })?.value as string) ??
-          (subjectBy.identifier as string) ??
-          (subjectBy.nip as string) ??
-          "",
-        buyerNip:
-          (row.buyerNip as string) ??
-          ((subjectTo.identifier as { value?: string })?.value as string) ??
-          (subjectTo.identifier as string) ??
-          (subjectTo.nip as string) ??
-          "",
-        invoicingMode: row.invoicingMode as string | undefined,
-        invoiceType: row.invoiceType as string | undefined,
-      };
-    }).filter((i) => i.ksefReferenceNumber);
+    const raw = res.invoices ?? [];
+    const invoices: KsefInvoiceListItem[] = raw
+      .map((row) => {
+        const seller = (row.seller ?? {}) as Record<string, unknown>;
+        const buyer = (row.buyer ?? {}) as Record<string, unknown>;
+        const buyerId = (buyer.identifier ?? {}) as { value?: string };
+        return {
+          ksefReferenceNumber:
+            (row.ksefNumber as string) ??
+            (row.ksefReferenceNumber as string) ??
+            "",
+          invoiceNumber: (row.invoiceNumber as string) ?? "",
+          issueDate:
+            (row.issueDate as string) ??
+            (row.invoicingDate as string) ??
+            (row.acquisitionDate as string) ??
+            "",
+          sellerNip: (seller.nip as string) ?? "",
+          buyerNip:
+            (buyerId.value as string) ??
+            (buyer.nip as string) ??
+            "",
+          invoicingMode: row.invoicingMode as string | undefined,
+          invoiceType: row.invoiceType as string | undefined,
+        };
+      })
+      .filter((i) => i.ksefReferenceNumber);
 
     const nextOffset = pageOffset + invoices.length;
-    const total = res.totalCount ?? res.totalElements;
-    const hasMore = res.hasMore ?? (typeof total === "number" ? nextOffset < total : invoices.length === pageSize);
+    const hasMore = res.hasMore ?? invoices.length === pageSize;
+    const isTruncated = res.isTruncated === true;
 
-    return { invoices, hasMore, nextOffset };
+    return { invoices, hasMore, nextOffset, isTruncated };
   }
 
   async getInvoiceXml(session: KsefSession, ksefReferenceNumber: string): Promise<string> {
-    return this.request<string>(`/invoices/${encodeURIComponent(ksefReferenceNumber)}`, {
+    // KSeF 2.0: GET /invoices/ksef/{ksefNumber} → application/xml
+    return this.request<string>(`/invoices/ksef/${encodeURIComponent(ksefReferenceNumber)}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${session.sessionToken}`,
+        Accept: "application/xml",
       },
       responseType: "text",
     });
