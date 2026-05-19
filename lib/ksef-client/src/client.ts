@@ -239,11 +239,13 @@ export class KsefClient {
   }
 
   private async fetchTokenEncryptionCertificate(): Promise<string> {
-    const res = await this.request<PublicKeyCertificatesResponse>(
+    const res = await this.request<PublicKeyCertificatesResponse | PublicKeyCertificate[]>(
       `/security/public-key-certificates`,
       { method: "GET" },
     );
-    const list = res.publicKeyCertificates ?? res.certificates ?? [];
+    const list: PublicKeyCertificate[] = Array.isArray(res)
+      ? res
+      : (res.publicKeyCertificates ?? res.certificates ?? []);
     const now = Date.now();
     const isValid = (c: PublicKeyCertificate) => {
       const from = c.validFrom ? Date.parse(c.validFrom) : 0;
