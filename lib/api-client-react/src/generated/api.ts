@@ -41,6 +41,7 @@ import type {
   Supplier,
   SupplierComparison,
   TriggeredAlert,
+  UpdateProductBody,
   UpdateSupplierBody,
 } from "./api.schemas";
 
@@ -641,6 +642,93 @@ export function useListProducts<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Update a product (e.g. its category)
+ */
+export const getUpdateProductUrl = (id: number) => {
+  return `/api/products/${id}`;
+};
+
+export const updateProduct = async (
+  id: number,
+  updateProductBody: UpdateProductBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getUpdateProductUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateProductBody),
+  });
+};
+
+export const getUpdateProductMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProduct>>,
+    TError,
+    { id: number; data: BodyType<UpdateProductBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProduct>>,
+  TError,
+  { id: number; data: BodyType<UpdateProductBody> },
+  TContext
+> => {
+  const mutationKey = ["updateProduct"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProduct>>,
+    { id: number; data: BodyType<UpdateProductBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateProduct(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProductMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProduct>>
+>;
+export type UpdateProductMutationBody = BodyType<UpdateProductBody>;
+export type UpdateProductMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a product (e.g. its category)
+ */
+export const useUpdateProduct = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProduct>>,
+    TError,
+    { id: number; data: BodyType<UpdateProductBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProduct>>,
+  TError,
+  { id: number; data: BodyType<UpdateProductBody> },
+  TContext
+> => {
+  return useMutation(getUpdateProductMutationOptions(options));
+};
 
 /**
  * @summary Compare prices across suppliers for a product

@@ -66,6 +66,11 @@ export interface Product {
   supplierCount?: number;
 }
 
+export interface UpdateProductBody {
+  /** @nullable */
+  category?: string | null;
+}
+
 export interface SupplierComparisonPricePoint {
   date: string;
   price: number;

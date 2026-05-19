@@ -7,6 +7,8 @@ import {
   GetProductPriceHistoryQueryParams,
   GetTopPriceChangesQueryParams,
   GetProductSupplierComparisonParams,
+  UpdateProductParams,
+  UpdateProductBody,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -279,6 +281,32 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
       supplierName: h.supplierName,
     })),
   );
+});
+
+router.patch("/products/:id", async (req, res): Promise<void> => {
+  const params = UpdateProductParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = UpdateProductBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const [updated] = await db
+    .update(productsTable)
+    .set(body.data)
+    .where(eq(productsTable.id, params.data.id))
+    .returning({ id: productsTable.id });
+
+  if (!updated) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
+
+  res.status(204).end();
 });
 
 export default router;

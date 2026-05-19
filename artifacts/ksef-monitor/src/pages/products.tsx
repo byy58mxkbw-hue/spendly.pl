@@ -1,13 +1,23 @@
 import { useState } from "react";
 import { Layout, PageHeader } from "@/components/layout";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useListProducts,
   useListSuppliers,
   useGetProductPriceHistory,
   useGetProductSupplierComparison,
+  useUpdateProduct,
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
 } from "@workspace/api-client-react";
+import { CATEGORIES, categorizeProduct } from "@/lib/categories";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -644,7 +654,83 @@ function sortProducts<T extends { name: string; supplierName?: string | null; la
 
 type ModalMode = "history" | "comparison";
 
+function CategoryBadge({
+  productId,
+  productName,
+  category,
+  onChanged,
+}: {
+  productId: number;
+  productName: string;
+  category: string | null | undefined;
+  onChanged: () => void;
+}) {
+  const updateMutation = useUpdateProduct();
+  const effectiveId = category ?? categorizeProduct(productName);
+  const def = CATEGORIES.find((c) => c.id === effectiveId);
+  const isAuto = category == null;
+
+  const handleSelect = (newCategoryId: string | null) => {
+    updateMutation.mutate(
+      { id: productId, data: { category: newCategoryId } },
+      { onSuccess: () => onChanged() },
+    );
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+        <button
+          className={cn(
+            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium transition-colors",
+            "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
+            isAuto && "italic opacity-70",
+          )}
+          title={isAuto ? "Kategoria wykryta automatycznie — kliknij, aby zmienić" : "Zmień kategorię"}
+          data-testid={`product-category-${productId}`}
+        >
+          {def ? (
+            <>
+              <span>{def.emoji}</span>
+              <span>{def.label}</span>
+            </>
+          ) : (
+            <span>Inne</span>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="max-h-80 overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {CATEGORIES.map((cat) => (
+          <DropdownMenuItem
+            key={cat.id}
+            onSelect={() => handleSelect(cat.id)}
+            className={cn(effectiveId === cat.id && "bg-secondary")}
+          >
+            <span className="mr-2">{cat.emoji}</span>
+            {cat.label}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuItem
+          onSelect={() => handleSelect("inne")}
+          className={cn(effectiveId === "inne" && "bg-secondary")}
+        >
+          Inne
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => handleSelect(null)} className="text-muted-foreground text-xs">
+          Wykryj automatycznie
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function Products() {
+  const queryClient = useQueryClient();
   const { data: products, isLoading } = useListProducts();
   const { data: suppliers } = useListSuppliers();
   const [search, setSearch] = useState("");
@@ -792,8 +878,14 @@ export default function Products() {
                   >
                     <div>
                       <p className="text-sm font-medium text-foreground">{product.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <p className="text-xs text-muted-foreground">{product.supplierName ?? "Brak dostawcy"} · {product.unit}</p>
+                        <CategoryBadge
+                          productId={product.id}
+                          productName={product.name}
+                          category={product.category}
+                          onChanged={() => queryClient.invalidateQueries()}
+                        />
                         {hasMultipleSuppliers && (
                           <span className="inline-flex items-center gap-1 text-xs font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
                             <GitCompare className="w-2.5 h-2.5" />

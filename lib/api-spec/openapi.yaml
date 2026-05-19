@@ -155,6 +155,29 @@ paths:
                 items:
                   $ref: "#/components/schemas/Product"
 
+  /products/{id}:
+    patch:
+      operationId: updateProduct
+      tags: [products]
+      summary: Update a product (e.g. its category)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductBody"
+      responses:
+        "204":
+          description: Updated
+        "404":
+          description: Not found
+
   /products/{id}/supplier-comparison:
     get:
       operationId: getProductSupplierComparison
@@ -553,6 +576,12 @@ components:
         - id
         - name
         - unit
+
+    UpdateProductBody:
+      type: object
+      properties:
+        category:
+          type: ["string", "null"]
 
     SupplierComparisonPricePoint:
       type: object

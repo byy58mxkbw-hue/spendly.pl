@@ -121,6 +121,17 @@ export const ListProductsResponseItem = zod.object({
 export const ListProductsResponse = zod.array(ListProductsResponseItem);
 
 /**
+ * @summary Update a product (e.g. its category)
+ */
+export const UpdateProductParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateProductBody = zod.object({
+  category: zod.string().nullish(),
+});
+
+/**
  * @summary Compare prices across suppliers for a product
  */
 export const GetProductSupplierComparisonParams = zod.object({
