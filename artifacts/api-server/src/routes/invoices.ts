@@ -166,7 +166,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, xmlContent, invoiceNumber, invoiceDate } = parsed.data;
+  const { supplierId, xmlContent, invoiceNumber, invoiceDate, force } = parsed.data;
 
   // Check supplier exists
   const [supplier] = await db
@@ -189,7 +189,8 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   const finalInvoiceDate = invoiceDate || parsed2?.invoiceDate || new Date().toISOString().split("T")[0];
 
   // Duplicate detection: same supplier + same invoice number = already imported
-  if (hasExplicitNumber) {
+  // Skipped when client explicitly forces import (user confirmed overwrite/duplicate)
+  if (hasExplicitNumber && !force) {
     const [existing] = await db
       .select({ id: invoicesTable.id, importedAt: invoicesTable.importedAt })
       .from(invoicesTable)

@@ -228,6 +228,12 @@ export const ImportInvoiceBody = zod.object({
   xmlContent: zod.string().optional(),
   invoiceNumber: zod.string().optional(),
   invoiceDate: zod.string(),
+  force: zod
+    .boolean()
+    .optional()
+    .describe(
+      "If true, skip duplicate detection and create the invoice even if one with the same number already exists.",
+    ),
 });
 
 /**

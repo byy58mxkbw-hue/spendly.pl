@@ -778,6 +778,9 @@ components:
           type: string
         invoiceDate:
           type: string
+        force:
+          type: boolean
+          description: If true, skip duplicate detection and create the invoice even if one with the same number already exists.
       required:
         - supplierId
         - invoiceDate

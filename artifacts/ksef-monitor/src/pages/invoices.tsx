@@ -168,6 +168,10 @@ export default function Invoices() {
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [xmlPreview, setXmlPreview] = useState<XmlPreview | null>(null);
+  const [duplicateConflict, setDuplicateConflict] = useState<{
+    message: string;
+    values: ImportFormValues;
+  } | null>(null);
 
   // Filter & sort state
   const [activeSupplier, setActiveSupplier] = useState<number | null>(null);
@@ -198,7 +202,7 @@ export default function Invoices() {
     }
   }, [form]);
 
-  function onSubmit(values: ImportFormValues) {
+  function submitImport(values: ImportFormValues, force: boolean) {
     importInvoice.mutate(
       {
         data: {
@@ -206,6 +210,7 @@ export default function Invoices() {
           invoiceNumber: values.invoiceNumber || undefined,
           invoiceDate: values.invoiceDate,
           xmlContent: values.xmlContent || undefined,
+          force: force || undefined,
         },
       },
       {
@@ -213,26 +218,35 @@ export default function Invoices() {
           queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
           setShowImport(false);
           setXmlPreview(null);
+          setDuplicateConflict(null);
           form.reset();
-          toast({ title: "Faktura zaimportowana", description: "Pozycje zostały dodane do bazy." });
+          toast({
+            title: force ? "Faktura zaimportowana (kopia)" : "Faktura zaimportowana",
+            description: "Pozycje zostały dodane do bazy.",
+          });
         },
         onError: (err: unknown) => {
-          // Surface server error message (e.g. duplicate invoice 409)
-          let message = "Nie udało się zaimportować faktury. Spróbuj ponownie.";
           const e = err as { response?: { status?: number; data?: { error?: string } }; message?: string };
-          if (e?.response?.data?.error) {
-            message = e.response.data.error;
-          } else if (e?.message) {
-            message = e.message;
+          const message = e?.response?.data?.error ?? e?.message ?? "Nie udało się zaimportować faktury. Spróbuj ponownie.";
+
+          // 409 = duplicate — show a confirmation dialog instead of just a toast
+          if (e?.response?.status === 409) {
+            setDuplicateConflict({ message, values });
+            return;
           }
+
           toast({
             variant: "destructive",
-            title: e?.response?.status === 409 ? "Faktura już istnieje" : "Błąd importu",
+            title: "Błąd importu",
             description: message,
           });
         },
       }
     );
+  }
+
+  function onSubmit(values: ImportFormValues) {
+    submitImport(values, false);
   }
 
   function handleDelete() {
@@ -652,6 +666,31 @@ export default function Invoices() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* Duplicate-invoice confirmation */}
+        <AlertDialog open={duplicateConflict != null} onOpenChange={(open) => { if (!open) setDuplicateConflict(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Faktura już istnieje w bazie</AlertDialogTitle>
+              <AlertDialogDescription>
+                {duplicateConflict?.message}
+                <br /><br />
+                Jeśli to faktura korygująca, duplikat numeracji albo świadomie chcesz dodać kolejną kopię — kliknij <strong>Importuj mimo to</strong>. W przeciwnym razie anuluj.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDuplicateConflict(null)}>Anuluj</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (duplicateConflict) submitImport(duplicateConflict.values, true);
+                }}
+                disabled={importInvoice.isPending}
+              >
+                Importuj mimo to
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <AlertDialog open={deleteId != null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
           <AlertDialogContent>

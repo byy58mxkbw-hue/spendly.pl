@@ -161,6 +161,8 @@ export interface ImportInvoiceBody {
   xmlContent?: string;
   invoiceNumber?: string;
   invoiceDate: string;
+  /** If true, skip duplicate detection and create the invoice even if one with the same number already exists. */
+  force?: boolean;
 }
 
 export interface PriceAlert {
