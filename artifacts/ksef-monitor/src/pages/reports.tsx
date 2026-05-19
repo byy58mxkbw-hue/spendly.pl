@@ -12,12 +12,129 @@ import {
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+// ─── Category definitions ────────────────────────────────────────────────────
+
+type Category = {
+  id: string;
+  label: string;
+  emoji: string;
+  keywords: string[];
+};
+
+const CATEGORIES: Category[] = [
+  {
+    id: "miesa",
+    label: "Mięsa",
+    emoji: "🥩",
+    keywords: [
+      "kurczak", "kurczaka", "wieprzow", "wołow", "wołowina", "wołowe", "cielę", "cielęc",
+      "boczek", "kiełbas", "szynka", "szynki", "filet", "pierś", "piersi", "udziec",
+      "karkówk", "karczek", "schab", "żebra", "łopatk", "mielon", "wędlin", "kabanos",
+      "parówk", "salami", "golonk", "pasztet", "kotlet", "polędwiczk", "polędwica",
+      "antrykot", "ligawa", "kaczk", "kacze", "indyk", "indycz", "gęś", "gęsi",
+      "rosołow", "porcje rosołowe", "podudzie", "rostbef", "befsztyk", "gulasz",
+      "drobiu", "drobiow", "mięs", "mięso", "mięsa",
+    ],
+  },
+  {
+    id: "warzywa",
+    label: "Warzywa / Owoce",
+    emoji: "🥦",
+    keywords: [
+      "pomidor", "ogórek", "ogórk", "sałat", "pietruszk", "marchew", "marchewk",
+      "ziemniak", "cebul", "poru", "por ", "papryka", "papryki", "brokuł", "brokułów",
+      "kalafior", "kapust", "szpinak", "szparagn", "szparagi", "batat", "burak",
+      "dyni", "dynia", "avocado", "kukurydz", "banan", "jabłk", "gruszk", "pomarańcz",
+      "mandarynk", "cytryn", "winogron", "malina", "malin", "truskawk", "borówk",
+      "mango", "ananas", "kiwi", "arbuz", "limonk", "pieczark", "groszek", "groszku",
+      "fasolka", "fasola", "seler", "rzodkiew", "rzodkiewk", "daterino", "cherry",
+      "koktajl", "sałatka", "rukola", "roszponka", "endywia", "jarmuż", "radicchio",
+      "bakłażan", "cukinia", "kabaczek", "patison", "pasternak", "topinambur",
+      "mango", "papaja", "granat", "fig", "śliwk", "wiśni", "czereśni", "morela",
+      "brzoskwini", "nektaryn", "melon", "agrest", "porzeczk", "żurawina",
+      "warzywa", "owoce", "owoc", "warzywo",
+    ],
+  },
+  {
+    id: "napoje",
+    label: "Napoje",
+    emoji: "🥤",
+    keywords: [
+      "woda ", "wody ", "sok ", "soku ", "sokow", "napój", "napoje", "cola", "piwo",
+      "wino ", "wina ", "win ", "kawa", "kawow", "herbata", "herbat", "lemoniada",
+      "shake", "syrop", "syropu", "napitk", "energetyk", "isotonic", "gazowany",
+      "niegazowany", "mineraln", "żurek", "barszcz", "bulion do picia",
+    ],
+  },
+  {
+    id: "nabiał",
+    label: "Nabiał / Jaja",
+    emoji: "🥛",
+    keywords: [
+      "mleko", "mleka", "ser ", "sery", "serow", "jogurt", "jogurtu", "śmietan",
+      "masło", "masła", "twaróg", "twarogu", "jajk", "jaja ", "jaj ", "kefir",
+      "maślank", "śmietank", "ricotta", "mozzarella", "burrata", "feta",
+      "camembert", "brie", "gouda", "edam", "parmezan", "grana padano",
+      "halloumi", "cottage", "fromage", "nabiał",
+    ],
+  },
+  {
+    id: "ryby",
+    label: "Ryby / Owoce morza",
+    emoji: "🐟",
+    keywords: [
+      "łosoś", "łososia", "dorsz", "dorsza", "tuńczyk", "tuńczyka", "krewetk",
+      "kalmar", "pstrąg", "pstrąga", "halibut", "mintaj", "ryba", "ryby", "rybna",
+      "śledź", "śledzia", "makrela", "makreli", "krab", "homara", "ośmiornic",
+      "małż", "ostryg", "anchois", "sardynk", "tilapia", "pangasius", "morszczuk",
+      "flądra", "sandacz", "sum ", "karp", "lin ", "węgorz", "okoń", "szczupak",
+    ],
+  },
+  {
+    id: "pieczywo",
+    label: "Pieczywo / Suche",
+    emoji: "🍞",
+    keywords: [
+      "chleb", "chleba", "bułk", "mąka", "mąki", "drożdż", "baguette", "croissant",
+      "tortilla", "makaron", "makaronu", "ryż", "ryżu", "kasza", "kaszy", "płatk",
+      "biszkopt", "wafel", "wafle", "wafli", "suchar", "grissini", "ciabatta",
+      "focaccia", "brioche", "pumpernikiel", "graham", "orkisz", "semolinę",
+      "lentilki", "kasza", "quinoa", "amarant", "gryka", "bulgur", "kuskus",
+    ],
+  },
+  {
+    id: "przyprawy",
+    label: "Przyprawy / Oleje / Sosy",
+    emoji: "🧂",
+    keywords: [
+      "sól ", "soli ", "pieprz", "pieprzu", "przyprawa", "przyprawy", "sos ",
+      "sosu ", "sosów", "musztarda", "majonez", "ketchup", "ocet", "oliwa",
+      "olej", "oleju", "olejów", "tłuszcz", "smalec", "ghee", "octu",
+      "bazylia", "oregano", "tymianek", "rozmaryn", "szałwia", "estragon",
+      "curry", "kurkuma", "papryczka", "chilli", "imbir", "czosnek mielon",
+      "kminek", "kolendra", "cynamon", "gałka", "anyż", "wanilia", "ziele",
+      "piment", "liść laurow", "suszona", "suszone", "zioła",
+    ],
+  },
+];
+
+function categorizeProduct(name: string): string {
+  const n = name.toLowerCase().replace(/^#/, "").trim();
+  for (const cat of CATEGORIES) {
+    if (cat.keywords.some((kw) => n.includes(kw.toLowerCase()))) {
+      return cat.id;
+    }
+  }
+  return "inne";
+}
+
+// ─── Month helpers ────────────────────────────────────────────────────────────
+
 function monthLabel(month: string) {
   const [year, m] = month.split("-");
   const names = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
   return `${names[parseInt(m) - 1]} ${year}`;
 }
-
 function prevMonth(month: string) {
   const [y, m] = month.split("-").map(Number);
   const d = new Date(y, m - 2, 1);
@@ -33,6 +150,8 @@ function currentMonth() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// ─── Colors ──────────────────────────────────────────────────────────────────
+
 const COLORS = [
   "hsl(173, 80%, 40%)",
   "hsl(200, 70%, 50%)",
@@ -40,6 +159,8 @@ const COLORS = [
   "hsl(250, 60%, 60%)",
   "hsl(280, 55%, 55%)",
 ];
+
+// ─── Components ──────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, icon: Icon }: { label: string; value: string; sub?: string; icon: React.ElementType }) {
   return (
@@ -56,7 +177,17 @@ function StatCard({ label, value, sub, icon: Icon }: { label: string; value: str
   );
 }
 
-function SupplierCard({ supplier, rank }: { supplier: { supplierId: number; supplierName: string; totalSpend: number; invoiceCount: number; productCount: number; topProducts: Array<{ productName: string; unit: string; totalQuantity: number; avgPrice: number; totalCost: number }> }; rank: number }) {
+function SupplierCard({ supplier, rank }: {
+  supplier: {
+    supplierId: number;
+    supplierName: string;
+    totalSpend: number;
+    invoiceCount: number;
+    productCount: number;
+    topProducts: Array<{ productName: string; unit: string; totalQuantity: number; avgPrice: number; totalCost: number }>;
+  };
+  rank: number;
+}) {
   const [expanded, setExpanded] = useState(rank === 0);
   const topProducts = supplier.topProducts.slice(0, expanded ? 15 : 5);
 
@@ -82,7 +213,6 @@ function SupplierCard({ supplier, rank }: { supplier: { supplierId: number; supp
         </div>
       </div>
 
-      {/* Products table */}
       <div className="border-t border-border">
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-6 py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
           <div>Produkt</div>
@@ -114,6 +244,170 @@ function SupplierCard({ supplier, rank }: { supplier: { supplierId: number; supp
     </div>
   );
 }
+
+type TopProduct = {
+  productName: string;
+  unit: string;
+  totalQuantity: number;
+  avgPrice: number;
+  totalCost: number;
+  supplierName?: string | null;
+};
+
+function TopProductsSection({ products }: { products: TopProduct[] }) {
+  const [activeCategory, setActiveCategory] = useState("wszystkie");
+
+  // Compute which categories actually have products
+  const categorized = useMemo(() => {
+    return products.map((p) => ({ ...p, category: categorizeProduct(p.productName) }));
+  }, [products]);
+
+  const presentCategories = useMemo(() => {
+    const ids = new Set(categorized.map((p) => p.category));
+    return CATEGORIES.filter((c) => ids.has(c.id));
+  }, [categorized]);
+
+  const hasInne = categorized.some((p) => p.category === "inne");
+
+  const displayProducts = useMemo(() => {
+    if (activeCategory === "wszystkie") return categorized;
+    return categorized.filter((p) => p.category === activeCategory);
+  }, [categorized, activeCategory]);
+
+  // Category spend totals for the active tab
+  const categoryTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    categorized.forEach((p) => {
+      totals[p.category] = (totals[p.category] || 0) + p.totalCost;
+    });
+    return totals;
+  }, [categorized]);
+
+  const totalAll = products.reduce((s, p) => s + p.totalCost, 0);
+
+  return (
+    <div className="bg-card border border-border rounded-xl overflow-hidden mb-8">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-border flex items-center gap-2">
+        <Package className="w-4 h-4 text-primary" />
+        <p className="text-sm font-semibold text-foreground">Top produkty miesiąca</p>
+        <span className="ml-auto text-xs text-muted-foreground">wg kosztu łącznego</span>
+      </div>
+
+      {/* Category tabs */}
+      <div className="px-4 pt-3 pb-2 border-b border-border flex items-center gap-1.5 flex-wrap">
+        {/* All tab */}
+        <button
+          onClick={() => setActiveCategory("wszystkie")}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+            activeCategory === "wszystkie"
+              ? "bg-primary text-primary-foreground"
+              : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          )}
+        >
+          Wszystkie
+          <span className={cn(
+            "text-[10px] px-1.5 py-0.5 rounded-full",
+            activeCategory === "wszystkie" ? "bg-white/20" : "bg-muted"
+          )}>
+            {products.length}
+          </span>
+        </button>
+
+        {presentCategories.map((cat) => {
+          const count = categorized.filter((p) => p.category === cat.id).length;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+                activeCategory === cat.id
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              )}
+            >
+              <span>{cat.emoji}</span>
+              {cat.label}
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded-full",
+                activeCategory === cat.id ? "bg-white/20" : "bg-muted"
+              )}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+
+        {hasInne && (
+          <button
+            onClick={() => setActiveCategory("inne")}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
+              activeCategory === "inne"
+                ? "bg-primary text-primary-foreground"
+                : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            )}
+          >
+            Inne
+            <span className={cn(
+              "text-[10px] px-1.5 py-0.5 rounded-full",
+              activeCategory === "inne" ? "bg-white/20" : "bg-muted"
+            )}>
+              {categorized.filter((p) => p.category === "inne").length}
+            </span>
+          </button>
+        )}
+
+        {/* Active category spend */}
+        {activeCategory !== "wszystkie" && (
+          <span className="ml-auto text-xs text-muted-foreground">
+            Wydano:{" "}
+            <span className="font-semibold text-foreground">
+              {formatPrice(categoryTotals[activeCategory] ?? 0)}
+            </span>
+            <span className="text-muted-foreground ml-1">
+              ({totalAll > 0 ? ((categoryTotals[activeCategory] ?? 0) / totalAll * 100).toFixed(1) : 0}% budżetu)
+            </span>
+          </span>
+        )}
+      </div>
+
+      {/* Table header */}
+      <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
+        <div>Produkt</div>
+        <div className="text-right w-32">Dostawca</div>
+        <div className="text-right w-20">Ilość</div>
+        <div className="text-right w-28">Śr. cena</div>
+        <div className="text-right w-28">Łącznie</div>
+      </div>
+
+      {/* Rows */}
+      {displayProducts.length > 0 ? (
+        <div className="divide-y divide-border">
+          {displayProducts.map((p, i) => (
+            <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 py-3 items-center">
+              <p className="text-sm font-medium text-foreground truncate pr-2">{p.productName}</p>
+              <p className="text-xs text-muted-foreground text-right w-32 truncate">{p.supplierName ?? "—"}</p>
+              <p className="text-sm text-muted-foreground text-right w-20">
+                {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
+              </p>
+              <p className="text-sm text-foreground text-right w-28">{formatPrice(p.avgPrice)}/{p.unit}</p>
+              <p className="text-sm font-bold text-foreground text-right w-28">{formatPrice(p.totalCost)}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="py-8 text-center text-sm text-muted-foreground">
+          Brak produktów w tej kategorii w danym miesiącu.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function Reports() {
   const [month, setMonth] = useState(currentMonth());
@@ -193,35 +487,9 @@ export default function Reports() {
           </div>
         )}
 
-        {/* Top products across all suppliers */}
+        {/* Top products with category tabs */}
         {!isLoading && data && data.topProducts.length > 0 && (
-          <div className="bg-card border border-border rounded-xl overflow-hidden mb-8">
-            <div className="px-6 py-4 border-b border-border flex items-center gap-2">
-              <Package className="w-4 h-4 text-primary" />
-              <p className="text-sm font-semibold text-foreground">Top produkty miesiąca</p>
-              <span className="ml-auto text-xs text-muted-foreground">wg kosztu łącznego</span>
-            </div>
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
-              <div>Produkt</div>
-              <div className="text-right w-32">Dostawca</div>
-              <div className="text-right w-20">Ilość</div>
-              <div className="text-right w-28">Śr. cena</div>
-              <div className="text-right w-28">Łącznie</div>
-            </div>
-            <div className="divide-y divide-border">
-              {data.topProducts.slice(0, 10).map((p, i) => (
-                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 py-3 items-center">
-                  <p className="text-sm font-medium text-foreground truncate pr-2">{p.productName}</p>
-                  <p className="text-xs text-muted-foreground text-right w-32 truncate">{p.supplierName ?? "—"}</p>
-                  <p className="text-sm text-muted-foreground text-right w-20">
-                    {(p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2))} {p.unit}
-                  </p>
-                  <p className="text-sm text-foreground text-right w-28">{formatPrice(p.avgPrice)}/{p.unit}</p>
-                  <p className="text-sm font-bold text-foreground text-right w-28">{formatPrice(p.totalCost)}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <TopProductsSection products={data.topProducts} />
         )}
 
         {/* Per-supplier reports */}
