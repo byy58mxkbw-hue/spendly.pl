@@ -10,7 +10,7 @@ const CATEGORY_RULES: CategoryRule[] = [
       "litovel", "tyskie", "żywiec", "lech ", "heineken", "carlsberg",
       "desperados", "corona ", "budweiser", "hoegaarden", "leffe",
       // Wino
-      "wino ", "wina ", "win ", "vino", "rouge", "blanc", "rosé",
+      "wino ", "vino ", "rouge", "rosé",
       "primitivo", "sauvignon", "chardonnay", "merlot", "cabernet",
       "pinot", "shiraz", "riesling", "sangiovese", "tempranillo",
       "prosecco", "cava ", "szampan", "szampana", "igrist",
