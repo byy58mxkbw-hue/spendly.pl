@@ -16,7 +16,18 @@ import Invoices from "@/pages/invoices";
 import PriceAlerts from "@/pages/price-alerts";
 import Reports from "@/pages/reports";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Always refetch when a component mounts / page is revisited so that
+      // dashboard, reports etc. reflect the latest invoices after import or
+      // delete on other pages.
+      refetchOnMount: "always",
+      refetchOnWindowFocus: true,
+      staleTime: 0,
+    },
+  },
+});
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,

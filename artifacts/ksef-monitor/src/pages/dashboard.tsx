@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useGetDashboardSummary,
@@ -19,6 +20,7 @@ import { TrendingUp, TrendingDown, Minus, Users, Package, FileText, Bell } from 
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CATEGORIES, categorizeProduct } from "@/lib/categories";
 
 function StatCard({
   label,
@@ -85,7 +87,33 @@ export default function Dashboard() {
   const { data: monthly, isLoading: monthlyLoading } = useGetFoodCostMonthly({ months: 12 });
   const { data: recent, isLoading: recentLoading } = useGetRecentPurchases({ limit: 8 });
   const { data: activeAlerts } = useGetDashboardActiveAlerts();
-  const { data: topChanges } = useGetTopPriceChanges({ limit: 5, days: 30 });
+  // Fetch a larger pool so per-category tabs actually have items to show
+  const { data: topChanges } = useGetTopPriceChanges({ limit: 100, days: 30 });
+
+  const [topChangesCategory, setTopChangesCategory] = useState<string>("wszystkie");
+
+  // Categorize all returned items
+  const categorizedTopChanges = useMemo(() => {
+    if (!topChanges) return [];
+    return topChanges.map((t) => ({ ...t, category: categorizeProduct(t.productName) }));
+  }, [topChanges]);
+
+  // Only show category tabs for categories with at least one entry
+  const presentTopCategories = useMemo(() => {
+    const ids = new Set(categorizedTopChanges.map((t) => t.category));
+    return CATEGORIES.filter((c) => ids.has(c.id));
+  }, [categorizedTopChanges]);
+
+  const hasInneTopChanges = categorizedTopChanges.some((t) => t.category === "inne");
+
+  // Filtered + limited to 5 items per tab
+  const displayedTopChanges = useMemo(() => {
+    const filtered =
+      topChangesCategory === "wszystkie"
+        ? categorizedTopChanges
+        : categorizedTopChanges.filter((t) => t.category === topChangesCategory);
+    return filtered.slice(0, 5);
+  }, [categorizedTopChanges, topChangesCategory]);
 
   return (
     <Layout>
@@ -235,9 +263,76 @@ export default function Dashboard() {
           <div className="bg-card border border-border rounded-xl p-6">
             <h2 className="font-semibold text-foreground mb-1">Największe zmiany cen</h2>
             <p className="text-sm text-muted-foreground mb-4">Produkty z najwyższą zmianą ceny</p>
-            {topChanges && topChanges.length > 0 ? (
+
+            {/* Category tabs */}
+            {categorizedTopChanges.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap mb-4">
+                <button
+                  onClick={() => setTopChangesCategory("wszystkie")}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
+                    topChangesCategory === "wszystkie"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  )}
+                >
+                  Wszystkie
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-full",
+                    topChangesCategory === "wszystkie" ? "bg-white/20" : "bg-muted"
+                  )}>
+                    {categorizedTopChanges.length}
+                  </span>
+                </button>
+                {presentTopCategories.map((cat) => {
+                  const count = categorizedTopChanges.filter((t) => t.category === cat.id).length;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setTopChangesCategory(cat.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
+                        topChangesCategory === cat.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      )}
+                    >
+                      <span>{cat.emoji}</span>
+                      {cat.label}
+                      <span className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded-full",
+                        topChangesCategory === cat.id ? "bg-white/20" : "bg-muted"
+                      )}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+                {hasInneTopChanges && (
+                  <button
+                    onClick={() => setTopChangesCategory("inne")}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors",
+                      topChangesCategory === "inne"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    )}
+                  >
+                    Inne
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded-full",
+                      topChangesCategory === "inne" ? "bg-white/20" : "bg-muted"
+                    )}>
+                      {categorizedTopChanges.filter((t) => t.category === "inne").length}
+                    </span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {displayedTopChanges.length > 0 ? (
               <div className="space-y-2">
-                {topChanges.map((item, i) => (
+                {displayedTopChanges.map((item, i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0" data-testid={`top-change-${i}`}>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
