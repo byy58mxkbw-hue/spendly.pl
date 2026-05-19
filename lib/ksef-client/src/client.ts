@@ -90,9 +90,9 @@ function normalizeCertificatePem(raw: string): string {
 interface PublicKeyCertificate {
   certificate?: string;
   publicKey?: string;
-  usage?: string;
-  purpose?: string;
-  type?: string;
+  usage?: string | string[];
+  purpose?: string | string[];
+  type?: string | string[];
   validFrom?: string;
   validTo?: string;
 }
@@ -250,16 +250,20 @@ export class KsefClient {
       const to = c.validTo ? Date.parse(c.validTo) : Number.MAX_SAFE_INTEGER;
       return now >= from && now <= to;
     };
-    const usageOf = (c: PublicKeyCertificate) =>
-      (c.usage ?? c.purpose ?? c.type ?? "").toLowerCase();
+    const usagesOf = (c: PublicKeyCertificate): string[] => {
+      const raw = c.usage ?? c.purpose ?? c.type;
+      if (raw == null) return [];
+      const arr = Array.isArray(raw) ? raw : [raw];
+      return arr.filter((u): u is string => typeof u === "string").map((u) => u.toLowerCase());
+    };
     const exactMatch = list.find(
-      (c) => usageOf(c) === "kseftokenencryption" && isValid(c),
+      (c) => usagesOf(c).includes("kseftokenencryption") && isValid(c),
     );
     const looseMatch = list.find(
-      (c) => usageOf(c).includes("kseftoken") && isValid(c),
+      (c) => usagesOf(c).some((u) => u.includes("kseftoken")) && isValid(c),
     );
     const anyValidWithoutUsage = list.find(
-      (c) => !usageOf(c) && isValid(c),
+      (c) => usagesOf(c).length === 0 && isValid(c),
     );
     const pick = exactMatch ?? looseMatch ?? anyValidWithoutUsage;
     if (!pick) {
