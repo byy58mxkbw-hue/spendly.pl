@@ -336,6 +336,13 @@ export interface UpdateKsefConfigBody {
   token: string;
 }
 
+export interface RetryKsefPendingResult {
+  /** Number of pending invoices successfully auto-imported */
+  imported: number;
+  /** Number of invoices that still require manual review */
+  stillPending: number;
+}
+
 export interface KsefSyncResult {
   imported: number;
   pending: number;

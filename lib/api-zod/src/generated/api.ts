@@ -632,6 +632,18 @@ export const SyncKsefInvoicesResponse = zod.object({
 });
 
 /**
+ * @summary Retry auto-import of pending KSeF invoices after new supplier/product was added
+ */
+export const RetryKsefPendingResponse = zod.object({
+  imported: zod
+    .number()
+    .describe("Number of pending invoices successfully auto-imported"),
+  stillPending: zod
+    .number()
+    .describe("Number of invoices that still require manual review"),
+});
+
+/**
  * @summary List invoices pulled from KSeF that need manual review
  */
 export const ListKsefPendingQueryParams = zod.object({

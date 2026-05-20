@@ -659,6 +659,19 @@ paths:
         "502":
           description: KSeF upstream error
 
+  /ksef/pending/retry:
+    post:
+      operationId: retryKsefPending
+      tags: [ksef]
+      summary: Retry auto-import of pending KSeF invoices after new supplier/product was added
+      responses:
+        "200":
+          description: Retry result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetryKsefPendingResult"
+
   /ksef/pending:
     get:
       operationId: listKsefPending
@@ -1443,6 +1456,19 @@ components:
       required:
         - nip
         - token
+
+    RetryKsefPendingResult:
+      type: object
+      properties:
+        imported:
+          type: integer
+          description: Number of pending invoices successfully auto-imported
+        stillPending:
+          type: integer
+          description: Number of invoices that still require manual review
+      required:
+        - imported
+        - stillPending
 
     KsefSyncResult:
       type: object

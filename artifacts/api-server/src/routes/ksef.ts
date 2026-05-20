@@ -654,6 +654,118 @@ async function runSync(
   }
 }
 
+// ─── Pending retry ───────────────────────────────────────────────────────────
+
+router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const now = new Date();
+
+  const stillPending = await db
+    .select()
+    .from(ksefPendingInvoicesTable)
+    .where(
+      and(
+        eq(ksefPendingInvoicesTable.userId, userId),
+        inArray(ksefPendingInvoicesTable.status, ["pending", "rejected"]),
+      ),
+    );
+
+  let imported = 0;
+  let remainingPending = stillPending.length;
+
+  for (const row of stillPending) {
+    try {
+      const parsed = row.parsedJson as ParsedFa3;
+      if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) continue;
+      const match = await tryMatch(userId, parsed);
+      if (!match.supplier) continue;
+
+      const resolvedProductIds: number[] = [];
+      for (let i = 0; i < parsed.items.length; i++) {
+        let pid = match.itemProductIds[i];
+        if (pid == null) {
+          pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit);
+        }
+        resolvedProductIds.push(pid);
+      }
+
+      const totalAmount =
+        parsed.header.totalGross ?? parsed.items.reduce((s, it) => s + it.gross, 0);
+      const invNum = parsed.header.invoiceNumber ?? row.ksefNumber;
+      const invDate = parsed.header.invoiceDate ?? isoDate(now);
+
+      const wasNewlyImported = await db.transaction(async (tx) => {
+        const [existing] = await tx
+          .select({ id: invoicesTable.id })
+          .from(invoicesTable)
+          .where(
+            and(
+              eq(invoicesTable.userId, userId),
+              eq(invoicesTable.supplierId, match.supplier!.id),
+              eq(invoicesTable.invoiceNumber, invNum),
+            ),
+          )
+          .limit(1);
+        let inserted = false;
+        if (existing) {
+          await tx
+            .update(invoicesTable)
+            .set({
+              ksefNumber: row.ksefNumber,
+              xmlContent: row.rawXml,
+              totalAmount: totalAmount.toFixed(2),
+              invoiceDate: invDate,
+            })
+            .where(eq(invoicesTable.id, existing.id));
+        } else {
+          const insertedRows = await tx
+            .insert(invoicesTable)
+            .values({
+              userId,
+              supplierId: match.supplier!.id,
+              invoiceNumber: invNum,
+              invoiceDate: invDate,
+              totalAmount: totalAmount.toFixed(2),
+              xmlContent: row.rawXml,
+              ksefNumber: row.ksefNumber,
+            })
+            .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
+            .returning();
+          const inv = insertedRows[0];
+          if (inv) {
+            inserted = true;
+            for (let i = 0; i < parsed.items.length; i++) {
+              const item = parsed.items[i];
+              await tx.insert(invoiceItemsTable).values({
+                invoiceId: inv.id,
+                productId: resolvedProductIds[i],
+                productName: item.name,
+                quantity: item.quantity.toString(),
+                unit: item.unit,
+                unitPrice: item.unitPrice.toString(),
+                totalPrice: item.net.toString(),
+                vatRate: item.vatRate != null ? item.vatRate.toString() : null,
+              });
+            }
+          }
+        }
+        await tx
+          .update(ksefPendingInvoicesTable)
+          .set({ status: "accepted" })
+          .where(eq(ksefPendingInvoicesTable.id, row.id));
+        return inserted;
+      });
+
+      if (wasNewlyImported) imported++;
+      remainingPending = Math.max(0, remainingPending - 1);
+    } catch (err) {
+      req.log.error({ pendingId: row.id, err: String(err) }, "KSeF pending retry failed");
+    }
+  }
+
+  res.json({ imported, stillPending: remainingPending });
+});
+
 // ─── Pending review ──────────────────────────────────────────────────────────
 
 router.get("/ksef/pending", async (req, res): Promise<void> => {

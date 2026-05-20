@@ -56,6 +56,7 @@ import type {
   PriceHistoryEntry,
   Product,
   RecentPurchase,
+  RetryKsefPendingResult,
   Supplier,
   SupplierComparison,
   TriggeredAlert,
@@ -2870,6 +2871,87 @@ export const useSyncKsefInvoices = <
   TContext
 > => {
   return useMutation(getSyncKsefInvoicesMutationOptions(options));
+};
+
+/**
+ * @summary Retry auto-import of pending KSeF invoices after new supplier/product was added
+ */
+export const getRetryKsefPendingUrl = () => {
+  return `/api/ksef/pending/retry`;
+};
+
+export const retryKsefPending = async (
+  options?: RequestInit,
+): Promise<RetryKsefPendingResult> => {
+  return customFetch<RetryKsefPendingResult>(getRetryKsefPendingUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRetryKsefPendingMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryKsefPending>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof retryKsefPending>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["retryKsefPending"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof retryKsefPending>>,
+    void
+  > = () => {
+    return retryKsefPending(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RetryKsefPendingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof retryKsefPending>>
+>;
+
+export type RetryKsefPendingMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Retry auto-import of pending KSeF invoices after new supplier/product was added
+ */
+export const useRetryKsefPending = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryKsefPending>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof retryKsefPending>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getRetryKsefPendingMutationOptions(options));
 };
 
 /**

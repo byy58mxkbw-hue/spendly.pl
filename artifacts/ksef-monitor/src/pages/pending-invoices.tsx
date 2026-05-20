@@ -32,6 +32,7 @@ import {
   useListProducts,
   useCreateSupplier,
   useCreateProduct,
+  useRetryKsefPending,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -173,6 +174,7 @@ function PendingDetailDialog({
   const reject = useRejectKsefPending();
   const createSupplier = useCreateSupplier();
   const createProduct = useCreateProduct();
+  const retryPending = useRetryKsefPending();
 
   const [supplierId, setSupplierId] = useState<string>("");
   const [mapping, setMapping] = useState<Record<number, string>>({});
@@ -256,6 +258,21 @@ function PendingDetailDialog({
           setShowNewSupplier(false);
           queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
           toast({ title: "Dostawca dodany", description: created.name });
+          retryPending.mutate(undefined, {
+              onSuccess: (result) => {
+                queryClient.invalidateQueries({ queryKey: ["/api/ksef/pending"] });
+                if (result.imported > 0) {
+                  toast({
+                    title: "Automatyczny import",
+                    description:
+                      result.imported === 1
+                        ? `Zaimportowano 1 fakturę od tego dostawcy.`
+                        : `Zaimportowano ${result.imported} faktury od tego dostawcy.`,
+                  });
+                }
+              },
+            },
+          );
         },
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { error?: string } }; message?: string };
