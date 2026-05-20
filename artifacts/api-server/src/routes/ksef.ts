@@ -175,10 +175,15 @@ async function findOrCreateProductByName(
   unit: string,
 ): Promise<number> {
   const trimmed = name.trim();
+  // Compare on normalized form: lowercased and with internal whitespace
+  // collapsed so we don't create duplicate products that differ only in
+  // case or stray spaces (e.g. "Kraj pochodzenia:  Polska" vs " Polska").
   const [existing] = await db
     .select({ id: productsTable.id })
     .from(productsTable)
-    .where(sql`LOWER(${productsTable.name}) = LOWER(${trimmed})`)
+    .where(
+      sql`regexp_replace(LOWER(${productsTable.name}), '\s+', ' ', 'g') = regexp_replace(LOWER(${trimmed}), '\s+', ' ', 'g')`,
+    )
     .limit(1);
   if (existing) return existing.id;
   const [created] = await db
@@ -207,7 +212,9 @@ async function tryMatch(parsed: ParsedFa3): Promise<MatchResult> {
     const [prod] = await db
       .select({ id: productsTable.id })
       .from(productsTable)
-      .where(sql`LOWER(${productsTable.name}) = LOWER(${item.name})`)
+      .where(
+        sql`regexp_replace(LOWER(${productsTable.name}), '\s+', ' ', 'g') = regexp_replace(LOWER(${item.name}), '\s+', ' ', 'g')`,
+      )
       .limit(1);
     if (prod) {
       itemProductIds.push(prod.id);
