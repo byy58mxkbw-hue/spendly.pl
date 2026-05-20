@@ -333,72 +333,76 @@ export function PriceHistoryModal({ productId, productName, onClose }: { product
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl" data-testid="dialog-price-history">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden" data-testid="dialog-price-history">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Historia cen: {productName}</DialogTitle>
         </DialogHeader>
         {isLoading ? (
           <Skeleton className="h-56 w-full rounded-lg" />
         ) : chartData && chartData.length > 0 ? (
-          <>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `${v} zł`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
-                  formatter={(value: number, _name, props) => [
-                    formatPrice(value),
-                    props.payload?.supplier,
-                  ]}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="price"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ fill: "hsl(var(--primary))", strokeWidth: 0, r: 4 }}
-                  activeDot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-            <div className="overflow-x-auto">
+          <div className="flex flex-col min-h-0 gap-4">
+            {/* Chart — fixed, always visible */}
+            <div className="shrink-0">
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `${v} zł`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value: number, _name, props) => [
+                      formatPrice(value),
+                      props.payload?.supplier,
+                    ]}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="price"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={{ fill: "hsl(var(--primary))", strokeWidth: 0, r: 4 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            {/* Table — scrollable, fills remaining space */}
+            <div className="flex-1 min-h-0 overflow-y-auto border border-border rounded-lg">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 bg-card z-10">
                   <tr className="border-b border-border">
-                    <th className="text-left py-2 text-muted-foreground font-medium">Data</th>
-                    <th className="text-left py-2 text-muted-foreground font-medium">Dostawca</th>
-                    <th className="text-right py-2 text-muted-foreground font-medium">Cena</th>
+                    <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Data</th>
+                    <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Dostawca</th>
+                    <th className="text-right px-4 py-2.5 text-muted-foreground font-medium">Cena</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[...history!].reverse().map((h, i) => (
-                    <tr key={i} className="border-b border-border last:border-0">
-                      <td className="py-2">{formatDate(h.date)}</td>
-                      <td className="py-2 text-muted-foreground">{h.supplierName}</td>
-                      <td className="py-2 text-right font-semibold">{formatPrice(h.price)}</td>
+                    <tr key={i} className="border-b border-border last:border-0 hover:bg-secondary/40 transition-colors">
+                      <td className="px-4 py-2.5">{formatDate(h.date)}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{h.supplierName}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold">{formatPrice(h.price)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </>
+          </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground text-sm">
             Brak historii cen dla tego produktu.
