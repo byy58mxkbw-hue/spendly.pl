@@ -13,6 +13,11 @@ import {
   BarChart2,
   ShoppingCart,
   Star,
+  Leaf,
+  Globe,
+  Users,
+  Lightbulb,
+  Calendar,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetInsights, usePostInsightsGenerate, usePostInsightsIdDismiss, usePostInsightsIdRead } from "@workspace/api-client-react";
@@ -60,11 +65,30 @@ const SEVERITY_CONFIG = {
 
 const TYPE_ICON: Record<string, React.ElementType> = {
   price_spike: TrendingUp,
+  price_drop: TrendingDown,
   price_trend: BarChart2,
   supplier_pattern: ShoppingCart,
-  cost_forecast: Zap,
+  supplier_risk: Users,
+  cost_forecast: BarChart2,
   weekly_trend: TrendingUp,
   record_high: Star,
+  seasonal: Leaf,
+  market_outlook: Globe,
+  action_required: Lightbulb,
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  price_spike: "Podwyżka",
+  price_drop: "Obniżka",
+  price_trend: "Trend cenowy",
+  supplier_pattern: "Wzorzec dostawcy",
+  supplier_risk: "Ryzyko dostawcy",
+  cost_forecast: "Prognoza kosztów",
+  weekly_trend: "Trend tygodniowy",
+  record_high: "Rekord ceny",
+  seasonal: "Sezonowość",
+  market_outlook: "Rynek globalny",
+  action_required: "Rekomendacja",
 };
 
 function RiskBar({ score }: { score: number }) {
@@ -117,7 +141,7 @@ function InsightCard({ insight, onDismiss }: { insight: Insight; onDismiss: (id:
               <RiskBar score={insight.riskScore} />
             </div>
             <span className={cn("text-[10px] font-medium px-2 py-0.5 rounded-full border", sev.badge)}>
-              {sev.label}
+              {TYPE_LABEL[insight.type] ?? sev.label}
             </span>
           </div>
         </div>

@@ -24,11 +24,26 @@ interface ProductTrend {
   changePercent: number;
   maxPrice90d: number;
   minPrice90d: number;
-  consecutiveWeeksUp: number;
+  totalSpend90d: number;
+  purchaseCount: number;
+}
+
+interface SupplierSummary {
+  supplierId: number;
+  supplierName: string;
+  totalSpend: number;
+  invoiceCount: number;
+  productCount: number;
+  sharePercent: number;
+}
+
+interface MonthlyTrend {
+  month: string;
+  total: number;
 }
 
 interface InsightRaw {
-  type: "price_spike" | "price_trend" | "supplier_pattern" | "cost_forecast" | "weekly_trend" | "record_high";
+  type: string;
   severity: "low" | "medium" | "high" | "critical";
   title: string;
   body: string;
@@ -36,26 +51,6 @@ interface InsightRaw {
   productId?: number | null;
   supplierId?: number | null;
   metadata?: Record<string, unknown>;
-}
-
-function computeConsecutiveWeeksUp(prices: { date: string; price: number }[]): number {
-  if (prices.length < 2) return 0;
-  const sorted = [...prices].sort((a, b) => a.date.localeCompare(b.date));
-  const weeklyMap = new Map<string, number>();
-  for (const p of sorted) {
-    const d = new Date(p.date);
-    const year = d.getFullYear();
-    const week = Math.floor((d.getTime() - new Date(year, 0, 1).getTime()) / (7 * 86400000));
-    const key = `${year}-${week}`;
-    weeklyMap.set(key, p.price);
-  }
-  const weekly = Array.from(weeklyMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  let consecutive = 0;
-  for (let i = weekly.length - 1; i > 0; i--) {
-    if (weekly[i][1] > weekly[i - 1][1]) consecutive++;
-    else break;
-  }
-  return consecutive;
 }
 
 async function fetchPriceData(userId: string, since: Date): Promise<PriceDataRow[]> {
@@ -90,6 +85,59 @@ async function fetchPriceData(userId: string, since: Date): Promise<PriceDataRow
   }));
 }
 
+async function fetchSupplierSummaries(userId: string, since: Date): Promise<SupplierSummary[]> {
+  const result = await db.execute(sql`
+    SELECT
+      s.id as supplier_id,
+      s.name as supplier_name,
+      ROUND(SUM(ii.total_price)::numeric, 2) as total_spend,
+      COUNT(DISTINCT i.id) as invoice_count,
+      COUNT(DISTINCT ii.product_id) as product_count
+    FROM invoice_items ii
+    JOIN invoices i ON ii.invoice_id = i.id
+    JOIN suppliers s ON i.supplier_id = s.id
+    WHERE i.user_id = ${userId}
+      AND i.invoice_date >= ${since.toISOString().slice(0, 10)}
+    GROUP BY s.id, s.name
+    ORDER BY total_spend DESC
+    LIMIT 10
+  `);
+
+  const rows = result.rows as Array<{
+    supplier_id: number; supplier_name: string;
+    total_spend: string; invoice_count: string; product_count: string;
+  }>;
+
+  const grandTotal = rows.reduce((s, r) => s + parseFloat(r.total_spend ?? "0"), 0);
+  return rows.map((r) => ({
+    supplierId: Number(r.supplier_id),
+    supplierName: r.supplier_name,
+    totalSpend: parseFloat(r.total_spend ?? "0"),
+    invoiceCount: Number(r.invoice_count),
+    productCount: Number(r.product_count),
+    sharePercent: grandTotal > 0 ? Math.round((parseFloat(r.total_spend ?? "0") / grandTotal) * 100) : 0,
+  }));
+}
+
+async function fetchMonthlyTrends(userId: string): Promise<MonthlyTrend[]> {
+  const result = await db.execute(sql`
+    SELECT
+      SUBSTRING(i.invoice_date, 1, 7) as month,
+      ROUND(SUM(ii.total_price)::numeric, 2) as total
+    FROM invoice_items ii
+    JOIN invoices i ON ii.invoice_id = i.id
+    WHERE i.user_id = ${userId}
+    GROUP BY 1
+    ORDER BY 1 DESC
+    LIMIT 6
+  `);
+
+  return (result.rows as Array<{ month: string; total: string }>).map((r) => ({
+    month: r.month,
+    total: parseFloat(r.total ?? "0"),
+  }));
+}
+
 function buildProductTrends(data: PriceDataRow[]): ProductTrend[] {
   const map = new Map<string, PriceDataRow[]>();
   for (const row of data) {
@@ -108,9 +156,7 @@ function buildProductTrends(data: PriceDataRow[]): ProductTrend[] {
     const previous = prices[prices.length - 2].price;
     const changePercent = previous > 0 ? ((current - previous) / previous) * 100 : 0;
     const allPrices = prices.map((p) => p.price);
-    const maxPrice90d = Math.max(...allPrices);
-    const minPrice90d = Math.min(...allPrices);
-    const consecutiveWeeksUp = computeConsecutiveWeeksUp(prices);
+    const totalSpend90d = sorted.reduce((s, r) => s + r.unitPrice, 0);
 
     trends.push({
       productId: rows[0].productId,
@@ -121,35 +167,87 @@ function buildProductTrends(data: PriceDataRow[]): ProductTrend[] {
       currentPrice: current,
       previousPrice: previous,
       changePercent,
-      maxPrice90d,
-      minPrice90d,
-      consecutiveWeeksUp,
+      maxPrice90d: Math.max(...allPrices),
+      minPrice90d: Math.min(...allPrices),
+      totalSpend90d,
+      purchaseCount: rows.length,
     });
   }
 
   return trends.sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent));
 }
 
-function buildPrompt(trends: ProductTrend[]): string {
-  const spikes = trends.filter((t) => t.changePercent > 5).slice(0, 8);
-  const drops = trends.filter((t) => t.changePercent < -5).slice(0, 4);
-  const recordHighs = trends.filter((t) => t.currentPrice >= t.maxPrice90d * 0.99 && t.changePercent > 0).slice(0, 4);
+function buildPrompt(
+  trends: ProductTrend[],
+  suppliers: SupplierSummary[],
+  monthly: MonthlyTrend[],
+): string {
+  const today = new Date();
+  const dateStr = today.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
+  const month = today.getMonth() + 1; // 1-12
 
-  const fmt = (t: ProductTrend) =>
-    `${t.productName} | ${t.supplierName} | ${t.previousPrice.toFixed(2)}->${t.currentPrice.toFixed(2)} PLN (${t.changePercent > 0 ? "+" : ""}${t.changePercent.toFixed(1)}%)`;
+  const spikes = trends.filter((t) => t.changePercent > 5).slice(0, 10);
+  const drops = trends.filter((t) => t.changePercent < -5).slice(0, 6);
+  const stable = trends.filter((t) => Math.abs(t.changePercent) <= 5).slice(0, 5);
 
-  const lines: string[] = [];
-  if (spikes.length) lines.push("PODWYZKI:\n" + spikes.map(fmt).join("\n"));
-  if (drops.length) lines.push("OBNIZKI:\n" + drops.map(fmt).join("\n"));
-  if (recordHighs.length) lines.push("REKORDY:\n" + recordHighs.map(fmt).join("\n"));
+  const fmtTrend = (t: ProductTrend) =>
+    `${t.productName} | ${t.supplierName} | ${t.previousPrice.toFixed(2)}->${t.currentPrice.toFixed(2)} PLN (${t.changePercent > 0 ? "+" : ""}${t.changePercent.toFixed(1)}%) | ${t.purchaseCount}x zakupów`;
 
-  return `Dane cenowe restauracji (90 dni):
-${lines.join("\n\n")}
+  const fmtSupplier = (s: SupplierSummary) =>
+    `${s.supplierName}: ${s.totalSpend.toFixed(0)} PLN (${s.sharePercent}% budżetu, ${s.productCount} prod., ${s.invoiceCount} fakt.)`;
 
-Wygeneruj do 6 insightów biznesowych po polsku. Odpowiedz TYLKO jako JSON array (bez żadnego tekstu przed/po):
-[{"type":"price_spike","severity":"high","title":"Krótki nagłówek max 60 zn","body":"Kontekst z liczbami max 120 zn","riskScore":75,"productName":"nazwa","supplierName":"nazwa"}]
+  const fmtMonthly = (m: MonthlyTrend) => `${m.month}: ${m.total.toFixed(0)} PLN`;
 
-severity: low/medium/high/critical. riskScore: 0-100. type: price_spike/price_trend/record_high/supplier_pattern.`;
+  const allProductNames = [...new Set(trends.map((t) => t.productName))].slice(0, 40).join(", ");
+
+  const sections: string[] = [];
+
+  sections.push(`DATA ANALIZY: ${dateStr} (miesiąc ${month}/12)`);
+
+  sections.push(`MIESIĘCZNE WYDATKI (ostatnie 6 mies.):
+${monthly.map(fmtMonthly).join("\n") || "(brak)"}`);
+
+  sections.push(`TOP DOSTAWCY wg wydatków (90 dni):
+${suppliers.map(fmtSupplier).join("\n") || "(brak)"}`);
+
+  sections.push(`PRODUKTY Z PODWYŻKĄ (>5%):
+${spikes.map(fmtTrend).join("\n") || "(brak)"}`);
+
+  if (drops.length) {
+    sections.push(`PRODUKTY Z OBNIŻKĄ (<-5%):
+${drops.map(fmtTrend).join("\n")}`);
+  }
+
+  if (stable.length) {
+    sections.push(`PRODUKTY STABILNE (przykłady):
+${stable.map(fmtTrend).join("\n")}`);
+  }
+
+  sections.push(`WSZYSTKIE ŚLEDZONE PRODUKTY (próbka):
+${allProductNames}`);
+
+  return `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur i dostarczasz actionable insighty.
+
+=== DANE PANELU RESTAURACJI ===
+${sections.join("\n\n")}
+
+=== TWOJE ZADANIE ===
+Wygeneruj do 10 insightów biznesowych. MUSISZ pokryć różne kategorie:
+
+1. BIEŻĄCE ALERTY CENOWE — co drożeje/tanieje w tym momencie na podstawie faktur
+2. SEZONOWOŚĆ — wiedząc że dzisiaj jest ${dateStr} (miesiąc ${month}), które produkty z listy wejdą w sezon lub wyjdą z sezonu w ciągu najbliższych 4-8 tygodni? Co podrożeje przez sezon (lato/jesień/zima)? Np. truskawki sezon maj-lipiec, arbuz czerwiec-sierpień, ziemniaki nowe lipiec-sierpień, mięso zgrillowane lato droższe etc.
+3. TRENDY GLOBALNE I RYNKOWE — na podstawie swojej aktualnej wiedzy o rynkach: co się dzieje z cenami mięsa (wołowina, wieprzowina, drób), olejów roślinnych, zbóż, nabiału, ryb w Polsce i Europie w ${dateStr}? Jakie czynniki (inflacja, susza, embargo, sezon) wpływają na ceny tych produktów które restauracja kupuje?
+4. RYZYKO KONCENTRACJI DOSTAWCÓW — czy restauracja jest zbyt uzależniona od jednego dostawcy?
+5. REKOMENDACJE DZIAŁANIA — co konkretnie zrobić: negocjować, zmienić dostawcę, zrobić zapasy przed podwyżką, szukać zamiennika
+
+Każdy insight = jedna konkretna, actionable obserwacja z liczbami lub datami. Brak ogólników.
+
+Odpowiedz TYLKO jako JSON array (bez żadnego tekstu przed/po nawiasem):
+[{"type":"TYP","severity":"POZIOM","title":"Tytuł max 70 zn","body":"Treść max 160 zn z konkretnymi liczbami/datami","riskScore":75,"productName":"nazwa lub null","supplierName":"nazwa lub null"}]
+
+Dostępne typy: price_spike | price_drop | seasonal | market_outlook | supplier_risk | action_required | cost_forecast | record_high
+severity: low | medium | high | critical
+riskScore: 0-100 (100=krytyczne ryzyko dla food cost)`;
 }
 
 async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
@@ -157,13 +255,8 @@ async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
 
   const resp = await openai.chat.completions.create({
     model: "gpt-5-mini",
-    max_completion_tokens: 10000,
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
+    max_completion_tokens: 12000,
+    messages: [{ role: "user", content: prompt }],
   });
 
   const choice = resp.choices[0];
@@ -171,9 +264,8 @@ async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
   logger?.info({
     finishReason: choice?.finish_reason,
     aiResponseLen: text.length,
-    aiResponsePreview: text.slice(0, 300),
-    usageTotal: resp.usage?.total_tokens,
-    usageReasoning: (resp.usage as Record<string, unknown>)?.completion_tokens_details,
+    aiResponsePreview: text.slice(0, 400),
+    reasoning: (resp.usage as unknown as Record<string, unknown>)?.completion_tokens_details,
   }, "AI CFO raw response");
 
   if (!text) {
@@ -182,16 +274,13 @@ async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
   }
 
   try {
+    const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+    const parsed: unknown = JSON.parse(cleaned);
     let raw: Array<Record<string, unknown>> = [];
 
-    // Strip markdown code fences if present
-    const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-
-    const parsed: unknown = JSON.parse(cleaned);
     if (Array.isArray(parsed)) {
       raw = parsed as Array<Record<string, unknown>>;
     } else if (parsed && typeof parsed === "object") {
-      // Wrapped: {"insights": [...]} or similar
       const obj = parsed as Record<string, unknown>;
       const arr = obj["insights"] ?? obj["data"] ?? obj["results"] ?? Object.values(obj)[0];
       if (Array.isArray(arr)) raw = arr as Array<Record<string, unknown>>;
@@ -202,17 +291,20 @@ async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
     return raw
       .filter((r) => r.title && r.body)
       .map((r) => ({
-        type: (r.type as InsightRaw["type"]) ?? "price_spike",
+        type: String(r.type ?? "price_spike"),
         severity: (r.severity as InsightRaw["severity"]) ?? "medium",
         title: String(r.title).slice(0, 120),
-        body: String(r.body).slice(0, 240),
+        body: String(r.body).slice(0, 280),
         riskScore: Math.min(100, Math.max(0, Number(r.riskScore ?? 50))),
         productId: null,
         supplierId: null,
-        metadata: { productName: r.productName ?? null, supplierName: r.supplierName ?? null },
+        metadata: {
+          productName: r.productName ?? null,
+          supplierName: r.supplierName ?? null,
+        },
       }));
   } catch (e) {
-    logger?.warn({ err: String(e), rawText: text.slice(0, 500) }, "AI CFO JSON parse failed");
+    logger?.warn({ err: String(e), rawText: text.slice(0, 600) }, "AI CFO JSON parse failed");
     return [];
   }
 }
@@ -220,19 +312,25 @@ async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
 function matchIds(
   insight: InsightRaw & { metadata?: { productName?: unknown; supplierName?: unknown } },
   trends: ProductTrend[],
+  suppliers: SupplierSummary[],
 ): { productId: number | null; supplierId: number | null } {
   const pName = String(insight.metadata?.productName ?? "").toLowerCase();
   const sName = String(insight.metadata?.supplierName ?? "").toLowerCase();
 
-  const match = trends.find(
+  const trendMatch = trends.find(
     (t) =>
-      (pName && t.productName.toLowerCase().includes(pName)) ||
-      (sName && t.supplierName.toLowerCase().includes(sName)),
+      (pName.length > 2 && t.productName.toLowerCase().includes(pName)) ||
+      (sName.length > 2 && t.supplierName.toLowerCase().includes(sName)),
   );
+  if (trendMatch) return { productId: trendMatch.productId, supplierId: trendMatch.supplierId };
+
+  const supplierMatch = sName.length > 2
+    ? suppliers.find((s) => s.supplierName.toLowerCase().includes(sName))
+    : undefined;
 
   return {
-    productId: match?.productId ?? null,
-    supplierId: match?.supplierId ?? null,
+    productId: null,
+    supplierId: supplierMatch?.supplierId ?? null,
   };
 }
 
@@ -240,30 +338,26 @@ export async function generateInsights(userId: string, logger?: Logger): Promise
   const since = new Date();
   since.setDate(since.getDate() - 90);
 
-  const data = await fetchPriceData(userId, since);
+  const [data, suppliers, monthly] = await Promise.all([
+    fetchPriceData(userId, since),
+    fetchSupplierSummaries(userId, since),
+    fetchMonthlyTrends(userId),
+  ]);
+
   if (data.length === 0) return 0;
 
   const trends = buildProductTrends(data);
-  if (trends.length === 0) return 0;
+  if (trends.length === 0 && suppliers.length === 0) return 0;
 
-  const prompt = buildPrompt(trends);
+  const prompt = buildPrompt(trends, suppliers, monthly);
   const insights = await callAI(prompt, logger);
   if (insights.length === 0) return 0;
 
-  const cutoff = new Date();
-  cutoff.setHours(cutoff.getHours() - 12);
-
-  await db
-    .delete(aiInsightsTable)
-    .where(
-      and(
-        eq(aiInsightsTable.userId, userId),
-        lt(aiInsightsTable.createdAt, cutoff),
-      ),
-    );
+  // Replace all existing insights for this user
+  await db.delete(aiInsightsTable).where(eq(aiInsightsTable.userId, userId));
 
   const rows = insights.map((ins) => {
-    const { productId, supplierId } = matchIds(ins, trends);
+    const { productId, supplierId } = matchIds(ins, trends, suppliers);
     return {
       userId,
       type: ins.type,
