@@ -21,6 +21,10 @@ export const ParsedFa3HeaderSchema = z.object({
   invoiceDate: z.string().nullable(),
   totalNet: z.number().nullable(),
   totalGross: z.number().nullable(),
+  // RodzajFaktury: VAT (regular), KOR (correction), ZAL (advance), ROZ
+  // (settlement). Used to flip line-item signs for credit notes so monthly
+  // food-cost reports stay correct.
+  invoiceType: z.string().nullable(),
 });
 
 export const ParsedFa3Schema = z.object({
@@ -87,8 +91,18 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
     const totalGrossRaw = extractTag(stripped, "P_15") ?? extractTag(stripped, "WartoscBrutto");
     const totalNet = totalNetRaw ? parseNum(totalNetRaw) : null;
     const totalGross = totalGrossRaw ? parseNum(totalGrossRaw) : null;
+    const invoiceType = extractTag(stripped, "RodzajFaktury")?.trim().toUpperCase() ?? null;
 
-    const items: ParsedFa3Item[] = [];
+    // For credit notes (faktura korygująca / KOR) the line items carry
+    // positive magnitudes but represent reductions. We mirror the sign of
+    // the header's net total onto each line so downstream aggregations
+    // (food cost, predictive analytics) work correctly without special
+    // casing every consumer.
+    const headerIsNegative =
+      invoiceType === "KOR" &&
+      ((totalNet != null && totalNet < 0) || (totalGross != null && totalGross < 0));
+
+    const rawItems: ParsedFa3Item[] = [];
     const wierszeRe = /<FaWiersz>([\s\S]*?)<\/FaWiersz>/g;
     let m: RegExpExecArray | null;
     while ((m = wierszeRe.exec(stripped)) !== null) {
@@ -105,8 +119,22 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
       const grossRaw = extractTag(block, "P_11B");
       const gross = grossRaw ? parseNum(grossRaw) : (vatRate != null ? net * (1 + vatRate / 100) : net);
 
-      items.push({ name, gtin: gtin?.trim() || null, quantity: qty, unit, unitPrice, net, vatRate, gross });
+      rawItems.push({ name, gtin: gtin?.trim() || null, quantity: qty, unit, unitPrice, net, vatRate, gross });
     }
+
+    // Guard against double-negation: only flip when header is negative AND
+    // every line is still non-negative. If any issuer already encoded line
+    // amounts as negative, keep them as-is.
+    const linesAlreadyNegative = rawItems.some((it) => it.net < 0 || it.gross < 0);
+    const items: ParsedFa3Item[] =
+      headerIsNegative && !linesAlreadyNegative
+        ? rawItems.map((it) => ({
+            ...it,
+            quantity: it.quantity * -1,
+            net: it.net * -1,
+            gross: it.gross * -1,
+          }))
+        : rawItems;
 
     return ParsedFa3Schema.parse({
       header: {
@@ -118,6 +146,7 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
         invoiceDate,
         totalNet,
         totalGross,
+        invoiceType,
       },
       items,
     });

@@ -112,6 +112,17 @@ function parseKSeFXml(xml: string): {
   }
   const totalGrossRaw = extractTag(stripped, "P_15") ?? extractTag(stripped, "WartoscBrutto");
   const totalGross = totalGrossRaw ? parseNum(totalGrossRaw) : null;
+  const totalNetRaw = extractTag(stripped, "P_13_1");
+  const totalNet = totalNetRaw ? parseNum(totalNetRaw) : null;
+  const invoiceType = extractTag(stripped, "RodzajFaktury")?.trim().toUpperCase() ?? null;
+
+  // Credit notes (KOR) carry positive line magnitudes but represent a
+  // reduction. Flip line signs so monthly aggregates compute correctly.
+  // Only flip when header is negative AND lines aren't already negative
+  // (guard against double-negation when an issuer encoded line signs).
+  const headerIsNegative =
+    invoiceType === "KOR" &&
+    ((totalNet != null && totalNet < 0) || (totalGross != null && totalGross < 0));
 
   // Try FA2 FaWiersz blocks first
   const wierszeRe = /<FaWiersz>([\s\S]*?)<\/FaWiersz>/g;
@@ -127,12 +138,14 @@ function parseKSeFXml(xml: string): {
     const vatRaw = extractTag(block, "P_12");
     const vatRate = vatRaw && /^\d+$/.test(vatRaw.trim()) ? parseInt(vatRaw.trim(), 10) : null;
 
+    const baseQty = qty || 1;
+    const baseTotal = total || unitPrice * baseQty;
     items.push({
       productName: name,
-      quantity: qty || 1,
+      quantity: baseQty,
       unit,
       unitPrice,
-      totalPrice: total || unitPrice * (qty || 1),
+      totalPrice: baseTotal,
       vatRate,
     });
   }
@@ -145,14 +158,27 @@ function parseKSeFXml(xml: string): {
       const qty = parseNum(m[3]);
       const unitPrice = parseNum(m[4]);
       const total = parseNum(m[5]);
+      const baseQty = qty || 1;
+      const baseTotal = total || unitPrice * baseQty;
       items.push({
         productName: m[1].trim(),
-        quantity: qty || 1,
+        quantity: baseQty,
         unit: m[2].trim() || "szt",
         unitPrice,
-        totalPrice: total || unitPrice * (qty || 1),
+        totalPrice: baseTotal,
         vatRate: null,
       });
+    }
+  }
+
+  // Apply KOR sign-flip only if header is negative AND no line is already
+  // negative — protects against double-negation when an issuer encoded
+  // line amounts with the correct (negative) sign already.
+  const linesAlreadyNegative = items.some((it) => it.totalPrice < 0 || it.quantity < 0);
+  if (headerIsNegative && !linesAlreadyNegative) {
+    for (const it of items) {
+      it.quantity = -it.quantity;
+      it.totalPrice = -it.totalPrice;
     }
   }
 
