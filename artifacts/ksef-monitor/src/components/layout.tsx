@@ -27,7 +27,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="px-6 py-5 border-b border-border">
           <div className="flex items-center gap-2.5">
             <img src="/logo.svg" alt="CennikPro" className="w-8 h-8 rounded-lg" />
-            <span className="font-semibold text-foreground text-lg tracking-tight">CennikPro</span>
+            <span className="text-foreground text-lg tracking-tight font-extrabold">CheckIT</span>
           </div>
         </div>
 
@@ -80,7 +80,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
-
       {/* Main content */}
       <main className="flex-1 min-w-0 overflow-y-auto">
         {children}
