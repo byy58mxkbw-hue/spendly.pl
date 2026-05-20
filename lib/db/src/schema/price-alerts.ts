@@ -2,13 +2,11 @@ import { pgTable, serial, integer, text, numeric, boolean, timestamp, index } fr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { suppliersTable } from "./suppliers";
-import { productGroupsTable } from "./product-groups";
 
 export const priceAlertsTable = pgTable("price_alerts", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull().default("__legacy__"),
-  productName: text("product_name"),
-  groupId: integer("group_id").references(() => productGroupsTable.id, { onDelete: "cascade" }),
+  productName: text("product_name").notNull(),
   supplierId: integer("supplier_id").references(() => suppliersTable.id, { onDelete: "set null" }),
   thresholdPercent: numeric("threshold_percent", { precision: 5, scale: 2 }).notNull(),
   isActive: boolean("is_active").notNull().default(true),

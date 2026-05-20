@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
-import { db, priceAlertsTable, suppliersTable, productGroupsTable } from "@workspace/db";
+import { db, priceAlertsTable, suppliersTable } from "@workspace/db";
 import {
   CreatePriceAlertBody,
   DeletePriceAlertParams,
@@ -14,8 +14,6 @@ router.get("/price-alerts", async (req, res): Promise<void> => {
     .select({
       id: priceAlertsTable.id,
       productName: priceAlertsTable.productName,
-      groupId: priceAlertsTable.groupId,
-      groupName: productGroupsTable.name,
       supplierId: priceAlertsTable.supplierId,
       supplierName: suppliersTable.name,
       thresholdPercent: priceAlertsTable.thresholdPercent,
@@ -26,10 +24,6 @@ router.get("/price-alerts", async (req, res): Promise<void> => {
     .leftJoin(
       suppliersTable,
       and(eq(priceAlertsTable.supplierId, suppliersTable.id), eq(suppliersTable.userId, userId)),
-    )
-    .leftJoin(
-      productGroupsTable,
-      and(eq(priceAlertsTable.groupId, productGroupsTable.id), eq(productGroupsTable.userId, userId)),
     )
     .where(eq(priceAlertsTable.userId, userId))
     .orderBy(priceAlertsTable.createdAt);
@@ -51,43 +45,11 @@ router.post("/price-alerts", async (req, res): Promise<void> => {
     return;
   }
 
-  if (!parsed.data.productName && !parsed.data.groupId) {
-    res.status(400).json({ error: "Wymagana nazwa produktu lub identyfikator grupy" });
-    return;
-  }
-
-  let groupName: string | null = null;
-  if (parsed.data.groupId) {
-    const [group] = await db
-      .select({ id: productGroupsTable.id, name: productGroupsTable.name })
-      .from(productGroupsTable)
-      .where(and(eq(productGroupsTable.id, parsed.data.groupId), eq(productGroupsTable.userId, userId)))
-      .limit(1);
-    if (!group) {
-      res.status(404).json({ error: "Grupa nie znaleziona" });
-      return;
-    }
-    groupName = group.name;
-  }
-
-  if (parsed.data.supplierId) {
-    const [supplier] = await db
-      .select({ id: suppliersTable.id })
-      .from(suppliersTable)
-      .where(and(eq(suppliersTable.id, parsed.data.supplierId), eq(suppliersTable.userId, userId)))
-      .limit(1);
-    if (!supplier) {
-      res.status(404).json({ error: "Dostawca nie znaleziony" });
-      return;
-    }
-  }
-
   const [alert] = await db
     .insert(priceAlertsTable)
     .values({
       userId,
-      productName: parsed.data.productName ?? null,
-      groupId: parsed.data.groupId ?? null,
+      productName: parsed.data.productName,
       supplierId: parsed.data.supplierId ?? null,
       thresholdPercent: parsed.data.thresholdPercent.toString(),
     })
@@ -96,7 +58,6 @@ router.post("/price-alerts", async (req, res): Promise<void> => {
   res.status(201).json({
     ...alert,
     supplierName: null,
-    groupName,
     thresholdPercent: parseFloat(alert.thresholdPercent),
     createdAt: alert.createdAt.toISOString(),
   });

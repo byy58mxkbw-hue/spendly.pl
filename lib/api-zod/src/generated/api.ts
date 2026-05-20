@@ -285,142 +285,11 @@ export const DeleteInvoiceParams = zod.object({
 });
 
 /**
- * @summary List all product groups with aggregate stats
- */
-export const ListProductGroupsResponseItem = zod.object({
-  id: zod.number(),
-  name: zod.string(),
-  normalizedKey: zod.string(),
-  variantCount: zod.number(),
-  avgLatestPrice: zod.number().nullish(),
-  avgPreviousPrice: zod.number().nullish(),
-  priceChangePercent: zod.number().nullish(),
-  primaryUnit: zod.string().nullish(),
-  unitsMixed: zod.boolean(),
-  lastPurchaseDate: zod.string().nullish(),
-  createdAt: zod.string(),
-});
-export const ListProductGroupsResponse = zod.array(
-  ListProductGroupsResponseItem,
-);
-
-/**
- * @summary Create a new (empty or pre-populated) product group
- */
-export const CreateProductGroupBody = zod.object({
-  name: zod.string(),
-  productIds: zod.array(zod.number()).optional(),
-});
-
-/**
- * @summary Get suggested groups (ungrouped products clustered by first words of name)
- */
-export const GetProductGroupSuggestionsResponseItem = zod.object({
-  normalizedKey: zod.string(),
-  suggestedName: zod.string(),
-  productIds: zod.array(zod.number()),
-  productNames: zod.array(zod.string()),
-  primaryUnit: zod.string().nullish(),
-});
-export const GetProductGroupSuggestionsResponse = zod.array(
-  GetProductGroupSuggestionsResponseItem,
-);
-
-/**
- * @summary Accept a suggestion — create the group and attach products
- */
-export const AcceptProductGroupSuggestionBody = zod.object({
-  normalizedKey: zod.string(),
-  name: zod.string(),
-  productIds: zod.array(zod.number()),
-});
-
-/**
- * @summary Reject a suggestion so it won't be proposed again
- */
-export const RejectProductGroupSuggestionBody = zod.object({
-  normalizedKey: zod.string(),
-});
-
-/**
- * @summary Get product group detail with variants and price history
- */
-export const GetProductGroupDetailParams = zod.object({
-  id: zod.coerce.number(),
-});
-
-export const GetProductGroupDetailResponse = zod.object({
-  id: zod.number(),
-  name: zod.string(),
-  normalizedKey: zod.string(),
-  primaryUnit: zod.string().nullish(),
-  unitsMixed: zod.boolean(),
-  variants: zod.array(
-    zod.object({
-      productId: zod.number(),
-      productName: zod.string(),
-      unit: zod.string(),
-      supplierId: zod.number().nullish(),
-      supplierName: zod.string().nullish(),
-      latestPrice: zod.number().nullish(),
-      previousPrice: zod.number().nullish(),
-      priceChangePercent: zod.number().nullish(),
-      lastPurchaseDate: zod.string().nullish(),
-    }),
-  ),
-  avgPriceHistory: zod.array(
-    zod.object({
-      date: zod.string(),
-      avgPrice: zod.number(),
-    }),
-  ),
-});
-
-/**
- * @summary Rename a product group
- */
-export const UpdateProductGroupParams = zod.object({
-  id: zod.coerce.number(),
-});
-
-export const UpdateProductGroupBody = zod.object({
-  name: zod.string(),
-});
-
-/**
- * @summary Delete a product group (variants become ungrouped)
- */
-export const DeleteProductGroupParams = zod.object({
-  id: zod.coerce.number(),
-});
-
-/**
- * @summary Attach products to a group
- */
-export const AddProductsToGroupParams = zod.object({
-  id: zod.coerce.number(),
-});
-
-export const AddProductsToGroupBody = zod.object({
-  productIds: zod.array(zod.number()),
-});
-
-/**
- * @summary Remove a product from a group
- */
-export const RemoveProductFromGroupParams = zod.object({
-  id: zod.coerce.number(),
-  productId: zod.coerce.number(),
-});
-
-/**
  * @summary List price alerts
  */
 export const ListPriceAlertsResponseItem = zod.object({
   id: zod.number(),
-  productName: zod.string().nullish(),
-  groupId: zod.number().nullish(),
-  groupName: zod.string().nullish(),
+  productName: zod.string(),
   supplierId: zod.number().nullish(),
   supplierName: zod.string().nullish(),
   thresholdPercent: zod.number(),
@@ -433,8 +302,7 @@ export const ListPriceAlertsResponse = zod.array(ListPriceAlertsResponseItem);
  * @summary Create a price alert
  */
 export const CreatePriceAlertBody = zod.object({
-  productName: zod.string().nullish(),
-  groupId: zod.number().nullish(),
+  productName: zod.string(),
   supplierId: zod.number().nullish(),
   thresholdPercent: zod.number(),
 });

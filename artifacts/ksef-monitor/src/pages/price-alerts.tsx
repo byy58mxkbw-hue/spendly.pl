@@ -6,9 +6,7 @@ import {
   useDeletePriceAlert,
   useGetDashboardActiveAlerts,
   useListSuppliers,
-  useListProductGroups,
   getListPriceAlertsQueryKey,
-  getGetDashboardActiveAlertsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -32,23 +30,14 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Bell, Trash2, TrendingUp, AlertTriangle, Layers, Package } from "lucide-react";
+import { Plus, Bell, Trash2, TrendingUp, AlertTriangle } from "lucide-react";
 import { formatDate, formatPercent, formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const alertSchema = z.object({
-  alertType: z.enum(["product", "group"]),
-  productName: z.string().optional(),
-  groupId: z.string().optional(),
+  productName: z.string().min(1, "Nazwa produktu jest wymagana"),
   supplierId: z.string().optional(),
   thresholdPercent: z.coerce.number().min(0.1, "Próg musi być większy niż 0").max(1000),
-}).superRefine((data, ctx) => {
-  if (data.alertType === "product" && !data.productName?.trim()) {
-    ctx.addIssue({ code: "custom", path: ["productName"], message: "Nazwa produktu jest wymagana" });
-  }
-  if (data.alertType === "group" && !data.groupId) {
-    ctx.addIssue({ code: "custom", path: ["groupId"], message: "Wybierz grupę" });
-  }
 });
 
 type AlertFormValues = z.infer<typeof alertSchema>;
@@ -58,7 +47,6 @@ export default function PriceAlerts() {
   const { data: alerts, isLoading } = useListPriceAlerts();
   const { data: triggered } = useGetDashboardActiveAlerts();
   const { data: suppliers } = useListSuppliers();
-  const { data: groups } = useListProductGroups();
   const createAlert = useCreatePriceAlert();
   const deleteAlert = useDeletePriceAlert();
 
@@ -66,17 +54,14 @@ export default function PriceAlerts() {
 
   const form = useForm<AlertFormValues>({
     resolver: zodResolver(alertSchema),
-    defaultValues: { alertType: "product", productName: "", groupId: "", supplierId: "", thresholdPercent: 10 },
+    defaultValues: { productName: "", supplierId: "", thresholdPercent: 10 },
   });
-
-  const alertType = form.watch("alertType");
 
   function onSubmit(values: AlertFormValues) {
     createAlert.mutate(
       {
         data: {
-          productName: values.alertType === "product" ? values.productName!.trim() : null,
-          groupId: values.alertType === "group" ? parseInt(values.groupId!, 10) : null,
+          productName: values.productName,
           supplierId: values.supplierId ? parseInt(values.supplierId, 10) : null,
           thresholdPercent: values.thresholdPercent,
         },
@@ -84,9 +69,8 @@ export default function PriceAlerts() {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListPriceAlertsQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardActiveAlertsQueryKey() });
           setShowAdd(false);
-          form.reset({ alertType: "product", productName: "", groupId: "", supplierId: "", thresholdPercent: 10 });
+          form.reset();
         },
       }
     );
@@ -98,7 +82,6 @@ export default function PriceAlerts() {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListPriceAlertsQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardActiveAlertsQueryKey() });
         },
       }
     );
@@ -109,7 +92,7 @@ export default function PriceAlerts() {
       <div className="px-4 py-5 md:px-8 md:py-8">
         <PageHeader
           title="Alerty cenowe"
-          subtitle="Monitoruj przekroczenia progów cenowych — dla pojedynczego produktu lub całej grupy"
+          subtitle="Monitoruj przekroczenia progów cenowych"
           action={
             <Button onClick={() => setShowAdd(true)} className="gap-2" data-testid="btn-add-alert">
               <Plus className="w-4 h-4" /> Dodaj alert
@@ -177,47 +160,33 @@ export default function PriceAlerts() {
             </div>
           ) : alerts && alerts.length > 0 ? (
             <div className="divide-y divide-border">
-              {alerts.map((alert) => {
-                const isGroup = alert.groupId != null;
-                const displayName = isGroup ? (alert.groupName ?? "Grupa") : (alert.productName ?? "—");
-                return (
-                  <div
-                    key={alert.id}
-                    className="px-6 py-4 flex items-center gap-4 group"
-                    data-testid={`alert-row-${alert.id}`}
-                  >
-                    <div className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                      isGroup ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-600",
-                    )}>
-                      {isGroup ? <Layers className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-                        {isGroup && (
-                          <span className="text-[10px] uppercase font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                            Grupa
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {alert.supplierName ?? "Wszyscy dostawcy"} · Dodany {formatDate(alert.createdAt)}
-                      </p>
-                    </div>
-                    <span className="text-sm font-medium px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 shrink-0">
-                      Próg: {alert.thresholdPercent}%
-                    </span>
-                    <button
-                      className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
-                      onClick={() => handleDelete(alert.id)}
-                      data-testid={`btn-delete-alert-${alert.id}`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+              {alerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="px-6 py-4 flex items-center gap-4 group"
+                  data-testid={`alert-row-${alert.id}`}
+                >
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                    <Bell className="w-4 h-4" />
                   </div>
-                );
-              })}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{alert.productName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {alert.supplierName ?? "Wszyscy dostawcy"} · Dodany {formatDate(alert.createdAt)}
+                    </p>
+                  </div>
+                  <span className="text-sm font-medium px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 shrink-0">
+                    Próg: {alert.thresholdPercent}%
+                  </span>
+                  <button
+                    className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
+                    onClick={() => handleDelete(alert.id)}
+                    data-testid={`btn-delete-alert-${alert.id}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="py-16 text-center">
@@ -243,79 +212,17 @@ export default function PriceAlerts() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="alertType"
+                  name="productName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Typ alertu</FormLabel>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => field.onChange("product")}
-                          className={cn(
-                            "flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors",
-                            field.value === "product"
-                              ? "border-primary bg-primary/5 text-foreground"
-                              : "border-border text-muted-foreground hover:bg-secondary",
-                          )}
-                          data-testid="btn-alert-type-product"
-                        >
-                          <Package className="w-4 h-4" /> Produkt
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => field.onChange("group")}
-                          className={cn(
-                            "flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors",
-                            field.value === "group"
-                              ? "border-primary bg-primary/5 text-foreground"
-                              : "border-border text-muted-foreground hover:bg-secondary",
-                          )}
-                          data-testid="btn-alert-type-group"
-                        >
-                          <Layers className="w-4 h-4" /> Grupa
-                        </button>
-                      </div>
+                      <FormLabel>Nazwa produktu</FormLabel>
+                      <FormControl>
+                        <Input placeholder="np. Masło extra 82%" {...field} data-testid="input-alert-product" />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
-                {alertType === "product" ? (
-                  <FormField
-                    control={form.control}
-                    name="productName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nazwa produktu</FormLabel>
-                        <FormControl>
-                          <Input placeholder="np. Masło extra 82%" {...field} data-testid="input-alert-product" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                ) : (
-                  <FormField
-                    control={form.control}
-                    name="groupId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Grupa produktów</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-alert-group">
-                              <SelectValue placeholder={groups?.length ? "Wybierz grupę" : "Brak grup — utwórz w „Grupy produktów"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {groups?.map((g) => (
-                              <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
                 <FormField
                   control={form.control}
                   name="supplierId"
