@@ -29,14 +29,19 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     .select({ totalInvoices: sql<number>`count(*)::int` })
     .from(invoicesTable);
 
+  // Spend is summed from invoice_items.total_price (net) so the dashboard
+  // matches the Raporty page, which uses the same source. Using
+  // invoices.total_amount (gross) here would produce a different number.
   const [thisMonthSpend] = await db
-    .select({ total: sql<number>`coalesce(sum(${invoicesTable.totalAmount}::numeric), 0)` })
-    .from(invoicesTable)
+    .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
+    .from(invoiceItemsTable)
+    .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .where(gte(invoicesTable.invoiceDate, thisMonthStart));
 
   const [lastMonthSpend] = await db
-    .select({ total: sql<number>`coalesce(sum(${invoicesTable.totalAmount}::numeric), 0)` })
-    .from(invoicesTable)
+    .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
+    .from(invoiceItemsTable)
+    .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .where(
       and(
         gte(invoicesTable.invoiceDate, lastMonthStart),
@@ -87,13 +92,14 @@ router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
     invoice_count: number;
   }>(sql`
     SELECT
-      substring(invoice_date, 1, 7) as month_key,
-      substring(invoice_date, 6, 2) as month,
-      substring(invoice_date, 1, 4)::int as year,
-      to_char(to_date(substring(invoice_date, 1, 7), 'YYYY-MM'), 'Mon YYYY') as label,
-      coalesce(sum(total_amount::numeric), 0)::text as total_amount,
-      count(*)::int as invoice_count
-    FROM invoices
+      substring(i.invoice_date, 1, 7) as month_key,
+      substring(i.invoice_date, 6, 2) as month,
+      substring(i.invoice_date, 1, 4)::int as year,
+      to_char(to_date(substring(i.invoice_date, 1, 7), 'YYYY-MM'), 'Mon YYYY') as label,
+      coalesce(sum(ii.total_price::numeric), 0)::text as total_amount,
+      count(DISTINCT i.id)::int as invoice_count
+    FROM invoices i
+    INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     GROUP BY 1, 2, 3, 4
     ORDER BY 1
     LIMIT ${sql.raw(String(months))}

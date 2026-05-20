@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, desc } from "drizzle-orm";
-import { db, suppliersTable, invoicesTable } from "@workspace/db";
+import { db, suppliersTable, invoicesTable, invoiceItemsTable } from "@workspace/db";
 import {
   CreateSupplierBody,
   UpdateSupplierBody,
@@ -23,7 +23,12 @@ router.get("/suppliers", async (req, res): Promise<void> => {
       createdAt: suppliersTable.createdAt,
       invoiceCount: sql<number>`count(${invoicesTable.id})::int`,
       lastInvoiceDate: sql<string | null>`max(${invoicesTable.invoiceDate})`,
-      totalSpend: sql<number | null>`sum(${invoicesTable.totalAmount}::numeric)`,
+      totalSpend: sql<number | null>`(
+        SELECT sum(${invoiceItemsTable.totalPrice}::numeric)
+        FROM ${invoiceItemsTable}
+        INNER JOIN ${invoicesTable} AS i2 ON i2.id = ${invoiceItemsTable.invoiceId}
+        WHERE i2.supplier_id = ${suppliersTable.id}
+      )`,
     })
     .from(suppliersTable)
     .leftJoin(invoicesTable, eq(invoicesTable.supplierId, suppliersTable.id))
@@ -62,7 +67,12 @@ router.get("/suppliers/:id", async (req, res): Promise<void> => {
       createdAt: suppliersTable.createdAt,
       invoiceCount: sql<number>`count(${invoicesTable.id})::int`,
       lastInvoiceDate: sql<string | null>`max(${invoicesTable.invoiceDate})`,
-      totalSpend: sql<number | null>`sum(${invoicesTable.totalAmount}::numeric)`,
+      totalSpend: sql<number | null>`(
+        SELECT sum(${invoiceItemsTable.totalPrice}::numeric)
+        FROM ${invoiceItemsTable}
+        INNER JOIN ${invoicesTable} AS i2 ON i2.id = ${invoiceItemsTable.invoiceId}
+        WHERE i2.supplier_id = ${suppliersTable.id}
+      )`,
     })
     .from(suppliersTable)
     .leftJoin(invoicesTable, eq(invoicesTable.supplierId, suppliersTable.id))
