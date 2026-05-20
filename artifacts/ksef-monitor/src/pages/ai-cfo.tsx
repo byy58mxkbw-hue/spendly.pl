@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { Layout, PageHeader } from "@/components/layout";
+import { useState, useCallback, useRef } from "react";
+import { Layout } from "@/components/layout";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -9,7 +9,6 @@ import {
   Zap,
   RefreshCw,
   X,
-  ChevronRight,
   BarChart2,
   ShoppingCart,
   Star,
@@ -17,7 +16,6 @@ import {
   Globe,
   Users,
   Lightbulb,
-  Calendar,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetInsights, usePostInsightsGenerate, usePostInsightsIdDismiss, usePostInsightsIdRead } from "@workspace/api-client-react";
@@ -107,7 +105,7 @@ function RiskBar({ score }: { score: number }) {
 
 function InsightCard({ insight, onDismiss }: { insight: Insight; onDismiss: (id: number) => void }) {
   const sev = SEVERITY_CONFIG[(insight.severity as keyof typeof SEVERITY_CONFIG) ?? "medium"];
-  const Icon = TYPE_ICON[insight.type] ?? TrendingUp;
+  const Icon = TYPE_ICON[insight.type] ?? AlertTriangle;
   const isUnread = !insight.readAt;
 
   return (
@@ -179,31 +177,50 @@ export function AiCfoPage() {
   const { mutateAsync: dismiss } = usePostInsightsIdDismiss();
   const { mutateAsync: markRead } = usePostInsightsIdRead();
   const [generating, setGenerating] = useState(false);
-  const pollRef = useState<ReturnType<typeof setInterval> | null>(null)[1];
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
-    try {
-      // Backend responds immediately with 202 — AI runs in background
-      await generate({ data: {} });
-    } catch {
-      // ignore — backend always returns 202
+
+    // Clear any in-flight poll
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
     }
 
-    // Poll every 3s until new insights appear (up to 90s)
-    const prevCount = (insights as Insight[]).length;
+    try {
+      await generate({ data: {} });
+    } catch {
+      // 202 is returned immediately — error handling not needed
+    }
+
+    // Snapshot the most recent insight's createdAt before polling so we can
+    // detect a true refresh even when the count stays the same.
+    const currentInsights = qc.getQueryData<Insight[]>(queryKey) ?? [];
+    const latestBefore = currentInsights.reduce<string>(
+      (max, i) => (i.createdAt > max ? i.createdAt : max),
+      "",
+    );
+
     let attempts = 0;
     const iv = setInterval(async () => {
       attempts++;
       await qc.invalidateQueries({ queryKey });
-      const fresh = qc.getQueryData<Insight[]>(queryKey);
-      if ((fresh?.length ?? 0) > prevCount || attempts >= 30) {
+      const fresh = qc.getQueryData<Insight[]>(queryKey) ?? [];
+      const latestAfter = fresh.reduce<string>(
+        (max, i) => (i.createdAt > max ? i.createdAt : max),
+        "",
+      );
+      // Stop when new insights arrived or after 90s (30 × 3s)
+      if (latestAfter > latestBefore || (fresh.length > 0 && attempts >= 5) || attempts >= 30) {
         clearInterval(iv);
+        pollIntervalRef.current = null;
         setGenerating(false);
       }
     }, 3000);
-    pollRef(iv);
-  }, [generate, qc, queryKey, insights, pollRef]);
+
+    pollIntervalRef.current = iv;
+  }, [generate, qc, queryKey]);
 
   const handleDismiss = useCallback(
     async (id: number) => {

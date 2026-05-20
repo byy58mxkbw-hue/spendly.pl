@@ -99,10 +99,9 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
               ) : invoices && invoices.length > 0 ? (
                 <div className="divide-y divide-border">
                   {invoices.map((invoice) => (
-                    <button
+                    <div
                       key={invoice.id}
-                      className="w-full px-6 py-4 flex items-center justify-between hover:bg-secondary/50 transition-colors text-left"
-                      onClick={() => setLocation(`/invoices/${invoice.id}`)}
+                      className="w-full px-6 py-4 flex items-center justify-between"
                       data-testid={`invoice-row-${invoice.id}`}
                     >
                       <div className="flex items-center gap-3">
@@ -118,7 +117,7 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
                         <p className="text-sm font-semibold text-foreground">{formatPrice(invoice.totalAmount)}</p>
                         <p className="text-xs text-muted-foreground">{invoice.itemCount} pozycji</p>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               ) : (
