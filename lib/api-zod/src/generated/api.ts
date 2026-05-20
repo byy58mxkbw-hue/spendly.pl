@@ -8,6 +8,61 @@
 import * as zod from "zod";
 
 /**
+ * @summary List AI insights for the current user
+ */
+export const GetInsightsResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  type: zod.string(),
+  severity: zod.string(),
+  title: zod.string(),
+  body: zod.string(),
+  riskScore: zod.number(),
+  productId: zod.number().nullish(),
+  supplierId: zod.number().nullish(),
+  metadata: zod.object({}).passthrough().nullish(),
+  readAt: zod.string().nullish(),
+  dismissedAt: zod.string().nullish(),
+  createdAt: zod.string(),
+});
+export const GetInsightsResponse = zod.array(GetInsightsResponseItem);
+
+/**
+ * @summary Trigger AI insight generation
+ */
+export const PostInsightsGenerateBody = zod.object({}).passthrough();
+
+export const PostInsightsGenerateResponse = zod.object({
+  generated: zod.number(),
+});
+
+/**
+ * @summary Mark insight as read
+ */
+export const PostInsightsIdReadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const PostInsightsIdReadBody = zod.object({}).passthrough();
+
+export const PostInsightsIdReadResponse = zod.object({
+  ok: zod.boolean().optional(),
+});
+
+/**
+ * @summary Dismiss an insight
+ */
+export const PostInsightsIdDismissParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const PostInsightsIdDismissBody = zod.object({}).passthrough();
+
+export const PostInsightsIdDismissResponse = zod.object({
+  ok: zod.boolean().optional(),
+});
+
+/**
  * Returns server health status
  * @summary Health check
  */

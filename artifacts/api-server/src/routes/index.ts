@@ -7,6 +7,7 @@ import priceAlertsRouter from "./price-alerts";
 import dashboardRouter from "./dashboard";
 import reportsRouter from "./reports";
 import ksefRouter from "./ksef";
+import insightsRouter from "./insights";
 import { requireUser } from "../middlewares/requireUser";
 
 const router: IRouter = Router();
@@ -23,5 +24,6 @@ router.use(priceAlertsRouter);
 router.use(dashboardRouter);
 router.use(reportsRouter);
 router.use(ksefRouter);
+router.use(insightsRouter);
 
 export default router;

@@ -6,6 +6,7 @@ import {
   useGetRecentPurchases,
   useGetDashboardActiveAlerts,
   useGetTopPriceChanges,
+  useGetInsights,
 } from "@workspace/api-client-react";
 import {
   BarChart,
@@ -16,7 +17,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, Users, Package, FileText, Bell } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Users, Package, FileText, Bell, Zap, ChevronRight, AlertTriangle } from "lucide-react";
+import { Link } from "wouter";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,6 +82,50 @@ function PriceChangeBadge({ change }: { change: number | null | undefined }) {
       {up ? <TrendingUp className="w-3 h-3" /> : down ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
       {formatPercent(change)}
     </span>
+  );
+}
+
+const SEVERITY_COLORS = {
+  critical: "text-red-600 bg-red-50 border-red-100",
+  high: "text-orange-600 bg-orange-50 border-orange-100",
+  medium: "text-amber-600 bg-amber-50 border-amber-100",
+  low: "text-emerald-600 bg-emerald-50 border-emerald-100",
+} as const;
+
+function AiCfoFeed() {
+  const { data: insights = [], isLoading } = useGetInsights();
+  const top = insights.slice(0, 3);
+  const unread = insights.filter((i: { readAt?: string | null }) => !i.readAt).length;
+
+  if (isLoading) return (
+    <div className="space-y-2">
+      {[1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
+    </div>
+  );
+
+  if (insights.length === 0) return (
+    <div className="flex flex-col items-center py-8 text-center">
+      <Zap className="w-7 h-7 text-muted-foreground/40 mb-2" />
+      <p className="text-sm text-muted-foreground">Brak insightów — przejdź do AI CFO, aby wygenerować analizę.</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-2">
+      {top.map((ins: { id: number; severity: string; title: string; body: string; riskScore: number; readAt?: string | null }) => {
+        const sev = SEVERITY_COLORS[(ins.severity as keyof typeof SEVERITY_COLORS) ?? "medium"];
+        return (
+          <div key={ins.id} className={cn("flex items-start gap-3 p-3.5 rounded-xl border", sev)}>
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold leading-snug">{ins.title}</p>
+              <p className="text-xs opacity-80 mt-0.5 truncate">{ins.body}</p>
+            </div>
+            <span className="shrink-0 text-[10px] font-bold opacity-70">{ins.riskScore}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -226,6 +272,20 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* AI CFO Feed */}
+        <div className="bg-card border border-border rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-foreground">AI CFO</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">Automatyczne insighty cenowe</p>
+            </div>
+            <Link href="/ai-cfo" className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium">
+              Wszystkie <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <AiCfoFeed />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

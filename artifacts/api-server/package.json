@@ -14,6 +14,7 @@
     "@clerk/shared": "^4.10.0",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
+    "@workspace/integrations-openai-ai-server": "workspace:*",
     "@workspace/ksef-client": "workspace:*",
     "cookie-parser": "^1.4.7",
     "cors": "^2",

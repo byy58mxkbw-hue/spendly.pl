@@ -19,6 +19,7 @@ import Reports from "@/pages/reports";
 import Predictive from "@/pages/predictive";
 import PendingInvoices from "@/pages/pending-invoices";
 import SettingsKsef from "@/pages/settings-ksef";
+import { AiCfoPage } from "@/pages/ai-cfo";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -231,6 +232,9 @@ function AppRouter() {
             </Route>
             <Route path="/pending-invoices">
               <ProtectedRoute><PendingInvoices /></ProtectedRoute>
+            </Route>
+            <Route path="/ai-cfo">
+              <ProtectedRoute><AiCfoPage /></ProtectedRoute>
             </Route>
             <Route path="/settings/ksef">
               <ProtectedRoute><SettingsKsef /></ProtectedRoute>

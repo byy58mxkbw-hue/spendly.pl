@@ -18,9 +18,11 @@ import type {
 
 import type {
   AcceptKsefPendingBody,
+  AiInsight,
   CreatePriceAlertBody,
   CreateSupplierBody,
   DashboardSummary,
+  GenerateInsightsResponse,
   GetFoodCostMonthlyParams,
   GetMonthlyReportParams,
   GetPredictiveReportParams,
@@ -40,6 +42,11 @@ import type {
   ListProductsParams,
   MonthlyFoodCost,
   MonthlyReport,
+  PostInsightsGenerateBody,
+  PostInsightsIdDismiss200,
+  PostInsightsIdDismissBody,
+  PostInsightsIdRead200,
+  PostInsightsIdReadBody,
   PredictiveReport,
   PriceAlert,
   PriceChangeProduct,
@@ -62,6 +69,346 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary List AI insights for the current user
+ */
+export const getGetInsightsUrl = () => {
+  return `/api/insights`;
+};
+
+export const getInsights = async (
+  options?: RequestInit,
+): Promise<AiInsight[]> => {
+  return customFetch<AiInsight[]>(getGetInsightsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetInsightsQueryKey = () => {
+  return [`/api/insights`] as const;
+};
+
+export const getGetInsightsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInsights>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getInsights>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetInsightsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getInsights>>> = ({
+    signal,
+  }) => getInsights({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInsights>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetInsightsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInsights>>
+>;
+export type GetInsightsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List AI insights for the current user
+ */
+
+export function useGetInsights<
+  TData = Awaited<ReturnType<typeof getInsights>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getInsights>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetInsightsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Trigger AI insight generation
+ */
+export const getPostInsightsGenerateUrl = () => {
+  return `/api/insights/generate`;
+};
+
+export const postInsightsGenerate = async (
+  postInsightsGenerateBody?: PostInsightsGenerateBody,
+  options?: RequestInit,
+): Promise<GenerateInsightsResponse> => {
+  return customFetch<GenerateInsightsResponse>(getPostInsightsGenerateUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(postInsightsGenerateBody),
+  });
+};
+
+export const getPostInsightsGenerateMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postInsightsGenerate>>,
+    TError,
+    { data: BodyType<PostInsightsGenerateBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof postInsightsGenerate>>,
+  TError,
+  { data: BodyType<PostInsightsGenerateBody> },
+  TContext
+> => {
+  const mutationKey = ["postInsightsGenerate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof postInsightsGenerate>>,
+    { data: BodyType<PostInsightsGenerateBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return postInsightsGenerate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PostInsightsGenerateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof postInsightsGenerate>>
+>;
+export type PostInsightsGenerateMutationBody =
+  BodyType<PostInsightsGenerateBody>;
+export type PostInsightsGenerateMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Trigger AI insight generation
+ */
+export const usePostInsightsGenerate = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postInsightsGenerate>>,
+    TError,
+    { data: BodyType<PostInsightsGenerateBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof postInsightsGenerate>>,
+  TError,
+  { data: BodyType<PostInsightsGenerateBody> },
+  TContext
+> => {
+  return useMutation(getPostInsightsGenerateMutationOptions(options));
+};
+
+/**
+ * @summary Mark insight as read
+ */
+export const getPostInsightsIdReadUrl = (id: number) => {
+  return `/api/insights/${id}/read`;
+};
+
+export const postInsightsIdRead = async (
+  id: number,
+  postInsightsIdReadBody?: PostInsightsIdReadBody,
+  options?: RequestInit,
+): Promise<PostInsightsIdRead200> => {
+  return customFetch<PostInsightsIdRead200>(getPostInsightsIdReadUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(postInsightsIdReadBody),
+  });
+};
+
+export const getPostInsightsIdReadMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postInsightsIdRead>>,
+    TError,
+    { id: number; data: BodyType<PostInsightsIdReadBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof postInsightsIdRead>>,
+  TError,
+  { id: number; data: BodyType<PostInsightsIdReadBody> },
+  TContext
+> => {
+  const mutationKey = ["postInsightsIdRead"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof postInsightsIdRead>>,
+    { id: number; data: BodyType<PostInsightsIdReadBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return postInsightsIdRead(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PostInsightsIdReadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof postInsightsIdRead>>
+>;
+export type PostInsightsIdReadMutationBody = BodyType<PostInsightsIdReadBody>;
+export type PostInsightsIdReadMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark insight as read
+ */
+export const usePostInsightsIdRead = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postInsightsIdRead>>,
+    TError,
+    { id: number; data: BodyType<PostInsightsIdReadBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof postInsightsIdRead>>,
+  TError,
+  { id: number; data: BodyType<PostInsightsIdReadBody> },
+  TContext
+> => {
+  return useMutation(getPostInsightsIdReadMutationOptions(options));
+};
+
+/**
+ * @summary Dismiss an insight
+ */
+export const getPostInsightsIdDismissUrl = (id: number) => {
+  return `/api/insights/${id}/dismiss`;
+};
+
+export const postInsightsIdDismiss = async (
+  id: number,
+  postInsightsIdDismissBody?: PostInsightsIdDismissBody,
+  options?: RequestInit,
+): Promise<PostInsightsIdDismiss200> => {
+  return customFetch<PostInsightsIdDismiss200>(
+    getPostInsightsIdDismissUrl(id),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(postInsightsIdDismissBody),
+    },
+  );
+};
+
+export const getPostInsightsIdDismissMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postInsightsIdDismiss>>,
+    TError,
+    { id: number; data: BodyType<PostInsightsIdDismissBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof postInsightsIdDismiss>>,
+  TError,
+  { id: number; data: BodyType<PostInsightsIdDismissBody> },
+  TContext
+> => {
+  const mutationKey = ["postInsightsIdDismiss"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof postInsightsIdDismiss>>,
+    { id: number; data: BodyType<PostInsightsIdDismissBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return postInsightsIdDismiss(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PostInsightsIdDismissMutationResult = NonNullable<
+  Awaited<ReturnType<typeof postInsightsIdDismiss>>
+>;
+export type PostInsightsIdDismissMutationBody =
+  BodyType<PostInsightsIdDismissBody>;
+export type PostInsightsIdDismissMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Dismiss an insight
+ */
+export const usePostInsightsIdDismiss = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postInsightsIdDismiss>>,
+    TError,
+    { id: number; data: BodyType<PostInsightsIdDismissBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof postInsightsIdDismiss>>,
+  TError,
+  { id: number; data: BodyType<PostInsightsIdDismissBody> },
+  TContext
+> => {
+  return useMutation(getPostInsightsIdDismissMutationOptions(options));
+};
 
 /**
  * Returns server health status

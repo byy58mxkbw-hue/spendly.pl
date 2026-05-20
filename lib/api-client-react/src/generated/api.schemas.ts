@@ -396,6 +396,36 @@ export interface AcceptKsefPendingBody {
   itemMappings: AcceptKsefPendingItemMapping[];
 }
 
+/**
+ * @nullable
+ */
+export type AiInsightMetadata = { [key: string]: unknown } | null;
+
+export interface AiInsight {
+  id: number;
+  userId: string;
+  type: string;
+  severity: string;
+  title: string;
+  body: string;
+  riskScore: number;
+  /** @nullable */
+  productId?: number | null;
+  /** @nullable */
+  supplierId?: number | null;
+  /** @nullable */
+  metadata?: AiInsightMetadata;
+  /** @nullable */
+  readAt?: string | null;
+  /** @nullable */
+  dismissedAt?: string | null;
+  createdAt: string;
+}
+
+export interface GenerateInsightsResponse {
+  generated: number;
+}
+
 export interface TriggeredAlert {
   productName: string;
   /** @nullable */
@@ -406,6 +436,20 @@ export interface TriggeredAlert {
   thresholdPercent: number;
   alertDate: string;
 }
+
+export type PostInsightsGenerateBody = { [key: string]: unknown };
+
+export type PostInsightsIdReadBody = { [key: string]: unknown };
+
+export type PostInsightsIdRead200 = {
+  ok?: boolean;
+};
+
+export type PostInsightsIdDismissBody = { [key: string]: unknown };
+
+export type PostInsightsIdDismiss200 = {
+  ok?: boolean;
+};
 
 export type ListProductsParams = {
   supplierId?: number;

@@ -26,7 +26,8 @@ const navItems = [
   { path: "/pending-invoices", label: "Do przeglądu", icon: Inbox },
   { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
   { path: "/reports", label: "Raporty", icon: BarChart2 },
-  { path: "/predictive", label: "Analiza predyktywna", icon: Sparkles },
+  { path: "/ai-cfo", label: "AI CFO", icon: Sparkles },
+  { path: "/predictive", label: "Analiza predyktywna", icon: BarChart2 },
   { path: "/settings/ksef", label: "Ustawienia KSeF", icon: Settings },
 ];
 

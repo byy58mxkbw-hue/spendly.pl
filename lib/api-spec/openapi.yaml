@@ -24,8 +24,100 @@ tags:
     description: Reporting and exports
   - name: ksef
     description: KSeF 2.0 integration (sync, config, pending review)
+  - name: insights
+    description: AI CFO — automated price insights
 
 paths:
+  /insights:
+    get:
+      operationId: getInsights
+      tags: [insights]
+      summary: List AI insights for the current user
+      responses:
+        "200":
+          description: List of insights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiInsight"
+
+  /insights/generate:
+    post:
+      operationId: postInsightsGenerate
+      tags: [insights]
+      summary: Trigger AI insight generation
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Generation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateInsightsResponse"
+
+  /insights/{id}/read:
+    post:
+      operationId: postInsightsIdRead
+      tags: [insights]
+      summary: Mark insight as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
+  /insights/{id}/dismiss:
+    post:
+      operationId: postInsightsIdDismiss
+      tags: [insights]
+      summary: Dismiss an insight
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
   /healthz:
     get:
       operationId: healthCheck
@@ -1427,6 +1519,53 @@ components:
       required:
         - supplierId
         - itemMappings
+
+    AiInsight:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        type:
+          type: string
+        severity:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        riskScore:
+          type: integer
+        productId:
+          type: ["integer", "null"]
+        supplierId:
+          type: ["integer", "null"]
+        metadata:
+          type: ["object", "null"]
+        readAt:
+          type: ["string", "null"]
+        dismissedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - type
+        - severity
+        - title
+        - body
+        - riskScore
+        - createdAt
+
+    GenerateInsightsResponse:
+      type: object
+      properties:
+        generated:
+          type: integer
+      required:
+        - generated
 
     TriggeredAlert:
       type: object

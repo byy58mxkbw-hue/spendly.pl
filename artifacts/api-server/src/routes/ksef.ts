@@ -644,6 +644,13 @@ async function runSync(
     ...summary,
     lastSyncedAt: updatedLastSyncedAt ? updatedLastSyncedAt.toISOString() : null,
   });
+
+  // Fire-and-forget AI insight generation after sync completes.
+  if (summary.imported > 0 || summary.pending > 0) {
+    import("../services/insights-generator")
+      .then(({ generateInsights }) => generateInsights(userId, req.log))
+      .catch((err: unknown) => req.log.warn({ err: String(err) }, "AI CFO post-sync generation failed"));
+  }
 }
 
 // ─── Pending review ──────────────────────────────────────────────────────────
