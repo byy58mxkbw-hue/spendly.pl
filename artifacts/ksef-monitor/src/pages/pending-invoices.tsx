@@ -44,7 +44,7 @@ export default function PendingInvoices() {
 
   return (
     <Layout>
-      <div className="px-8 py-8">
+      <div className="px-4 py-5 md:px-8 md:py-8">
         <PageHeader
           title="Faktury do przeglądu"
           subtitle="Faktury pobrane z KSeF, dla których brakuje dopasowania dostawcy lub produktów"

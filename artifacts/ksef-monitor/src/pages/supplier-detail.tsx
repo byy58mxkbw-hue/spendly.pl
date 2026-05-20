@@ -25,7 +25,7 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
 
   return (
     <Layout>
-      <div className="px-8 py-8">
+      <div className="px-4 py-5 md:px-8 md:py-8">
         <Button
           variant="ghost"
           size="sm"

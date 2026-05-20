@@ -77,7 +77,7 @@ function SupplierCard({ supplier, rank }: {
   const topProducts = supplier.topProducts.slice(0, expanded ? 15 : 5);
 
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className="bg-card border border-border rounded-xl overflow-x-auto">
       <div className="px-6 py-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <div
@@ -99,7 +99,7 @@ function SupplierCard({ supplier, rank }: {
       </div>
 
       <div className="border-t border-border">
-        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-6 py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
+        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 md:px-6 min-w-[560px] py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
           <div>Produkt</div>
           <div className="text-right w-20">Ilość</div>
           <div className="text-right w-28">Śr. cena</div>
@@ -107,7 +107,7 @@ function SupplierCard({ supplier, rank }: {
         </div>
         <div className="divide-y divide-border">
           {topProducts.map((p, i) => (
-            <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-6 py-2.5 items-center">
+            <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 md:px-6 min-w-[560px] py-2.5 items-center">
               <p className="text-sm text-foreground truncate pr-2">{p.productName}</p>
               <p className="text-sm text-muted-foreground text-right w-20">
                 {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
@@ -171,7 +171,7 @@ function TopProductsSection({ products }: { products: TopProduct[] }) {
   const totalAll = products.reduce((s, p) => s + p.totalCost, 0);
 
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden mb-8">
+    <div className="bg-card border border-border rounded-xl overflow-x-auto mb-8">
       {/* Header */}
       <div className="px-6 py-4 border-b border-border flex items-center gap-2">
         <Package className="w-4 h-4 text-primary" />
@@ -260,7 +260,7 @@ function TopProductsSection({ products }: { products: TopProduct[] }) {
       </div>
 
       {/* Table header */}
-      <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
+      <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 md:px-6 min-w-[680px] py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
         <div>Produkt</div>
         <div className="text-right w-32">Dostawca</div>
         <div className="text-right w-20">Ilość</div>
@@ -272,7 +272,7 @@ function TopProductsSection({ products }: { products: TopProduct[] }) {
       {displayProducts.length > 0 ? (
         <div className="divide-y divide-border">
           {displayProducts.map((p, i) => (
-            <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 py-3 items-center">
+            <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 md:px-6 min-w-[680px] py-3 items-center">
               <p className="text-sm font-medium text-foreground truncate pr-2">{p.productName}</p>
               <p className="text-xs text-muted-foreground text-right w-32 truncate">{p.supplierName ?? "—"}</p>
               <p className="text-sm text-muted-foreground text-right w-20">
@@ -312,7 +312,7 @@ export default function Reports() {
 
   return (
     <Layout>
-      <div className="px-8 py-8">
+      <div className="px-4 py-5 md:px-8 md:py-8">
         <PageHeader
           title="Raporty"
           subtitle="Miesięczne podsumowanie zakupów i analiza dostawców"

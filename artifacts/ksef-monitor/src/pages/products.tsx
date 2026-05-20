@@ -762,7 +762,7 @@ export default function Products() {
 
   return (
     <Layout>
-      <div className="px-8 py-8">
+      <div className="px-4 py-5 md:px-8 md:py-8">
         <PageHeader
           title="Produkty"
           subtitle="Ceny surowców i historia zmian"
@@ -842,8 +842,8 @@ export default function Products() {
           </Button>
         </div>
 
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30">
+        <div className="bg-card border border-border rounded-xl overflow-x-auto">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[760px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30">
             <div>Produkt</div>
             <div className="text-right w-28">Ostatnia cena</div>
             <div className="text-right w-28">Poprzednia</div>
@@ -855,7 +855,7 @@ export default function Products() {
           {isLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-4">
+                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[760px] py-4">
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-24" />
@@ -872,7 +872,7 @@ export default function Products() {
                 return (
                   <div
                     key={product.id}
-                    className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-4 hover:bg-secondary/40 transition-colors items-center cursor-pointer"
+                    className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[760px] py-4 hover:bg-secondary/40 transition-colors items-center cursor-pointer"
                     onClick={() => openHistory(product.id, product.name)}
                     data-testid={`product-row-${product.id}`}
                   >

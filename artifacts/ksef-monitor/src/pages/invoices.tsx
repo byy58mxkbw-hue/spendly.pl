@@ -401,7 +401,7 @@ export default function Invoices() {
 
   return (
     <Layout>
-      <div className="px-8 py-8">
+      <div className="px-4 py-5 md:px-8 md:py-8">
         <PageHeader
           title="Faktury"
           subtitle="Historia zaimportowanych faktur KSeF"
@@ -482,9 +482,9 @@ export default function Invoices() {
         )}
 
         {/* Table */}
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-x-auto">
           {/* Column headers with sort */}
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30 select-none">
+          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[820px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30 select-none">
             <div className="w-8"></div>
             <div>Faktura</div>
             <button
@@ -517,7 +517,7 @@ export default function Invoices() {
           {isLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-4 items-center">
+                <div key={i} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[820px] py-4 items-center">
                   <Skeleton className="w-8 h-8 rounded-lg" />
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-4 w-24" />
@@ -533,7 +533,7 @@ export default function Invoices() {
               {displayedInvoices.map((invoice) => (
                 <div
                   key={invoice.id}
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 py-4 items-center hover:bg-secondary/40 transition-colors group"
+                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[820px] py-4 items-center hover:bg-secondary/40 transition-colors group"
                   data-testid={`invoice-row-${invoice.id}`}
                 >
                   <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">

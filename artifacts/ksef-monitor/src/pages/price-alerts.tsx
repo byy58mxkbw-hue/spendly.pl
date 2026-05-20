@@ -89,7 +89,7 @@ export default function PriceAlerts() {
 
   return (
     <Layout>
-      <div className="px-8 py-8">
+      <div className="px-4 py-5 md:px-8 md:py-8">
         <PageHeader
           title="Alerty cenowe"
           subtitle="Monitoruj przekroczenia progów cenowych"

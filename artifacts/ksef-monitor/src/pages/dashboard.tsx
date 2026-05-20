@@ -119,7 +119,7 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="px-8 py-8">
+      <div className="px-4 py-5 md:px-8 md:py-8">
         <PageHeader
           title="Dashboard"
           subtitle="Przegląd kosztów i zmian cen surowców"

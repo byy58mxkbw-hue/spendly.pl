@@ -51,7 +51,7 @@ export default function SettingsKsef() {
 
   return (
     <Layout>
-      <div className="px-8 py-8 max-w-3xl">
+      <div className="px-4 py-5 md:px-8 md:py-8 max-w-3xl">
         <PageHeader
           title="Ustawienia KSeF"
           subtitle="Skonfiguruj integrację z Krajowym Systemem e-Faktur (Produkcja)"
