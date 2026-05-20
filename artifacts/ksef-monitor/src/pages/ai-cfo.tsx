@@ -177,10 +177,12 @@ export function AiCfoPage() {
   const { mutateAsync: dismiss } = usePostInsightsIdDismiss();
   const { mutateAsync: markRead } = usePostInsightsIdRead();
   const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
+    setGenerateError(null);
 
     // Clear any in-flight poll
     if (pollIntervalRef.current) {
@@ -190,8 +192,12 @@ export function AiCfoPage() {
 
     try {
       await generate({ data: {} });
-    } catch {
-      // 202 is returned immediately — error handling not needed
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } }; message?: string };
+      const msg = e?.response?.data?.error ?? e?.message ?? "Nie udało się uruchomić analizy.";
+      setGenerateError(msg);
+      setGenerating(false);
+      return;
     }
 
     // Snapshot the most recent insight's createdAt before polling so we can
@@ -205,16 +211,22 @@ export function AiCfoPage() {
     let attempts = 0;
     const iv = setInterval(async () => {
       attempts++;
-      await qc.invalidateQueries({ queryKey });
+      try {
+        await qc.invalidateQueries({ queryKey });
+      } catch {
+        // network hiccup — keep polling
+      }
       const fresh = qc.getQueryData<Insight[]>(queryKey) ?? [];
       const latestAfter = fresh.reduce<string>(
         (max, i) => (i.createdAt > max ? i.createdAt : max),
         "",
       );
-      // Stop when new insights arrived or after 90s (30 × 3s)
-      if (latestAfter > latestBefore || (fresh.length > 0 && attempts >= 5) || attempts >= 30) {
+      // Stop only when a genuinely newer insight arrives or after 90s (30 × 3s)
+      if (latestAfter > latestBefore || attempts >= 30) {
         clearInterval(iv);
         pollIntervalRef.current = null;
+        // Final refetch to ensure UI reflects the latest data
+        await qc.invalidateQueries({ queryKey });
         setGenerating(false);
       }
     }, 3000);
@@ -272,6 +284,12 @@ export function AiCfoPage() {
             <span className="hidden sm:inline">{generating ? "Analizuję…" : "Odśwież"}</span>
           </button>
         </div>
+
+        {generateError && (
+          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-3 text-sm text-destructive">
+            {generateError}
+          </div>
+        )}
 
         {insights.length > 0 && (
           <div className="grid grid-cols-3 gap-3 mb-8">

@@ -731,7 +731,7 @@ function CategoryBadge({
 
 export default function Products() {
   const queryClient = useQueryClient();
-  const { data: products, isLoading } = useListProducts();
+  const { data: products, isLoading, isError } = useListProducts();
   const { data: suppliers } = useListSuppliers();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");
@@ -864,6 +864,10 @@ export default function Products() {
                   <Skeleton className="h-4 w-20" />
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="px-6 py-8 text-center text-sm text-destructive">
+              Nie udało się załadować produktów. Odśwież stronę lub spróbuj ponownie później.
             </div>
           ) : filtered && filtered.length > 0 ? (
             <div className="divide-y divide-border">

@@ -130,9 +130,9 @@ function AiCfoFeed() {
 }
 
 export default function Dashboard() {
-  const { data: summary, isLoading: summaryLoading } = useGetDashboardSummary();
-  const { data: monthly, isLoading: monthlyLoading } = useGetFoodCostMonthly({ months: 12 });
-  const { data: recent, isLoading: recentLoading } = useGetRecentPurchases({ limit: 8 });
+  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useGetDashboardSummary();
+  const { data: monthly, isLoading: monthlyLoading, isError: monthlyError } = useGetFoodCostMonthly({ months: 12 });
+  const { data: recent, isLoading: recentLoading, isError: recentError } = useGetRecentPurchases({ limit: 8 });
   const { data: activeAlerts } = useGetDashboardActiveAlerts();
   // Fetch a larger pool so per-category tabs actually have items to show
   const { data: topChanges } = useGetTopPriceChanges({ limit: 100, days: 30 });
@@ -170,6 +170,13 @@ export default function Dashboard() {
           title="Dashboard"
           subtitle="Przegląd kosztów i zmian cen surowców"
         />
+
+        {/* Error banners — shown per section if a query fails */}
+        {(summaryError || monthlyError || recentError) && (
+          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-3 text-sm text-destructive">
+            Nie udało się załadować części danych dashboardu. Odśwież stronę lub spróbuj ponownie później.
+          </div>
+        )}
 
         {/* Stats grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

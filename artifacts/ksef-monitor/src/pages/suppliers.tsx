@@ -48,7 +48,7 @@ type SupplierFormValues = z.infer<typeof supplierSchema>;
 export default function Suppliers() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const { data: suppliers, isLoading } = useListSuppliers();
+  const { data: suppliers, isLoading, isError } = useListSuppliers();
   const createSupplier = useCreateSupplier();
   const deleteSupplier = useDeleteSupplier();
 
@@ -116,6 +116,10 @@ export default function Suppliers() {
                 <Skeleton className="h-4 w-full" />
               </div>
             ))}
+          </div>
+        ) : isError ? (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-6 py-8 text-center text-sm text-destructive">
+            Nie udało się załadować dostawców. Odśwież stronę lub spróbuj ponownie później.
           </div>
         ) : suppliers && suppliers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

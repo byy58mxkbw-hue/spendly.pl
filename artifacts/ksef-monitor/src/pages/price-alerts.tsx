@@ -44,7 +44,7 @@ type AlertFormValues = z.infer<typeof alertSchema>;
 
 export default function PriceAlerts() {
   const queryClient = useQueryClient();
-  const { data: alerts, isLoading } = useListPriceAlerts();
+  const { data: alerts, isLoading, isError } = useListPriceAlerts();
   const { data: triggered } = useGetDashboardActiveAlerts();
   const { data: suppliers } = useListSuppliers();
   const createAlert = useCreatePriceAlert();
@@ -157,6 +157,10 @@ export default function PriceAlerts() {
                   <Skeleton className="w-8 h-8 rounded-md" />
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="px-6 py-8 text-center text-sm text-destructive">
+              Nie udało się załadować alertów. Odśwież stronę lub spróbuj ponownie później.
             </div>
           ) : alerts && alerts.length > 0 ? (
             <div className="divide-y divide-border">
