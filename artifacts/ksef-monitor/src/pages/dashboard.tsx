@@ -7,6 +7,9 @@ import {
   useGetDashboardActiveAlerts,
   useGetTopPriceChanges,
   useGetInsights,
+  useGetKsefConfig,
+  useSyncKsefInvoices,
+  useListKsefPending,
 } from "@workspace/api-client-react";
 import {
   BarChart,
@@ -17,13 +20,16 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, Users, Package, FileText, Bell, Zap, ChevronRight, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Users, Package, FileText, Bell, Zap, ChevronRight, AlertTriangle, RefreshCw, Inbox } from "lucide-react";
 import { Link } from "wouter";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { CATEGORIES, categorizeProduct } from "@/lib/categories";
 import { PriceHistoryModal } from "./products";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 function StatCard({
   label,
@@ -130,12 +136,48 @@ function AiCfoFeed() {
 }
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   const { data: summary, isLoading: summaryLoading, isError: summaryError } = useGetDashboardSummary();
   const { data: monthly, isLoading: monthlyLoading, isError: monthlyError } = useGetFoodCostMonthly({ months: 12 });
   const { data: recent, isLoading: recentLoading, isError: recentError } = useGetRecentPurchases({ limit: 8 });
   const { data: activeAlerts } = useGetDashboardActiveAlerts();
-  // Fetch a larger pool so per-category tabs actually have items to show
   const { data: topChanges } = useGetTopPriceChanges({ limit: 100, days: 30 });
+  const { data: config } = useGetKsefConfig();
+  const { data: pendingList } = useListKsefPending({ status: "pending" });
+  const sync = useSyncKsefInvoices();
+
+  const pendingCount = pendingList?.length ?? 0;
+
+  function handleSync() {
+    if (!config) {
+      toast({
+        variant: "destructive",
+        title: "Brak konfiguracji",
+        description: "Przejdź do Ustawień KSeF i wpisz NIP oraz token.",
+      });
+      return;
+    }
+    sync.mutate(undefined, {
+      onSuccess: (res) => {
+        queryClient.invalidateQueries();
+        const errs = res.errors && res.errors.length > 0 ? ` Błędów: ${res.errors.length}.` : "";
+        toast({
+          title: "Synchronizacja zakończona",
+          description: `Zaimportowano: ${res.imported}, do przeglądu: ${res.pending}, nieudanych: ${res.failed}.${errs}`,
+        });
+      },
+      onError: (err: unknown) => {
+        const e = err as { response?: { data?: { error?: string } }; message?: string };
+        toast({
+          variant: "destructive",
+          title: "Błąd synchronizacji",
+          description: e?.response?.data?.error ?? e?.message ?? "Nie udało się zsynchronizować z KSeF.",
+        });
+      },
+    });
+  }
 
   const [topChangesCategory, setTopChangesCategory] = useState<string>("wszystkie");
   const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
@@ -169,7 +211,46 @@ export default function Dashboard() {
         <PageHeader
           title="Dashboard"
           subtitle="Przegląd kosztów i zmian cen surowców"
+          action={
+            config ? (
+              <Button
+                variant="outline"
+                onClick={handleSync}
+                disabled={sync.isPending}
+                className="gap-2"
+                data-testid="btn-sync-ksef-dashboard"
+              >
+                <RefreshCw className={cn("w-4 h-4", sync.isPending && "animate-spin")} />
+                {sync.isPending ? "Synchronizuję..." : "Synchronizuj z KSeF"}
+              </Button>
+            ) : (
+              <Link href="/settings/ksef">
+                <Button variant="outline" className="gap-2">
+                  <RefreshCw className="w-4 h-4" /> Skonfiguruj KSeF
+                </Button>
+              </Link>
+            )
+          }
         />
+
+        {/* Pending invoices banner */}
+        {pendingCount > 0 && (
+          <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3.5">
+            <div className="flex items-center gap-3">
+              <Inbox className="w-4 h-4 shrink-0 text-amber-600" />
+              <p className="text-sm font-medium text-amber-800">
+                {pendingCount === 1
+                  ? "1 faktura wymaga przeglądu"
+                  : `${pendingCount} faktury wymagają przeglądu`}
+              </p>
+            </div>
+            <Link href="/pending">
+              <Button size="sm" variant="outline" className="border-amber-300 bg-white text-amber-800 hover:bg-amber-100 hover:border-amber-400 shrink-0">
+                Przejdź do przeglądu
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* Error banners — shown per section if a query fails */}
         {(summaryError || monthlyError || recentError) && (
