@@ -403,18 +403,45 @@ async function runSync(
           resolvedProductIds.push(pid);
         }
 
-        await db.transaction(async (tx) => {
-          const totalAmount =
-            parsed.header.totalGross ??
-            parsed.items.reduce((s, i) => s + i.gross, 0);
+        const totalAmount =
+          parsed.header.totalGross ??
+          parsed.items.reduce((s, i) => s + i.gross, 0);
+        const invNum =
+          parsed.header.invoiceNumber ?? ref.ksefReferenceNumber;
+        const invDate = parsed.header.invoiceDate ?? isoDate(now);
+
+        const wasImported = await db.transaction(async (tx) => {
+          // If the same invoice was already imported manually (no ksef_number),
+          // attach ksef metadata to it instead of inserting a duplicate.
+          const [existing] = await tx
+            .select({ id: invoicesTable.id })
+            .from(invoicesTable)
+            .where(
+              and(
+                eq(invoicesTable.supplierId, match.supplier!.id),
+                eq(invoicesTable.invoiceNumber, invNum),
+              ),
+            )
+            .limit(1);
+          if (existing) {
+            await tx
+              .update(invoicesTable)
+              .set({
+                ksefNumber: ref.ksefReferenceNumber,
+                xmlContent: xml,
+                totalAmount: totalAmount.toFixed(2),
+                invoiceDate: invDate,
+              })
+              .where(eq(invoicesTable.id, existing.id));
+            return false;
+          }
 
           const inserted = await tx
             .insert(invoicesTable)
             .values({
               supplierId: match.supplier!.id,
-              invoiceNumber:
-                parsed.header.invoiceNumber ?? ref.ksefReferenceNumber,
-              invoiceDate: parsed.header.invoiceDate ?? isoDate(now),
+              invoiceNumber: invNum,
+              invoiceDate: invDate,
               totalAmount: totalAmount.toFixed(2),
               xmlContent: xml,
               ksefNumber: ref.ksefReferenceNumber,
@@ -422,7 +449,7 @@ async function runSync(
             .onConflictDoNothing({ target: invoicesTable.ksefNumber })
             .returning();
           const inv = inserted[0];
-          if (!inv) return; // already imported in a concurrent run
+          if (!inv) return false; // already imported in a concurrent run
 
           for (let i = 0; i < parsed.items.length; i++) {
             const item = parsed.items[i];
@@ -437,8 +464,9 @@ async function runSync(
               vatRate: item.vatRate != null ? item.vatRate.toString() : null,
             });
           }
+          return true;
         });
-        summary.imported++;
+        if (wasImported) summary.imported++;
       } else {
         const reasons: string[] = [];
         if (!match.supplier) {
@@ -508,42 +536,70 @@ async function runSync(
 
       const totalAmount =
         parsed.header.totalGross ?? parsed.items.reduce((s, i) => s + i.gross, 0);
+      const invNum = parsed.header.invoiceNumber ?? row.ksefNumber;
+      const invDate = parsed.header.invoiceDate ?? isoDate(now);
 
-      await db.transaction(async (tx) => {
-        const inserted = await tx
-          .insert(invoicesTable)
-          .values({
-            supplierId: match.supplier!.id,
-            invoiceNumber: parsed.header.invoiceNumber ?? row.ksefNumber,
-            invoiceDate: parsed.header.invoiceDate ?? isoDate(now),
-            totalAmount: totalAmount.toFixed(2),
-            xmlContent: row.rawXml,
-            ksefNumber: row.ksefNumber,
-          })
-          .onConflictDoNothing({ target: invoicesTable.ksefNumber })
-          .returning();
-        const inv = inserted[0];
-        if (inv) {
-          for (let i = 0; i < parsed.items.length; i++) {
-            const item = parsed.items[i];
-            await tx.insert(invoiceItemsTable).values({
-              invoiceId: inv.id,
-              productId: resolvedProductIds[i],
-              productName: item.name,
-              quantity: item.quantity.toString(),
-              unit: item.unit,
-              unitPrice: item.unitPrice.toString(),
-              totalPrice: item.net.toString(),
-              vatRate: item.vatRate != null ? item.vatRate.toString() : null,
-            });
+      const wasNewlyImported = await db.transaction(async (tx) => {
+        const [existing] = await tx
+          .select({ id: invoicesTable.id })
+          .from(invoicesTable)
+          .where(
+            and(
+              eq(invoicesTable.supplierId, match.supplier!.id),
+              eq(invoicesTable.invoiceNumber, invNum),
+            ),
+          )
+          .limit(1);
+        let inserted = false;
+        if (existing) {
+          // Attach ksef metadata to the manually-imported invoice; do not duplicate items.
+          await tx
+            .update(invoicesTable)
+            .set({
+              ksefNumber: row.ksefNumber,
+              xmlContent: row.rawXml,
+              totalAmount: totalAmount.toFixed(2),
+              invoiceDate: invDate,
+            })
+            .where(eq(invoicesTable.id, existing.id));
+        } else {
+          const insertedRows = await tx
+            .insert(invoicesTable)
+            .values({
+              supplierId: match.supplier!.id,
+              invoiceNumber: invNum,
+              invoiceDate: invDate,
+              totalAmount: totalAmount.toFixed(2),
+              xmlContent: row.rawXml,
+              ksefNumber: row.ksefNumber,
+            })
+            .onConflictDoNothing({ target: invoicesTable.ksefNumber })
+            .returning();
+          const inv = insertedRows[0];
+          if (inv) {
+            inserted = true;
+            for (let i = 0; i < parsed.items.length; i++) {
+              const item = parsed.items[i];
+              await tx.insert(invoiceItemsTable).values({
+                invoiceId: inv.id,
+                productId: resolvedProductIds[i],
+                productName: item.name,
+                quantity: item.quantity.toString(),
+                unit: item.unit,
+                unitPrice: item.unitPrice.toString(),
+                totalPrice: item.net.toString(),
+                vatRate: item.vatRate != null ? item.vatRate.toString() : null,
+              });
+            }
           }
         }
         await tx
           .update(ksefPendingInvoicesTable)
           .set({ status: "accepted" })
           .where(eq(ksefPendingInvoicesTable.id, row.id));
+        return inserted;
       });
-      summary.imported++;
+      if (wasNewlyImported) summary.imported++;
       summary.pending = Math.max(0, summary.pending - 1);
     } catch (err) {
       pendingRetryFailed++;
