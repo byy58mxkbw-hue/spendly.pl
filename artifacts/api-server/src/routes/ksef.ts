@@ -35,6 +35,11 @@ const router: IRouter = Router();
 // Per-user lock to prevent two parallel syncs from racing.
 const syncInFlight = new Set<string>();
 
+// Small delay between per-invoice XML fetches to stay below KSeF's
+// rate limit. Empirically the production limiter is ~3–5 req/s per IP/token.
+const PER_INVOICE_DELAY_MS = 300;
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 function describeDbErr(err: unknown): string {
   if (err && typeof err === "object") {
     const e = err as { message?: string; cause?: { code?: string; detail?: string; constraint?: string; message?: string } };
@@ -390,7 +395,9 @@ async function runSync(
     newRefs = allRefs.filter((r) => !seen.has(r.ksefReferenceNumber));
   }
 
-  for (const ref of newRefs) {
+  for (let idx = 0; idx < newRefs.length; idx++) {
+    const ref = newRefs[idx];
+    if (idx > 0) await sleep(PER_INVOICE_DELAY_MS);
     try {
       const xml = await client.getInvoiceXml(session, ref.ksefReferenceNumber);
       const parsed = parseFA3Xml(xml, ref.ksefReferenceNumber);
@@ -515,8 +522,11 @@ async function runSync(
     } catch (err) {
       summary.failed++;
       const m = mapKsefError(err);
-      const msg = `Faktura ${ref.ksefReferenceNumber}: ${m.message}`;
-      summary.errors.push(msg);
+      const friendly =
+        err instanceof KsefRateLimitError
+          ? "KSeF chwilowo ogranicza zapytania. Pozostałe faktury pobiorą się przy następnej synchronizacji za ok. 1 minutę."
+          : m.message;
+      summary.errors.push(`Faktura ${ref.ksefReferenceNumber}: ${friendly}`);
       req.log.error({ ksefRef: ref.ksefReferenceNumber, err: describeDbErr(err) }, "KSeF per-invoice fetch failed");
     }
   }
