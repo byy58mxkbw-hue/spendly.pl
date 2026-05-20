@@ -27,7 +27,6 @@ const navItems = [
   { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
   { path: "/reports", label: "Raporty", icon: BarChart2 },
   { path: "/ai-cfo", label: "AI CFO", icon: Sparkles },
-  { path: "/predictive", label: "Analiza predyktywna", icon: BarChart2 },
   { path: "/settings/ksef", label: "Ustawienia KSeF", icon: Settings },
 ];
 

@@ -386,6 +386,15 @@ export const DeletePriceAlertParams = zod.object({
 /**
  * @summary Get dashboard summary stats
  */
+export const GetDashboardSummaryQueryParams = zod.object({
+  days: zod.coerce
+    .number()
+    .optional()
+    .describe(
+      "If set, summarize spend over the last N days instead of calendar month",
+    ),
+});
+
 export const GetDashboardSummaryResponse = zod.object({
   totalSuppliers: zod.number(),
   activeSuppliers: zod.number(),
@@ -421,6 +430,10 @@ export const GetFoodCostMonthlyResponse = zod.array(
  */
 export const GetRecentPurchasesQueryParams = zod.object({
   limit: zod.coerce.number().optional(),
+  days: zod.coerce
+    .number()
+    .optional()
+    .describe("If set, only return purchases from the last N days"),
 });
 
 export const GetRecentPurchasesResponseItem = zod.object({
@@ -444,7 +457,9 @@ export const GetMonthlyReportQueryParams = zod.object({
   month: zod.coerce
     .string()
     .optional()
-    .describe("Month in YYYY-MM format (defaults to current month)"),
+    .describe(
+      "Month in YYYY-MM format (defaults to current month), or 'all' for all-time data",
+    ),
 });
 
 export const GetMonthlyReportResponse = zod.object({

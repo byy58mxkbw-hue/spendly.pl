@@ -8,17 +8,38 @@ import {
   productsTable,
   priceAlertsTable,
 } from "@workspace/db";
-import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams } from "@workspace/api-zod";
+import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams, GetDashboardSummaryQueryParams } from "@workspace/api-zod";
 import { toNum } from "../lib/parse";
 
 const router: IRouter = Router();
 
 router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const userId = req.userId!;
+  const queryParams = GetDashboardSummaryQueryParams.safeParse(req.query);
+  if (!queryParams.success) {
+    res.status(400).json({ error: queryParams.error.message });
+    return;
+  }
+  const days = queryParams.data.days;
+
   const now = new Date();
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
-  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split("T")[0];
+
+  // Period boundaries — either last N days or calendar month
+  let periodStart: string;
+  let prevPeriodStart: string;
+  let prevPeriodEnd: string;
+
+  if (days) {
+    const start = new Date(now.getTime() - days * 86400000);
+    const prevStart = new Date(start.getTime() - days * 86400000);
+    periodStart = start.toISOString().split("T")[0];
+    prevPeriodStart = prevStart.toISOString().split("T")[0];
+    prevPeriodEnd = start.toISOString().split("T")[0];
+  } else {
+    periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+    prevPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
+    prevPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split("T")[0];
+  }
 
   const [supplierStats] = await db
     .select({
@@ -33,21 +54,21 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .from(invoicesTable)
     .where(eq(invoicesTable.userId, userId));
 
-  const [thisMonthSpend] = await db
+  const [thisPeriodSpend] = await db
     .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-    .where(and(eq(invoicesTable.userId, userId), gte(invoicesTable.invoiceDate, thisMonthStart)));
+    .where(and(eq(invoicesTable.userId, userId), gte(invoicesTable.invoiceDate, periodStart)));
 
-  const [lastMonthSpend] = await db
+  const [prevPeriodSpend] = await db
     .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .where(
       and(
         eq(invoicesTable.userId, userId),
-        gte(invoicesTable.invoiceDate, lastMonthStart),
-        sql`${invoicesTable.invoiceDate} <= ${lastMonthEnd}`,
+        gte(invoicesTable.invoiceDate, prevPeriodStart),
+        sql`${invoicesTable.invoiceDate} < ${prevPeriodEnd}`,
       ),
     );
 
@@ -61,16 +82,16 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .from(priceAlertsTable)
     .where(eq(priceAlertsTable.userId, userId));
 
-  const thisMonth = toNum(thisMonthSpend.total);
-  const lastMonth = toNum(lastMonthSpend.total);
-  const spendChange = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0;
+  const thisPeriod = toNum(thisPeriodSpend.total);
+  const prevPeriod = toNum(prevPeriodSpend.total);
+  const spendChange = prevPeriod > 0 ? ((thisPeriod - prevPeriod) / prevPeriod) * 100 : 0;
 
   res.json({
     totalSuppliers: supplierStats.totalSuppliers,
     activeSuppliers: supplierStats.activeSuppliers,
     totalInvoices: invoiceStats.totalInvoices,
-    totalSpendThisMonth: thisMonth,
-    totalSpendLastMonth: lastMonth,
+    totalSpendThisMonth: thisPeriod,
+    totalSpendLastMonth: prevPeriod,
     spendChangePercent: Math.round(spendChange * 10) / 10,
     trackedProducts: productCount.count,
     activeAlerts: alertCount.count,
@@ -131,6 +152,11 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
   }
 
   const limit = queryParams.data.limit ?? 10;
+  const days = queryParams.data.days;
+
+  const dateFilter = days
+    ? sql`${invoicesTable.invoiceDate} >= to_char(current_date - ${sql.raw(String(days))} * interval '1 day', 'YYYY-MM-DD')`
+    : sql`1=1`;
 
   const recentItems = await db
     .select({
@@ -144,7 +170,7 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(eq(invoicesTable.userId, userId))
+    .where(and(eq(invoicesTable.userId, userId), dateFilter))
     .orderBy(desc(invoicesTable.invoiceDate))
     .limit(limit * 2);
 

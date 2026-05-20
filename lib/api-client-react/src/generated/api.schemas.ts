@@ -502,17 +502,28 @@ export type ListInvoicesParams = {
   offset?: number;
 };
 
+export type GetDashboardSummaryParams = {
+  /**
+   * If set, summarize spend over the last N days instead of calendar month
+   */
+  days?: number;
+};
+
 export type GetFoodCostMonthlyParams = {
   months?: number;
 };
 
 export type GetRecentPurchasesParams = {
   limit?: number;
+  /**
+   * If set, only return purchases from the last N days
+   */
+  days?: number;
 };
 
 export type GetMonthlyReportParams = {
   /**
-   * Month in YYYY-MM format (defaults to current month)
+   * Month in YYYY-MM format (defaults to current month), or 'all' for all-time data
    */
   month?: string;
 };

@@ -10,14 +10,15 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
   const monthParam = req.query.month as string | undefined;
 
   const now = new Date();
-  const month = monthParam || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const isAllTime = monthParam === "all";
+  const month = isAllTime ? "all" : (monthParam || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
 
-  if (!/^\d{4}-\d{2}$/.test(month)) {
-    res.status(400).json({ error: "Invalid month format. Use YYYY-MM" });
+  if (!isAllTime && !/^\d{4}-\d{2}$/.test(month)) {
+    res.status(400).json({ error: "Invalid month format. Use YYYY-MM or 'all'" });
     return;
   }
 
-  const monthPrefix = `${month}-`;
+  const monthPrefix = isAllTime ? "" : `${month}-`;
 
   const summaryResult = await db.execute(sql`
     SELECT
@@ -27,7 +28,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     FROM invoices i
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
-      AND i.invoice_date LIKE ${monthPrefix + "%"}
+      ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
   `);
   const summary = summaryResult.rows[0] as {
     invoice_count: number;
@@ -48,7 +49,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     INNER JOIN suppliers s ON i.supplier_id = s.id
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
-      AND i.invoice_date LIKE ${monthPrefix + "%"}
+      ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
     GROUP BY p.name, ii.product_name, ii.unit, s.name
     ORDER BY total_cost DESC
     LIMIT 20
@@ -81,7 +82,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     INNER JOIN suppliers s ON i.supplier_id = s.id
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
-      AND i.invoice_date LIKE ${monthPrefix + "%"}
+      ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
     GROUP BY s.id, s.name
     ORDER BY total_spend DESC
   `);

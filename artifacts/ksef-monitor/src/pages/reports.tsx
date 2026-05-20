@@ -295,12 +295,15 @@ function TopProductsSection({ products }: { products: TopProduct[] }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function Reports() {
+  const [viewMode, setViewMode] = useState<"month" | "all">("month");
   const [month, setMonth] = useState(currentMonth());
   const isCurrentMonth = month === currentMonth();
 
+  const reportMonth = viewMode === "all" ? "all" : month;
+
   const { data, isLoading, isError } = useGetMonthlyReport(
-    { month },
-    { query: { queryKey: ["reports-monthly", month] } }
+    { month: reportMonth },
+    { query: { queryKey: ["reports-monthly", reportMonth] } }
   );
 
   const chartData = useMemo(() => {
@@ -315,20 +318,50 @@ export default function Reports() {
       <div className="px-4 py-5 md:px-8 md:py-8">
         <PageHeader
           title="Raporty"
-          subtitle="Miesięczne podsumowanie zakupów i analiza dostawców"
+          subtitle={viewMode === "all" ? "Wszystkie okresy — łączne podsumowanie" : "Miesięczne podsumowanie zakupów i analiza dostawców"}
           action={
-            <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-1 py-1">
-              <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setMonth(prevMonth(month))}>
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="text-sm font-medium min-w-36 text-center px-2">{monthLabel(month)}</span>
-              <Button
-                variant="ghost" size="icon" className="w-8 h-8"
-                onClick={() => setMonth(nextMonth(month))}
-                disabled={isCurrentMonth}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+            <div className="flex items-center gap-3">
+              {/* Mode toggle */}
+              <div className="flex items-center bg-card border border-border rounded-lg p-1 gap-0.5">
+                <button
+                  onClick={() => setViewMode("month")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                    viewMode === "month"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  Dany miesiąc
+                </button>
+                <button
+                  onClick={() => setViewMode("all")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                    viewMode === "all"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  Wszystko razem
+                </button>
+              </div>
+              {/* Month navigator — only when in month mode */}
+              {viewMode === "month" && (
+                <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-1 py-1">
+                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={() => setMonth(prevMonth(month))}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm font-medium min-w-36 text-center px-2">{monthLabel(month)}</span>
+                  <Button
+                    variant="ghost" size="icon" className="w-8 h-8"
+                    onClick={() => setMonth(nextMonth(month))}
+                    disabled={isCurrentMonth}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           }
         />

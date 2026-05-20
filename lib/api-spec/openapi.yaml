@@ -509,6 +509,13 @@ paths:
       operationId: getDashboardSummary
       tags: [dashboard]
       summary: Get dashboard summary stats
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: If set, summarize spend over the last N days instead of calendar month
       responses:
         "200":
           description: Dashboard summary
@@ -549,6 +556,12 @@ paths:
           required: false
           schema:
             type: integer
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: If set, only return purchases from the last N days
       responses:
         "200":
           description: Recent purchases
@@ -568,7 +581,7 @@ paths:
         - name: month
           in: query
           required: false
-          description: "Month in YYYY-MM format (defaults to current month)"
+          description: "Month in YYYY-MM format (defaults to current month), or 'all' for all-time data"
           schema:
             type: string
       responses:
