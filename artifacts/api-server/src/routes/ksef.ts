@@ -353,39 +353,30 @@ async function runSync(
   }
   const allRefs = Array.from(allRefsMap.values());
 
-  if (allRefs.length === 0) {
-    let updatedLastSyncedAt: Date | null = cfg.lastSyncedAt;
-    if (!truncatedWindow) {
-      await db
-        .update(ksefConfigTable)
-        .set({ lastSyncedAt: now })
-        .where(eq(ksefConfigTable.id, cfg.id));
-      updatedLastSyncedAt = now;
-    }
-    res.json({
-      ...summary,
-      lastSyncedAt: updatedLastSyncedAt ? updatedLastSyncedAt.toISOString() : null,
-    });
-    return;
+  // Filter out invoices we already have (either persisted or pending).
+  // We always fall through to the pending-retry loop below, even when KSeF
+  // returned nothing new — that way adding a supplier and clicking sync
+  // immediately re-matches queued pending invoices instead of waiting for
+  // the next batch of brand-new KSeF documents.
+  let newRefs: typeof allRefs = [];
+  if (allRefs.length > 0) {
+    const refNumbers = allRefs.map((r) => r.ksefReferenceNumber);
+    const [existingImported, existingPending] = await Promise.all([
+      db
+        .select({ k: invoicesTable.ksefNumber })
+        .from(invoicesTable)
+        .where(inArray(invoicesTable.ksefNumber, refNumbers)),
+      db
+        .select({ k: ksefPendingInvoicesTable.ksefNumber })
+        .from(ksefPendingInvoicesTable)
+        .where(inArray(ksefPendingInvoicesTable.ksefNumber, refNumbers)),
+    ]);
+    const seen = new Set<string>([
+      ...existingImported.map((r) => r.k!).filter(Boolean),
+      ...existingPending.map((r) => r.k),
+    ]);
+    newRefs = allRefs.filter((r) => !seen.has(r.ksefReferenceNumber));
   }
-
-  // Filter out invoices we already have (either persisted or pending)
-  const refNumbers = allRefs.map((r) => r.ksefReferenceNumber);
-  const [existingImported, existingPending] = await Promise.all([
-    db
-      .select({ k: invoicesTable.ksefNumber })
-      .from(invoicesTable)
-      .where(inArray(invoicesTable.ksefNumber, refNumbers)),
-    db
-      .select({ k: ksefPendingInvoicesTable.ksefNumber })
-      .from(ksefPendingInvoicesTable)
-      .where(inArray(ksefPendingInvoicesTable.ksefNumber, refNumbers)),
-  ]);
-  const seen = new Set<string>([
-    ...existingImported.map((r) => r.k!).filter(Boolean),
-    ...existingPending.map((r) => r.k),
-  ]);
-  const newRefs = allRefs.filter((r) => !seen.has(r.ksefReferenceNumber));
 
   for (const ref of newRefs) {
     try {
