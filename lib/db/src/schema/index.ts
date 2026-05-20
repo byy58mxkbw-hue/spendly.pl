@@ -1,4 +1,5 @@
 export * from "./suppliers";
+export * from "./product-groups";
 export * from "./products";
 export * from "./invoices";
 export * from "./invoice-items";

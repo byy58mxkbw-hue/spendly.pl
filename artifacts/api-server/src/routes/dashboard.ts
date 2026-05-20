@@ -7,6 +7,7 @@ import {
   invoiceItemsTable,
   productsTable,
   priceAlertsTable,
+  productGroupsTable,
 } from "@workspace/db";
 import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams } from "@workspace/api-zod";
 
@@ -203,17 +204,86 @@ router.get("/dashboard/active-alerts", async (req, res): Promise<void> => {
     .select({
       id: priceAlertsTable.id,
       productName: priceAlertsTable.productName,
+      groupId: priceAlertsTable.groupId,
+      groupName: productGroupsTable.name,
       supplierId: priceAlertsTable.supplierId,
       supplierName: suppliersTable.name,
       thresholdPercent: priceAlertsTable.thresholdPercent,
     })
     .from(priceAlertsTable)
-    .leftJoin(suppliersTable, eq(priceAlertsTable.supplierId, suppliersTable.id))
+    .leftJoin(
+      suppliersTable,
+      and(eq(priceAlertsTable.supplierId, suppliersTable.id), eq(suppliersTable.userId, userId)),
+    )
+    .leftJoin(
+      productGroupsTable,
+      and(eq(priceAlertsTable.groupId, productGroupsTable.id), eq(productGroupsTable.userId, userId)),
+    )
     .where(and(eq(priceAlertsTable.userId, userId), eq(priceAlertsTable.isActive, true)));
 
   const triggered = (
     await Promise.all(
       alerts.map(async (alert) => {
+        const threshold = parseFloat(alert.thresholdPercent);
+
+        if (alert.groupId) {
+          const members = await db
+            .select({ id: productsTable.id, unit: productsTable.unit })
+            .from(productsTable)
+            .where(and(eq(productsTable.userId, userId), eq(productsTable.groupId, alert.groupId)));
+          if (members.length === 0) return null;
+
+          // Pick primary (most common) unit to keep aggregation unit-consistent
+          const unitCounts: Record<string, number> = {};
+          for (const m of members) unitCounts[m.unit] = (unitCounts[m.unit] ?? 0) + 1;
+          const primaryUnit = Object.entries(unitCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null;
+          const filteredMembers = primaryUnit
+            ? members.filter((m) => m.unit === primaryUnit)
+            : members;
+
+          const latest: number[] = [];
+          const previous: number[] = [];
+          let alertDate: string | null = null;
+          for (const m of filteredMembers) {
+            const history = await db
+              .select({ unitPrice: invoiceItemsTable.unitPrice, invoiceDate: invoicesTable.invoiceDate })
+              .from(invoiceItemsTable)
+              .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
+              .where(
+                and(
+                  eq(invoiceItemsTable.productId, m.id),
+                  eq(invoicesTable.userId, userId),
+                  alert.supplierId ? eq(invoicesTable.supplierId, alert.supplierId) : undefined,
+                ),
+              )
+              .orderBy(desc(invoicesTable.invoiceDate))
+              .limit(2);
+            // Only include products that have BOTH a current and previous price to keep
+            // the baseline aligned with the same product set across periods
+            if (history[0] && history[1]) {
+              latest.push(parseFloat(history[0].unitPrice));
+              previous.push(parseFloat(history[1].unitPrice));
+              if (!alertDate || history[0].invoiceDate > alertDate) alertDate = history[0].invoiceDate;
+            }
+          }
+          if (!latest.length || !previous.length) return null;
+          const current = latest.reduce((a, b) => a + b, 0) / latest.length;
+          const prev = previous.reduce((a, b) => a + b, 0) / previous.length;
+          if (!isFinite(prev) || prev === 0) return null;
+          const changePercent = ((current - prev) / prev) * 100;
+          if (!isFinite(changePercent) || Math.abs(changePercent) < threshold) return null;
+          return {
+            productName: alert.groupName ?? "Grupa",
+            supplierName: alert.supplierName ?? null,
+            currentPrice: current,
+            previousPrice: prev,
+            changePercent: Math.round(changePercent * 10) / 10,
+            thresholdPercent: threshold,
+            alertDate: alertDate ?? "",
+          };
+        }
+
+        if (!alert.productName) return null;
         const [product] = await db
           .select()
           .from(productsTable)
@@ -243,10 +313,10 @@ router.get("/dashboard/active-alerts", async (req, res): Promise<void> => {
 
         const current = parseFloat(history[0].unitPrice);
         const previous = parseFloat(history[1].unitPrice);
+        if (!isFinite(previous) || previous === 0) return null;
         const changePercent = ((current - previous) / previous) * 100;
-        const threshold = parseFloat(alert.thresholdPercent);
 
-        if (Math.abs(changePercent) < threshold) return null;
+        if (!isFinite(changePercent) || Math.abs(changePercent) < threshold) return null;
 
         return {
           productName: alert.productName,

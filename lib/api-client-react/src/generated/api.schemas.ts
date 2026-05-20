@@ -172,7 +172,12 @@ export interface ImportInvoiceBody {
 
 export interface PriceAlert {
   id: number;
-  productName: string;
+  /** @nullable */
+  productName?: string | null;
+  /** @nullable */
+  groupId?: number | null;
+  /** @nullable */
+  groupName?: string | null;
   /** @nullable */
   supplierId?: number | null;
   /** @nullable */
@@ -183,10 +188,98 @@ export interface PriceAlert {
 }
 
 export interface CreatePriceAlertBody {
-  productName: string;
+  /** @nullable */
+  productName?: string | null;
+  /** @nullable */
+  groupId?: number | null;
   /** @nullable */
   supplierId?: number | null;
   thresholdPercent: number;
+}
+
+export interface ProductGroupVariant {
+  productId: number;
+  productName: string;
+  unit: string;
+  /** @nullable */
+  supplierId?: number | null;
+  /** @nullable */
+  supplierName?: string | null;
+  /** @nullable */
+  latestPrice?: number | null;
+  /** @nullable */
+  previousPrice?: number | null;
+  /** @nullable */
+  priceChangePercent?: number | null;
+  /** @nullable */
+  lastPurchaseDate?: string | null;
+}
+
+export interface ProductGroup {
+  id: number;
+  name: string;
+  normalizedKey: string;
+  variantCount: number;
+  /** @nullable */
+  avgLatestPrice?: number | null;
+  /** @nullable */
+  avgPreviousPrice?: number | null;
+  /** @nullable */
+  priceChangePercent?: number | null;
+  /** @nullable */
+  primaryUnit?: string | null;
+  unitsMixed: boolean;
+  /** @nullable */
+  lastPurchaseDate?: string | null;
+  createdAt: string;
+}
+
+export type ProductGroupDetailAvgPriceHistoryItem = {
+  date: string;
+  avgPrice: number;
+};
+
+export interface ProductGroupDetail {
+  id: number;
+  name: string;
+  normalizedKey: string;
+  /** @nullable */
+  primaryUnit?: string | null;
+  unitsMixed: boolean;
+  variants: ProductGroupVariant[];
+  avgPriceHistory: ProductGroupDetailAvgPriceHistoryItem[];
+}
+
+export interface ProductGroupSuggestion {
+  normalizedKey: string;
+  suggestedName: string;
+  productIds: number[];
+  productNames: string[];
+  /** @nullable */
+  primaryUnit?: string | null;
+}
+
+export interface CreateProductGroupBody {
+  name: string;
+  productIds?: number[];
+}
+
+export interface UpdateProductGroupBody {
+  name: string;
+}
+
+export interface AcceptSuggestionBody {
+  normalizedKey: string;
+  name: string;
+  productIds: number[];
+}
+
+export interface RejectSuggestionBody {
+  normalizedKey: string;
+}
+
+export interface AddProductsToGroupBody {
+  productIds: number[];
 }
 
 export interface DashboardSummary {

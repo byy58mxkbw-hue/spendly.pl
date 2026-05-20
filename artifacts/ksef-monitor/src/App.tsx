@@ -13,6 +13,8 @@ import Dashboard from "@/pages/dashboard";
 import Suppliers from "@/pages/suppliers";
 import SupplierDetail from "@/pages/supplier-detail";
 import Products from "@/pages/products";
+import ProductGroups from "@/pages/product-groups";
+import ProductGroupDetail from "@/pages/product-group-detail";
 import Invoices from "@/pages/invoices";
 import PriceAlerts from "@/pages/price-alerts";
 import Reports from "@/pages/reports";
@@ -216,6 +218,12 @@ function AppRouter() {
             </Route>
             <Route path="/products">
               <ProtectedRoute><Products /></ProtectedRoute>
+            </Route>
+            <Route path="/product-groups">
+              <ProtectedRoute><ProductGroups /></ProtectedRoute>
+            </Route>
+            <Route path="/product-groups/:id">
+              {(params) => <ProtectedRoute><ProductGroupDetail params={params} /></ProtectedRoute>}
             </Route>
             <Route path="/invoices">
               <ProtectedRoute><Invoices /></ProtectedRoute>
