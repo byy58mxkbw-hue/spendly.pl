@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { toNum } from "../lib/parse";
 import { eq, sql, desc, and } from "drizzle-orm";
 import { db, productsTable, invoiceItemsTable, invoicesTable, suppliersTable } from "@workspace/db";
 import {
@@ -64,8 +65,8 @@ router.get("/products", async (req, res): Promise<void> => {
 
       const latest = priceHistory[0];
       const previous = priceHistory[1];
-      const latestPrice = latest ? parseFloat(latest.unitPrice) : null;
-      const previousPrice = previous ? parseFloat(previous.unitPrice) : null;
+      const latestPrice = latest ? toNum(latest.unitPrice) : null;
+      const previousPrice = previous ? toNum(previous.unitPrice) : null;
       const changePercent =
         latestPrice && previousPrice
           ? ((latestPrice - previousPrice) / previousPrice) * 100
@@ -79,7 +80,7 @@ router.get("/products", async (req, res): Promise<void> => {
         supplierId: latest?.supplierId ?? null,
         supplierName: latest?.supplierName ?? null,
         lastPurchaseDate: latest?.invoiceDate ?? null,
-        supplierCount: Number(supplierCountResult[0]?.cnt ?? 0),
+        supplierCount: toNum(supplierCountResult[0]?.cnt ?? 0),
       };
     }),
   );
@@ -121,8 +122,8 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
 
       if (history.length < 2) return null;
 
-      const current = parseFloat(history[0].unitPrice);
-      const previous = parseFloat(history[1].unitPrice);
+      const current = toNum(history[0].unitPrice);
+      const previous = toNum(history[1].unitPrice);
       const changePercent = ((current - previous) / previous) * 100;
 
       return {
@@ -213,15 +214,15 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
       return {
         supplierId: s.supplierId,
         supplierName: s.supplierName,
-        latestPrice: parseFloat(s.latestPrice),
-        avgPrice: parseFloat(s.avgPrice),
-        minPrice: parseFloat(s.minPrice),
-        maxPrice: parseFloat(s.maxPrice),
-        purchaseCount: Number(s.purchaseCount),
+        latestPrice: toNum(s.latestPrice),
+        avgPrice: toNum(s.avgPrice),
+        minPrice: toNum(s.minPrice),
+        maxPrice: toNum(s.maxPrice),
+        purchaseCount: toNum(s.purchaseCount),
         lastPurchaseDate: s.lastPurchaseDate,
         priceHistory: history.map((h) => ({
           date: h.date,
-          price: parseFloat(h.price),
+          price: toNum(h.price),
         })),
       };
     }),
@@ -287,7 +288,7 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
   res.json(
     history.map((h) => ({
       date: h.date,
-      price: parseFloat(h.price),
+      price: toNum(h.price),
       invoiceId: h.invoiceId,
       invoiceNumber: h.invoiceNumber,
       supplierId: h.supplierId,

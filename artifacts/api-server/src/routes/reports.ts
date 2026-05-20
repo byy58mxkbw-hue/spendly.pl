@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { toNum } from "../lib/parse";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
@@ -208,8 +209,8 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
     const t = new Date(r.invoice_date).getTime();
     if (!Number.isFinite(t)) continue;
     const day = Math.round((t - todayMs) / dayMs);
-    const price = parseFloat(r.unit_price);
-    const qty = parseFloat(r.quantity);
+    const price = toNum(r.unit_price);
+    const qty = toNum(r.quantity);
     if (!Number.isFinite(price) || price <= 0) continue;
     g.points.push({ day, price, qty: Number.isFinite(qty) ? qty : 0, date: r.invoice_date });
   }

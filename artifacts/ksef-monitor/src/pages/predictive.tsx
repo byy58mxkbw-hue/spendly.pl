@@ -142,11 +142,11 @@ function ProductTable({ rows, direction }: { rows: Row[]; direction: "up" | "dow
 
 export default function Predictive() {
   const [horizonDays, setHorizonDays] = useState(30);
-  const { data, isLoading } = useGetPredictiveReport({ horizonDays });
+  const { data, isLoading, isError } = useGetPredictiveReport({ horizonDays });
 
   return (
     <Layout>
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="px-4 py-5 md:px-8 md:py-8 max-w-7xl mx-auto">
         <PageHeader
           title="Analiza predyktywna"
           subtitle="Prognozy zmian cen i wpływu na food cost na podstawie historii zakupów"
@@ -170,7 +170,11 @@ export default function Predictive() {
           }
         />
 
-        {isLoading || !data ? (
+        {isError ? (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-8 text-center text-sm text-destructive">
+            Nie udało się załadować prognozy. Odśwież stronę lub spróbuj ponownie później.
+          </div>
+        ) : isLoading || !data ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {[0, 1, 2, 3].map((i) => (

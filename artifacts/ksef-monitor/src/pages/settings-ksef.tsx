@@ -11,7 +11,7 @@ import { ShieldCheck, ExternalLink } from "lucide-react";
 export default function SettingsKsef() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: config, isLoading } = useGetKsefConfig();
+  const { data: config, isLoading, isError } = useGetKsefConfig();
   const updateConfig = useUpdateKsefConfig();
 
   const [nip, setNip] = useState("");
@@ -67,6 +67,10 @@ export default function SettingsKsef() {
               <Skeleton className="h-4 w-48" />
               <Skeleton className="h-4 w-32" />
             </div>
+          ) : isError ? (
+            <p className="text-sm text-destructive">
+              Nie udało się załadować konfiguracji. Odśwież stronę lub spróbuj ponownie później.
+            </p>
           ) : config ? (
             <dl className="grid grid-cols-[140px_1fr] gap-y-2 text-sm">
               <dt className="text-muted-foreground">NIP</dt>

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, eq } from "drizzle-orm";
 import { db, priceAlertsTable, suppliersTable } from "@workspace/db";
+import { toNum } from "../lib/parse";
 import {
   CreatePriceAlertBody,
   DeletePriceAlertParams,
@@ -31,7 +32,7 @@ router.get("/price-alerts", async (req, res): Promise<void> => {
   res.json(
     alerts.map((a) => ({
       ...a,
-      thresholdPercent: parseFloat(a.thresholdPercent),
+      thresholdPercent: toNum(a.thresholdPercent),
       createdAt: a.createdAt.toISOString(),
     })),
   );
@@ -58,7 +59,7 @@ router.post("/price-alerts", async (req, res): Promise<void> => {
   res.status(201).json({
     ...alert,
     supplierName: null,
-    thresholdPercent: parseFloat(alert.thresholdPercent),
+    thresholdPercent: toNum(alert.thresholdPercent),
     createdAt: alert.createdAt.toISOString(),
   });
 });

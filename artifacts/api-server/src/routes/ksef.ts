@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import { toNum, toNumOrNull } from "../lib/parse";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
@@ -683,7 +684,7 @@ router.get("/ksef/pending", async (req, res): Promise<void> => {
       sellerName: r.sellerName,
       invoiceNumber: r.invoiceNumber,
       invoiceDate: r.invoiceDate,
-      totalGross: r.totalGross != null ? parseFloat(r.totalGross) : null,
+      totalGross: toNumOrNull(r.totalGross),
       reason: r.reason,
       status: r.status,
       createdAt: r.createdAt.toISOString(),
@@ -721,7 +722,7 @@ router.get("/ksef/pending/:id", async (req, res): Promise<void> => {
     sellerName: row.sellerName,
     invoiceNumber: row.invoiceNumber,
     invoiceDate: row.invoiceDate,
-    totalGross: row.totalGross != null ? parseFloat(row.totalGross) : null,
+    totalGross: toNumOrNull(row.totalGross),
     reason: row.reason,
     status: row.status,
     createdAt: row.createdAt.toISOString(),
@@ -862,14 +863,14 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
     supplierName: supplier.name,
     invoiceNumber: created.inv.invoiceNumber,
     invoiceDate: created.inv.invoiceDate,
-    totalAmount: parseFloat(created.inv.totalAmount as string),
+    totalAmount: toNum(created.inv.totalAmount),
     importedAt: created.inv.importedAt.toISOString(),
     items: created.items.map((it) => ({
       ...it,
-      quantity: parseFloat(it.quantity),
-      unitPrice: parseFloat(it.unitPrice),
-      totalPrice: parseFloat(it.totalPrice),
-      vatRate: it.vatRate != null ? parseFloat(it.vatRate) : null,
+      quantity: toNum(it.quantity),
+      unitPrice: toNum(it.unitPrice),
+      totalPrice: toNum(it.totalPrice),
+      vatRate: toNumOrNull(it.vatRate),
     })),
   });
 });

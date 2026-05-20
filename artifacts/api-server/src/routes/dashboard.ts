@@ -9,6 +9,7 @@ import {
   priceAlertsTable,
 } from "@workspace/db";
 import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams } from "@workspace/api-zod";
+import { toNum } from "../lib/parse";
 
 const router: IRouter = Router();
 
@@ -60,8 +61,8 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .from(priceAlertsTable)
     .where(eq(priceAlertsTable.userId, userId));
 
-  const thisMonth = parseFloat(String(thisMonthSpend.total));
-  const lastMonth = parseFloat(String(lastMonthSpend.total));
+  const thisMonth = toNum(thisMonthSpend.total);
+  const lastMonth = toNum(lastMonthSpend.total);
   const spendChange = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0;
 
   res.json({
@@ -115,7 +116,7 @@ router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
       month: r.month,
       year: r.year,
       label: r.label,
-      totalAmount: parseFloat(r.total_amount),
+      totalAmount: toNum(r.total_amount),
       invoiceCount: r.invoice_count,
     })),
   );
@@ -175,8 +176,8 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
           .limit(1);
 
         if (prevItems.length > 0) {
-          previousPrice = parseFloat(prevItems[0].unitPrice);
-          const current = parseFloat(item.unitPrice);
+          previousPrice = toNum(prevItems[0].unitPrice);
+          const current = toNum(item.unitPrice);
           changePercent = ((current - previousPrice) / previousPrice) * 100;
         }
       }
@@ -185,7 +186,7 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
         productId: item.productId,
         productName: item.productName,
         unit: item.unit,
-        currentPrice: parseFloat(item.unitPrice),
+        currentPrice: toNum(item.unitPrice),
         previousPrice,
         changePercent,
         supplierName: item.supplierName,
@@ -241,10 +242,10 @@ router.get("/dashboard/active-alerts", async (req, res): Promise<void> => {
 
         if (history.length < 2) return null;
 
-        const current = parseFloat(history[0].unitPrice);
-        const previous = parseFloat(history[1].unitPrice);
+        const current = toNum(history[0].unitPrice);
+        const previous = toNum(history[1].unitPrice);
         const changePercent = ((current - previous) / previous) * 100;
-        const threshold = parseFloat(alert.thresholdPercent);
+        const threshold = toNum(alert.thresholdPercent);
 
         if (Math.abs(changePercent) < threshold) return null;
 

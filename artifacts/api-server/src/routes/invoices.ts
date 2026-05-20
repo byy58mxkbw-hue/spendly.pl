@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { toNum, toNumOrNull } from "../lib/parse";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db, invoicesTable, invoiceItemsTable, suppliersTable, productsTable } from "@workspace/db";
 import {
@@ -52,7 +53,7 @@ router.get("/invoices", async (req, res): Promise<void> => {
 
       return {
         ...inv,
-        totalAmount: parseFloat(inv.totalAmount as string),
+        totalAmount: toNum(inv.totalAmount),
         itemCount: items.length,
         importedAt: inv.importedAt.toISOString(),
       };
@@ -295,17 +296,17 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
 
     insertedItems.push({
       ...invoiceItem,
-      quantity: parseFloat(invoiceItem.quantity),
-      unitPrice: parseFloat(invoiceItem.unitPrice),
-      totalPrice: parseFloat(invoiceItem.totalPrice),
-      vatRate: invoiceItem.vatRate != null ? parseFloat(invoiceItem.vatRate) : null,
+      quantity: toNum(invoiceItem.quantity),
+      unitPrice: toNum(invoiceItem.unitPrice),
+      totalPrice: toNum(invoiceItem.totalPrice),
+      vatRate: toNumOrNull(invoiceItem.vatRate),
     });
   }
 
   res.status(201).json({
     ...invoice,
     supplierName: supplier.name,
-    totalAmount: parseFloat(invoice.totalAmount as string),
+    totalAmount: toNum(invoice.totalAmount),
     importedAt: invoice.importedAt.toISOString(),
     items: insertedItems,
   });
@@ -345,14 +346,14 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
 
   res.json({
     ...invoice,
-    totalAmount: parseFloat(invoice.totalAmount as string),
+    totalAmount: toNum(invoice.totalAmount),
     importedAt: invoice.importedAt.toISOString(),
     items: items.map((item) => ({
       ...item,
-      quantity: parseFloat(item.quantity),
-      unitPrice: parseFloat(item.unitPrice),
-      totalPrice: parseFloat(item.totalPrice),
-      vatRate: item.vatRate != null ? parseFloat(item.vatRate) : null,
+      quantity: toNum(item.quantity),
+      unitPrice: toNum(item.unitPrice),
+      totalPrice: toNum(item.totalPrice),
+      vatRate: toNumOrNull(item.vatRate),
     })),
   });
 });

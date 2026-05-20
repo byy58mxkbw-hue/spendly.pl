@@ -298,7 +298,7 @@ export default function Reports() {
   const [month, setMonth] = useState(currentMonth());
   const isCurrentMonth = month === currentMonth();
 
-  const { data, isLoading } = useGetMonthlyReport(
+  const { data, isLoading, isError } = useGetMonthlyReport(
     { month },
     { query: { queryKey: ["reports-monthly", month] } }
   );
@@ -332,6 +332,12 @@ export default function Reports() {
             </div>
           }
         />
+
+        {isError && (
+          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-3 text-sm text-destructive">
+            Nie udało się załadować raportu. Odśwież stronę lub spróbuj ponownie później.
+          </div>
+        )}
 
         {/* Summary cards */}
         {isLoading ? (

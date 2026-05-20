@@ -236,7 +236,7 @@ type ImportFormValues = z.infer<typeof importSchema>;
 export default function Invoices() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: invoices, isLoading } = useListInvoices({ limit: 1000 });
+  const { data: invoices, isLoading, isError } = useListInvoices({ limit: 1000 });
   const { data: suppliers } = useListSuppliers();
   const importInvoice = useImportInvoice();
   const deleteInvoice = useDeleteInvoice();
@@ -527,6 +527,10 @@ export default function Invoices() {
                   <Skeleton className="w-6 h-6 rounded" />
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="px-6 py-8 text-center text-sm text-destructive">
+              Nie udało się załadować faktur. Odśwież stronę lub spróbuj ponownie później.
             </div>
           ) : displayedInvoices.length > 0 ? (
             <div className="divide-y divide-border">
