@@ -184,12 +184,14 @@ export class KsefClient {
         }
 
         if (res.status === 429) {
-          // KSeF may return very large Retry-After values (minutes). Cap the wait
-          // so a single throttled request cannot exhaust the whole sync budget;
-          // skipped requests will be retried on the next sync run.
-          const MAX_RETRY_WAIT_S = 10;
+          // KSeF may return very large Retry-After values (minutes). Use a small
+          // cap for per-invoice XML fetches so one throttled invoice can't
+          // exhaust the whole sync budget, and a larger cap for the (rare)
+          // metadata listing calls which we really need to succeed.
+          const isPerInvoiceFetch = /^\/invoices\/ksef\//.test(path);
+          const maxWaitS = isPerInvoiceFetch ? 10 : 60;
           const requested = Number(res.headers.get("Retry-After")) || 2 ** attempt;
-          if (attempt < this.maxRetries && requested <= MAX_RETRY_WAIT_S) {
+          if (attempt < this.maxRetries && requested <= maxWaitS) {
             this.logger.warn({ url: path, attempt, retryAfter: requested }, "KSeF 429, retrying");
             await sleep(requested * 1000);
             continue;
