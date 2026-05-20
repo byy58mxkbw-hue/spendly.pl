@@ -146,4 +146,201 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
   });
 });
 
+// ─── Predictive analytics ────────────────────────────────────────────────────
+//
+// For every product with enough historical purchase data we fit a simple
+// linear regression on (days_since_first_observation, unit_price) and project
+// the unit price `horizonDays` into the future. We then estimate the impact
+// on monthly food cost by multiplying the projected price change by the
+// product's average monthly purchased quantity over the last 90 days.
+
+router.get("/reports/predictive", async (req, res): Promise<void> => {
+  const horizonRaw = parseInt(String(req.query.horizonDays ?? "30"), 10);
+  const horizonDays = Number.isFinite(horizonRaw)
+    ? Math.min(180, Math.max(7, horizonRaw))
+    : 30;
+
+  // For each product collect every observation (invoice item) from the last
+  // 12 months. We do the regression in JS — datasets are small.
+  const rows = await db.execute<{
+    product_id: number | null;
+    product_name: string;
+    unit: string;
+    supplier_name: string | null;
+    invoice_date: string;
+    unit_price: string;
+    quantity: string;
+  }>(sql`
+    SELECT
+      ii.product_id,
+      COALESCE(p.name, ii.product_name) AS product_name,
+      ii.unit,
+      s.name AS supplier_name,
+      i.invoice_date,
+      ii.unit_price::text AS unit_price,
+      ii.quantity::text AS quantity
+    FROM invoice_items ii
+    INNER JOIN invoices i ON ii.invoice_id = i.id
+    INNER JOIN suppliers s ON i.supplier_id = s.id
+    LEFT JOIN products p ON ii.product_id = p.id
+    WHERE i.invoice_date >= to_char(current_date - interval '365 days', 'YYYY-MM-DD')
+    ORDER BY ii.product_id NULLS LAST, p.name, s.name, i.invoice_date
+  `);
+
+  type Point = { day: number; price: number; qty: number; date: string };
+  type Group = {
+    productId: number | null;
+    productName: string;
+    unit: string;
+    supplierName: string | null;
+    points: Point[];
+  };
+
+  // Group by (productId or normalized name, supplier, unit)
+  const groups = new Map<string, Group>();
+  const today = new Date();
+  const todayMs = today.getTime();
+  const dayMs = 86400000;
+
+  for (const r of rows.rows) {
+    const key = `${r.product_id ?? "n:" + r.product_name.toLowerCase().trim()}|${r.supplier_name ?? ""}|${r.unit}`;
+    let g = groups.get(key);
+    if (!g) {
+      g = {
+        productId: r.product_id,
+        productName: r.product_name,
+        unit: r.unit,
+        supplierName: r.supplier_name,
+        points: [],
+      };
+      groups.set(key, g);
+    }
+    const t = new Date(r.invoice_date).getTime();
+    if (!Number.isFinite(t)) continue;
+    const day = Math.round((t - todayMs) / dayMs); // negative: in the past
+    const price = parseFloat(r.unit_price);
+    const qty = parseFloat(r.quantity);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    g.points.push({ day, price, qty: Number.isFinite(qty) ? qty : 0, date: r.invoice_date });
+  }
+
+  const productRows: Array<{
+    productId: number | null;
+    productName: string;
+    unit: string;
+    supplierName: string | null;
+    currentPrice: number;
+    projectedPrice: number;
+    priceChangePercent: number;
+    recentMonthlyQuantity: number;
+    projectedMonthlyCost: number;
+    projectedMonthlyDelta: number;
+    dataPoints: number;
+    confidence: "low" | "medium" | "high";
+  }> = [];
+
+  let recentMonthlySpendTotal = 0;
+  let projectedMonthlySpendTotal = 0;
+
+  for (const g of groups.values()) {
+    if (g.points.length < 2) continue;
+
+    // Linear regression: price = a + b * day
+    const n = g.points.length;
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (const p of g.points) {
+      sumX += p.day;
+      sumY += p.price;
+      sumXY += p.day * p.price;
+      sumXX += p.day * p.day;
+    }
+    const meanX = sumX / n;
+    const meanY = sumY / n;
+    const denom = sumXX - n * meanX * meanX;
+    const slope = denom !== 0 ? (sumXY - n * meanX * meanY) / denom : 0;
+    const intercept = meanY - slope * meanX;
+
+    // Use the most recent observed price as "current" rather than the
+    // regression's value at day 0 — feels more truthful to the user.
+    const sorted = [...g.points].sort((a, b) => a.day - b.day);
+    const currentPrice = sorted[sorted.length - 1].price;
+    const projectedRaw = intercept + slope * horizonDays;
+    // Clamp to non-negative; if regression goes wild fall back to current.
+    const projectedPrice = projectedRaw > 0 && Number.isFinite(projectedRaw)
+      ? projectedRaw
+      : currentPrice;
+
+    const priceChangePercent = currentPrice > 0
+      ? ((projectedPrice - currentPrice) / currentPrice) * 100
+      : 0;
+
+    // Average monthly purchased quantity over the last 90 days.
+    const recentQty = g.points
+      .filter((p) => p.day >= -90)
+      .reduce((s, p) => s + p.qty, 0);
+    const recentMonthlyQuantity = recentQty / 3; // 90 days ≈ 3 months
+
+    const recentMonthlyCost = recentMonthlyQuantity * currentPrice;
+    const projectedMonthlyCost = recentMonthlyQuantity * projectedPrice;
+    const projectedMonthlyDelta = projectedMonthlyCost - recentMonthlyCost;
+
+    recentMonthlySpendTotal += recentMonthlyCost;
+    projectedMonthlySpendTotal += projectedMonthlyCost;
+
+    // Confidence heuristic: more data points + longer span = higher confidence.
+    const spanDays = sorted[sorted.length - 1].day - sorted[0].day;
+    let confidence: "low" | "medium" | "high" = "low";
+    if (n >= 6 && spanDays <= -60) confidence = "high";
+    else if (n >= 3 && spanDays <= -21) confidence = "medium";
+
+    productRows.push({
+      productId: g.productId,
+      productName: g.productName,
+      unit: g.unit,
+      supplierName: g.supplierName,
+      currentPrice,
+      projectedPrice,
+      priceChangePercent,
+      recentMonthlyQuantity,
+      projectedMonthlyCost,
+      projectedMonthlyDelta,
+      dataPoints: n,
+      confidence,
+    });
+  }
+
+  // Only show products with meaningful change (>0.5%) and at least some
+  // recent purchase activity in the top lists.
+  const meaningful = productRows.filter(
+    (r) => Math.abs(r.priceChangePercent) >= 0.5 && r.recentMonthlyQuantity > 0,
+  );
+
+  const topIncreases = [...meaningful]
+    .filter((r) => r.priceChangePercent > 0)
+    .sort((a, b) => b.projectedMonthlyDelta - a.projectedMonthlyDelta)
+    .slice(0, 15);
+
+  const topDecreases = [...meaningful]
+    .filter((r) => r.priceChangePercent < 0)
+    .sort((a, b) => a.projectedMonthlyDelta - b.projectedMonthlyDelta)
+    .slice(0, 15);
+
+  const projectedDelta = projectedMonthlySpendTotal - recentMonthlySpendTotal;
+  const projectedDeltaPercent = recentMonthlySpendTotal > 0
+    ? (projectedDelta / recentMonthlySpendTotal) * 100
+    : 0;
+
+  res.json({
+    horizonDays,
+    generatedAt: new Date().toISOString(),
+    recentMonthlySpend: recentMonthlySpendTotal,
+    projectedMonthlySpend: projectedMonthlySpendTotal,
+    projectedDelta,
+    projectedDeltaPercent,
+    productsAnalyzed: productRows.length,
+    topIncreases,
+    topDecreases,
+  });
+});
+
 export default router;

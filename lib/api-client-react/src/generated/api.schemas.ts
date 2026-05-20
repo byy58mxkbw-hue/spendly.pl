@@ -251,6 +251,54 @@ export interface MonthlyReport {
   topProducts: ReportProductRow[];
 }
 
+export type PredictiveProductRowConfidence =
+  (typeof PredictiveProductRowConfidence)[keyof typeof PredictiveProductRowConfidence];
+
+export const PredictiveProductRowConfidence = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+} as const;
+
+export interface PredictiveProductRow {
+  /** @nullable */
+  productId: number | null;
+  productName: string;
+  unit: string;
+  /** @nullable */
+  supplierName: string | null;
+  /** Most recent unit price observed. */
+  currentPrice: number;
+  /** Projected unit price at the end of the horizon. */
+  projectedPrice: number;
+  /** Projected percent change from current to projected price. */
+  priceChangePercent: number;
+  /** Avg quantity purchased per month over the last 90 days. */
+  recentMonthlyQuantity: number;
+  /** Projected monthly cost = projectedPrice * recentMonthlyQuantity. */
+  projectedMonthlyCost: number;
+  /** Projected change in monthly cost vs. current price * recent monthly quantity. */
+  projectedMonthlyDelta: number;
+  /** Number of historical price points used. */
+  dataPoints: number;
+  confidence: PredictiveProductRowConfidence;
+}
+
+export interface PredictiveReport {
+  horizonDays: number;
+  generatedAt: string;
+  /** Average monthly spend over the last 90 days (baseline). */
+  recentMonthlySpend: number;
+  /** Projected monthly spend at the end of the horizon. */
+  projectedMonthlySpend: number;
+  /** projectedMonthlySpend - recentMonthlySpend. */
+  projectedDelta: number;
+  projectedDeltaPercent: number;
+  productsAnalyzed: number;
+  topIncreases: PredictiveProductRow[];
+  topDecreases: PredictiveProductRow[];
+}
+
 /**
  * @nullable
  */
@@ -393,6 +441,15 @@ export type GetMonthlyReportParams = {
    * Month in YYYY-MM format (defaults to current month)
    */
   month?: string;
+};
+
+export type GetPredictiveReportParams = {
+  /**
+   * How far ahead to project unit prices (default 30 days)
+   * @minimum 7
+   * @maximum 180
+   */
+  horizonDays?: number;
 };
 
 export type ListKsefPendingParams = {

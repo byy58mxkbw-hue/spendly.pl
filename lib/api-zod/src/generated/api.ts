@@ -415,6 +415,101 @@ export const GetMonthlyReportResponse = zod.object({
 });
 
 /**
+ * @summary Predict next-month spend and per-product price changes based on historical trend
+ */
+export const getPredictiveReportQueryHorizonDaysMin = 7;
+export const getPredictiveReportQueryHorizonDaysMax = 180;
+
+export const GetPredictiveReportQueryParams = zod.object({
+  horizonDays: zod.coerce
+    .number()
+    .min(getPredictiveReportQueryHorizonDaysMin)
+    .max(getPredictiveReportQueryHorizonDaysMax)
+    .optional()
+    .describe("How far ahead to project unit prices (default 30 days)"),
+});
+
+export const GetPredictiveReportResponse = zod.object({
+  horizonDays: zod.number(),
+  generatedAt: zod.string(),
+  recentMonthlySpend: zod
+    .number()
+    .describe("Average monthly spend over the last 90 days (baseline)."),
+  projectedMonthlySpend: zod
+    .number()
+    .describe("Projected monthly spend at the end of the horizon."),
+  projectedDelta: zod
+    .number()
+    .describe("projectedMonthlySpend - recentMonthlySpend."),
+  projectedDeltaPercent: zod.number(),
+  productsAnalyzed: zod.number(),
+  topIncreases: zod.array(
+    zod.object({
+      productId: zod.number().nullable(),
+      productName: zod.string(),
+      unit: zod.string(),
+      supplierName: zod.string().nullable(),
+      currentPrice: zod.number().describe("Most recent unit price observed."),
+      projectedPrice: zod
+        .number()
+        .describe("Projected unit price at the end of the horizon."),
+      priceChangePercent: zod
+        .number()
+        .describe("Projected percent change from current to projected price."),
+      recentMonthlyQuantity: zod
+        .number()
+        .describe("Avg quantity purchased per month over the last 90 days."),
+      projectedMonthlyCost: zod
+        .number()
+        .describe(
+          "Projected monthly cost = projectedPrice \* recentMonthlyQuantity.",
+        ),
+      projectedMonthlyDelta: zod
+        .number()
+        .describe(
+          "Projected change in monthly cost vs. current price \* recent monthly quantity.",
+        ),
+      dataPoints: zod
+        .number()
+        .describe("Number of historical price points used."),
+      confidence: zod.enum(["low", "medium", "high"]),
+    }),
+  ),
+  topDecreases: zod.array(
+    zod.object({
+      productId: zod.number().nullable(),
+      productName: zod.string(),
+      unit: zod.string(),
+      supplierName: zod.string().nullable(),
+      currentPrice: zod.number().describe("Most recent unit price observed."),
+      projectedPrice: zod
+        .number()
+        .describe("Projected unit price at the end of the horizon."),
+      priceChangePercent: zod
+        .number()
+        .describe("Projected percent change from current to projected price."),
+      recentMonthlyQuantity: zod
+        .number()
+        .describe("Avg quantity purchased per month over the last 90 days."),
+      projectedMonthlyCost: zod
+        .number()
+        .describe(
+          "Projected monthly cost = projectedPrice \* recentMonthlyQuantity.",
+        ),
+      projectedMonthlyDelta: zod
+        .number()
+        .describe(
+          "Projected change in monthly cost vs. current price \* recent monthly quantity.",
+        ),
+      dataPoints: zod
+        .number()
+        .describe("Number of historical price points used."),
+      confidence: zod.enum(["low", "medium", "high"]),
+    }),
+  ),
+});
+
+/**
  * @summary Get current KSeF configuration (masked token)
  */
 export const GetKsefConfigResponse = zod

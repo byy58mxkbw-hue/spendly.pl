@@ -23,6 +23,7 @@ import type {
   DashboardSummary,
   GetFoodCostMonthlyParams,
   GetMonthlyReportParams,
+  GetPredictiveReportParams,
   GetProductPriceHistoryParams,
   GetRecentPurchasesParams,
   GetTopPriceChangesParams,
@@ -39,6 +40,7 @@ import type {
   ListProductsParams,
   MonthlyFoodCost,
   MonthlyReport,
+  PredictiveReport,
   PriceAlert,
   PriceChangeProduct,
   PriceHistoryEntry,
@@ -2009,6 +2011,106 @@ export function useGetMonthlyReport<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMonthlyReportQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Predict next-month spend and per-product price changes based on historical trend
+ */
+export const getGetPredictiveReportUrl = (
+  params?: GetPredictiveReportParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/predictive?${stringifiedParams}`
+    : `/api/reports/predictive`;
+};
+
+export const getPredictiveReport = async (
+  params?: GetPredictiveReportParams,
+  options?: RequestInit,
+): Promise<PredictiveReport> => {
+  return customFetch<PredictiveReport>(getGetPredictiveReportUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPredictiveReportQueryKey = (
+  params?: GetPredictiveReportParams,
+) => {
+  return [`/api/reports/predictive`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetPredictiveReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPredictiveReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetPredictiveReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPredictiveReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPredictiveReportQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPredictiveReport>>
+  > = ({ signal }) =>
+    getPredictiveReport(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPredictiveReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPredictiveReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPredictiveReport>>
+>;
+export type GetPredictiveReportQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Predict next-month spend and per-product price changes based on historical trend
+ */
+
+export function useGetPredictiveReport<
+  TData = Awaited<ReturnType<typeof getPredictiveReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetPredictiveReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPredictiveReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPredictiveReportQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

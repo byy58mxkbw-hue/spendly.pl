@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Package, FileText, Bell, LogOut, ChevronRight, BarChart2, Inbox, Settings } from "lucide-react";
+import { LayoutDashboard, Users, Package, FileText, Bell, LogOut, ChevronRight, BarChart2, Inbox, Settings, Sparkles } from "lucide-react";
 import { useUser, useClerk } from "@clerk/react";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,7 @@ const navItems = [
   { path: "/pending-invoices", label: "Do przeglądu", icon: Inbox },
   { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
   { path: "/reports", label: "Raporty", icon: BarChart2 },
+  { path: "/predictive", label: "Analiza predyktywna", icon: Sparkles },
   { path: "/settings/ksef", label: "Ustawienia KSeF", icon: Settings },
 ];
 
