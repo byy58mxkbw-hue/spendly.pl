@@ -470,6 +470,16 @@ export const GetMonthlyReportResponse = zod.object({
 });
 
 /**
+ * @summary Get total spend per product grouped by category
+ */
+export const GetCategorySpendResponseItem = zod.object({
+  productName: zod.string(),
+  category: zod.string().nullish(),
+  totalSpend: zod.number(),
+});
+export const GetCategorySpendResponse = zod.array(GetCategorySpendResponseItem);
+
+/**
  * @summary Predict next-month spend and per-product price changes based on historical trend
  */
 export const getPredictiveReportQueryHorizonDaysMin = 7;

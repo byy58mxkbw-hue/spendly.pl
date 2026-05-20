@@ -556,6 +556,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/MonthlyReport"
 
+  /reports/category-spend:
+    get:
+      operationId: getCategorySpend
+      tags: [reports]
+      summary: Get total spend per product grouped by category
+      responses:
+        "200":
+          description: Category spend breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategorySpendItem"
+
   /reports/predictive:
     get:
       operationId: getPredictiveReport
@@ -1303,6 +1318,20 @@ components:
         - projectedMonthlyDelta
         - dataPoints
         - confidence
+
+    CategorySpendItem:
+      type: object
+      properties:
+        productName:
+          type: string
+        category:
+          type: string
+          nullable: true
+        totalSpend:
+          type: number
+      required:
+        - productName
+        - totalSpend
 
     PredictiveReport:
       type: object

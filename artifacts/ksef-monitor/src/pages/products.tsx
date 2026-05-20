@@ -7,6 +7,7 @@ import {
   useGetProductPriceHistory,
   useGetProductSupplierComparison,
   useUpdateProduct,
+  useGetCategorySpend,
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
 } from "@workspace/api-client-react";
@@ -738,6 +739,7 @@ export default function Products() {
   const queryClient = useQueryClient();
   const { data: products, isLoading, isError } = useListProducts();
   const { data: suppliers } = useListSuppliers();
+  const { data: spendItems } = useGetCategorySpend();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
@@ -775,6 +777,29 @@ export default function Products() {
     ...(categoryCountMap["inne"] ? [{ id: "inne", label: "Inne", emoji: "📦" }] : []),
   ];
 
+  // Aggregate spending from API by effective category (explicit from DB or auto-detected by name)
+  const categorySpend = (() => {
+    if (!spendItems || spendItems.length === 0) return [];
+    const map: Record<string, number> = {};
+    for (const item of spendItems) {
+      const catId = item.category ?? categorizeProduct(item.productName);
+      map[catId] = (map[catId] ?? 0) + item.totalSpend;
+    }
+    const totalSpend = Object.values(map).reduce((s, v) => s + v, 0);
+    const allCatDefs: Record<string, { label: string; emoji: string }> = Object.fromEntries(
+      [...CATEGORIES, { id: "inne", label: "Inne", emoji: "📦" }].map((c) => [c.id, c])
+    );
+    return Object.entries(map)
+      .map(([id, spend]) => ({
+        id,
+        label: allCatDefs[id]?.label ?? "Inne",
+        emoji: allCatDefs[id]?.emoji ?? "📦",
+        spend,
+        pct: totalSpend > 0 ? (spend / totalSpend) * 100 : 0,
+      }))
+      .sort((a, b) => b.spend - a.spend);
+  })();
+
   function openHistory(id: number, name: string) {
     setSelectedProduct({ id, name });
     setModalMode("history");
@@ -793,6 +818,52 @@ export default function Products() {
           title="Produkty"
           subtitle="Ceny surowców i historia zmian"
         />
+
+        {/* Category spend summary */}
+        {categorySpend.length > 0 && (
+          <div className="mb-6">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Wydatki według kategorii</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {categorySpend.map((cat) => (
+                <button
+                  key={cat.id}
+                  className={cn(
+                    "text-left rounded-xl border p-3.5 transition-colors group",
+                    categoryFilter === cat.id
+                      ? "border-primary/50 bg-primary/5"
+                      : "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
+                  )}
+                  onClick={() => setCategoryFilter(categoryFilter === cat.id ? "all" : cat.id)}
+                  title={`Kliknij, aby filtrować po kategorii ${cat.label}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-base leading-none">{cat.emoji}</span>
+                    <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                      {cat.pct.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-tight mb-1 truncate">{cat.label}</p>
+                  <p className={cn(
+                    "text-sm font-bold tabular-nums",
+                    categoryFilter === cat.id ? "text-primary" : "text-foreground"
+                  )}>
+                    {formatPrice(cat.spend)}
+                  </p>
+                  {/* Spend bar */}
+                  <div className="mt-2.5 h-1 rounded-full bg-border overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        categoryFilter === cat.id ? "bg-primary" : "bg-primary/40 group-hover:bg-primary/60"
+                      )}
+                      style={{ width: `${Math.max(cat.pct, 2)}%` }}
+                    />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mb-6 flex gap-3 items-center flex-wrap">
           <div className="relative max-w-sm flex-1 min-w-48">

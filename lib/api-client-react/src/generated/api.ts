@@ -19,6 +19,7 @@ import type {
 import type {
   AcceptKsefPendingBody,
   AiInsight,
+  CategorySpendItem,
   CreatePriceAlertBody,
   CreateSupplierBody,
   DashboardSummary,
@@ -2358,6 +2359,81 @@ export function useGetMonthlyReport<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMonthlyReportQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get total spend per product grouped by category
+ */
+export const getGetCategorySpendUrl = () => {
+  return `/api/reports/category-spend`;
+};
+
+export const getCategorySpend = async (
+  options?: RequestInit,
+): Promise<CategorySpendItem[]> => {
+  return customFetch<CategorySpendItem[]>(getGetCategorySpendUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCategorySpendQueryKey = () => {
+  return [`/api/reports/category-spend`] as const;
+};
+
+export const getGetCategorySpendQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCategorySpend>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCategorySpend>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCategorySpendQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCategorySpend>>
+  > = ({ signal }) => getCategorySpend({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCategorySpend>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCategorySpendQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCategorySpend>>
+>;
+export type GetCategorySpendQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get total spend per product grouped by category
+ */
+
+export function useGetCategorySpend<
+  TData = Awaited<ReturnType<typeof getCategorySpend>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCategorySpend>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCategorySpendQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

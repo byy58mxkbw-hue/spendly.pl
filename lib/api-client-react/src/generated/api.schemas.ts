@@ -284,6 +284,12 @@ export interface PredictiveProductRow {
   confidence: PredictiveProductRowConfidence;
 }
 
+export interface CategorySpendItem {
+  productName: string;
+  category?: string | null;
+  totalSpend: number;
+}
+
 export interface PredictiveReport {
   horizonDays: number;
   generatedAt: string;

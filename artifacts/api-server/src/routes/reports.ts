@@ -326,4 +326,33 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
   });
 });
 
+router.get("/reports/category-spend", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+
+  const result = await db.execute(sql`
+    SELECT
+      COALESCE(p.name, ii.product_name) AS product_name,
+      p.category,
+      SUM(ii.total_price::numeric)::float AS total_spend
+    FROM invoice_items ii
+    INNER JOIN invoices i ON ii.invoice_id = i.id
+    LEFT JOIN products p ON ii.product_id = p.id
+    WHERE i.user_id = ${userId}
+    GROUP BY COALESCE(p.name, ii.product_name), p.category
+    ORDER BY total_spend DESC
+  `);
+
+  const rows = result.rows as Array<{
+    product_name: string;
+    category: string | null;
+    total_spend: number;
+  }>;
+
+  res.json(rows.map((r) => ({
+    productName: r.product_name,
+    category: r.category ?? null,
+    totalSpend: toNum(r.total_spend),
+  })));
+});
+
 export default router;
