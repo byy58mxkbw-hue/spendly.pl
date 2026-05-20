@@ -68,6 +68,7 @@ type ProductItem = {
   id: number;
   name: string;
   unit: string;
+  category?: string | null;
   latestPrice?: number | null;
   supplierName?: string | null;
   supplierId?: number | null;
@@ -740,6 +741,7 @@ export default function Products() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>("history");
   const [showKeywordComparison, setShowKeywordComparison] = useState(false);
@@ -748,10 +750,30 @@ export default function Products() {
     products?.filter((p) => {
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
       const matchesSupplier = supplierFilter === "all" || p.supplierName === supplierFilter;
-      return matchesSearch && matchesSupplier;
+      const effectiveCategory = p.category ?? categorizeProduct(p.name);
+      const matchesCategory = categoryFilter === "all" || effectiveCategory === categoryFilter;
+      return matchesSearch && matchesSupplier && matchesCategory;
     }) ?? [],
     sort
   );
+
+  // Compute which categories actually have products (before category filter, after other filters)
+  const productsBeforeCategoryFilter = products?.filter((p) => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+    const matchesSupplier = supplierFilter === "all" || p.supplierName === supplierFilter;
+    return matchesSearch && matchesSupplier;
+  }) ?? [];
+
+  const categoryCountMap = productsBeforeCategoryFilter.reduce<Record<string, number>>((acc, p) => {
+    const cat = p.category ?? categorizeProduct(p.name);
+    acc[cat] = (acc[cat] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const availableCategories = [
+    ...CATEGORIES.filter((c) => (categoryCountMap[c.id] ?? 0) > 0),
+    ...(categoryCountMap["inne"] ? [{ id: "inne", label: "Inne", emoji: "📦" }] : []),
+  ];
 
   function openHistory(id: number, name: string) {
     setSelectedProduct({ id, name });
@@ -826,10 +848,10 @@ export default function Products() {
             </SelectContent>
           </Select>
 
-          {(supplierFilter !== "all" || search) && (
+          {(supplierFilter !== "all" || search || categoryFilter !== "all") && (
             <button
               className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-              onClick={() => { setSupplierFilter("all"); setSearch(""); }}
+              onClick={() => { setSupplierFilter("all"); setSearch(""); setCategoryFilter("all"); }}
             >
               Wyczyść filtry
             </button>
@@ -845,6 +867,50 @@ export default function Products() {
             Porównaj po frazie
           </Button>
         </div>
+
+        {/* Category filter pills — only shown when at least 2 categories exist */}
+        {availableCategories.length >= 2 && (
+          <div className="mb-4 flex gap-2 flex-wrap">
+            <button
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                categoryFilter === "all"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+              )}
+              onClick={() => setCategoryFilter("all")}
+            >
+              Wszystkie
+              <span className={cn(
+                "text-xs rounded-full px-1.5 py-0.5 font-semibold",
+                categoryFilter === "all" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-border text-muted-foreground"
+              )}>
+                {productsBeforeCategoryFilter.length}
+              </span>
+            </button>
+            {availableCategories.map((cat) => (
+              <button
+                key={cat.id}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                  categoryFilter === cat.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                )}
+                onClick={() => setCategoryFilter(categoryFilter === cat.id ? "all" : cat.id)}
+              >
+                <span>{cat.emoji}</span>
+                <span>{cat.label}</span>
+                <span className={cn(
+                  "text-xs rounded-full px-1.5 py-0.5 font-semibold",
+                  categoryFilter === cat.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-border text-muted-foreground"
+                )}>
+                  {categoryCountMap[cat.id] ?? 0}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="bg-card border border-border rounded-xl overflow-x-auto">
           <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[760px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30">
