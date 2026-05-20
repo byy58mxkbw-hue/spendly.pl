@@ -23,7 +23,7 @@ router.get("/products", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, category } = queryParams.data;
+  const { supplierId, category, days } = queryParams.data;
 
   const products = await db
     .select({
@@ -53,6 +53,9 @@ router.get("/products", async (req, res): Promise<void> => {
             eq(invoiceItemsTable.productId, product.id),
             eq(invoicesTable.userId, userId),
             supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
+            days
+              ? sql`${invoicesTable.invoiceDate} >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')`
+              : undefined,
           ),
         )
         .orderBy(desc(invoicesTable.invoiceDate))

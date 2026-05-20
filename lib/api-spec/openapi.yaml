@@ -239,6 +239,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: If set, limits price history to the last N days when computing previousPrice and changePercent
       responses:
         "200":
           description: List of products

@@ -158,6 +158,12 @@ export const DeleteSupplierParams = zod.object({
 export const ListProductsQueryParams = zod.object({
   supplierId: zod.coerce.number().optional(),
   category: zod.coerce.string().optional(),
+  days: zod.coerce
+    .number()
+    .optional()
+    .describe(
+      "If set, limits price history to the last N days when computing previousPrice and changePercent",
+    ),
 });
 
 export const ListProductsResponseItem = zod.object({

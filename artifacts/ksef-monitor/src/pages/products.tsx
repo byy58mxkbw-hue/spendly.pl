@@ -11,6 +11,8 @@ import {
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
 } from "@workspace/api-client-react";
+import { usePeriod, periodToDays } from "@/hooks/use-period";
+import { PeriodSelector } from "@/components/period-selector";
 import { CATEGORIES, categorizeProduct } from "@/lib/categories";
 import {
   DropdownMenu,
@@ -737,7 +739,8 @@ function CategoryBadge({
 
 export default function Products() {
   const queryClient = useQueryClient();
-  const { data: products, isLoading, isError } = useListProducts();
+  const { period, setPeriod } = usePeriod();
+  const { data: products, isLoading, isError } = useListProducts({ days: periodToDays(period) });
   const { data: suppliers } = useListSuppliers();
   const { data: spendItems } = useGetCategorySpend();
   const [search, setSearch] = useState("");
@@ -817,6 +820,7 @@ export default function Products() {
         <PageHeader
           title="Produkty"
           subtitle="Ceny surowców i historia zmian"
+          action={<PeriodSelector period={period} onChange={setPeriod} />}
         />
 
         {/* Category spend summary */}

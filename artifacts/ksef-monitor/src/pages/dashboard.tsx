@@ -10,6 +10,7 @@ import {
   useGetKsefConfig,
   useSyncKsefInvoices,
   useListKsefPending,
+  useListSuppliers,
 } from "@workspace/api-client-react";
 import {
   BarChart,
@@ -20,7 +21,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, Users, Package, FileText, Bell, Zap, ChevronRight, AlertTriangle, RefreshCw, Inbox } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Users, Package, FileText, Bell, Zap, ChevronRight, AlertTriangle, RefreshCw, Inbox, CheckCircle2, Circle } from "lucide-react";
 import { Link } from "wouter";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,8 @@ import { CATEGORIES, categorizeProduct } from "@/lib/categories";
 import { PriceHistoryModal } from "./products";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { usePeriod, periodToDays, periodToMonths } from "@/hooks/use-period";
+import { PeriodSelector } from "@/components/period-selector";
 
 function StatCard({
   label,
@@ -139,14 +142,20 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const { period, setPeriod } = usePeriod();
+
   const { data: summary, isLoading: summaryLoading, isError: summaryError } = useGetDashboardSummary();
-  const { data: monthly, isLoading: monthlyLoading, isError: monthlyError } = useGetFoodCostMonthly({ months: 12 });
+  const { data: monthly, isLoading: monthlyLoading, isError: monthlyError } = useGetFoodCostMonthly({ months: periodToMonths(period) });
   const { data: recent, isLoading: recentLoading, isError: recentError } = useGetRecentPurchases({ limit: 8 });
   const { data: activeAlerts } = useGetDashboardActiveAlerts();
-  const { data: topChanges } = useGetTopPriceChanges({ limit: 100, days: 30 });
+  const { data: topChanges } = useGetTopPriceChanges({ limit: 100, days: periodToDays(period) });
   const { data: config } = useGetKsefConfig();
   const { data: pendingList } = useListKsefPending({ status: "pending" });
+  const { data: suppliers } = useListSuppliers();
   const sync = useSyncKsefInvoices();
+
+  const hasSuppliers = (suppliers?.length ?? 0) > 0;
+  const showOnboarding = !config || !hasSuppliers;
 
   const pendingCount = pendingList?.length ?? 0;
 
@@ -212,24 +221,27 @@ export default function Dashboard() {
           title="Dashboard"
           subtitle="Przegląd kosztów i zmian cen surowców"
           action={
-            config ? (
-              <Button
-                variant="outline"
-                onClick={handleSync}
-                disabled={sync.isPending}
-                className="gap-2"
-                data-testid="btn-sync-ksef-dashboard"
-              >
-                <RefreshCw className={cn("w-4 h-4", sync.isPending && "animate-spin")} />
-                {sync.isPending ? "Synchronizuję..." : "Synchronizuj z KSeF"}
-              </Button>
-            ) : (
-              <Link href="/settings/ksef">
-                <Button variant="outline" className="gap-2">
-                  <RefreshCw className="w-4 h-4" /> Skonfiguruj KSeF
+            <div className="flex items-center gap-3">
+              <PeriodSelector period={period} onChange={setPeriod} />
+              {config ? (
+                <Button
+                  variant="outline"
+                  onClick={handleSync}
+                  disabled={sync.isPending}
+                  className="gap-2"
+                  data-testid="btn-sync-ksef-dashboard"
+                >
+                  <RefreshCw className={cn("w-4 h-4", sync.isPending && "animate-spin")} />
+                  {sync.isPending ? "Synchronizuję..." : "Synchronizuj z KSeF"}
                 </Button>
-              </Link>
-            )
+              ) : (
+                <Link href="/settings/ksef">
+                  <Button variant="outline" className="gap-2">
+                    <RefreshCw className="w-4 h-4" /> Skonfiguruj KSeF
+                  </Button>
+                </Link>
+              )}
+            </div>
           }
         />
 
@@ -249,6 +261,61 @@ export default function Dashboard() {
                 Przejdź do przeglądu
               </Button>
             </Link>
+          </div>
+        )}
+
+        {/* Onboarding card */}
+        {showOnboarding && (
+          <div className="mb-6 bg-card border border-border rounded-xl p-6">
+            <h2 className="font-semibold text-foreground mb-1">Zacznij w 3 krokach</h2>
+            <p className="text-sm text-muted-foreground mb-5">Skonfiguruj aplikację, żeby zacząć śledzić ceny surowców.</p>
+            <div className="space-y-3">
+              {[
+                {
+                  done: !!config,
+                  label: "Wpisz NIP i token KSeF",
+                  desc: "Potrzebne do pobierania faktur z KSeF",
+                  href: "/settings/ksef",
+                  cta: "Przejdź do ustawień",
+                },
+                {
+                  done: hasSuppliers,
+                  label: "Zsynchronizuj faktury",
+                  desc: "Pobierz faktury i zmapuj dostawców",
+                  href: "/invoices",
+                  cta: "Przejdź do faktur",
+                },
+                {
+                  done: hasSuppliers,
+                  label: "Gotowe — śledź ceny surowców",
+                  desc: "Dashboard, alerty cenowe i historia są już aktywne",
+                  href: null,
+                  cta: null,
+                },
+              ].map((step, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <div className={cn(
+                    "w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+                    step.done ? "text-primary" : "text-border"
+                  )}>
+                    {step.done
+                      ? <CheckCircle2 className="w-5 h-5" />
+                      : <Circle className="w-5 h-5" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("text-sm font-medium", step.done ? "text-muted-foreground line-through" : "text-foreground")}>
+                      {step.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{step.desc}</p>
+                  </div>
+                  {step.href && !step.done && (
+                    <Link href={step.href}>
+                      <Button size="sm" variant="outline" className="shrink-0">{step.cta}</Button>
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

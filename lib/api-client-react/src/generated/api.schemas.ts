@@ -480,6 +480,10 @@ export type PostInsightsIdDismiss200 = {
 export type ListProductsParams = {
   supplierId?: number;
   category?: string;
+  /**
+   * If set, limits price history to the last N days when computing previousPrice and changePercent
+   */
+  days?: number;
 };
 
 export type GetProductPriceHistoryParams = {
