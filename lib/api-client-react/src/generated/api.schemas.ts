@@ -66,6 +66,19 @@ export interface Product {
   supplierCount?: number;
 }
 
+export interface CreateProductBody {
+  name: string;
+  unit?: string;
+}
+
+export interface CreatedProduct {
+  id: number;
+  name: string;
+  unit: string;
+  /** @nullable */
+  category?: string | null;
+}
+
 export interface UpdateProductBody {
   /** @nullable */
   category?: string | null;

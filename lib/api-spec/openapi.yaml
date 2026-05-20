@@ -248,6 +248,23 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Product"
+    post:
+      operationId: createProduct
+      tags: [products]
+      summary: Create a new product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductBody"
+      responses:
+        "201":
+          description: Created product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedProduct"
 
   /products/{id}:
     patch:
@@ -839,6 +856,32 @@ components:
           type: ["string", "null"]
         supplierCount:
           type: integer
+      required:
+        - id
+        - name
+        - unit
+
+    CreateProductBody:
+      type: object
+      properties:
+        name:
+          type: string
+        unit:
+          type: string
+      required:
+        - name
+
+    CreatedProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        unit:
+          type: string
+        category:
+          type: ["string", "null"]
       required:
         - id
         - name

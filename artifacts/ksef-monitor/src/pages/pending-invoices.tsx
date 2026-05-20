@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -28,11 +30,13 @@ import {
   useRejectKsefPending,
   useListSuppliers,
   useListProducts,
+  useCreateSupplier,
+  useCreateProduct,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice, formatDate } from "@/lib/format";
-import { AlertTriangle, CheckCircle2, X, Inbox, ChevronDown, FileCode } from "lucide-react";
+import { AlertTriangle, CheckCircle2, X, Inbox, ChevronDown, FileCode, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function PendingInvoices() {
@@ -161,15 +165,24 @@ function PendingDetailDialog({
   onActionDone: () => void;
 }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: detail, isLoading } = useGetKsefPending(id);
   const { data: suppliers } = useListSuppliers();
   const { data: products } = useListProducts();
   const accept = useAcceptKsefPending();
   const reject = useRejectKsefPending();
+  const createSupplier = useCreateSupplier();
+  const createProduct = useCreateProduct();
 
   const [supplierId, setSupplierId] = useState<string>("");
   const [mapping, setMapping] = useState<Record<number, string>>({});
   const [showXml, setShowXml] = useState(false);
+
+  const [showNewSupplier, setShowNewSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [newSupplierNip, setNewSupplierNip] = useState("");
+
+  const [creatingProduct, setCreatingProduct] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!detail) return;
@@ -181,6 +194,8 @@ function PendingDetailDialog({
       if (it.suggestedProductId != null) m[i] = String(it.suggestedProductId);
     });
     setMapping(m);
+    setNewSupplierName(detail.sellerName ?? "");
+    setNewSupplierNip(detail.sellerNip ?? "");
   }, [detail]);
 
   const allMapped = useMemo(() => {
@@ -231,6 +246,58 @@ function PendingDetailDialog({
     );
   }
 
+  function onSaveNewSupplier() {
+    if (!newSupplierName.trim()) return;
+    createSupplier.mutate(
+      { data: { name: newSupplierName.trim(), taxId: newSupplierNip.trim() } },
+      {
+        onSuccess: (created) => {
+          setSupplierId(String(created.id));
+          setShowNewSupplier(false);
+          queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
+          toast({ title: "Dostawca dodany", description: created.name });
+        },
+        onError: (err: unknown) => {
+          const e = err as { response?: { data?: { error?: string } }; message?: string };
+          toast({
+            variant: "destructive",
+            title: "Błąd",
+            description: e?.response?.data?.error ?? e?.message ?? "Nie udało się dodać dostawcy.",
+          });
+        },
+      },
+    );
+  }
+
+  function onCreateProductInline(index: number, name: string, unit: string) {
+    setCreatingProduct((prev) => new Set(prev).add(index));
+    createProduct.mutate(
+      { data: { name: name.trim(), unit: unit.trim() || undefined } },
+      {
+        onSuccess: (created) => {
+          setMapping((m) => ({ ...m, [index]: String(created.id) }));
+          queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+          toast({ title: "Produkt dodany", description: created.name });
+        },
+        onError: (err: unknown) => {
+          const e = err as { response?: { data?: { error?: string } }; message?: string };
+          toast({
+            variant: "destructive",
+            title: "Błąd tworzenia produktu",
+            description: e?.response?.data?.error ?? e?.message ?? "Nie udało się dodać produktu.",
+          });
+        },
+        onSettled: () => {
+          setCreatingProduct((prev) => {
+            const next = new Set(prev);
+            next.delete(index);
+            return next;
+          });
+        },
+      },
+    );
+  }
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -276,7 +343,7 @@ function PendingDetailDialog({
 
             <div>
               <label className="text-sm font-medium mb-1.5 block">Dopasuj dostawcę</label>
-              <Select value={supplierId} onValueChange={setSupplierId}>
+              <Select value={supplierId} onValueChange={(v) => { setSupplierId(v); setShowNewSupplier(false); }}>
                 <SelectTrigger data-testid="select-pending-supplier">
                   <SelectValue placeholder="Wybierz dostawcę z bazy" />
                 </SelectTrigger>
@@ -290,6 +357,61 @@ function PendingDetailDialog({
                   ))}
                 </SelectContent>
               </Select>
+
+              <button
+                type="button"
+                onClick={() => setShowNewSupplier((v) => !v)}
+                className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                data-testid="btn-toggle-new-supplier"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {showNewSupplier ? "Anuluj dodawanie" : "Nie ma dostawcy? Dodaj nowego"}
+              </button>
+
+              {showNewSupplier && (
+                <div className="mt-3 rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
+                  <p className="text-xs font-medium text-foreground">Nowy dostawca</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-supplier-name" className="text-xs">
+                        Nazwa <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="new-supplier-name"
+                        value={newSupplierName}
+                        onChange={(e) => setNewSupplierName(e.target.value)}
+                        placeholder="Nazwa dostawcy"
+                        className="h-8 text-sm"
+                        data-testid="input-new-supplier-name"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="new-supplier-nip" className="text-xs">NIP</Label>
+                      <Input
+                        id="new-supplier-nip"
+                        value={newSupplierNip}
+                        onChange={(e) => setNewSupplierNip(e.target.value)}
+                        placeholder="np. 1234567890"
+                        className="h-8 text-sm"
+                        data-testid="input-new-supplier-nip"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={onSaveNewSupplier}
+                    disabled={!newSupplierName.trim() || createSupplier.isPending}
+                    data-testid="btn-save-new-supplier"
+                  >
+                    {createSupplier.isPending ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    Zapisz dostawcę
+                  </Button>
+                </div>
+              )}
             </div>
 
             <Collapsible open={showXml} onOpenChange={setShowXml}>
@@ -316,36 +438,61 @@ function PendingDetailDialog({
             <div>
               <p className="text-sm font-medium mb-2">Dopasuj produkty ({detail.items.length})</p>
               <div className="rounded-lg border border-border divide-y divide-border">
-                {detail.items.map((item, i) => (
-                  <div key={i} className="px-4 py-3 grid grid-cols-[1fr_220px] gap-3 items-center">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.quantity} {item.unit} × {formatPrice(item.unitPrice)} = {formatPrice(item.gross)}
-                        {item.gtin ? ` · GTIN ${item.gtin}` : ""}
-                      </p>
+                {detail.items.map((item, i) => {
+                  const isMapped = !!mapping[i];
+                  const isCreating = creatingProduct.has(i);
+                  return (
+                    <div key={i} className="px-4 py-3 space-y-2">
+                      <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.quantity} {item.unit} × {formatPrice(item.unitPrice)} = {formatPrice(item.gross)}
+                            {item.gtin ? ` · GTIN ${item.gtin}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-1.5 items-end">
+                          <Select
+                            value={mapping[i] ?? ""}
+                            onValueChange={(v) => setMapping((m) => ({ ...m, [i]: v }))}
+                          >
+                            <SelectTrigger
+                              className={cn("w-52", !isMapped && "border-amber-300")}
+                              data-testid={`select-product-${i}`}
+                            >
+                              <SelectValue placeholder="Wybierz produkt" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {products?.map((p) => (
+                                <SelectItem key={p.id} value={String(p.id)}>
+                                  {p.name}
+                                  {item.suggestedProductId === p.id ? " (sugerowany)" : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {!isMapped && (
+                            <button
+                              type="button"
+                              onClick={() => onCreateProductInline(i, item.name, item.unit)}
+                              disabled={isCreating}
+                              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                              data-testid={`btn-create-product-${i}`}
+                            >
+                              {isCreating ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Plus className="w-3 h-3" />
+                              )}
+                              {isCreating ? "Tworzę..." : "Utwórz nowy produkt"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <Select
-                      value={mapping[i] ?? ""}
-                      onValueChange={(v) => setMapping((m) => ({ ...m, [i]: v }))}
-                    >
-                      <SelectTrigger
-                        className={cn(!mapping[i] && "border-amber-300")}
-                        data-testid={`select-product-${i}`}
-                      >
-                        <SelectValue placeholder="Wybierz produkt" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products?.map((p) => (
-                          <SelectItem key={p.id} value={String(p.id)}>
-                            {p.name}
-                            {item.suggestedProductId === p.id ? " (sugerowany)" : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -176,6 +176,14 @@ export const ListProductsResponseItem = zod.object({
 export const ListProductsResponse = zod.array(ListProductsResponseItem);
 
 /**
+ * @summary Create a new product
+ */
+export const CreateProductBody = zod.object({
+  name: zod.string(),
+  unit: zod.string().optional(),
+});
+
+/**
  * @summary Update a product (e.g. its category)
  */
 export const UpdateProductParams = zod.object({

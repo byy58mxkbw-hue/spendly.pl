@@ -10,6 +10,7 @@ import {
   GetProductSupplierComparisonParams,
   UpdateProductParams,
   UpdateProductBody,
+  CreateProductBody,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -295,6 +296,31 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
       supplierName: h.supplierName,
     })),
   );
+});
+
+router.post("/products", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const body = CreateProductBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const [created] = await db
+    .insert(productsTable)
+    .values({
+      userId,
+      name: body.data.name,
+      unit: body.data.unit ?? "",
+    })
+    .returning({
+      id: productsTable.id,
+      name: productsTable.name,
+      unit: productsTable.unit,
+      category: productsTable.category,
+    });
+
+  res.status(201).json(created);
 });
 
 router.patch("/products/:id", async (req, res): Promise<void> => {
