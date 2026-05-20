@@ -517,7 +517,7 @@ async function runSync(
   const stillPending = await db
     .select()
     .from(ksefPendingInvoicesTable)
-    .where(eq(ksefPendingInvoicesTable.status, "pending"));
+    .where(inArray(ksefPendingInvoicesTable.status, ["pending", "rejected"]));
   for (const row of stillPending) {
     try {
       const parsed = row.parsedJson as ParsedFa3;
