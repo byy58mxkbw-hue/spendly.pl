@@ -42,3 +42,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 KSEF_ENCRYPTION_KEY = "/OkLi6CUr/IQLm4TMgXLBHKduCGK4USD4Hv0+WpCmnPOf7HD6KHQFd9fqUrD0eij"
+LEGACY_OWNER_EMAIL = "wiktor121@vp.pl"

@@ -12,7 +12,8 @@ import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams } from "@w
 
 const router: IRouter = Router();
 
-router.get("/dashboard/summary", async (_req, res): Promise<void> => {
+router.get("/dashboard/summary", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const now = new Date();
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
@@ -23,20 +24,19 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
       totalSuppliers: sql<number>`count(*)::int`,
       activeSuppliers: sql<number>`count(*) filter (where ${suppliersTable.isActive})::int`,
     })
-    .from(suppliersTable);
+    .from(suppliersTable)
+    .where(eq(suppliersTable.userId, userId));
 
   const [invoiceStats] = await db
     .select({ totalInvoices: sql<number>`count(*)::int` })
-    .from(invoicesTable);
+    .from(invoicesTable)
+    .where(eq(invoicesTable.userId, userId));
 
-  // Spend is summed from invoice_items.total_price (net) so the dashboard
-  // matches the Raporty page, which uses the same source. Using
-  // invoices.total_amount (gross) here would produce a different number.
   const [thisMonthSpend] = await db
     .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-    .where(gte(invoicesTable.invoiceDate, thisMonthStart));
+    .where(and(eq(invoicesTable.userId, userId), gte(invoicesTable.invoiceDate, thisMonthStart)));
 
   const [lastMonthSpend] = await db
     .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
@@ -44,6 +44,7 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .where(
       and(
+        eq(invoicesTable.userId, userId),
         gte(invoicesTable.invoiceDate, lastMonthStart),
         sql`${invoicesTable.invoiceDate} <= ${lastMonthEnd}`,
       ),
@@ -51,11 +52,13 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
 
   const [productCount] = await db
     .select({ count: sql<number>`count(*)::int` })
-    .from(productsTable);
+    .from(productsTable)
+    .where(eq(productsTable.userId, userId));
 
   const [alertCount] = await db
     .select({ count: sql<number>`count(*) filter (where ${priceAlertsTable.isActive})::int` })
-    .from(priceAlertsTable);
+    .from(priceAlertsTable)
+    .where(eq(priceAlertsTable.userId, userId));
 
   const thisMonth = parseFloat(String(thisMonthSpend.total));
   const lastMonth = parseFloat(String(lastMonthSpend.total));
@@ -75,6 +78,7 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
 });
 
 router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const queryParams = GetFoodCostMonthlyQueryParams.safeParse(req.query);
   if (!queryParams.success) {
     res.status(400).json({ error: queryParams.error.message });
@@ -100,6 +104,7 @@ router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
       count(DISTINCT i.id)::int as invoice_count
     FROM invoices i
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
+    WHERE i.user_id = ${userId}
     GROUP BY 1, 2, 3, 4
     ORDER BY 1
     LIMIT ${sql.raw(String(months))}
@@ -117,6 +122,7 @@ router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
 });
 
 router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const queryParams = GetRecentPurchasesQueryParams.safeParse(req.query);
   if (!queryParams.success) {
     res.status(400).json({ error: queryParams.error.message });
@@ -137,10 +143,10 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+    .where(eq(invoicesTable.userId, userId))
     .orderBy(desc(invoicesTable.invoiceDate))
     .limit(limit * 2);
 
-  // Deduplicate by product name, take most recent
   const seen = new Set<string>();
   const unique = recentItems.filter((item) => {
     if (seen.has(item.productName)) return false;
@@ -148,7 +154,6 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
     return true;
   });
 
-  // Get previous price for each
   const enriched = await Promise.all(
     unique.slice(0, limit).map(async (item) => {
       let previousPrice: number | null = null;
@@ -162,6 +167,7 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
           .where(
             and(
               eq(invoiceItemsTable.productId, item.productId),
+              eq(invoicesTable.userId, userId),
               sql`${invoicesTable.invoiceDate} < ${item.invoiceDate}`,
             ),
           )
@@ -191,8 +197,8 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
   res.json(enriched);
 });
 
-router.get("/dashboard/active-alerts", async (_req, res): Promise<void> => {
-  // Get all active price alerts and check if threshold is breached
+router.get("/dashboard/active-alerts", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const alerts = await db
     .select({
       id: priceAlertsTable.id,
@@ -203,16 +209,15 @@ router.get("/dashboard/active-alerts", async (_req, res): Promise<void> => {
     })
     .from(priceAlertsTable)
     .leftJoin(suppliersTable, eq(priceAlertsTable.supplierId, suppliersTable.id))
-    .where(eq(priceAlertsTable.isActive, true));
+    .where(and(eq(priceAlertsTable.userId, userId), eq(priceAlertsTable.isActive, true)));
 
   const triggered = (
     await Promise.all(
       alerts.map(async (alert) => {
-        // Find the product
         const [product] = await db
           .select()
           .from(productsTable)
-          .where(eq(productsTable.name, alert.productName))
+          .where(and(eq(productsTable.name, alert.productName), eq(productsTable.userId, userId)))
           .limit(1);
 
         if (!product) return null;
@@ -227,6 +232,7 @@ router.get("/dashboard/active-alerts", async (_req, res): Promise<void> => {
           .where(
             and(
               eq(invoiceItemsTable.productId, product.id),
+              eq(invoicesTable.userId, userId),
               alert.supplierId ? eq(invoicesTable.supplierId, alert.supplierId) : undefined,
             ),
           )

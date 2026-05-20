@@ -32,9 +32,8 @@ import { decryptSecret, encryptSecret, maskToken } from "../lib/encryption";
 
 const router: IRouter = Router();
 
-// Per-process lock to prevent two parallel syncs from racing on KSeF rate limits
-// and tripping our own UNIQUE(ksef_number) constraints.
-const syncInFlight = new Set<number>();
+// Per-user lock to prevent two parallel syncs from racing.
+const syncInFlight = new Set<string>();
 
 function describeDbErr(err: unknown): string {
   if (err && typeof err === "object") {
@@ -55,8 +54,12 @@ function describeDbErr(err: unknown): string {
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-async function loadConfig() {
-  const [cfg] = await db.select().from(ksefConfigTable).limit(1);
+async function loadConfig(userId: string) {
+  const [cfg] = await db
+    .select()
+    .from(ksefConfigTable)
+    .where(eq(ksefConfigTable.userId, userId))
+    .limit(1);
   return cfg ?? null;
 }
 
@@ -72,12 +75,13 @@ function viewConfig(
   };
 }
 
-router.get("/ksef/config", async (_req, res): Promise<void> => {
-  const cfg = await loadConfig();
+router.get("/ksef/config", async (req, res): Promise<void> => {
+  const cfg = await loadConfig(req.userId!);
   res.json(viewConfig(cfg));
 });
 
 router.put("/ksef/config", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const parsed = UpdateKsefConfigBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -110,7 +114,7 @@ router.put("/ksef/config", async (req, res): Promise<void> => {
 
   const last4 = token.slice(-4);
 
-  const existing = await loadConfig();
+  const existing = await loadConfig(userId);
   let saved;
   if (existing) {
     [saved] = await db
@@ -121,7 +125,7 @@ router.put("/ksef/config", async (req, res): Promise<void> => {
   } else {
     [saved] = await db
       .insert(ksefConfigTable)
-      .values({ nip, encryptedToken: encrypted, tokenLast4: last4, environment: "production" })
+      .values({ userId, nip, encryptedToken: encrypted, tokenLast4: last4, environment: "production" })
       .returning();
   }
 
@@ -171,29 +175,30 @@ interface MatchResult {
 }
 
 async function findOrCreateProductByName(
+  userId: string,
   name: string,
   unit: string,
 ): Promise<number> {
   const trimmed = name.trim();
-  // Compare on normalized form: lowercased and with internal whitespace
-  // collapsed so we don't create duplicate products that differ only in
-  // case or stray spaces (e.g. "Kraj pochodzenia:  Polska" vs " Polska").
   const [existing] = await db
     .select({ id: productsTable.id })
     .from(productsTable)
     .where(
-      sql`regexp_replace(LOWER(${productsTable.name}), '\s+', ' ', 'g') = regexp_replace(LOWER(${trimmed}), '\s+', ' ', 'g')`,
+      and(
+        eq(productsTable.userId, userId),
+        sql`regexp_replace(LOWER(${productsTable.name}), '\s+', ' ', 'g') = regexp_replace(LOWER(${trimmed}), '\s+', ' ', 'g')`,
+      ),
     )
     .limit(1);
   if (existing) return existing.id;
   const [created] = await db
     .insert(productsTable)
-    .values({ name: trimmed, unit: unit?.trim() || "szt" })
+    .values({ userId, name: trimmed, unit: unit?.trim() || "szt" })
     .returning({ id: productsTable.id });
   return created.id;
 }
 
-async function tryMatch(parsed: ParsedFa3): Promise<MatchResult> {
+async function tryMatch(userId: string, parsed: ParsedFa3): Promise<MatchResult> {
   const sellerNip = parsed.header.sellerNip ?? "";
   let supplier: { id: number; name: string } | null = null;
   if (sellerNip) {
@@ -201,7 +206,12 @@ async function tryMatch(parsed: ParsedFa3): Promise<MatchResult> {
     const [s] = await db
       .select({ id: suppliersTable.id, name: suppliersTable.name })
       .from(suppliersTable)
-      .where(sql`regexp_replace(${suppliersTable.taxId}, '[^0-9]', '', 'g') = ${cleaned}`)
+      .where(
+        and(
+          eq(suppliersTable.userId, userId),
+          sql`regexp_replace(${suppliersTable.taxId}, '[^0-9]', '', 'g') = ${cleaned}`,
+        ),
+      )
       .limit(1);
     if (s) supplier = s;
   }
@@ -213,7 +223,10 @@ async function tryMatch(parsed: ParsedFa3): Promise<MatchResult> {
       .select({ id: productsTable.id })
       .from(productsTable)
       .where(
-        sql`regexp_replace(LOWER(${productsTable.name}), '\s+', ' ', 'g') = regexp_replace(LOWER(${item.name}), '\s+', ' ', 'g')`,
+        and(
+          eq(productsTable.userId, userId),
+          sql`regexp_replace(LOWER(${productsTable.name}), '\s+', ' ', 'g') = regexp_replace(LOWER(${item.name}), '\s+', ' ', 'g')`,
+        ),
       )
       .limit(1);
     if (prod) {
@@ -230,33 +243,33 @@ async function tryMatch(parsed: ParsedFa3): Promise<MatchResult> {
 // ─── Sync ────────────────────────────────────────────────────────────────────
 
 router.post("/ksef/sync", async (req, res): Promise<void> => {
-  const cfg = await loadConfig();
+  const userId = req.userId!;
+  const cfg = await loadConfig(userId);
   if (!cfg) {
     res.status(400).json({
       error: "Brak konfiguracji KSeF. Przejdź do Ustawień KSeF i zapisz NIP oraz token.",
     });
     return;
   }
-  if (syncInFlight.has(cfg.id)) {
+  if (syncInFlight.has(userId)) {
     res.status(409).json({
       error: "Synchronizacja KSeF już trwa. Poczekaj na jej zakończenie.",
     });
     return;
   }
-  syncInFlight.add(cfg.id);
-  // Safety net: also release on socket close in case the handler is killed
-  // before finally{} runs (e.g. process abort).
-  res.on("close", () => syncInFlight.delete(cfg.id));
+  syncInFlight.add(userId);
+  res.on("close", () => syncInFlight.delete(userId));
   try {
-    await runSync(req, res, cfg);
+    await runSync(req, res, userId, cfg);
   } finally {
-    syncInFlight.delete(cfg.id);
+    syncInFlight.delete(userId);
   }
 });
 
 async function runSync(
   req: Request,
   res: Response,
+  userId: string,
   cfg: NonNullable<Awaited<ReturnType<typeof loadConfig>>>,
 ): Promise<void> {
   let token: string;
@@ -293,9 +306,6 @@ async function runSync(
     ? cfg.lastSyncedAt
     : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // KSeF refuses queries whose paginated result exceeds 10 000. To stay safe
-  // for high-volume buyers, we walk the date range in 7-day windows and cap
-  // pagination at 9 900 per window (pageSize 100 × 99 pages).
   const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
   const PAGE_SIZE = 100;
   const MAX_PAGE_OFFSET = 9900;
@@ -305,7 +315,6 @@ async function runSync(
   for (let winStart = new Date(overallFrom); winStart < now; winStart = new Date(winStart.getTime() + WINDOW_MS)) {
     const winEndMs = Math.min(winStart.getTime() + WINDOW_MS - 1, now.getTime());
     const winEnd = new Date(winEndMs);
-    // Pass full ISO datetimes to avoid day-boundary overlap between adjacent windows.
     const dateFrom = winStart.toISOString();
     const dateTo = winEnd.toISOString();
 
@@ -353,11 +362,7 @@ async function runSync(
   }
   const allRefs = Array.from(allRefsMap.values());
 
-  // Filter out invoices we already have (either persisted or pending).
-  // We always fall through to the pending-retry loop below, even when KSeF
-  // returned nothing new — that way adding a supplier and clicking sync
-  // immediately re-matches queued pending invoices instead of waiting for
-  // the next batch of brand-new KSeF documents.
+  // Filter out invoices we already have for this user.
   let newRefs: typeof allRefs = [];
   if (allRefs.length > 0) {
     const refNumbers = allRefs.map((r) => r.ksefReferenceNumber);
@@ -365,11 +370,18 @@ async function runSync(
       db
         .select({ k: invoicesTable.ksefNumber })
         .from(invoicesTable)
-        .where(inArray(invoicesTable.ksefNumber, refNumbers)),
+        .where(
+          and(eq(invoicesTable.userId, userId), inArray(invoicesTable.ksefNumber, refNumbers)),
+        ),
       db
         .select({ k: ksefPendingInvoicesTable.ksefNumber })
         .from(ksefPendingInvoicesTable)
-        .where(inArray(ksefPendingInvoicesTable.ksefNumber, refNumbers)),
+        .where(
+          and(
+            eq(ksefPendingInvoicesTable.userId, userId),
+            inArray(ksefPendingInvoicesTable.ksefNumber, refNumbers),
+          ),
+        ),
     ]);
     const seen = new Set<string>([
       ...existingImported.map((r) => r.k!).filter(Boolean),
@@ -383,17 +395,17 @@ async function runSync(
       const xml = await client.getInvoiceXml(session, ref.ksefReferenceNumber);
       const parsed = parseFA3Xml(xml, ref.ksefReferenceNumber);
 
-      const match = await tryMatch(parsed);
+      const match = await tryMatch(userId, parsed);
       const canAutoImport =
         match.supplier !== null && parsed.items.length > 0;
 
       if (canAutoImport && match.supplier) {
-        // Auto-create any missing products so we don't block import on them.
         const resolvedProductIds: number[] = [];
         for (let i = 0; i < parsed.items.length; i++) {
           let pid = match.itemProductIds[i];
           if (pid == null) {
             pid = await findOrCreateProductByName(
+              userId,
               parsed.items[i].name,
               parsed.items[i].unit,
             );
@@ -409,13 +421,12 @@ async function runSync(
         const invDate = parsed.header.invoiceDate ?? isoDate(now);
 
         const wasImported = await db.transaction(async (tx) => {
-          // If the same invoice was already imported manually (no ksef_number),
-          // attach ksef metadata to it instead of inserting a duplicate.
           const [existing] = await tx
             .select({ id: invoicesTable.id })
             .from(invoicesTable)
             .where(
               and(
+                eq(invoicesTable.userId, userId),
                 eq(invoicesTable.supplierId, match.supplier!.id),
                 eq(invoicesTable.invoiceNumber, invNum),
               ),
@@ -437,6 +448,7 @@ async function runSync(
           const inserted = await tx
             .insert(invoicesTable)
             .values({
+              userId,
               supplierId: match.supplier!.id,
               invoiceNumber: invNum,
               invoiceDate: invDate,
@@ -444,10 +456,10 @@ async function runSync(
               xmlContent: xml,
               ksefNumber: ref.ksefReferenceNumber,
             })
-            .onConflictDoNothing({ target: invoicesTable.ksefNumber })
+            .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
           const inv = inserted[0];
-          if (!inv) return false; // already imported in a concurrent run
+          if (!inv) return false;
 
           for (let i = 0; i < parsed.items.length; i++) {
             const item = parsed.items[i];
@@ -485,6 +497,7 @@ async function runSync(
         await db
           .insert(ksefPendingInvoicesTable)
           .values({
+            userId,
             ksefNumber: ref.ksefReferenceNumber,
             sellerNip: parsed.header.sellerNip,
             sellerName: parsed.header.sellerName,
@@ -496,7 +509,7 @@ async function runSync(
             reason: reasons.join("; ") || "wymaga ręcznego przeglądu",
             status: "pending",
           })
-          .onConflictDoNothing({ target: ksefPendingInvoicesTable.ksefNumber });
+          .onConflictDoNothing({ target: [ksefPendingInvoicesTable.userId, ksefPendingInvoicesTable.ksefNumber] });
         summary.pending++;
       }
     } catch (err) {
@@ -508,26 +521,28 @@ async function runSync(
     }
   }
 
-  // Retry existing pending invoices: if a supplier was added in the meantime,
-  // auto-create any missing products and import them now. Failures here are
-  // tracked separately so a bad legacy pending row cannot stall the watermark.
-  let pendingRetryFailed = 0;
+  // Retry existing pending invoices for this user.
   const stillPending = await db
     .select()
     .from(ksefPendingInvoicesTable)
-    .where(inArray(ksefPendingInvoicesTable.status, ["pending", "rejected"]));
+    .where(
+      and(
+        eq(ksefPendingInvoicesTable.userId, userId),
+        inArray(ksefPendingInvoicesTable.status, ["pending", "rejected"]),
+      ),
+    );
   for (const row of stillPending) {
     try {
       const parsed = row.parsedJson as ParsedFa3;
       if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) continue;
-      const match = await tryMatch(parsed);
+      const match = await tryMatch(userId, parsed);
       if (!match.supplier) continue;
 
       const resolvedProductIds: number[] = [];
       for (let i = 0; i < parsed.items.length; i++) {
         let pid = match.itemProductIds[i];
         if (pid == null) {
-          pid = await findOrCreateProductByName(parsed.items[i].name, parsed.items[i].unit);
+          pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit);
         }
         resolvedProductIds.push(pid);
       }
@@ -543,6 +558,7 @@ async function runSync(
           .from(invoicesTable)
           .where(
             and(
+              eq(invoicesTable.userId, userId),
               eq(invoicesTable.supplierId, match.supplier!.id),
               eq(invoicesTable.invoiceNumber, invNum),
             ),
@@ -550,7 +566,6 @@ async function runSync(
           .limit(1);
         let inserted = false;
         if (existing) {
-          // Attach ksef metadata to the manually-imported invoice; do not duplicate items.
           await tx
             .update(invoicesTable)
             .set({
@@ -564,6 +579,7 @@ async function runSync(
           const insertedRows = await tx
             .insert(invoicesTable)
             .values({
+              userId,
               supplierId: match.supplier!.id,
               invoiceNumber: invNum,
               invoiceDate: invDate,
@@ -571,7 +587,7 @@ async function runSync(
               xmlContent: row.rawXml,
               ksefNumber: row.ksefNumber,
             })
-            .onConflictDoNothing({ target: invoicesTable.ksefNumber })
+            .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
           const inv = insertedRows[0];
           if (inv) {
@@ -600,14 +616,11 @@ async function runSync(
       if (wasNewlyImported) summary.imported++;
       summary.pending = Math.max(0, summary.pending - 1);
     } catch (err) {
-      pendingRetryFailed++;
       summary.errors.push(`Pending ${row.ksefNumber}: ${mapKsefError(err).message}`);
       req.log.error({ pendingId: row.id, err: describeDbErr(err) }, "KSeF pending retry failed");
     }
   }
 
-  // Only advance the watermark when no per-invoice failures occurred and no
-  // window was truncated, so skipped refs aren't lost on the next sync.
   let updatedLastSyncedAt: Date | null = cfg.lastSyncedAt;
   if (summary.failed === 0 && !truncatedWindow) {
     await db
@@ -626,6 +639,7 @@ async function runSync(
 // ─── Pending review ──────────────────────────────────────────────────────────
 
 router.get("/ksef/pending", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const q = ListKsefPendingQueryParams.safeParse(req.query);
   if (!q.success) {
     res.status(400).json({ error: q.error.message });
@@ -636,7 +650,12 @@ router.get("/ksef/pending", async (req, res): Promise<void> => {
   const rows = await db
     .select()
     .from(ksefPendingInvoicesTable)
-    .where(eq(ksefPendingInvoicesTable.status, status))
+    .where(
+      and(
+        eq(ksefPendingInvoicesTable.userId, userId),
+        eq(ksefPendingInvoicesTable.status, status),
+      ),
+    )
     .orderBy(desc(ksefPendingInvoicesTable.createdAt));
 
   res.json(
@@ -656,6 +675,7 @@ router.get("/ksef/pending", async (req, res): Promise<void> => {
 });
 
 router.get("/ksef/pending/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const p = GetKsefPendingParams.safeParse(req.params);
   if (!p.success) {
     res.status(400).json({ error: p.error.message });
@@ -665,7 +685,9 @@ router.get("/ksef/pending/:id", async (req, res): Promise<void> => {
   const [row] = await db
     .select()
     .from(ksefPendingInvoicesTable)
-    .where(eq(ksefPendingInvoicesTable.id, p.data.id));
+    .where(
+      and(eq(ksefPendingInvoicesTable.id, p.data.id), eq(ksefPendingInvoicesTable.userId, userId)),
+    );
 
   if (!row) {
     res.status(404).json({ error: "Nie znaleziono faktury." });
@@ -673,7 +695,7 @@ router.get("/ksef/pending/:id", async (req, res): Promise<void> => {
   }
 
   const parsed = row.parsedJson as ParsedFa3;
-  const match = await tryMatch(parsed);
+  const match = await tryMatch(userId, parsed);
 
   res.json({
     id: row.id,
@@ -696,6 +718,7 @@ router.get("/ksef/pending/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const p = AcceptKsefPendingParams.safeParse(req.params);
   if (!p.success) {
     res.status(400).json({ error: p.error.message });
@@ -710,7 +733,9 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   const [row] = await db
     .select()
     .from(ksefPendingInvoicesTable)
-    .where(eq(ksefPendingInvoicesTable.id, p.data.id));
+    .where(
+      and(eq(ksefPendingInvoicesTable.id, p.data.id), eq(ksefPendingInvoicesTable.userId, userId)),
+    );
 
   if (!row) {
     res.status(404).json({ error: "Nie znaleziono faktury." });
@@ -721,11 +746,10 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
     return;
   }
 
-  // Already imported under this KSeF number?
   const [dup] = await db
     .select({ id: invoicesTable.id })
     .from(invoicesTable)
-    .where(eq(invoicesTable.ksefNumber, row.ksefNumber))
+    .where(and(eq(invoicesTable.userId, userId), eq(invoicesTable.ksefNumber, row.ksefNumber)))
     .limit(1);
   if (dup) {
     await db
@@ -739,7 +763,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   const [supplier] = await db
     .select()
     .from(suppliersTable)
-    .where(eq(suppliersTable.id, body.data.supplierId));
+    .where(and(eq(suppliersTable.id, body.data.supplierId), eq(suppliersTable.userId, userId)));
   if (!supplier) {
     res.status(400).json({ error: "Wybrany dostawca nie istnieje." });
     return;
@@ -766,7 +790,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   const products = await db
     .select({ id: productsTable.id })
     .from(productsTable)
-    .where(inArray(productsTable.id, productIds));
+    .where(and(eq(productsTable.userId, userId), inArray(productsTable.id, productIds)));
   if (products.length !== productIds.length) {
     res.status(400).json({ error: "Jeden z wybranych produktów nie istnieje." });
     return;
@@ -778,6 +802,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
     const [inv] = await tx
       .insert(invoicesTable)
       .values({
+        userId,
         supplierId: supplier.id,
         invoiceNumber: parsed.header.invoiceNumber ?? row.ksefNumber,
         invoiceDate: parsed.header.invoiceDate ?? isoDate(new Date()),
@@ -833,6 +858,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
 });
 
 router.post("/ksef/pending/:id/reject", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const p = RejectKsefPendingParams.safeParse(req.params);
   if (!p.success) {
     res.status(400).json({ error: p.error.message });
@@ -841,7 +867,13 @@ router.post("/ksef/pending/:id/reject", async (req, res): Promise<void> => {
   await db
     .update(ksefPendingInvoicesTable)
     .set({ status: "rejected" })
-    .where(and(eq(ksefPendingInvoicesTable.id, p.data.id), eq(ksefPendingInvoicesTable.status, "pending")));
+    .where(
+      and(
+        eq(ksefPendingInvoicesTable.id, p.data.id),
+        eq(ksefPendingInvoicesTable.userId, userId),
+        eq(ksefPendingInvoicesTable.status, "pending"),
+      ),
+    );
   res.sendStatus(204);
 });
 

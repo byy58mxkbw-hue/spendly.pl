@@ -4,6 +4,7 @@ import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
@@ -138,9 +139,23 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function ClerkQueryClientCacheInvalidator() {
-  const { addListener } = useClerk();
+  const clerk = useClerk();
+  const { addListener } = clerk;
   const qc = useQueryClient();
   const prevUserIdRef = useRef<string | null | undefined>(undefined);
+
+  // Wire the API client's auth token getter to Clerk's active session.
+  // Re-registers when `clerk` is ready so every API call gets a fresh bearer.
+  useEffect(() => {
+    setAuthTokenGetter(async () => {
+      try {
+        return (await clerk.session?.getToken()) ?? null;
+      } catch {
+        return null;
+      }
+    });
+    return () => setAuthTokenGetter(null);
+  }, [clerk]);
 
   useEffect(() => {
     const unsubscribe = addListener(({ user }) => {

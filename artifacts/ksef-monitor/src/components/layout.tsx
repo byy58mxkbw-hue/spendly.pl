@@ -60,10 +60,10 @@ function SidebarContent({
               onClick={onNavigate}
               data-testid={`nav-${path.replace("/", "")}`}
               className={cn(
-                "flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-lg text-[15px] md:text-sm font-medium transition-colors",
+                "flex items-center gap-3 px-3 py-3.5 md:py-2.5 rounded-lg text-base md:text-sm font-medium transition-colors",
                 active
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground active:bg-secondary",
+                  : "text-foreground/80 hover:bg-secondary hover:text-foreground active:bg-secondary",
               )}
             >
               <Icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
@@ -154,7 +154,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </button>
           <div className="flex items-center gap-2 min-w-0">
             <img src="/logo.svg" alt="CennikPro" className="w-7 h-7 rounded-lg shrink-0" />
-            <span className="font-extrabold tracking-tight text-foreground truncate">
+            <span className="text-base font-extrabold tracking-tight text-foreground truncate">
               {activeItem?.label ?? "CheckIT"}
             </span>
           </div>

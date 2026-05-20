@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, priceAlertsTable, suppliersTable } from "@workspace/db";
 import {
   CreatePriceAlertBody,
@@ -9,6 +9,7 @@ import {
 const router: IRouter = Router();
 
 router.get("/price-alerts", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const alerts = await db
     .select({
       id: priceAlertsTable.id,
@@ -20,7 +21,11 @@ router.get("/price-alerts", async (req, res): Promise<void> => {
       createdAt: priceAlertsTable.createdAt,
     })
     .from(priceAlertsTable)
-    .leftJoin(suppliersTable, eq(priceAlertsTable.supplierId, suppliersTable.id))
+    .leftJoin(
+      suppliersTable,
+      and(eq(priceAlertsTable.supplierId, suppliersTable.id), eq(suppliersTable.userId, userId)),
+    )
+    .where(eq(priceAlertsTable.userId, userId))
     .orderBy(priceAlertsTable.createdAt);
 
   res.json(
@@ -33,6 +38,7 @@ router.get("/price-alerts", async (req, res): Promise<void> => {
 });
 
 router.post("/price-alerts", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const parsed = CreatePriceAlertBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -42,6 +48,7 @@ router.post("/price-alerts", async (req, res): Promise<void> => {
   const [alert] = await db
     .insert(priceAlertsTable)
     .values({
+      userId,
       productName: parsed.data.productName,
       supplierId: parsed.data.supplierId ?? null,
       thresholdPercent: parsed.data.thresholdPercent.toString(),
@@ -57,13 +64,16 @@ router.post("/price-alerts", async (req, res): Promise<void> => {
 });
 
 router.delete("/price-alerts/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const params = DeletePriceAlertParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
 
-  await db.delete(priceAlertsTable).where(eq(priceAlertsTable.id, params.data.id));
+  await db
+    .delete(priceAlertsTable)
+    .where(and(eq(priceAlertsTable.id, params.data.id), eq(priceAlertsTable.userId, userId)));
   res.sendStatus(204);
 });
 

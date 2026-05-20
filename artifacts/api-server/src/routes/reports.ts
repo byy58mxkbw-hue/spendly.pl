@@ -5,13 +5,12 @@ import { sql } from "drizzle-orm";
 const router: IRouter = Router();
 
 router.get("/reports/monthly", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const monthParam = req.query.month as string | undefined;
 
-  // Default to current month
   const now = new Date();
   const month = monthParam || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  // Validate format
   if (!/^\d{4}-\d{2}$/.test(month)) {
     res.status(400).json({ error: "Invalid month format. Use YYYY-MM" });
     return;
@@ -19,7 +18,6 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
 
   const monthPrefix = `${month}-`;
 
-  // Overall summary for the month
   const summaryResult = await db.execute(sql`
     SELECT
       COUNT(DISTINCT i.id)::int AS invoice_count,
@@ -27,7 +25,8 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       COALESCE(SUM(ii.total_price::numeric), 0)::float AS total_spend
     FROM invoices i
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
-    WHERE i.invoice_date LIKE ${monthPrefix + "%"}
+    WHERE i.user_id = ${userId}
+      AND i.invoice_date LIKE ${monthPrefix + "%"}
   `);
   const summary = summaryResult.rows[0] as {
     invoice_count: number;
@@ -35,7 +34,6 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     total_spend: number;
   };
 
-  // Top products for the month (all suppliers combined)
   const topProductsResult = await db.execute(sql`
     SELECT
       p.name AS product_name,
@@ -48,7 +46,8 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     INNER JOIN invoices i ON ii.invoice_id = i.id
     INNER JOIN suppliers s ON i.supplier_id = s.id
     LEFT JOIN products p ON ii.product_id = p.id
-    WHERE i.invoice_date LIKE ${monthPrefix + "%"}
+    WHERE i.user_id = ${userId}
+      AND i.invoice_date LIKE ${monthPrefix + "%"}
     GROUP BY p.name, ii.product_name, ii.unit, s.name
     ORDER BY total_cost DESC
     LIMIT 20
@@ -62,7 +61,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     total_cost: number;
     supplier_name: string;
   }>).map((r) => ({
-    productName: r.product_name ?? r.product_name ?? "Nieznany",
+    productName: r.product_name ?? "Nieznany",
     unit: r.unit,
     totalQuantity: r.total_quantity,
     avgPrice: r.avg_price,
@@ -70,7 +69,6 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     supplierName: r.supplier_name,
   }));
 
-  // Per-supplier summary
   const supplierSummaryResult = await db.execute(sql`
     SELECT
       s.id AS supplier_id,
@@ -81,12 +79,12 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     FROM invoices i
     INNER JOIN suppliers s ON i.supplier_id = s.id
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
-    WHERE i.invoice_date LIKE ${monthPrefix + "%"}
+    WHERE i.user_id = ${userId}
+      AND i.invoice_date LIKE ${monthPrefix + "%"}
     GROUP BY s.id, s.name
     ORDER BY total_spend DESC
   `);
 
-  // For each supplier, get top products
   const suppliers = await Promise.all(
     (supplierSummaryResult.rows as Array<{
       supplier_id: number;
@@ -105,7 +103,8 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
         FROM invoice_items ii
         INNER JOIN invoices i ON ii.invoice_id = i.id
         LEFT JOIN products p ON ii.product_id = p.id
-        WHERE i.invoice_date LIKE ${monthPrefix + "%"}
+        WHERE i.user_id = ${userId}
+          AND i.invoice_date LIKE ${monthPrefix + "%"}
           AND i.supplier_id = ${s.supplier_id}
         GROUP BY p.name, ii.product_name, ii.unit
         ORDER BY total_cost DESC
@@ -146,22 +145,13 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
   });
 });
 
-// ─── Predictive analytics ────────────────────────────────────────────────────
-//
-// For every product with enough historical purchase data we fit a simple
-// linear regression on (days_since_first_observation, unit_price) and project
-// the unit price `horizonDays` into the future. We then estimate the impact
-// on monthly food cost by multiplying the projected price change by the
-// product's average monthly purchased quantity over the last 90 days.
-
 router.get("/reports/predictive", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const horizonRaw = parseInt(String(req.query.horizonDays ?? "30"), 10);
   const horizonDays = Number.isFinite(horizonRaw)
     ? Math.min(180, Math.max(7, horizonRaw))
     : 30;
 
-  // For each product collect every observation (invoice item) from the last
-  // 12 months. We do the regression in JS — datasets are small.
   const rows = await db.execute<{
     product_id: number | null;
     product_name: string;
@@ -183,7 +173,8 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
     INNER JOIN invoices i ON ii.invoice_id = i.id
     INNER JOIN suppliers s ON i.supplier_id = s.id
     LEFT JOIN products p ON ii.product_id = p.id
-    WHERE i.invoice_date >= to_char(current_date - interval '365 days', 'YYYY-MM-DD')
+    WHERE i.user_id = ${userId}
+      AND i.invoice_date >= to_char(current_date - interval '365 days', 'YYYY-MM-DD')
     ORDER BY ii.product_id NULLS LAST, p.name, s.name, i.invoice_date
   `);
 
@@ -196,7 +187,6 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
     points: Point[];
   };
 
-  // Group by (productId or normalized name, supplier, unit)
   const groups = new Map<string, Group>();
   const today = new Date();
   const todayMs = today.getTime();
@@ -217,7 +207,7 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
     }
     const t = new Date(r.invoice_date).getTime();
     if (!Number.isFinite(t)) continue;
-    const day = Math.round((t - todayMs) / dayMs); // negative: in the past
+    const day = Math.round((t - todayMs) / dayMs);
     const price = parseFloat(r.unit_price);
     const qty = parseFloat(r.quantity);
     if (!Number.isFinite(price) || price <= 0) continue;
@@ -245,7 +235,6 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
   for (const g of groups.values()) {
     if (g.points.length < 2) continue;
 
-    // Linear regression: price = a + b * day
     const n = g.points.length;
     let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
     for (const p of g.points) {
@@ -260,12 +249,9 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
     const slope = denom !== 0 ? (sumXY - n * meanX * meanY) / denom : 0;
     const intercept = meanY - slope * meanX;
 
-    // Use the most recent observed price as "current" rather than the
-    // regression's value at day 0 — feels more truthful to the user.
     const sorted = [...g.points].sort((a, b) => a.day - b.day);
     const currentPrice = sorted[sorted.length - 1].price;
     const projectedRaw = intercept + slope * horizonDays;
-    // Clamp to non-negative; if regression goes wild fall back to current.
     const projectedPrice = projectedRaw > 0 && Number.isFinite(projectedRaw)
       ? projectedRaw
       : currentPrice;
@@ -274,11 +260,10 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
       ? ((projectedPrice - currentPrice) / currentPrice) * 100
       : 0;
 
-    // Average monthly purchased quantity over the last 90 days.
     const recentQty = g.points
       .filter((p) => p.day >= -90)
       .reduce((s, p) => s + p.qty, 0);
-    const recentMonthlyQuantity = recentQty / 3; // 90 days ≈ 3 months
+    const recentMonthlyQuantity = recentQty / 3;
 
     const recentMonthlyCost = recentMonthlyQuantity * currentPrice;
     const projectedMonthlyCost = recentMonthlyQuantity * projectedPrice;
@@ -287,7 +272,6 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
     recentMonthlySpendTotal += recentMonthlyCost;
     projectedMonthlySpendTotal += projectedMonthlyCost;
 
-    // Confidence heuristic: more data points + longer span = higher confidence.
     const spanDays = sorted[sorted.length - 1].day - sorted[0].day;
     let confidence: "low" | "medium" | "high" = "low";
     if (n >= 6 && spanDays <= -60) confidence = "high";
@@ -309,8 +293,6 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
     });
   }
 
-  // Only show products with meaningful change (>0.5%) and at least some
-  // recent purchase activity in the top lists.
   const meaningful = productRows.filter(
     (r) => Math.abs(r.priceChangePercent) >= 0.5 && r.recentMonthlyQuantity > 0,
   );

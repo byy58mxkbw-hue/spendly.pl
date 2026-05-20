@@ -7,10 +7,15 @@ import priceAlertsRouter from "./price-alerts";
 import dashboardRouter from "./dashboard";
 import reportsRouter from "./reports";
 import ksefRouter from "./ksef";
+import { requireUser } from "../middlewares/requireUser";
 
 const router: IRouter = Router();
 
+// Public endpoints
 router.use(healthRouter);
+
+// Everything below requires an authenticated user and is scoped to req.userId
+router.use(requireUser);
 router.use(suppliersRouter);
 router.use(productsRouter);
 router.use(invoicesRouter);

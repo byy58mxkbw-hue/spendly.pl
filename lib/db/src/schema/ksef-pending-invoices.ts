@@ -1,10 +1,11 @@
-import { pgTable, serial, text, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, jsonb, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const ksefPendingInvoicesTable = pgTable("ksef_pending_invoices", {
   id: serial("id").primaryKey(),
-  ksefNumber: text("ksef_number").notNull().unique(),
+  userId: text("user_id").notNull().default("__legacy__"),
+  ksefNumber: text("ksef_number").notNull(),
   sellerNip: text("seller_nip"),
   sellerName: text("seller_name"),
   invoiceNumber: text("invoice_number"),
@@ -16,10 +17,14 @@ export const ksefPendingInvoicesTable = pgTable("ksef_pending_invoices", {
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (t) => [
+  index("ksef_pending_user_id_idx").on(t.userId),
+  uniqueIndex("ksef_pending_user_ksef_uniq").on(t.userId, t.ksefNumber),
+]);
 
 export const insertKsefPendingInvoiceSchema = createInsertSchema(ksefPendingInvoicesTable).omit({
   id: true,
+  userId: true,
   createdAt: true,
   updatedAt: true,
 });

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, desc, and, min, max, avg, count } from "drizzle-orm";
+import { eq, sql, desc, and } from "drizzle-orm";
 import { db, productsTable, invoiceItemsTable, invoicesTable, suppliersTable } from "@workspace/db";
 import {
   ListProductsQueryParams,
@@ -14,6 +14,7 @@ import {
 const router: IRouter = Router();
 
 router.get("/products", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const queryParams = ListProductsQueryParams.safeParse(req.query);
   if (!queryParams.success) {
     res.status(400).json({ error: queryParams.error.message });
@@ -22,7 +23,6 @@ router.get("/products", async (req, res): Promise<void> => {
 
   const { supplierId, category } = queryParams.data;
 
-  // Get products with latest price info
   const products = await db
     .select({
       id: productsTable.id,
@@ -31,9 +31,9 @@ router.get("/products", async (req, res): Promise<void> => {
       category: productsTable.category,
     })
     .from(productsTable)
+    .where(eq(productsTable.userId, userId))
     .orderBy(productsTable.name);
 
-  // Enrich each product with latest price
   const enriched = await Promise.all(
     products.map(async (product) => {
       const priceHistory = await db
@@ -49,18 +49,18 @@ router.get("/products", async (req, res): Promise<void> => {
         .where(
           and(
             eq(invoiceItemsTable.productId, product.id),
+            eq(invoicesTable.userId, userId),
             supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
           ),
         )
         .orderBy(desc(invoicesTable.invoiceDate))
         .limit(2);
 
-      // Count distinct suppliers for this product
       const supplierCountResult = await db
         .select({ cnt: sql<number>`count(distinct ${invoicesTable.supplierId})` })
         .from(invoiceItemsTable)
         .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-        .where(eq(invoiceItemsTable.productId, product.id));
+        .where(and(eq(invoiceItemsTable.productId, product.id), eq(invoicesTable.userId, userId)));
 
       const latest = priceHistory[0];
       const previous = priceHistory[1];
@@ -84,13 +84,13 @@ router.get("/products", async (req, res): Promise<void> => {
     }),
   );
 
-  // Only return products that have at least one purchase (have a supplier linked)
   res.json(
     enriched.filter((p) => p.supplierName != null && (!category || p.category === category))
   );
 });
 
 router.get("/products/top-price-changes", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const queryParams = GetTopPriceChangesQueryParams.safeParse(req.query);
   if (!queryParams.success) {
     res.status(400).json({ error: queryParams.error.message });
@@ -98,12 +98,11 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
   }
 
   const limit = queryParams.data.limit ?? 10;
-  const days = queryParams.data.days ?? 30;
 
-  // Get all products with at least 2 price data points
   const products = await db
     .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit })
-    .from(productsTable);
+    .from(productsTable)
+    .where(eq(productsTable.userId, userId));
 
   const changes = await Promise.all(
     products.map(async (product) => {
@@ -116,7 +115,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
         .from(invoiceItemsTable)
         .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
         .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-        .where(eq(invoiceItemsTable.productId, product.id))
+        .where(and(eq(invoiceItemsTable.productId, product.id), eq(invoicesTable.userId, userId)))
         .orderBy(desc(invoicesTable.invoiceDate))
         .limit(2);
 
@@ -149,6 +148,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
 });
 
 router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const params = GetProductSupplierComparisonParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -158,7 +158,7 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
   const product = await db
     .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit })
     .from(productsTable)
-    .where(eq(productsTable.id, params.data.id))
+    .where(and(eq(productsTable.id, params.data.id), eq(productsTable.userId, userId)))
     .limit(1);
 
   if (!product.length) {
@@ -166,7 +166,6 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
     return;
   }
 
-  // Get all distinct suppliers for this product with aggregated stats
   const supplierStats = await db
     .select({
       supplierId: invoicesTable.supplierId,
@@ -181,6 +180,7 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
         JOIN invoices inv2 ON ii2.invoice_id = inv2.id
         WHERE ii2.product_id = ${params.data.id}
           AND inv2.supplier_id = ${invoicesTable.supplierId}
+          AND inv2.user_id = ${userId}
         ORDER BY inv2.invoice_date DESC
         LIMIT 1
       )`,
@@ -188,11 +188,10 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(eq(invoiceItemsTable.productId, params.data.id))
+    .where(and(eq(invoiceItemsTable.productId, params.data.id), eq(invoicesTable.userId, userId)))
     .groupBy(invoicesTable.supplierId, suppliersTable.name)
     .orderBy(sql`max(${invoicesTable.invoiceDate}) desc`);
 
-  // For each supplier, get full price history
   const suppliers = await Promise.all(
     supplierStats.map(async (s) => {
       const history = await db
@@ -206,6 +205,7 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
           and(
             eq(invoiceItemsTable.productId, params.data.id),
             eq(invoicesTable.supplierId, s.supplierId),
+            eq(invoicesTable.userId, userId),
           ),
         )
         .orderBy(invoicesTable.invoiceDate);
@@ -237,6 +237,7 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
 });
 
 router.get("/products/:id/price-history", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const params = GetProductPriceHistoryParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -250,6 +251,17 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
   }
 
   const { supplierId } = queryParams.data;
+
+  // Verify product belongs to user
+  const [productOwn] = await db
+    .select({ id: productsTable.id })
+    .from(productsTable)
+    .where(and(eq(productsTable.id, params.data.id), eq(productsTable.userId, userId)))
+    .limit(1);
+  if (!productOwn) {
+    res.status(404).json({ error: "Product not found" });
+    return;
+  }
 
   const history = await db
     .select({
@@ -266,6 +278,7 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
     .where(
       and(
         eq(invoiceItemsTable.productId, params.data.id),
+        eq(invoicesTable.userId, userId),
         supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
       ),
     )
@@ -284,6 +297,7 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
 });
 
 router.patch("/products/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const params = UpdateProductParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -298,7 +312,7 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   const [updated] = await db
     .update(productsTable)
     .set(body.data)
-    .where(eq(productsTable.id, params.data.id))
+    .where(and(eq(productsTable.id, params.data.id), eq(productsTable.userId, userId)))
     .returning({ id: productsTable.id });
 
   if (!updated) {

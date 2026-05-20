@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { db, invoicesTable, invoiceItemsTable, suppliersTable, productsTable } from "@workspace/db";
 import {
   ImportInvoiceBody,
@@ -12,6 +12,7 @@ import { categorizeProduct } from "../lib/categorize";
 const router: IRouter = Router();
 
 router.get("/invoices", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const queryParams = ListInvoicesQueryParams.safeParse(req.query);
   if (!queryParams.success) {
     res.status(400).json({ error: queryParams.error.message });
@@ -32,12 +33,16 @@ router.get("/invoices", async (req, res): Promise<void> => {
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined)
+    .where(
+      and(
+        eq(invoicesTable.userId, userId),
+        supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
+      ),
+    )
     .orderBy(desc(invoicesTable.invoiceDate))
     .limit(limit)
     .offset(offset);
 
-  // Get item counts
   const enriched = await Promise.all(
     invoices.map(async (inv) => {
       const items = await db
@@ -58,7 +63,6 @@ router.get("/invoices", async (req, res): Promise<void> => {
 });
 
 function extractTag(xml: string, tag: string): string | null {
-  // Match with or without namespace prefix, e.g. <P_7> or <ns1:P_7>
   const re = new RegExp(`<(?:[\\w]+:)?${tag}[^>]*>([\\s\\S]*?)<\\/(?:[\\w]+:)?${tag}>`, "i");
   const m = xml.match(re);
   return m ? m[1].trim() : null;
@@ -69,7 +73,6 @@ function parseNum(s: string | null | undefined): number {
   return parseFloat(s.replace(",", ".").replace(/\s/g, "")) || 0;
 }
 
-// Parse KSeF XML — supports FA(2) format (FaWiersz blocks) and legacy flat format
 function parseKSeFXml(xml: string): {
   items: Array<{
     productName: string;
@@ -92,17 +95,13 @@ function parseKSeFXml(xml: string): {
     vatRate: number | null;
   }> = [];
 
-  // Strip namespace declarations for easier parsing
   const stripped = xml.replace(/\s+xmlns(?::\w+)?="[^"]*"/g, "").replace(/<(\w+):/g, "<").replace(/<\/(\w+):/g, "</");
 
-  // Extract invoice header
   const invoiceNumber = extractTag(stripped, "P_2") ?? extractTag(stripped, "NrFa");
   const rawDate = extractTag(stripped, "P_1") ?? extractTag(stripped, "DataWystawienia");
-  // Normalize date: YYYY-MM-DD
   let invoiceDate: string | null = null;
   if (rawDate) {
     const d = rawDate.trim();
-    // Accept YYYY-MM-DD or DD.MM.YYYY
     if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
       invoiceDate = d;
     } else if (/^\d{2}\.\d{2}\.\d{4}$/.test(d)) {
@@ -116,15 +115,10 @@ function parseKSeFXml(xml: string): {
   const totalNet = totalNetRaw ? parseNum(totalNetRaw) : null;
   const invoiceType = extractTag(stripped, "RodzajFaktury")?.trim().toUpperCase() ?? null;
 
-  // Credit notes (KOR) carry positive line magnitudes but represent a
-  // reduction. Flip line signs so monthly aggregates compute correctly.
-  // Only flip when header is negative AND lines aren't already negative
-  // (guard against double-negation when an issuer encoded line signs).
   const headerIsNegative =
     invoiceType === "KOR" &&
     ((totalNet != null && totalNet < 0) || (totalGross != null && totalGross < 0));
 
-  // Try FA2 FaWiersz blocks first
   const wierszeRe = /<FaWiersz>([\s\S]*?)<\/FaWiersz>/g;
   let wiersz: RegExpExecArray | null;
   while ((wiersz = wierszeRe.exec(stripped)) !== null) {
@@ -150,7 +144,6 @@ function parseKSeFXml(xml: string): {
     });
   }
 
-  // Fallback: flat regex for older formats (P_7 … P_11 without FaWiersz)
   if (items.length === 0) {
     const pozRegex = /<P_7>([\s\S]*?)<\/P_7>[\s\S]*?<P_8A>([\s\S]*?)<\/P_8A>[\s\S]*?<P_8B>([\s\S]*?)<\/P_8B>[\s\S]*?<P_9A>([\s\S]*?)<\/P_9A>[\s\S]*?<P_11>([\s\S]*?)<\/P_11>/g;
     let m: RegExpExecArray | null;
@@ -171,9 +164,6 @@ function parseKSeFXml(xml: string): {
     }
   }
 
-  // Apply KOR sign-flip only if header is negative AND no line is already
-  // negative — protects against double-negation when an issuer encoded
-  // line amounts with the correct (negative) sign already.
   const linesAlreadyNegative = items.some((it) => it.totalPrice < 0 || it.quantity < 0);
   if (headerIsNegative && !linesAlreadyNegative) {
     for (const it of items) {
@@ -185,7 +175,39 @@ function parseKSeFXml(xml: string): {
   return { items, invoiceNumber: invoiceNumber?.trim() ?? null, invoiceDate, totalGross };
 }
 
+async function findOrCreateProduct(
+  userId: string,
+  name: string,
+  unit: string,
+  category: string | null,
+): Promise<number> {
+  const trimmed = name.trim();
+  const [existing] = await db
+    .select({ id: productsTable.id })
+    .from(productsTable)
+    .where(
+      and(
+        eq(productsTable.userId, userId),
+        sql`regexp_replace(LOWER(${productsTable.name}), '\s+', ' ', 'g') = regexp_replace(LOWER(${trimmed}), '\s+', ' ', 'g')`,
+      ),
+    )
+    .limit(1);
+  if (existing) {
+    await db
+      .update(productsTable)
+      .set({ unit, category: category ?? undefined })
+      .where(eq(productsTable.id, existing.id));
+    return existing.id;
+  }
+  const [created] = await db
+    .insert(productsTable)
+    .values({ userId, name: trimmed, unit, category })
+    .returning({ id: productsTable.id });
+  return created.id;
+}
+
 router.post("/invoices/import", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const parsed = ImportInvoiceBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -194,34 +216,30 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
 
   const { supplierId, xmlContent, invoiceNumber, invoiceDate, force } = parsed.data;
 
-  // Check supplier exists
   const [supplier] = await db
     .select()
     .from(suppliersTable)
-    .where(eq(suppliersTable.id, supplierId));
+    .where(and(eq(suppliersTable.id, supplierId), eq(suppliersTable.userId, userId)));
 
   if (!supplier) {
     res.status(404).json({ error: "Supplier not found" });
     return;
   }
 
-  // Parse items from XML if provided
   const parsed2 = xmlContent ? parseKSeFXml(xmlContent) : null;
   const parsedItems = parsed2?.items ?? [];
 
-  // Use XML-extracted values as fallback when not provided by user
   const hasExplicitNumber = Boolean(invoiceNumber || parsed2?.invoiceNumber);
   const finalInvoiceNumber = invoiceNumber || parsed2?.invoiceNumber || `FV/${Date.now()}`;
   const finalInvoiceDate = invoiceDate || parsed2?.invoiceDate || new Date().toISOString().split("T")[0];
 
-  // Duplicate detection: same supplier + same invoice number = already imported
-  // Skipped when client explicitly forces import (user confirmed overwrite/duplicate)
   if (hasExplicitNumber && !force) {
     const [existing] = await db
       .select({ id: invoicesTable.id, importedAt: invoicesTable.importedAt })
       .from(invoicesTable)
       .where(
         and(
+          eq(invoicesTable.userId, userId),
           eq(invoicesTable.supplierId, supplierId),
           eq(invoicesTable.invoiceNumber, finalInvoiceNumber),
         ),
@@ -237,14 +255,13 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     }
   }
 
-  // Use XML total if available and no items parsed (e.g. just header)
   const calculatedTotal = parsedItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const totalAmount = calculatedTotal > 0 ? calculatedTotal : (parsed2?.totalGross ?? 0);
 
-  // Create invoice
   const [invoice] = await db
     .insert(invoicesTable)
     .values({
+      userId,
       supplierId,
       invoiceNumber: finalInvoiceNumber,
       invoiceDate: finalInvoiceDate,
@@ -253,29 +270,20 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     })
     .returning();
 
-  // Create or find products and insert items — sequential to avoid race conditions
   const insertedItems: Array<{
     id: number; invoiceId: number; productId: number | null; productName: string;
     quantity: number; unit: string; unitPrice: number; totalPrice: number; vatRate: number | null;
   }> = [];
 
   for (const item of parsedItems) {
-    // Upsert product: insert if not exists, assign category automatically
     const category = categorizeProduct(item.productName);
-    const [product] = await db
-      .insert(productsTable)
-      .values({ name: item.productName, unit: item.unit, category })
-      .onConflictDoUpdate({
-        target: productsTable.name,
-        set: { unit: item.unit, category },
-      })
-      .returning();
+    const productId = await findOrCreateProduct(userId, item.productName, item.unit, category);
 
     const [invoiceItem] = await db
       .insert(invoiceItemsTable)
       .values({
         invoiceId: invoice.id,
-        productId: product.id,
+        productId,
         productName: item.productName,
         quantity: item.quantity.toString(),
         unit: item.unit,
@@ -304,6 +312,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
 });
 
 router.get("/invoices/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const params = GetInvoiceParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -322,7 +331,7 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(eq(invoicesTable.id, params.data.id));
+    .where(and(eq(invoicesTable.id, params.data.id), eq(invoicesTable.userId, userId)));
 
   if (!invoice) {
     res.status(404).json({ error: "Invoice not found" });
@@ -349,13 +358,16 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
 });
 
 router.delete("/invoices/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const params = DeleteInvoiceParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
 
-  await db.delete(invoicesTable).where(eq(invoicesTable.id, params.data.id));
+  await db
+    .delete(invoicesTable)
+    .where(and(eq(invoicesTable.id, params.data.id), eq(invoicesTable.userId, userId)));
   res.sendStatus(204);
 });
 

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, desc } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, suppliersTable, invoicesTable, invoiceItemsTable } from "@workspace/db";
 import {
   CreateSupplierBody,
@@ -12,6 +12,7 @@ import {
 const router: IRouter = Router();
 
 router.get("/suppliers", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const suppliers = await db
     .select({
       id: suppliersTable.id,
@@ -27,11 +28,15 @@ router.get("/suppliers", async (req, res): Promise<void> => {
         SELECT sum(${invoiceItemsTable.totalPrice}::numeric)
         FROM ${invoiceItemsTable}
         INNER JOIN ${invoicesTable} AS i2 ON i2.id = ${invoiceItemsTable.invoiceId}
-        WHERE i2.supplier_id = ${suppliersTable.id}
+        WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId}
       )`,
     })
     .from(suppliersTable)
-    .leftJoin(invoicesTable, eq(invoicesTable.supplierId, suppliersTable.id))
+    .leftJoin(
+      invoicesTable,
+      and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId)),
+    )
+    .where(eq(suppliersTable.userId, userId))
     .groupBy(suppliersTable.id)
     .orderBy(suppliersTable.name);
 
@@ -39,17 +44,19 @@ router.get("/suppliers", async (req, res): Promise<void> => {
 });
 
 router.post("/suppliers", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const parsed = CreateSupplierBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
 
-  const [supplier] = await db.insert(suppliersTable).values(parsed.data).returning();
+  const [supplier] = await db.insert(suppliersTable).values({ ...parsed.data, userId }).returning();
   res.status(201).json({ ...supplier, invoiceCount: 0, lastInvoiceDate: null, totalSpend: null });
 });
 
 router.get("/suppliers/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const params = GetSupplierParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -71,12 +78,15 @@ router.get("/suppliers/:id", async (req, res): Promise<void> => {
         SELECT sum(${invoiceItemsTable.totalPrice}::numeric)
         FROM ${invoiceItemsTable}
         INNER JOIN ${invoicesTable} AS i2 ON i2.id = ${invoiceItemsTable.invoiceId}
-        WHERE i2.supplier_id = ${suppliersTable.id}
+        WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId}
       )`,
     })
     .from(suppliersTable)
-    .leftJoin(invoicesTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(eq(suppliersTable.id, params.data.id))
+    .leftJoin(
+      invoicesTable,
+      and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId)),
+    )
+    .where(and(eq(suppliersTable.id, params.data.id), eq(suppliersTable.userId, userId)))
     .groupBy(suppliersTable.id);
 
   if (!supplier) {
@@ -88,6 +98,7 @@ router.get("/suppliers/:id", async (req, res): Promise<void> => {
 });
 
 router.put("/suppliers/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const params = UpdateSupplierParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -103,7 +114,7 @@ router.put("/suppliers/:id", async (req, res): Promise<void> => {
   const [supplier] = await db
     .update(suppliersTable)
     .set(parsed.data)
-    .where(eq(suppliersTable.id, params.data.id))
+    .where(and(eq(suppliersTable.id, params.data.id), eq(suppliersTable.userId, userId)))
     .returning();
 
   if (!supplier) {
@@ -115,13 +126,16 @@ router.put("/suppliers/:id", async (req, res): Promise<void> => {
 });
 
 router.delete("/suppliers/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const params = DeleteSupplierParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
     return;
   }
 
-  await db.delete(suppliersTable).where(eq(suppliersTable.id, params.data.id));
+  await db
+    .delete(suppliersTable)
+    .where(and(eq(suppliersTable.id, params.data.id), eq(suppliersTable.userId, userId)));
   res.sendStatus(204);
 });
 
