@@ -172,31 +172,37 @@ async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
   const resp = await openai.chat.completions.create({
     model: "gpt-5-mini",
     max_completion_tokens: 2000,
-    response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
-        content: "Jesteś zwięzłym analitykiem kosztów restauracji. Odpowiadasz TYLKO w formacie JSON: {\"insights\": [...]}",
+        content: "Jesteś zwięzłym analitykiem kosztów restauracji. Odpowiadasz TYLKO surowym JSON-em (tablica obiektów). Żadnego tekstu przed ani po JSON.",
       },
       { role: "user", content: prompt },
     ],
   });
 
-  const text = resp.choices[0]?.message?.content ?? "{}";
-  logger?.info({ aiResponseLen: text.length, aiResponsePreview: text.slice(0, 200) }, "AI CFO raw response");
+  const text = (resp.choices[0]?.message?.content ?? "").trim();
+  logger?.info({ aiResponseLen: text.length, aiResponsePreview: text.slice(0, 300) }, "AI CFO raw response");
+
+  if (!text) {
+    logger?.warn("AI CFO returned empty response");
+    return [];
+  }
 
   try {
-    // Try json_object wrapper first: {"insights": [...]}
     let raw: Array<Record<string, unknown>> = [];
-    const parsed = JSON.parse(text) as Record<string, unknown>;
+
+    // Strip markdown code fences if present
+    const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+
+    const parsed: unknown = JSON.parse(cleaned);
     if (Array.isArray(parsed)) {
-      raw = parsed;
-    } else if (Array.isArray(parsed["insights"])) {
-      raw = parsed["insights"] as Array<Record<string, unknown>>;
-    } else {
-      // Fallback: find any JSON array in the text
-      const match = text.match(/\[[\s\S]*\]/);
-      if (match) raw = JSON.parse(match[0]) as Array<Record<string, unknown>>;
+      raw = parsed as Array<Record<string, unknown>>;
+    } else if (parsed && typeof parsed === "object") {
+      // Wrapped: {"insights": [...]} or similar
+      const obj = parsed as Record<string, unknown>;
+      const arr = obj["insights"] ?? obj["data"] ?? obj["results"] ?? Object.values(obj)[0];
+      if (Array.isArray(arr)) raw = arr as Array<Record<string, unknown>>;
     }
 
     logger?.info({ count: raw.length }, "AI CFO parsed insights count");

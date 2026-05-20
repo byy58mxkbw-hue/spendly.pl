@@ -155,16 +155,31 @@ export function AiCfoPage() {
   const { mutateAsync: dismiss } = usePostInsightsIdDismiss();
   const { mutateAsync: markRead } = usePostInsightsIdRead();
   const [generating, setGenerating] = useState(false);
+  const pollRef = useState<ReturnType<typeof setInterval> | null>(null)[1];
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
     try {
+      // Backend responds immediately with 202 — AI runs in background
       await generate({ data: {} });
-      await qc.invalidateQueries({ queryKey });
-    } finally {
-      setGenerating(false);
+    } catch {
+      // ignore — backend always returns 202
     }
-  }, [generate, qc, queryKey]);
+
+    // Poll every 3s until new insights appear (up to 90s)
+    const prevCount = (insights as Insight[]).length;
+    let attempts = 0;
+    const iv = setInterval(async () => {
+      attempts++;
+      await qc.invalidateQueries({ queryKey });
+      const fresh = qc.getQueryData<Insight[]>(queryKey);
+      if ((fresh?.length ?? 0) > prevCount || attempts >= 30) {
+        clearInterval(iv);
+        setGenerating(false);
+      }
+    }, 3000);
+    pollRef(iv);
+  }, [generate, qc, queryKey, insights, pollRef]);
 
   const handleDismiss = useCallback(
     async (id: number) => {

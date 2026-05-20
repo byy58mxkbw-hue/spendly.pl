@@ -17,15 +17,25 @@ router.get("/insights", async (req, res): Promise<void> => {
   res.json(rows);
 });
 
+// Track in-progress generation per user to avoid duplicate runs
+const generatingUsers = new Set<string>();
+
 router.post("/insights/generate", async (req, res): Promise<void> => {
   const userId = req.userId!;
-  try {
-    const count = await generateInsights(userId, req.log);
-    res.json({ generated: count });
-  } catch (err) {
-    req.log.error({ err: String(err) }, "AI CFO generation failed");
-    res.status(500).json({ error: "Nie udało się wygenerować insightów." });
+
+  if (generatingUsers.has(userId)) {
+    res.status(202).json({ status: "running" });
+    return;
   }
+
+  // Respond immediately so the browser doesn't time out
+  res.status(202).json({ status: "started" });
+
+  generatingUsers.add(userId);
+  generateInsights(userId, req.log)
+    .then((count) => req.log.info({ count }, "AI CFO generation complete"))
+    .catch((err: unknown) => req.log.error({ err: String(err) }, "AI CFO generation failed"))
+    .finally(() => generatingUsers.delete(userId));
 });
 
 router.post("/insights/:id/read", async (req, res): Promise<void> => {
