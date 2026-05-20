@@ -171,22 +171,36 @@ Przykłady:
 async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
   const resp = await openai.chat.completions.create({
     model: "gpt-5-mini",
-    max_completion_tokens: 2000,
+    max_tokens: 2000,
+    response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
-        content: "Jesteś zwięzłym analitykiem kosztów restauracji. Odpowiadasz TYLKO w JSON.",
+        content: "Jesteś zwięzłym analitykiem kosztów restauracji. Odpowiadasz TYLKO w formacie JSON: {\"insights\": [...]}",
       },
       { role: "user", content: prompt },
     ],
   });
 
-  const text = resp.choices[0]?.message?.content ?? "[]";
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) return [];
+  const text = resp.choices[0]?.message?.content ?? "{}";
+  logger?.info({ aiResponseLen: text.length, aiResponsePreview: text.slice(0, 200) }, "AI CFO raw response");
 
   try {
-    const raw = JSON.parse(jsonMatch[0]) as Array<Record<string, unknown>>;
+    // Try json_object wrapper first: {"insights": [...]}
+    let raw: Array<Record<string, unknown>> = [];
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    if (Array.isArray(parsed)) {
+      raw = parsed;
+    } else if (Array.isArray(parsed["insights"])) {
+      raw = parsed["insights"] as Array<Record<string, unknown>>;
+    } else {
+      // Fallback: find any JSON array in the text
+      const match = text.match(/\[[\s\S]*\]/);
+      if (match) raw = JSON.parse(match[0]) as Array<Record<string, unknown>>;
+    }
+
+    logger?.info({ count: raw.length }, "AI CFO parsed insights count");
+
     return raw
       .filter((r) => r.title && r.body)
       .map((r) => ({
@@ -200,7 +214,7 @@ async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
         metadata: { productName: r.productName ?? null, supplierName: r.supplierName ?? null },
       }));
   } catch (e) {
-    logger?.warn({ err: String(e) }, "AI CFO JSON parse failed");
+    logger?.warn({ err: String(e), rawText: text.slice(0, 500) }, "AI CFO JSON parse failed");
     return [];
   }
 }
