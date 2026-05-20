@@ -131,58 +131,50 @@ function buildProductTrends(data: PriceDataRow[]): ProductTrend[] {
 }
 
 function buildPrompt(trends: ProductTrend[]): string {
-  const spikes = trends.filter((t) => t.changePercent > 5).slice(0, 10);
-  const drops = trends.filter((t) => t.changePercent < -5).slice(0, 5);
-  const recordHighs = trends.filter((t) => t.currentPrice >= t.maxPrice90d * 0.99 && t.changePercent > 0).slice(0, 5);
-  const weeklyTrends = trends.filter((t) => t.consecutiveWeeksUp >= 2).slice(0, 5);
+  const spikes = trends.filter((t) => t.changePercent > 5).slice(0, 8);
+  const drops = trends.filter((t) => t.changePercent < -5).slice(0, 4);
+  const recordHighs = trends.filter((t) => t.currentPrice >= t.maxPrice90d * 0.99 && t.changePercent > 0).slice(0, 4);
 
   const fmt = (t: ProductTrend) =>
-    `- ${t.productName} (${t.supplierName}): ${t.previousPrice.toFixed(2)} PLN → ${t.currentPrice.toFixed(2)} PLN (${t.changePercent > 0 ? "+" : ""}${t.changePercent.toFixed(1)}%), max90d=${t.maxPrice90d.toFixed(2)} PLN, tygodnie wzrostu z rzędu=${t.consecutiveWeeksUp}`;
+    `${t.productName} | ${t.supplierName} | ${t.previousPrice.toFixed(2)}->${t.currentPrice.toFixed(2)} PLN (${t.changePercent > 0 ? "+" : ""}${t.changePercent.toFixed(1)}%)`;
 
-  return `Jesteś analitykiem kosztów dla restauracji. Przeanalizuj poniższe dane cenowe z faktur i wygeneruj insighty biznesowe w języku polskim.
+  const lines: string[] = [];
+  if (spikes.length) lines.push("PODWYZKI:\n" + spikes.map(fmt).join("\n"));
+  if (drops.length) lines.push("OBNIZKI:\n" + drops.map(fmt).join("\n"));
+  if (recordHighs.length) lines.push("REKORDY:\n" + recordHighs.map(fmt).join("\n"));
 
-PODWYŻKI (zmiana >5%):
-${spikes.map(fmt).join("\n") || "(brak)"}
+  return `Dane cenowe restauracji (90 dni):
+${lines.join("\n\n")}
 
-OBNIŻKI (zmiana <-5%):
-${drops.map(fmt).join("\n") || "(brak)"}
+Wygeneruj do 6 insightów biznesowych po polsku. Odpowiedz TYLKO jako JSON array (bez żadnego tekstu przed/po):
+[{"type":"price_spike","severity":"high","title":"Krótki nagłówek max 60 zn","body":"Kontekst z liczbami max 120 zn","riskScore":75,"productName":"nazwa","supplierName":"nazwa"}]
 
-REKORDY CENY (przy maksimum 90 dni):
-${recordHighs.map(fmt).join("\n") || "(brak)"}
-
-TYGODNIOWE TRENDY (≥2 tygodnie wzrostu z rzędu):
-${weeklyTrends.map(fmt).join("\n") || "(brak)"}
-
-Wygeneruj maksymalnie 8 zwięzłych insightów. Każdy insight to jeden KONKRETNY fakt/wniosek dla właściciela restauracji. Brak ogólnych rad. Skup się na faktach liczbowych.
-
-Odpowiedz WYŁĄCZNIE w formacie JSON — tablica obiektów, każdy z polami:
-- type: "price_spike" | "price_trend" | "supplier_pattern" | "cost_forecast" | "weekly_trend" | "record_high"
-- severity: "low" | "medium" | "high" | "critical"  
-- title: max 60 znaków, zwięzły nagłówek po polsku (np. "Wołowina +12% od ostatniej dostawy")
-- body: max 120 znaków, dodatkowy kontekst po polsku (np. "Dostawca: Meat Market. Poprzednia cena: 32,50 PLN, obecna: 36,40 PLN.")
-- riskScore: liczba 0-100 (100 = krytyczne ryzyko kosztów)
-- productName: nazwa produktu (string lub null)
-- supplierName: nazwa dostawcy (string lub null)
-
-Przykłady:
-[{"type":"price_spike","severity":"high","title":"Wołowina +12% od ostatniej dostawy","body":"Dostawca: Meat Market. Poprzednia: 32,50 PLN, obecna: 36,40 PLN.","riskScore":78,"productName":"Wołowina","supplierName":"Meat Market"}]`;
+severity: low/medium/high/critical. riskScore: 0-100. type: price_spike/price_trend/record_high/supplier_pattern.`;
 }
 
 async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
+  logger?.info({ promptLen: prompt.length }, "AI CFO calling model");
+
   const resp = await openai.chat.completions.create({
     model: "gpt-5-mini",
-    max_completion_tokens: 2000,
+    max_completion_tokens: 10000,
     messages: [
       {
-        role: "system",
-        content: "Jesteś zwięzłym analitykiem kosztów restauracji. Odpowiadasz TYLKO surowym JSON-em (tablica obiektów). Żadnego tekstu przed ani po JSON.",
+        role: "user",
+        content: prompt,
       },
-      { role: "user", content: prompt },
     ],
   });
 
-  const text = (resp.choices[0]?.message?.content ?? "").trim();
-  logger?.info({ aiResponseLen: text.length, aiResponsePreview: text.slice(0, 300) }, "AI CFO raw response");
+  const choice = resp.choices[0];
+  const text = (choice?.message?.content ?? "").trim();
+  logger?.info({
+    finishReason: choice?.finish_reason,
+    aiResponseLen: text.length,
+    aiResponsePreview: text.slice(0, 300),
+    usageTotal: resp.usage?.total_tokens,
+    usageReasoning: (resp.usage as Record<string, unknown>)?.completion_tokens_details,
+  }, "AI CFO raw response");
 
   if (!text) {
     logger?.warn("AI CFO returned empty response");
