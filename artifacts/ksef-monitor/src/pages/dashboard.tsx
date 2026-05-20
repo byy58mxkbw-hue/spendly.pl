@@ -244,7 +244,7 @@ export default function Dashboard() {
                   : `${pendingCount} faktury wymagają przeglądu`}
               </p>
             </div>
-            <Link href="/pending">
+            <Link href="/pending-invoices">
               <Button size="sm" variant="outline" className="border-amber-300 bg-white text-amber-800 hover:bg-amber-100 hover:border-amber-400 shrink-0">
                 Przejdź do przeglądu
               </Button>
