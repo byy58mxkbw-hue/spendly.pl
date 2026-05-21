@@ -53,7 +53,7 @@ function StatCard({
   return (
     <div className="bg-card border border-border rounded-xl p-6" data-testid="stat-card">
       <div className="flex items-start justify-between mb-4">
-        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mr-[0px]">
           <Icon className="w-5 h-5" />
         </div>
         {change != null && (
@@ -70,8 +70,8 @@ function StatCard({
           </div>
         )}
       </div>
-      <p className="text-2xl font-bold text-foreground mb-1">{value}</p>
-      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="text-2xl font-bold text-foreground mb-1 text-center">{value}</p>
+      <p className="text-sm text-muted-foreground text-center">{label}</p>
     </div>
   );
 }
@@ -269,8 +269,8 @@ export default function Dashboard() {
               <Inbox className="w-4 h-4 shrink-0 text-amber-600" />
               <p className="text-sm font-medium text-amber-800">
                 {pendingCount === 1
-                  ? "1 faktura wymaga przeglądu"
-                  : `${pendingCount} faktury wymagają przeglądu`}
+                  ? "1 FAKTURA DO PRZEGLĄDU"
+                  : `${pendingCount} FAKTUR DO PRZEGLĄDU`}
               </p>
             </div>
             <Link href="/pending-invoices">
@@ -438,7 +438,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Monthly food cost chart */}
           <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6">
-            <h2 className="font-semibold text-foreground mb-1">Food Cost miesięcznie</h2>
+            <h2 className="font-semibold text-foreground mb-1">MIESIĘCZNE WYDATKI</h2>
             <p className="text-sm text-muted-foreground mb-6">Łączne wydatki na surowce (zł)</p>
             {monthlyLoading ? (
               <Skeleton className="h-48 w-full rounded-lg" />
@@ -663,7 +663,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
       {selectedProduct && (
         <PriceHistoryModal
           productId={selectedProduct.id}

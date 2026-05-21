@@ -164,7 +164,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           alertCount={alertCount}
         />
       </aside>
-
       {/* Mobile top bar */}
       <header
         className="md:hidden fixed top-0 inset-x-0 z-40 bg-card/95 backdrop-blur border-b border-border"
@@ -188,7 +187,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-50">
@@ -223,7 +221,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </aside>
         </div>
       )}
-
       {/* Main content */}
       <main
         className="flex-1 min-w-0 overflow-y-auto pt-14 md:pt-0 pb-16 md:pb-0"
@@ -231,7 +228,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
-
       {/* Mobile bottom navigation */}
       <nav
         className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur border-t border-border"
@@ -259,7 +255,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </span>
                   )}
                 </div>
-                <span className="truncate max-w-[56px] text-center leading-tight">
+                <span className="truncate max-w-[56px] text-center leading-tight font-bold">
                   {label === "Do przeglądu" ? "Przegląd" : label}
                 </span>
               </Link>
