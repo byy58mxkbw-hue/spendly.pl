@@ -827,7 +827,49 @@ export default function Products() {
         {categorySpend.length > 0 && (
           <div className="mb-6">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Wydatki według kategorii</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {/* Mobile: horizontal scroll strip */}
+            <div className="md:hidden flex gap-3 overflow-x-auto scrollbar-none pb-1 -mx-4 px-4">
+              {categorySpend.map((cat) => (
+                <button
+                  key={cat.id}
+                  className={cn(
+                    "text-left rounded-xl border p-3 transition-colors group shrink-0 w-32",
+                    categoryFilter === cat.id
+                      ? "border-primary/50 bg-primary/5"
+                      : "border-border bg-card active:bg-secondary/40"
+                  )}
+                  onClick={() => setCategoryFilter(categoryFilter === cat.id ? "all" : cat.id)}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-base leading-none">{cat.emoji}</span>
+                    <span className={cn(
+                      "text-[11px] font-semibold tabular-nums",
+                      categoryFilter === cat.id ? "text-primary" : "text-muted-foreground"
+                    )}>
+                      {cat.pct.toFixed(0)}%
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-tight mb-1 truncate">{cat.label}</p>
+                  <p className={cn(
+                    "text-sm font-bold tabular-nums leading-tight",
+                    categoryFilter === cat.id ? "text-primary" : "text-foreground"
+                  )}>
+                    {formatPrice(cat.spend)}
+                  </p>
+                  <div className="mt-2 h-1 rounded-full bg-border overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        categoryFilter === cat.id ? "bg-primary" : "bg-primary/40"
+                      )}
+                      style={{ width: `${Math.max(cat.pct, 2)}%` }}
+                    />
+                  </div>
+                </button>
+              ))}
+            </div>
+            {/* Desktop: grid */}
+            <div className="hidden md:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {categorySpend.map((cat) => (
                 <button
                   key={cat.id}
@@ -853,7 +895,6 @@ export default function Products() {
                   )}>
                     {formatPrice(cat.spend)}
                   </p>
-                  {/* Spend bar */}
                   <div className="mt-2.5 h-1 rounded-full bg-border overflow-hidden">
                     <div
                       className={cn(
@@ -869,73 +910,88 @@ export default function Products() {
           </div>
         )}
 
-        <div className="mb-6 flex gap-2 items-center flex-wrap">
-          <div className="relative flex-1 min-w-44">
+        {/* Filter bar — mobile: stacked rows; desktop: single flex row */}
+        <div className="mb-4 space-y-2 md:space-y-0 md:flex md:gap-2 md:items-center md:flex-wrap">
+          {/* Row 1 (mobile) / always visible: search */}
+          <div className="relative flex-1 min-w-0 md:min-w-44">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Szukaj produktu..."
-              className="pl-9"
+              className="pl-9 w-full"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               data-testid="input-search-products"
             />
           </div>
 
-          <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-            <SelectTrigger className="w-44 sm:w-52" data-testid="select-filter-supplier">
-              <Building2 className="w-3.5 h-3.5 text-muted-foreground mr-1" />
-              <SelectValue placeholder="Wszyscy dostawcy" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszyscy dostawcy</SelectItem>
-              {suppliers?.map((s) => (
-                <SelectItem key={s.id} value={s.name}>
-                  {s.name}
+          {/* Row 2 (mobile): dropdowns + compare button */}
+          <div className="flex gap-2 items-center">
+            <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+              <SelectTrigger className="flex-1 min-w-0 md:w-44 md:flex-none" data-testid="select-filter-supplier">
+                <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0 mr-1" />
+                <SelectValue placeholder="Dostawca" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Wszyscy dostawcy</SelectItem>
+                {suppliers?.map((s) => (
+                  <SelectItem key={s.id} value={s.name}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+              <SelectTrigger className="flex-1 min-w-0 md:w-44 md:flex-none" data-testid="select-sort-products">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name-asc">
+                  <span className="flex items-center gap-2"><ArrowDownAZ className="w-3.5 h-3.5" />Nazwa A–Z</span>
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                <SelectItem value="name-desc">
+                  <span className="flex items-center gap-2"><ArrowUpZA className="w-3.5 h-3.5" />Nazwa Z–A</span>
+                </SelectItem>
+                <SelectItem value="price-desc">
+                  <span className="flex items-center gap-2"><PriceIcon className="w-3.5 h-3.5" />Największa cena</span>
+                </SelectItem>
+                <SelectItem value="price-asc">
+                  <span className="flex items-center gap-2"><TrendingDown className="w-3.5 h-3.5" />Najniższa cena</span>
+                </SelectItem>
+                <SelectItem value="change-desc">
+                  <span className="flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5" />Największa zmiana %</span>
+                </SelectItem>
+                <SelectItem value="supplier-asc">
+                  <span className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5" />Dostawca A–Z</span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-            <SelectTrigger className="w-40 sm:w-48" data-testid="select-sort-products">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name-asc">
-                <span className="flex items-center gap-2"><ArrowDownAZ className="w-3.5 h-3.5" />Nazwa A–Z</span>
-              </SelectItem>
-              <SelectItem value="name-desc">
-                <span className="flex items-center gap-2"><ArrowUpZA className="w-3.5 h-3.5" />Nazwa Z–A</span>
-              </SelectItem>
-              <SelectItem value="price-desc">
-                <span className="flex items-center gap-2"><PriceIcon className="w-3.5 h-3.5" />Największa cena</span>
-              </SelectItem>
-              <SelectItem value="price-asc">
-                <span className="flex items-center gap-2"><TrendingDown className="w-3.5 h-3.5" />Najniższa cena</span>
-              </SelectItem>
-              <SelectItem value="change-desc">
-                <span className="flex items-center gap-2"><TrendingUp className="w-3.5 h-3.5" />Największa zmiana %</span>
-              </SelectItem>
-              <SelectItem value="supplier-asc">
-                <span className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5" />Dostawca A–Z</span>
-              </SelectItem>
-            </SelectContent>
-          </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50 md:hidden"
+              onClick={() => setShowKeywordComparison(true)}
+              title="Porównaj po frazie"
+            >
+              <Layers className="w-4 h-4" />
+            </Button>
+          </div>
 
+          {/* Desktop only: clear + compare */}
           {(supplierFilter !== "all" || search || categoryFilter !== "all") && (
             <button
-              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              className="hidden md:inline text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
               onClick={() => { setSupplierFilter("all"); setSearch(""); setCategoryFilter("all"); }}
             >
               Wyczyść filtry
             </button>
           )}
-
           <Button
             variant="outline"
             size="sm"
-            className="ml-auto gap-1.5 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50"
+            className="hidden md:flex ml-auto gap-1.5 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50"
             onClick={() => setShowKeywordComparison(true)}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -943,12 +999,25 @@ export default function Products() {
           </Button>
         </div>
 
+        {/* Mobile: active filters strip + clear */}
+        {(supplierFilter !== "all" || search || categoryFilter !== "all") && (
+          <div className="md:hidden flex items-center gap-2 mb-3">
+            <span className="text-xs text-muted-foreground">Aktywne filtry</span>
+            <button
+              className="text-xs text-primary underline underline-offset-2"
+              onClick={() => { setSupplierFilter("all"); setSearch(""); setCategoryFilter("all"); }}
+            >
+              Wyczyść
+            </button>
+          </div>
+        )}
+
         {/* Category filter pills — only shown when at least 2 categories exist */}
         {availableCategories.length >= 2 && (
-          <div className="mb-4 flex gap-2 flex-wrap">
+          <div className="mb-4 flex gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap pb-1 md:pb-0">
             <button
               className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors shrink-0",
                 categoryFilter === "all"
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
@@ -967,7 +1036,7 @@ export default function Products() {
               <button
                 key={cat.id}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors shrink-0",
                   categoryFilter === cat.id
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
@@ -992,14 +1061,15 @@ export default function Products() {
           {isLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 7 }).map((_, i) => (
-                <div key={i} className="px-4 py-3.5 flex items-center gap-3">
+                <div key={i} className="px-4 py-4 flex items-center gap-3">
+                  <Skeleton className="w-8 h-8 rounded-lg shrink-0" />
                   <div className="flex-1 space-y-1.5">
                     <Skeleton className="h-4 w-2/3" />
                     <Skeleton className="h-3 w-1/2" />
                   </div>
-                  <div className="space-y-1 text-right">
+                  <div className="space-y-1.5 text-right shrink-0">
                     <Skeleton className="h-4 w-20 ml-auto" />
-                    <Skeleton className="h-4 w-12 ml-auto" />
+                    <Skeleton className="h-3.5 w-12 ml-auto" />
                   </div>
                 </div>
               ))}
@@ -1010,41 +1080,86 @@ export default function Products() {
             </div>
           ) : filtered && filtered.length > 0 ? (
             <div className="divide-y divide-border">
-              {filtered.map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/40 cursor-pointer"
-                  onClick={() => openHistory(product.id, product.name)}
-                  data-testid={`product-row-${product.id}`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {product.supplierName ?? "Brak dostawcy"} · {product.unit}
-                    </p>
+              {filtered.map((product) => {
+                const hasMultipleSuppliers = (product.supplierCount ?? 1) > 1;
+                const effectiveCatId = product.category ?? categorizeProduct(product.name);
+                const catDef = CATEGORIES.find((c) => c.id === effectiveCatId);
+
+                return (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-3 px-4 py-4 active:bg-secondary/40 cursor-pointer"
+                    onClick={() => openHistory(product.id, product.name)}
+                    data-testid={`product-row-${product.id}`}
+                  >
+                    {/* Category icon */}
+                    <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-base shrink-0 select-none">
+                      {catDef ? catDef.emoji : "📦"}
+                    </div>
+
+                    {/* Name + meta */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground leading-snug truncate">{product.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <p className="text-xs text-muted-foreground truncate max-w-[140px]">
+                          {product.supplierName ?? "Brak dostawcy"}
+                        </p>
+                        <span className="text-xs text-muted-foreground">·</span>
+                        <p className="text-xs text-muted-foreground shrink-0">{product.unit}</p>
+                        {hasMultipleSuppliers && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
+                            <GitCompare className="w-2.5 h-2.5" />
+                            {product.supplierCount}
+                          </span>
+                        )}
+                      </div>
+                      {product.lastPurchaseDate && (
+                        <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                          {formatDate(product.lastPurchaseDate)}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Price + change + compare action */}
+                    <div className="shrink-0 flex flex-col items-end gap-1">
+                      <p className="text-sm font-bold text-foreground tabular-nums">
+                        {product.latestPrice != null ? formatPrice(product.latestPrice) : "—"}
+                      </p>
+                      <PriceChangeBadge change={product.priceChangePercent} />
+                      {hasMultipleSuppliers && (
+                        <button
+                          className="mt-0.5 text-[11px] font-medium text-primary flex items-center gap-0.5 active:opacity-70"
+                          onClick={(e) => openComparison(product.id, product.name, e)}
+                        >
+                          <GitCompare className="w-3 h-3" />
+                          Porównaj
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold text-foreground">
-                      {product.latestPrice != null ? formatPrice(product.latestPrice) : "—"}
-                    </p>
-                    <PriceChangeBadge change={product.priceChangePercent} />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="py-12 text-center px-4">
               <Package className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">
-                {search || supplierFilter !== "all"
+                {search || supplierFilter !== "all" || categoryFilter !== "all"
                   ? "Nie znaleziono produktów pasujących do filtrów."
                   : "Brak produktów. Zaimportuj faktury, aby zobaczyć produkty."}
               </p>
             </div>
           )}
           {!isLoading && filtered && filtered.length > 0 && (
-            <div className="px-4 py-3 border-t border-border bg-secondary/20">
+            <div className="px-4 py-3 border-t border-border bg-secondary/20 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">{filtered.length} produktów</p>
+              <button
+                className="text-xs font-medium text-primary flex items-center gap-1 active:opacity-70"
+                onClick={() => setShowKeywordComparison(true)}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                Porównaj po frazie
+              </button>
             </div>
           )}
         </div>
