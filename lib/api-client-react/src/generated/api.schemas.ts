@@ -64,6 +64,8 @@ export interface Product {
   /** @nullable */
   lastPurchaseDate?: string | null;
   supplierCount?: number;
+  /** @nullable */
+  totalQuantity?: number | null;
 }
 
 export interface CreateProductBody {

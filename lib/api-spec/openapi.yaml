@@ -953,6 +953,8 @@ components:
           type: ["string", "null"]
         supplierCount:
           type: integer
+        totalQuantity:
+          type: ["number", "null"]
       required:
         - id
         - name

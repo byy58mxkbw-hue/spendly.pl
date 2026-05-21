@@ -11,7 +11,7 @@ import {
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
 } from "@workspace/api-client-react";
-import { usePeriod, periodToDays } from "@/hooks/use-period";
+import { usePeriod, periodToDays, PERIOD_LABELS } from "@/hooks/use-period";
 import { PeriodSelector } from "@/components/period-selector";
 import { CATEGORIES, categorizeProduct } from "@/lib/categories";
 import {
@@ -78,6 +78,7 @@ type ProductItem = {
   lastPurchaseDate?: string | null;
   priceChangePercent?: number | null;
   supplierCount?: number;
+  totalQuantity?: number | null;
 };
 
 function normalize(name: string) {
@@ -1113,11 +1114,21 @@ export default function Products() {
                           </span>
                         )}
                       </div>
-                      {product.lastPurchaseDate && (
-                        <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-                          {formatDate(product.lastPurchaseDate)}
-                        </p>
-                      )}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {product.lastPurchaseDate && (
+                          <p className="text-[11px] text-muted-foreground/70">
+                            {formatDate(product.lastPurchaseDate)}
+                          </p>
+                        )}
+                        {product.totalQuantity != null && product.totalQuantity > 0 && (
+                          <>
+                            {product.lastPurchaseDate && <span className="text-[11px] text-muted-foreground/50">·</span>}
+                            <p className="text-[11px] text-muted-foreground/70">
+                              {new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(product.totalQuantity)}{" "}{product.unit}
+                            </p>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     {/* Price + change + compare action */}
@@ -1166,11 +1177,15 @@ export default function Products() {
 
         {/* Desktop table */}
         <div className="hidden md:block bg-card border border-border rounded-xl overflow-x-auto">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[760px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[860px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30">
             <div>Produkt</div>
             <div className="text-right w-28">Ostatnia cena</div>
             <div className="text-right w-28">Poprzednia</div>
             <div className="text-right w-24">Zmiana</div>
+            <div className="text-right w-28">
+              <div>Ilość</div>
+              <div className="text-[10px] font-normal text-muted-foreground/70">{PERIOD_LABELS[period]}</div>
+            </div>
             <div className="text-right w-32">Ostatni zakup</div>
             <div className="w-24" />
           </div>
@@ -1178,11 +1193,12 @@ export default function Products() {
           {isLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[760px] py-4">
+                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[860px] py-4">
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-20" />
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-20" />
                 </div>
@@ -1199,7 +1215,7 @@ export default function Products() {
                 return (
                   <div
                     key={product.id}
-                    className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[760px] py-4 hover:bg-secondary/40 transition-colors items-center cursor-pointer"
+                    className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[860px] py-4 hover:bg-secondary/40 transition-colors items-center cursor-pointer"
                     onClick={() => openHistory(product.id, product.name)}
                     data-testid={`product-row-${product.id}`}
                   >
@@ -1234,6 +1250,18 @@ export default function Products() {
                     </div>
                     <div className="text-right w-24">
                       <PriceChangeBadge change={product.priceChangePercent} />
+                    </div>
+                    <div className="text-right w-28">
+                      {product.totalQuantity != null && product.totalQuantity > 0 ? (
+                        <>
+                          <p className="text-sm font-semibold text-foreground tabular-nums">
+                            {new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(product.totalQuantity)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{product.unit}</p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">—</p>
+                      )}
                     </div>
                     <div className="text-right w-32">
                       <p className="text-xs text-muted-foreground">{formatDate(product.lastPurchaseDate)}</p>

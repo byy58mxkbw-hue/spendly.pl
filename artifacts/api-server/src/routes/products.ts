@@ -67,6 +67,20 @@ router.get("/products", async (req, res): Promise<void> => {
         .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
         .where(and(eq(invoiceItemsTable.productId, product.id), eq(invoicesTable.userId, userId)));
 
+      const quantityResult = await db
+        .select({ total: sql<string>`sum(${invoiceItemsTable.quantity})` })
+        .from(invoiceItemsTable)
+        .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
+        .where(
+          and(
+            eq(invoiceItemsTable.productId, product.id),
+            eq(invoicesTable.userId, userId),
+            days
+              ? sql`${invoicesTable.invoiceDate} >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')`
+              : undefined,
+          ),
+        );
+
       const latest = priceHistory[0];
       const previous = priceHistory[1];
       const latestPrice = latest ? toNum(latest.unitPrice) : null;
@@ -85,6 +99,7 @@ router.get("/products", async (req, res): Promise<void> => {
         supplierName: latest?.supplierName ?? null,
         lastPurchaseDate: latest?.invoiceDate ?? null,
         supplierCount: toNum(supplierCountResult[0]?.cnt ?? 0),
+        totalQuantity: toNum(quantityResult[0]?.total ?? null),
       };
     }),
   );

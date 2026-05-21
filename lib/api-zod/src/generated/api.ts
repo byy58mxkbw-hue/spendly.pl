@@ -178,6 +178,7 @@ export const ListProductsResponseItem = zod.object({
   supplierName: zod.string().nullish(),
   lastPurchaseDate: zod.string().nullish(),
   supplierCount: zod.number().optional(),
+  totalQuantity: zod.number().nullish(),
 });
 export const ListProductsResponse = zod.array(ListProductsResponseItem);
 
