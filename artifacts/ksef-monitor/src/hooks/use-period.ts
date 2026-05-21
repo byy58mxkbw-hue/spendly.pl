@@ -23,9 +23,19 @@ export function usePeriod() {
 }
 
 export function periodToDays(period: Period): number {
-  if (period === "month") return 30;
-  if (period === "quarter") return 90;
-  return 365;
+  const now = new Date();
+  if (period === "month") {
+    // Days elapsed since the 1st of the current calendar month
+    return now.getDate() - 1;
+  }
+  if (period === "quarter") {
+    // Start of the month 2 months before the current one (e.g. May → March 1)
+    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    return Math.round((now.getTime() - start.getTime()) / 86_400_000);
+  }
+  // year: January 1 of the current year
+  const start = new Date(now.getFullYear(), 0, 1);
+  return Math.round((now.getTime() - start.getTime()) / 86_400_000);
 }
 
 export function periodToMonths(period: Period): number {
