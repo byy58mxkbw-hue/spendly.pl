@@ -1,4 +1,4 @@
-# CennikPro
+# CheckIT
 
 Aplikacja SaaS dla restauracji do monitorowania cen surowców z faktur KSeF. Właściciel restauracji importuje faktury od swoich dostawców, śledzi zmiany cen składników i reaguje na podwyżki zanim uderzą w food cost.
 
@@ -57,7 +57,7 @@ Aplikacja SaaS dla restauracji do monitorowania cen surowców z faktur KSeF. Wł
 - Prices formatted: `new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(price)`
 - Dates formatted: `new Date(date).toLocaleDateString('pl-PL')`
 - Design style: clean, minimal, lots of whitespace — inspired by cheff.it
-- Primary accent color: teal `hsl(173, 80%, 40%)`
+- Primary accent color: indigo `hsl(243, 75%, 58%)`
 - No emojis in UI
 
 ## Gotchas

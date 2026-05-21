@@ -45,7 +45,7 @@ function SidebarContent({
     <>
       <div className="px-5 py-5 border-b border-border">
         <div className="flex items-center gap-2.5">
-          <img src="/logo.svg" alt="CennikPro" className="w-8 h-8 rounded-lg" />
+          <img src="/logo.svg" alt="CheckIT" className="w-8 h-8 rounded-lg" />
           <span className="text-foreground text-lg tracking-tight font-extrabold">CheckIT</span>
         </div>
       </div>
@@ -153,7 +153,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Menu className="w-6 h-6" />
           </button>
           <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo.svg" alt="CennikPro" className="w-7 h-7 rounded-lg shrink-0" />
+            <img src="/logo.svg" alt="CheckIT" className="w-7 h-7 rounded-lg shrink-0" />
             <span className="text-base font-extrabold tracking-tight text-foreground truncate">
               {activeItem?.label ?? "CheckIT"}
             </span>
