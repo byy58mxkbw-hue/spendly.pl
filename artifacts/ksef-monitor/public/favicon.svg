@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none">
-  <rect width="180" height="180" rx="34" fill="#4F46E5"/>
+  <rect width="180" height="180" rx="34" fill="#14B8A6"/>
   <rect x="52" y="38" width="76" height="93" rx="5" fill="white"/>
   <path d="M52 124 Q58 131 64 124 Q70 117 76 124 Q82 131 88 124 Q94 117 100 124 Q106 131 112 124 Q118 117 124 124 Q130 131 128 131 L128 131 Q122 138 116 131 Q110 124 104 131 Q98 138 92 131 Q86 124 80 131 Q74 138 68 131 Q62 124 56 131 Q52 131 52 131 Z" fill="white"/>
-  <rect x="64" y="56" width="34" height="5" rx="2.5" fill="#4F46E5" opacity="0.25"/>
-  <rect x="64" y="68" width="52" height="4" rx="2" fill="#4F46E5" opacity="0.18"/>
-  <rect x="64" y="80" width="44" height="4" rx="2" fill="#4F46E5" opacity="0.18"/>
-  <rect x="64" y="92" width="48" height="4" rx="2" fill="#4F46E5" opacity="0.18"/>
-  <circle cx="117" cy="120" r="25" fill="#4F46E5"/>
-  <circle cx="117" cy="120" r="21" fill="#3730A3"/>
+  <rect x="64" y="56" width="34" height="5" rx="2.5" fill="#14B8A6" opacity="0.25"/>
+  <rect x="64" y="68" width="52" height="4" rx="2" fill="#14B8A6" opacity="0.18"/>
+  <rect x="64" y="80" width="44" height="4" rx="2" fill="#14B8A6" opacity="0.18"/>
+  <rect x="64" y="92" width="48" height="4" rx="2" fill="#14B8A6" opacity="0.18"/>
+  <circle cx="117" cy="120" r="25" fill="#14B8A6"/>
+  <circle cx="117" cy="120" r="21" fill="#0D9488"/>
   <path d="M105 120 L113 128 L130 109" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
