@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import {
   ChevronLeft, ChevronRight, ShoppingCart, FileText, Package, TrendingUp, ChevronDown, ChevronUp,
+  ArrowUp, ArrowDown,
 } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,35 @@ const COLORS = [
   "hsl(280, 55%, 55%)",
 ];
 
+// ─── Price change mini badge ──────────────────────────────────────────────────
+
+function PriceChangeMini({
+  current,
+  prev,
+}: {
+  current: number;
+  prev: number | null | undefined;
+}) {
+  if (prev == null || prev <= 0) return null;
+  const pct = ((current - prev) / prev) * 100;
+  if (Math.abs(pct) < 0.05) return null;
+
+  const up = pct > 0;
+  const Icon = up ? ArrowUp : ArrowDown;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 text-[10px] font-medium leading-none",
+        up ? "text-red-500" : "text-emerald-600",
+      )}
+      title={`Poprzedni miesiąc: ${formatPrice(prev)}`}
+    >
+      <Icon className="w-2.5 h-2.5" />
+      {Math.abs(pct).toFixed(1)}%
+    </span>
+  );
+}
+
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, icon: Icon }: { label: string; value: string; sub?: string; icon: React.ElementType }) {
@@ -71,7 +101,14 @@ function SupplierCard({ supplier, rank }: {
     totalSpend: number;
     invoiceCount: number;
     productCount: number;
-    topProducts: Array<{ productName: string; unit: string; totalQuantity: number; avgPrice: number; totalCost: number }>;
+    topProducts: Array<{
+      productName: string;
+      unit: string;
+      totalQuantity: number;
+      avgPrice: number;
+      totalCost: number;
+      prevMonthAvgPrice?: number | null;
+    }>;
   };
   rank: number;
 }) {
@@ -109,10 +146,16 @@ function SupplierCard({ supplier, rank }: {
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-foreground truncate">{p.productName}</p>
                 <p className="text-xs text-muted-foreground">
-                  {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit} · śr. {formatPrice(p.avgPrice)}/{p.unit}
+                  {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
                 </p>
               </div>
-              <p className="text-sm font-semibold text-foreground shrink-0">{formatPrice(p.totalCost)}</p>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-semibold text-foreground">{formatPrice(p.totalCost)}</p>
+                <div className="flex items-center justify-end gap-1 mt-0.5">
+                  <span className="text-[11px] text-muted-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
+                  <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -133,7 +176,7 @@ function SupplierCard({ supplier, rank }: {
         <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-6 min-w-[560px] py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
           <div>Produkt</div>
           <div className="text-right w-20">Ilość</div>
-          <div className="text-right w-28">Śr. cena</div>
+          <div className="text-right w-36">Śr. cena</div>
           <div className="text-right w-28">Łącznie</div>
         </div>
         <div className="divide-y divide-border">
@@ -143,7 +186,10 @@ function SupplierCard({ supplier, rank }: {
               <p className="text-sm text-muted-foreground text-right w-20">
                 {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
               </p>
-              <p className="text-sm text-foreground text-right w-28">{formatPrice(p.avgPrice)}/{p.unit}</p>
+              <div className="text-right w-36 flex flex-col items-end gap-0.5">
+                <span className="text-sm text-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
+                <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+              </div>
               <p className="text-sm font-semibold text-foreground text-right w-28">{formatPrice(p.totalCost)}</p>
             </div>
           ))}
@@ -172,6 +218,7 @@ type TopProduct = {
   avgPrice: number;
   totalCost: number;
   supplierName?: string | null;
+  prevMonthAvgPrice?: number | null;
 };
 
 function TopProductsSection({ products }: { products: TopProduct[] }) {
@@ -311,7 +358,10 @@ function TopProductsSection({ products }: { products: TopProduct[] }) {
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-bold text-foreground">{formatPrice(p.totalCost)}</p>
-                  <p className="text-[11px] text-muted-foreground">{formatPrice(p.avgPrice)}/{p.unit}</p>
+                  <div className="flex items-center justify-end gap-1 mt-0.5">
+                    <span className="text-[11px] text-muted-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
+                    <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                  </div>
                 </div>
               </div>
             ))}
@@ -319,22 +369,25 @@ function TopProductsSection({ products }: { products: TopProduct[] }) {
 
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto">
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 min-w-[680px] py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
+            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 min-w-[700px] py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
               <div>Produkt</div>
               <div className="text-right w-32">Dostawca</div>
               <div className="text-right w-20">Ilość</div>
-              <div className="text-right w-28">Śr. cena</div>
+              <div className="text-right w-36">Śr. cena</div>
               <div className="text-right w-28">Łącznie</div>
             </div>
             <div className="divide-y divide-border">
               {displayProducts.map((p, i) => (
-                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 min-w-[680px] py-3 items-center">
+                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 min-w-[700px] py-3 items-center">
                   <p className="text-sm font-medium text-foreground truncate pr-2">{p.productName}</p>
                   <p className="text-xs text-muted-foreground text-right w-32 truncate">{p.supplierName ?? "—"}</p>
                   <p className="text-sm text-muted-foreground text-right w-20">
                     {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
                   </p>
-                  <p className="text-sm text-foreground text-right w-28">{formatPrice(p.avgPrice)}/{p.unit}</p>
+                  <div className="text-right w-36 flex flex-col items-end gap-0.5">
+                    <span className="text-sm text-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
+                    <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                  </div>
                   <p className="text-sm font-bold text-foreground text-right w-28">{formatPrice(p.totalCost)}</p>
                 </div>
               ))}
@@ -400,7 +453,7 @@ export default function Reports() {
                   Wszystko razem
                 </button>
               </div>
-              {/* Month navigator — only when in month mode */}
+              {/* Month navigator */}
               {viewMode === "month" && (
                 <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-1 py-1 self-start sm:self-auto">
                   <Button variant="ghost" size="icon" className="w-8 h-8 shrink-0" onClick={() => setMonth(prevMonth(month))}>

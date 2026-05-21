@@ -244,6 +244,8 @@ export interface ReportProductRow {
   totalCost: number;
   /** @nullable */
   supplierName?: string | null;
+  /** @nullable */
+  prevMonthAvgPrice?: number | null;
 }
 
 export interface ReportSupplierRow {

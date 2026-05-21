@@ -5,6 +5,12 @@ import { sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+function calcPrevMonthPrefix(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 router.get("/reports/monthly", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const monthParam = req.query.month as string | undefined;
@@ -19,6 +25,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
   }
 
   const monthPrefix = isAllTime ? "" : `${month}-`;
+  const prevMonthPrefix = isAllTime ? "" : `${calcPrevMonthPrefix(month)}-`;
 
   const summaryResult = await db.execute(sql`
     SELECT
@@ -35,6 +42,29 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     product_count: number;
     total_spend: number;
   };
+
+  // Previous month avg prices: keyed by "productName|unit|supplierName"
+  type PrevRow = { product_name: string; unit: string; supplier_name: string; avg_price: number };
+  const prevMap = new Map<string, number>();
+  if (!isAllTime) {
+    const prevResult = await db.execute(sql`
+      SELECT
+        COALESCE(p.name, ii.product_name) AS product_name,
+        ii.unit,
+        s.name AS supplier_name,
+        AVG(ii.unit_price::numeric)::float AS avg_price
+      FROM invoice_items ii
+      INNER JOIN invoices i ON ii.invoice_id = i.id
+      LEFT JOIN products p ON ii.product_id = p.id
+      INNER JOIN suppliers s ON i.supplier_id = s.id
+      WHERE i.user_id = ${userId}
+        AND i.invoice_date LIKE ${prevMonthPrefix + "%"}
+      GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
+    `);
+    for (const r of prevResult.rows as PrevRow[]) {
+      prevMap.set(`${r.product_name}|${r.unit}|${r.supplier_name}`, r.avg_price);
+    }
+  }
 
   const topProductsResult = await db.execute(sql`
     SELECT
@@ -62,14 +92,18 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     avg_price: number;
     total_cost: number;
     supplier_name: string;
-  }>).map((r) => ({
-    productName: r.product_name ?? "Nieznany",
-    unit: r.unit,
-    totalQuantity: r.total_quantity,
-    avgPrice: r.avg_price,
-    totalCost: r.total_cost,
-    supplierName: r.supplier_name,
-  }));
+  }>).map((r) => {
+    const name = r.product_name ?? "Nieznany";
+    return {
+      productName: name,
+      unit: r.unit,
+      totalQuantity: r.total_quantity,
+      avgPrice: r.avg_price,
+      totalCost: r.total_cost,
+      supplierName: r.supplier_name,
+      prevMonthAvgPrice: prevMap.get(`${name}|${r.unit}|${r.supplier_name}`) ?? null,
+    };
+  });
 
   const supplierSummaryResult = await db.execute(sql`
     SELECT
@@ -132,6 +166,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
           avgPrice: r.avg_price,
           totalCost: r.total_cost,
           supplierName: s.supplier_name,
+          prevMonthAvgPrice: prevMap.get(`${r.product_name}|${r.unit}|${s.supplier_name}`) ?? null,
         })),
       };
     })
