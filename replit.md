@@ -57,7 +57,7 @@ Aplikacja SaaS dla restauracji do monitorowania cen surowców z faktur KSeF. Wł
 - Prices formatted: `new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(price)`
 - Dates formatted: `new Date(date).toLocaleDateString('pl-PL')`
 - Design style: clean, minimal, lots of whitespace — inspired by cheff.it
-- Primary accent color: indigo `hsl(243, 75%, 58%)`
+- Primary accent color: indigo `hsl(243, 75%, 58%)` = `#4F46E5`
 - No emojis in UI
 
 ## Gotchas
