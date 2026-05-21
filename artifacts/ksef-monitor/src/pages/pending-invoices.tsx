@@ -37,8 +37,76 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice, formatDate } from "@/lib/format";
-import { AlertTriangle, CheckCircle2, X, Inbox, ChevronDown, FileCode, Loader2, Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, X, Inbox, ChevronDown, FileCode, Loader2, Plus, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 10;
+
+function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (p: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  const pages: (number | "…")[] = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (page > 3) pages.push("…");
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+    if (page < totalPages - 2) pages.push("…");
+    pages.push(totalPages);
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1 px-4 py-3 border-t border-border bg-secondary/20">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        aria-label="Poprzednia strona"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+
+      {pages.map((p, i) =>
+        p === "…" ? (
+          <span key={`ellipsis-${i}`} className="w-8 text-center text-sm text-muted-foreground select-none">
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onChange(p)}
+            className={cn(
+              "w-8 h-8 rounded-md text-sm font-medium transition-colors",
+              p === page
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+            )}
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        aria-label="Następna strona"
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
 
 export default function PendingInvoices() {
   const queryClient = useQueryClient();
@@ -46,6 +114,16 @@ export default function PendingInvoices() {
   const [status, setStatus] = useState<"pending" | "accepted" | "rejected">("pending");
   const { data: pending, isLoading } = useListKsefPending({ status });
   const [openId, setOpenId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => { setPage(1); }, [status]);
+
+  const totalAmount = useMemo(
+    () => (pending ?? []).reduce((sum, r) => sum + (r.totalGross ?? 0), 0),
+    [pending]
+  );
+  const totalPages = Math.ceil((pending?.length ?? 0) / PAGE_SIZE);
+  const paginated = (pending ?? []).slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <Layout>
@@ -69,6 +147,37 @@ export default function PendingInvoices() {
             </div>
           }
         />
+
+        {/* Summary bar */}
+        {!isLoading && (pending?.length ?? 0) > 0 && (
+          <div className="mb-4 flex items-center gap-4 bg-card border border-border rounded-xl px-5 py-3">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Receipt className="w-4 h-4 shrink-0" />
+              <span className="text-sm">
+                Łącznie{" "}
+                <strong className="text-foreground">{pending!.length}</strong>{" "}
+                {pending!.length === 1
+                  ? "faktura"
+                  : pending!.length < 5
+                    ? "faktury"
+                    : "faktur"}
+              </span>
+            </div>
+            <div className="h-4 w-px bg-border" />
+            <div className="text-sm text-muted-foreground">
+              Wartość:{" "}
+              <strong className="text-foreground">{formatPrice(totalAmount)}</strong>
+            </div>
+            {totalPages > 1 && (
+              <>
+                <div className="h-4 w-px bg-border" />
+                <span className="text-xs text-muted-foreground ml-auto">
+                  Strona {page} z {totalPages}
+                </span>
+              </>
+            )}
+          </div>
+        )}
 
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           {isLoading ? (
@@ -97,46 +206,49 @@ export default function PendingInvoices() {
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {pending!.map((row) => (
-                <button
-                  key={row.id}
-                  onClick={() => setOpenId(row.id)}
-                  className="w-full px-6 py-4 flex items-start gap-4 hover:bg-secondary/40 transition-colors text-left"
-                  data-testid={`pending-row-${row.id}`}
-                >
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {row.invoiceNumber ?? row.ksefNumber}
-                      </p>
-                      <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
-                        KSeF: {row.ksefNumber.slice(-12)}
-                      </span>
+            <>
+              <div className="divide-y divide-border">
+                {paginated.map((row) => (
+                  <button
+                    key={row.id}
+                    onClick={() => setOpenId(row.id)}
+                    className="w-full px-6 py-4 flex items-start gap-4 hover:bg-secondary/40 transition-colors text-left"
+                    data-testid={`pending-row-${row.id}`}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="w-4 h-4" />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {row.sellerName ?? "Nieznany dostawca"}
-                      {row.sellerNip ? ` · NIP ${row.sellerNip}` : ""}
-                      {row.invoiceDate ? ` · ${formatDate(row.invoiceDate)}` : ""}
-                    </p>
-                    <p className="text-xs text-amber-700 mt-1">{row.reason}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    {row.totalGross != null && (
-                      <p className="text-sm font-semibold text-foreground">
-                        {formatPrice(row.totalGross)}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {row.invoiceNumber ?? row.ksefNumber}
+                        </p>
+                        <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                          KSeF: {row.ksefNumber.slice(-12)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        {row.sellerName ?? "Nieznany dostawca"}
+                        {row.sellerNip ? ` · NIP ${row.sellerNip}` : ""}
+                        {row.invoiceDate ? ` · ${formatDate(row.invoiceDate)}` : ""}
                       </p>
-                    )}
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {new Date(row.createdAt).toLocaleDateString("pl-PL")}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
+                      <p className="text-xs text-amber-700 mt-1">{row.reason}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {row.totalGross != null && (
+                        <p className="text-sm font-semibold text-foreground">
+                          {formatPrice(row.totalGross)}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {new Date(row.createdAt).toLocaleDateString("pl-PL")}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+            </>
           )}
         </div>
       </div>
