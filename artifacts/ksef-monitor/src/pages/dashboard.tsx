@@ -10,6 +10,9 @@ import {
   useSyncKsefInvoices,
   useListKsefPending,
   useListSuppliers,
+  useDismissPriceAlert,
+  getGetDashboardActiveAlertsQueryKey,
+  getGetPriceAlertsHistoryQueryKey,
 } from "@workspace/api-client-react";
 import {
   BarChart,
@@ -20,7 +23,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, Users, Package, FileText, Bell, ChevronRight, RefreshCw, Inbox, CheckCircle2, Circle } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Users, Package, FileText, Bell, ChevronRight, RefreshCw, Inbox, CheckCircle2, Circle, AlertTriangle, Check } from "lucide-react";
 import { Link } from "wouter";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -145,6 +148,54 @@ export default function Dashboard() {
       },
     });
   }
+
+  const dismissAlert = useDismissPriceAlert();
+  const [dismissedLocally, setDismissedLocally] = useState<Set<string>>(new Set());
+
+  function handleDismiss(alert: {
+    alertId: number;
+    alertDate: string;
+    productName: string;
+    supplierName?: string | null;
+    currentPrice: number;
+    previousPrice: number;
+    changePercent: number;
+    thresholdPercent: number;
+  }) {
+    const key = `${alert.alertId}__${alert.alertDate}`;
+    setDismissedLocally((prev) => new Set([...prev, key]));
+    dismissAlert.mutate(
+      {
+        id: alert.alertId,
+        data: {
+          alertDate: alert.alertDate,
+          productName: alert.productName,
+          supplierName: alert.supplierName ?? null,
+          currentPrice: alert.currentPrice,
+          previousPrice: alert.previousPrice,
+          changePercent: alert.changePercent,
+          thresholdPercent: alert.thresholdPercent,
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetDashboardActiveAlertsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetPriceAlertsHistoryQueryKey() });
+        },
+        onError: () => {
+          setDismissedLocally((prev) => {
+            const next = new Set(prev);
+            next.delete(key);
+            return next;
+          });
+        },
+      }
+    );
+  }
+
+  const visibleActiveAlerts = (activeAlerts ?? []).filter(
+    (a) => !dismissedLocally.has(`${a.alertId}__${a.alertDate}`)
+  );
 
   const [topChangesCategory, setTopChangesCategory] = useState<string>("wszystkie");
   const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
@@ -329,6 +380,61 @@ export default function Dashboard() {
           ) : null}
         </div>
 
+        {/* Triggered alerts inline section — above chart */}
+        {visibleActiveAlerts.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-destructive" />
+                Przekroczone alerty ({visibleActiveAlerts.length})
+              </h2>
+              <Link href="/price-alerts">
+                <button className="text-xs text-primary hover:underline flex items-center gap-1">
+                  Zarządzaj alertami <ChevronRight className="w-3 h-3" />
+                </button>
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {visibleActiveAlerts.map((alert) => (
+                <div
+                  key={`${alert.alertId}-${alert.alertDate}`}
+                  className="bg-destructive/5 border border-destructive/20 rounded-xl p-4"
+                  data-testid={`dashboard-triggered-alert-${alert.alertId}`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="font-semibold text-foreground text-sm leading-snug">{alert.productName}</p>
+                    <span className={cn(
+                      "text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ml-2 shrink-0",
+                      alert.changePercent >= 0 ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600"
+                    )}>
+                      {alert.changePercent >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                      {formatPercent(alert.changePercent)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {alert.supplierName ?? "Wszyscy dostawcy"} · {formatDate(alert.alertDate)}
+                  </p>
+                  <div className="flex items-baseline gap-2 text-sm mb-3">
+                    <span className="font-semibold text-foreground">{formatPrice(alert.currentPrice)}</span>
+                    <span className="text-muted-foreground text-xs">vs</span>
+                    <span className="text-muted-foreground line-through text-xs">{formatPrice(alert.previousPrice)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">Próg: {alert.thresholdPercent}%</p>
+                    <button
+                      className="text-xs font-medium px-2.5 py-1 rounded-md bg-foreground/8 hover:bg-primary hover:text-primary-foreground transition-colors flex items-center gap-1 border border-border hover:border-primary"
+                      onClick={() => handleDismiss(alert)}
+                    >
+                      <Check className="w-3 h-3" />
+                      Sprawdzono
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Monthly food cost chart */}
           <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6">
@@ -375,17 +481,24 @@ export default function Dashboard() {
           <div className="bg-card border border-border rounded-xl p-6">
             <h2 className="font-semibold text-foreground mb-1">Przekroczone alerty</h2>
             <p className="text-sm text-muted-foreground mb-4">Produkty z przekroczonym progiem</p>
-            {activeAlerts && activeAlerts.length > 0 ? (
+            {visibleActiveAlerts.length > 0 ? (
               <div className="space-y-3">
-                {activeAlerts.slice(0, 5).map((alert, i) => (
+                {visibleActiveAlerts.slice(0, 5).map((alert, i) => (
                   <div key={i} className="flex items-start justify-between gap-2" data-testid={`alert-item-${i}`}>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground truncate">{alert.productName}</p>
                       <p className="text-xs text-muted-foreground">{alert.supplierName ?? "Wszyscy dostawcy"}</p>
                     </div>
                     <PriceChangeBadge change={alert.changePercent} />
                   </div>
                 ))}
+                {visibleActiveAlerts.length > 5 && (
+                  <Link href="/price-alerts">
+                    <p className="text-xs text-primary hover:underline text-center pt-1">
+                      +{visibleActiveAlerts.length - 5} więcej
+                    </p>
+                  </Link>
+                )}
               </div>
             ) : (
               <div className="text-sm text-muted-foreground text-center py-8">

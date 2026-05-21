@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useUser, useClerk } from "@clerk/react";
 import { cn } from "@/lib/utils";
-import { useListKsefPending } from "@workspace/api-client-react";
+import { useListKsefPending, useGetDashboardActiveAlerts } from "@workspace/api-client-react";
 
 const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -44,11 +44,13 @@ function SidebarContent({
   onNavigate,
   user,
   onSignOut,
+  alertCount,
 }: {
   location: string;
   onNavigate?: () => void;
   user: ReturnType<typeof useUser>["user"];
   onSignOut: () => void;
+  alertCount: number;
 }) {
   return (
     <>
@@ -62,6 +64,8 @@ function SidebarContent({
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map(({ path, label, icon: Icon }) => {
           const active = location === path || location.startsWith(path + "/");
+          const isAlerts = path === "/price-alerts";
+          const showBadge = isAlerts && alertCount > 0;
           return (
             <Link
               key={path}
@@ -77,7 +81,17 @@ function SidebarContent({
             >
               <Icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
               {label}
-              {active && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
+              {showBadge && (
+                <span className={cn(
+                  "ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none min-w-[18px] text-center",
+                  active
+                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    : "bg-destructive text-destructive-foreground"
+                )}>
+                  {alertCount > 9 ? "9+" : alertCount}
+                </span>
+              )}
+              {active && !showBadge && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
             </Link>
           );
         })}
@@ -117,6 +131,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: pendingList } = useListKsefPending({ status: "pending" });
   const pendingCount = pendingList?.length ?? 0;
+  const { data: activeAlerts } = useGetDashboardActiveAlerts();
+  const alertCount = activeAlerts?.length ?? 0;
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -145,6 +161,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           location={location}
           user={user}
           onSignOut={() => signOut()}
+          alertCount={alertCount}
         />
       </aside>
 
@@ -201,6 +218,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 setMobileOpen(false);
                 signOut();
               }}
+              alertCount={alertCount}
             />
           </aside>
         </div>
