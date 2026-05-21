@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { aiInsightsTable } from "@workspace/db/schema";
 import { eq, and, isNull, desc } from "drizzle-orm";
 import { generateInsights } from "../services/insights-generator";
+import { AdvisoryLock } from "../lib/advisory-lock";
 
 const router: IRouter = Router();
 
@@ -17,25 +18,27 @@ router.get("/insights", async (req, res): Promise<void> => {
   res.json(rows);
 });
 
-// Track in-progress generation per user to avoid duplicate runs
-const generatingUsers = new Set<string>();
-
 router.post("/insights/generate", async (req, res): Promise<void> => {
   const userId = req.userId!;
 
-  if (generatingUsers.has(userId)) {
+  const lock = await AdvisoryLock.tryAcquire("insights_generate", userId);
+  if (!lock) {
     res.status(202).json({ status: "running" });
     return;
   }
 
-  // Respond immediately so the browser doesn't time out
+  // Respond immediately so the browser doesn't time out, then run the job
+  // asynchronously while holding the lock for its full duration.
   res.status(202).json({ status: "started" });
 
-  generatingUsers.add(userId);
   generateInsights(userId, req.log)
     .then((count) => req.log.info({ count }, "AI CFO generation complete"))
     .catch((err: unknown) => req.log.error({ err: String(err) }, "AI CFO generation failed"))
-    .finally(() => generatingUsers.delete(userId));
+    .finally(() =>
+      lock.release().catch((err: unknown) =>
+        req.log.warn({ err: String(err) }, "Failed to release insights advisory lock"),
+      ),
+    );
 });
 
 router.post("/insights/:id/read", async (req, res): Promise<void> => {

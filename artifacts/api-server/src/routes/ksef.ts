@@ -31,11 +31,9 @@ import {
 } from "@workspace/ksef-client";
 import { decryptSecret, encryptSecret, maskToken } from "../lib/encryption";
 import { checkAlertsAfterImport } from "../services/alert-checker";
+import { AdvisoryLock } from "../lib/advisory-lock";
 
 const router: IRouter = Router();
-
-// Per-user lock to prevent two parallel syncs from racing.
-const syncInFlight = new Set<string>();
 
 // Small delay between per-invoice XML fetches to stay below KSeF's
 // rate limit. Empirically the production limiter is ~3–5 req/s per IP/token.
@@ -258,18 +256,21 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
     });
     return;
   }
-  if (syncInFlight.has(userId)) {
+
+  const lock = await AdvisoryLock.tryAcquire("ksef_sync", userId);
+  if (!lock) {
     res.status(409).json({
       error: "Synchronizacja KSeF już trwa. Poczekaj na jej zakończenie.",
     });
     return;
   }
-  syncInFlight.add(userId);
-  res.on("close", () => syncInFlight.delete(userId));
+
   try {
     await runSync(req, res, userId, cfg);
   } finally {
-    syncInFlight.delete(userId);
+    await lock.release().catch((err: unknown) =>
+      req.log.warn({ err: String(err) }, "Failed to release ksef_sync advisory lock"),
+    );
   }
 });
 
