@@ -7,6 +7,8 @@ import {
   useDeleteInvoice,
   useSyncKsefInvoices,
   useGetKsefConfig,
+  useGetInvoice,
+  getGetInvoiceQueryKey,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -213,6 +215,112 @@ function parseXmlPreview(xml: string): XmlPreview | null {
   }
 }
 
+// ─── Invoice detail modal ────────────────────────────────────────────────────
+
+function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose: () => void }) {
+  const { data, isLoading } = useGetInvoice(invoiceId, {
+    query: { queryKey: getGetInvoiceQueryKey(invoiceId) },
+  });
+
+  const total = data?.items.reduce((s, i) => s + i.totalPrice, 0) ?? 0;
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-primary shrink-0" />
+            <span className="truncate">{data?.invoiceNumber ?? "Faktura"}</span>
+          </DialogTitle>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="space-y-3 py-2">
+            <Skeleton className="h-16 w-full rounded-lg" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full rounded" />
+            ))}
+          </div>
+        ) : data ? (
+          <div className="flex flex-col min-h-0 gap-4 overflow-y-auto">
+            {/* Invoice meta */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+              <div className="bg-secondary/40 rounded-lg px-3 py-2.5">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Dostawca</p>
+                <p className="text-sm font-semibold text-foreground truncate">{data.supplierName}</p>
+              </div>
+              <div className="bg-secondary/40 rounded-lg px-3 py-2.5">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Data faktury</p>
+                <p className="text-sm font-semibold text-foreground">{formatDate(data.invoiceDate)}</p>
+              </div>
+              <div className="bg-secondary/40 rounded-lg px-3 py-2.5">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Pozycji</p>
+                <p className="text-sm font-semibold text-foreground">{data.items.length}</p>
+              </div>
+              <div className="bg-primary/5 border border-primary/20 rounded-lg px-3 py-2.5">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Wartość</p>
+                <p className="text-sm font-bold text-primary">{formatPrice(data.totalAmount)}</p>
+              </div>
+            </div>
+
+            {/* Items list */}
+            {data.items.length > 0 ? (
+              <div className="flex-1 min-h-0 border border-border rounded-xl overflow-hidden">
+                {/* Header */}
+                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-2.5 text-xs font-medium text-muted-foreground bg-secondary/30 border-b border-border">
+                  <div>Produkt</div>
+                  <div className="text-right w-20 hidden sm:block">Ilość</div>
+                  <div className="text-right w-24">Cena jedn.</div>
+                  <div className="text-right w-24">Wartość</div>
+                </div>
+                <div className="divide-y divide-border overflow-y-auto max-h-[340px]">
+                  {data.items.map((item) => (
+                    <div key={item.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-3 items-center">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
+                        <p className="text-xs text-muted-foreground sm:hidden">
+                          {item.quantity % 1 === 0 ? item.quantity : item.quantity.toFixed(3)} {item.unit}
+                          {item.vatRate != null && ` · VAT ${item.vatRate}%`}
+                        </p>
+                        {item.vatRate != null && (
+                          <p className="text-xs text-muted-foreground hidden sm:block">VAT {item.vatRate}%</p>
+                        )}
+                      </div>
+                      <div className="text-right w-20 hidden sm:block">
+                        <p className="text-sm text-muted-foreground tabular-nums">
+                          {item.quantity % 1 === 0 ? item.quantity : item.quantity.toFixed(3)} {item.unit}
+                        </p>
+                      </div>
+                      <div className="text-right w-24">
+                        <p className="text-sm text-muted-foreground tabular-nums">{formatPrice(item.unitPrice)}</p>
+                      </div>
+                      <div className="text-right w-24">
+                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(item.totalPrice)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Footer sum */}
+                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-2.5 border-t border-border bg-secondary/20">
+                  <p className="text-xs font-medium text-muted-foreground">Razem</p>
+                  <div className="w-20 hidden sm:block" />
+                  <div className="w-24" />
+                  <p className="text-sm font-bold text-foreground text-right w-24 tabular-nums">{formatPrice(total)}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center text-sm text-muted-foreground border border-border rounded-xl">
+                <Package className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                Faktura nie zawiera pozycji (zaimportowano bez XML).
+              </div>
+            )}
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Sorting ────────────────────────────────────────────────────────────────
 
 type SortField = "invoiceDate" | "importedAt" | "supplierName" | "totalAmount";
@@ -248,6 +356,7 @@ export default function Invoices() {
 
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null);
   const [xmlPreview, setXmlPreview] = useState<XmlPreview | null>(null);
   const [duplicateConflict, setDuplicateConflict] = useState<{
     message: string;
@@ -521,7 +630,8 @@ export default function Invoices() {
                 return (
                   <div
                     key={invoice.id}
-                    className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/40"
+                    className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/40 cursor-pointer"
+                    onClick={() => setViewInvoiceId(invoice.id)}
                     data-testid={`invoice-row-${invoice.id}`}
                   >
                     {/* Date badge */}
@@ -547,7 +657,7 @@ export default function Invoices() {
                       <p className="text-sm font-bold text-foreground tabular-nums">{formatPrice(invoice.totalAmount)}</p>
                       <button
                         className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground/50 active:text-destructive active:bg-destructive/10"
-                        onClick={() => setDeleteId(invoice.id)}
+                        onClick={(e) => { e.stopPropagation(); setDeleteId(invoice.id); }}
                         data-testid={`btn-delete-invoice-${invoice.id}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -643,7 +753,8 @@ export default function Invoices() {
               {displayedInvoices.map((invoice) => (
                 <div
                   key={invoice.id}
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[820px] py-4 items-center hover:bg-secondary/40 transition-colors group"
+                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[820px] py-4 items-center hover:bg-secondary/40 transition-colors group cursor-pointer"
+                  onClick={() => setViewInvoiceId(invoice.id)}
                   data-testid={`invoice-row-${invoice.id}`}
                 >
                   <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -678,7 +789,7 @@ export default function Invoices() {
 
                   <button
                     className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all shrink-0"
-                    onClick={() => setDeleteId(invoice.id)}
+                    onClick={(e) => { e.stopPropagation(); setDeleteId(invoice.id); }}
                     data-testid={`btn-delete-invoice-${invoice.id}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -729,6 +840,14 @@ export default function Invoices() {
             </div>
           )}
         </div>
+
+        {/* Invoice detail modal */}
+        {viewInvoiceId != null && (
+          <InvoiceDetailModal
+            invoiceId={viewInvoiceId}
+            onClose={() => setViewInvoiceId(null)}
+          />
+        )}
 
         {/* Import dialog */}
         <Dialog open={showImport} onOpenChange={(open) => { setShowImport(open); if (!open) { setXmlPreview(null); form.reset(); } }}>
