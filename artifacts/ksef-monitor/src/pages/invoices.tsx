@@ -88,13 +88,13 @@ function InvoicesHeaderActions({ onImportClick }: { onImportClick: () => void })
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       {config && (
-        <span className="text-xs text-muted-foreground hidden sm:inline" data-testid="text-last-sync">
-          Ostatnia synchronizacja:{" "}
+        <span className="text-xs text-muted-foreground hidden lg:inline" data-testid="text-last-sync">
+          Sync:{" "}
           <span className="font-medium text-foreground">
             {config.lastSyncedAt
-              ? new Date(config.lastSyncedAt).toLocaleString("pl-PL")
+              ? new Date(config.lastSyncedAt).toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
               : "nigdy"}
           </span>
         </span>
@@ -108,17 +108,22 @@ function InvoicesHeaderActions({ onImportClick }: { onImportClick: () => void })
           data-testid="btn-sync-ksef"
         >
           <RefreshCw className={cn("w-4 h-4", sync.isPending && "animate-spin")} />
-          {sync.isPending ? "Synchronizuję..." : "Synchronizuj z KSeF"}
+          <span className="hidden sm:inline">{sync.isPending ? "Synchronizuję..." : "Synchronizuj z KSeF"}</span>
+          <span className="sm:hidden">{sync.isPending ? "Sync..." : "KSeF"}</span>
         </Button>
       ) : (
         <Link href="/settings/ksef">
           <Button variant="outline" className="gap-2" data-testid="btn-configure-ksef">
-            <RefreshCw className="w-4 h-4" /> Skonfiguruj KSeF
+            <RefreshCw className="w-4 h-4" />
+            <span className="hidden sm:inline">Skonfiguruj KSeF</span>
+            <span className="sm:hidden">KSeF</span>
           </Button>
         </Link>
       )}
       <Button onClick={onImportClick} className="gap-2" data-testid="btn-import-invoice">
-        <Plus className="w-4 h-4" /> Importuj fakturę
+        <Plus className="w-4 h-4" />
+        <span className="hidden sm:inline">Importuj fakturę</span>
+        <span className="sm:hidden">Importuj</span>
       </Button>
     </div>
   );
@@ -408,76 +413,79 @@ export default function Invoices() {
           action={<InvoicesHeaderActions onImportClick={() => setShowImport(true)} />}
         />
 
-        {/* Search by invoice number or supplier */}
+        {/* Search + supplier filter bar */}
         {!isLoading && (invoices?.length ?? 0) > 0 && (
-          <div className="relative max-w-md mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <Input
-              type="search"
-              placeholder="Szukaj po numerze faktury lub dostawcy..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-9"
-              data-testid="input-search-invoices"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
-                aria-label="Wyczyść wyszukiwanie"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Supplier filter pills */}
-        {!isLoading && supplierList.length > 1 && (
-          <div className="flex items-center gap-1.5 flex-wrap mb-4">
-            <button
-              onClick={() => setActiveSupplier(null)}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                activeSupplier === null
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              )}
-            >
-              Wszyscy
-              <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full",
-                activeSupplier === null ? "bg-white/20" : "bg-muted"
-              )}>
-                {invoices?.length ?? 0}
-              </span>
-            </button>
-
-            {supplierList.map((s) => {
-              const count = invoices?.filter((inv) => inv.supplierId === s.id).length ?? 0;
-              const isActive = activeSupplier === s.id;
-              return (
+          <div className="mb-4 space-y-3">
+            {/* Search */}
+            <div className="relative w-full md:max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="search"
+                placeholder="Szukaj po numerze lub dostawcy..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-9"
+                data-testid="input-search-invoices"
+              />
+              {searchQuery && (
                 <button
-                  key={s.id}
-                  onClick={() => setActiveSupplier(isActive ? null : s.id)}
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                  aria-label="Wyczyść wyszukiwanie"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Supplier filter pills — horizontally scrollable on mobile */}
+            {supplierList.length > 1 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap pb-0.5 md:pb-0">
+                <button
+                  onClick={() => setActiveSupplier(null)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                    isActive
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0",
+                    activeSupplier === null
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
                   )}
                 >
-                  {s.name}
+                  Wszyscy
                   <span className={cn(
                     "text-[10px] px-1.5 py-0.5 rounded-full",
-                    isActive ? "bg-white/20" : "bg-muted"
+                    activeSupplier === null ? "bg-white/20" : "bg-muted"
                   )}>
-                    {count}
+                    {invoices?.length ?? 0}
                   </span>
                 </button>
-              );
-            })}
+
+                {supplierList.map((s) => {
+                  const count = invoices?.filter((inv) => inv.supplierId === s.id).length ?? 0;
+                  const isActive = activeSupplier === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setActiveSupplier(isActive ? null : s.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0",
+                        isActive
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      )}
+                    >
+                      {s.name}
+                      <span className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded-full",
+                        isActive ? "bg-white/20" : "bg-muted"
+                      )}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -487,12 +495,15 @@ export default function Invoices() {
             <div className="divide-y divide-border">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="px-4 py-4 flex items-center gap-3">
-                  <Skeleton className="w-9 h-9 rounded-lg shrink-0" />
+                  <Skeleton className="w-10 h-12 rounded-lg shrink-0" />
                   <div className="flex-1 space-y-1.5">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="h-3 w-1/2" />
                   </div>
-                  <Skeleton className="h-5 w-20" />
+                  <div className="space-y-1.5 shrink-0">
+                    <Skeleton className="h-4 w-20 ml-auto" />
+                    <Skeleton className="h-3 w-10 ml-auto" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -502,36 +513,52 @@ export default function Invoices() {
             </div>
           ) : displayedInvoices.length > 0 ? (
             <div className="divide-y divide-border">
-              {displayedInvoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/40"
-                  data-testid={`invoice-row-${invoice.id}`}
-                >
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{invoice.invoiceNumber}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {invoice.supplierName} · {formatDate(invoice.invoiceDate)} · {invoice.itemCount} poz.
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold text-foreground">{formatPrice(invoice.totalAmount)}</p>
-                  </div>
-                  <button
-                    className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                    onClick={() => setDeleteId(invoice.id)}
-                    data-testid={`btn-delete-invoice-${invoice.id}`}
+              {displayedInvoices.map((invoice) => {
+                const d = new Date(invoice.invoiceDate);
+                const day = d.toLocaleDateString("pl-PL", { day: "2-digit" });
+                const mon = d.toLocaleDateString("pl-PL", { month: "short" }).replace(".", "").toUpperCase();
+
+                return (
+                  <div
+                    key={invoice.id}
+                    className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/40"
+                    data-testid={`invoice-row-${invoice.id}`}
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+                    {/* Date badge */}
+                    <div className="w-10 shrink-0 flex flex-col items-center justify-center rounded-lg bg-secondary py-1.5 gap-0">
+                      <span className="text-[15px] font-bold text-foreground leading-none tabular-nums">{day}</span>
+                      <span className="text-[9px] font-semibold text-muted-foreground leading-none mt-0.5 tracking-wide">{mon}</span>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate leading-snug">{invoice.invoiceNumber}</p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{invoice.supplierName}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-full">
+                          <Package className="w-2.5 h-2.5" />
+                          {invoice.itemCount} poz.
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Price + delete */}
+                    <div className="shrink-0 flex flex-col items-end gap-2">
+                      <p className="text-sm font-bold text-foreground tabular-nums">{formatPrice(invoice.totalAmount)}</p>
+                      <button
+                        className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground/50 active:text-destructive active:bg-destructive/10"
+                        onClick={() => setDeleteId(invoice.id)}
+                        data-testid={`btn-delete-invoice-${invoice.id}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : invoices && invoices.length > 0 ? (
-            <div className="py-12 text-center">
+            <div className="py-12 text-center px-4">
               <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-foreground font-medium mb-1">Brak faktur dla tego dostawcy</p>
               <button className="text-xs text-primary hover:underline" onClick={() => setActiveSupplier(null)}>
@@ -550,7 +577,9 @@ export default function Invoices() {
           )}
           {!isLoading && displayedInvoices.length > 0 && (
             <div className="px-4 py-3 border-t border-border bg-secondary/20 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">{displayedInvoices.length} faktur</p>
+              <p className="text-xs text-muted-foreground">
+                {displayedInvoices.length} {displayedInvoices.length === 1 ? "faktura" : displayedInvoices.length < 5 ? "faktury" : "faktur"}
+              </p>
               <p className="text-xs text-muted-foreground">
                 Łącznie: <span className="font-semibold text-foreground">{formatPrice(displayedInvoices.reduce((s, inv) => s + inv.totalAmount, 0))}</span>
               </p>
