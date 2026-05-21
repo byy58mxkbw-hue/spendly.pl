@@ -295,7 +295,7 @@ function KeywordComparisonModal({
   );
 }
 
-type SortKey = "name-asc" | "name-desc" | "price-desc" | "price-asc" | "change-desc" | "supplier-asc";
+type SortKey = "name-asc" | "name-desc" | "price-desc" | "price-asc" | "change-desc" | "supplier-asc" | "quantity-desc" | "quantity-asc";
 
 const SUPPLIER_COLORS = [
   "hsl(173, 80%, 40%)",
@@ -637,7 +637,7 @@ function SupplierComparisonModal({
   );
 }
 
-function sortProducts<T extends { name: string; supplierName?: string | null; latestPrice?: number | null; priceChangePercent?: number | null }>(
+function sortProducts<T extends { name: string; supplierName?: string | null; latestPrice?: number | null; priceChangePercent?: number | null; totalQuantity?: number | null }>(
   list: T[],
   sort: SortKey
 ): T[] {
@@ -655,6 +655,10 @@ function sortProducts<T extends { name: string; supplierName?: string | null; la
         return Math.abs(b.priceChangePercent ?? 0) - Math.abs(a.priceChangePercent ?? 0);
       case "supplier-asc":
         return (a.supplierName ?? "").localeCompare(b.supplierName ?? "", "pl");
+      case "quantity-desc":
+        return (b.totalQuantity ?? 0) - (a.totalQuantity ?? 0);
+      case "quantity-asc":
+        return (a.totalQuantity ?? 0) - (b.totalQuantity ?? 0);
       default:
         return 0;
     }
@@ -965,6 +969,12 @@ export default function Products() {
                 </SelectItem>
                 <SelectItem value="supplier-asc">
                   <span className="flex items-center gap-2"><Building2 className="w-3.5 h-3.5" />Dostawca A–Z</span>
+                </SelectItem>
+                <SelectItem value="quantity-desc">
+                  <span className="flex items-center gap-2"><ShoppingCart className="w-3.5 h-3.5" />Ilość — od największej</span>
+                </SelectItem>
+                <SelectItem value="quantity-asc">
+                  <span className="flex items-center gap-2"><ShoppingCart className="w-3.5 h-3.5" />Ilość — od najmniejszej</span>
                 </SelectItem>
               </SelectContent>
             </Select>
