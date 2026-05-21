@@ -68,7 +68,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
 
   const topProductsResult = await db.execute(sql`
     SELECT
-      p.name AS product_name,
+      COALESCE(p.name, ii.product_name) AS product_name,
       ii.unit,
       SUM(ii.quantity::numeric)::float AS total_quantity,
       AVG(ii.unit_price::numeric)::float AS avg_price,
@@ -80,7 +80,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
       ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
-    GROUP BY p.name, ii.product_name, ii.unit, s.name
+    GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
     ORDER BY total_cost DESC
     LIMIT 20
   `);
@@ -142,7 +142,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
         WHERE i.user_id = ${userId}
           AND i.invoice_date LIKE ${monthPrefix + "%"}
           AND i.supplier_id = ${s.supplier_id}
-        GROUP BY p.name, ii.product_name, ii.unit
+        GROUP BY COALESCE(p.name, ii.product_name), ii.unit
         ORDER BY total_cost DESC
         LIMIT 15
       `);
