@@ -294,7 +294,7 @@ export default function Dashboard() {
           ) : summary ? (
             <>
               <StatCard
-                label="Wydatki w tym miesiącu"
+                label={period === "month" ? "Wydatki w tym miesiącu" : period === "quarter" ? "Wydatki (ostatnie 3 mies.)" : "Wydatki (ostatni rok)"}
                 value={formatPrice(summary.totalSpendThisMonth)}
                 change={summary.spendChangePercent}
                 icon={FileText}
