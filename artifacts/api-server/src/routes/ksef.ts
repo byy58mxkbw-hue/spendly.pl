@@ -30,6 +30,7 @@ import {
   type ParsedFa3,
 } from "@workspace/ksef-client";
 import { decryptSecret, encryptSecret, maskToken } from "../lib/encryption";
+import { checkAlertsAfterImport } from "../services/alert-checker";
 
 const router: IRouter = Router();
 
@@ -645,6 +646,11 @@ async function runSync(
     ...summary,
     lastSyncedAt: updatedLastSyncedAt ? updatedLastSyncedAt.toISOString() : null,
   });
+
+  // Fire-and-forget: recalculate price alert triggers after new invoices arrive.
+  if (summary.imported > 0) {
+    checkAlertsAfterImport(userId, req.log).catch(() => {});
+  }
 
   // Fire-and-forget AI insight generation after sync completes.
   if (summary.imported > 0 || summary.pending > 0) {

@@ -9,6 +9,7 @@ import {
   DeleteInvoiceParams,
 } from "@workspace/api-zod";
 import { categorizeProduct } from "../lib/categorize";
+import { checkAlertsAfterImport } from "../services/alert-checker";
 
 const router: IRouter = Router();
 
@@ -310,6 +311,11 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     importedAt: invoice.importedAt.toISOString(),
     items: insertedItems,
   });
+
+  // Fire-and-forget: recalculate price alert triggers after new invoice data arrives.
+  if (parsedItems.length > 0) {
+    checkAlertsAfterImport(userId, req.log).catch(() => {});
+  }
 });
 
 router.get("/invoices/:id", async (req, res): Promise<void> => {
