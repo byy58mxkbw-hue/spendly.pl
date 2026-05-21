@@ -255,7 +255,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </span>
                   )}
                 </div>
-                <span className="truncate max-w-[56px] text-center leading-tight font-bold">
+                <span className="truncate max-w-[56px] text-center leading-tight font-extrabold">
                   {label === "Do przeglądu" ? "Przegląd" : label}
                 </span>
               </Link>
