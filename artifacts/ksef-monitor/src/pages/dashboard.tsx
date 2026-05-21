@@ -99,7 +99,10 @@ export default function Dashboard() {
 
   const { period, setPeriod } = usePeriod();
 
-  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useGetDashboardSummary({ days: periodToDays(period) });
+  // For "month" use calendar-month logic (no days param → backend defaults to 1st of current month).
+  // For quarter/year use rolling window so the comparison makes sense.
+  const summaryDays = period === "month" ? undefined : periodToDays(period);
+  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useGetDashboardSummary({ days: summaryDays });
   const { data: monthly, isLoading: monthlyLoading, isError: monthlyError } = useGetFoodCostMonthly({ months: periodToMonths(period) });
   const { data: recent, isLoading: recentLoading, isError: recentError } = useGetRecentPurchases({ limit: 8, days: periodToDays(period) });
   const { data: activeAlerts } = useGetDashboardActiveAlerts();
