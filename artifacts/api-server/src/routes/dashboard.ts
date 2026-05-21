@@ -152,7 +152,7 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
     return;
   }
 
-  const limit = queryParams.data.limit ?? 10;
+  const limit = Math.min(queryParams.data.limit ?? 10, 100);
   const days = queryParams.data.days;
 
   const dateFilter = days

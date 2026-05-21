@@ -121,56 +121,71 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     ORDER BY total_spend DESC
   `);
 
-  const suppliers = await Promise.all(
-    (supplierSummaryResult.rows as Array<{
-      supplier_id: number;
-      supplier_name: string;
-      invoice_count: number;
-      product_count: number;
-      total_spend: number;
-    }>).map(async (s) => {
-      const productsResult = await db.execute(sql`
-        SELECT
-          COALESCE(p.name, ii.product_name) AS product_name,
-          ii.unit,
-          SUM(ii.quantity::numeric)::float AS total_quantity,
-          AVG(ii.unit_price::numeric)::float AS avg_price,
-          SUM(ii.total_price::numeric)::float AS total_cost
-        FROM invoice_items ii
-        INNER JOIN invoices i ON ii.invoice_id = i.id
-        LEFT JOIN products p ON ii.product_id = p.id
-        WHERE i.user_id = ${userId}
-          AND i.invoice_date LIKE ${monthPrefix + "%"}
-          AND i.supplier_id = ${s.supplier_id}
-        GROUP BY COALESCE(p.name, ii.product_name), ii.unit
-        ORDER BY total_cost DESC
-        LIMIT 15
-      `);
+  const supplierRows = supplierSummaryResult.rows as Array<{
+    supplier_id: number;
+    supplier_name: string;
+    invoice_count: number;
+    product_count: number;
+    total_spend: number;
+  }>;
 
-      return {
-        supplierId: s.supplier_id,
-        supplierName: s.supplier_name,
-        totalSpend: s.total_spend,
-        invoiceCount: s.invoice_count,
-        productCount: s.product_count,
-        topProducts: (productsResult.rows as Array<{
-          product_name: string;
-          unit: string;
-          total_quantity: number;
-          avg_price: number;
-          total_cost: number;
-        }>).map((r) => ({
-          productName: r.product_name,
-          unit: r.unit,
-          totalQuantity: r.total_quantity,
-          avgPrice: r.avg_price,
-          totalCost: r.total_cost,
-          supplierName: s.supplier_name,
-          prevMonthAvgPrice: prevMap.get(`${r.product_name}|${r.unit}|${s.supplier_name}`) ?? null,
-        })),
-      };
-    })
-  );
+  const supplierProductsResult = await db.execute(sql`
+    SELECT
+      i.supplier_id,
+      COALESCE(p.name, ii.product_name) AS product_name,
+      ii.unit,
+      SUM(ii.quantity::numeric)::float AS total_quantity,
+      AVG(ii.unit_price::numeric)::float AS avg_price,
+      SUM(ii.total_price::numeric)::float AS total_cost,
+      ROW_NUMBER() OVER (
+        PARTITION BY i.supplier_id
+        ORDER BY SUM(ii.total_price::numeric) DESC
+      ) AS rn
+    FROM invoice_items ii
+    INNER JOIN invoices i ON ii.invoice_id = i.id
+    LEFT JOIN products p ON ii.product_id = p.id
+    WHERE i.user_id = ${userId}
+      ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
+    GROUP BY i.supplier_id, COALESCE(p.name, ii.product_name), ii.unit
+  `);
+
+  type SupplierProductRow = {
+    supplier_id: number;
+    product_name: string;
+    unit: string;
+    total_quantity: number;
+    avg_price: number;
+    total_cost: number;
+    rn: number;
+  };
+
+  const supplierProductsMap = new Map<number, SupplierProductRow[]>();
+  for (const r of supplierProductsResult.rows as SupplierProductRow[]) {
+    if (r.rn > 15) continue;
+    let arr = supplierProductsMap.get(r.supplier_id);
+    if (!arr) {
+      arr = [];
+      supplierProductsMap.set(r.supplier_id, arr);
+    }
+    arr.push(r);
+  }
+
+  const suppliers = supplierRows.map((s) => ({
+    supplierId: s.supplier_id,
+    supplierName: s.supplier_name,
+    totalSpend: s.total_spend,
+    invoiceCount: s.invoice_count,
+    productCount: s.product_count,
+    topProducts: (supplierProductsMap.get(s.supplier_id) ?? []).map((r) => ({
+      productName: r.product_name,
+      unit: r.unit,
+      totalQuantity: r.total_quantity,
+      avgPrice: r.avg_price,
+      totalCost: r.total_cost,
+      supplierName: s.supplier_name,
+      prevMonthAvgPrice: prevMap.get(`${r.product_name}|${r.unit}|${s.supplier_name}`) ?? null,
+    })),
+  }));
 
   res.json({
     month,

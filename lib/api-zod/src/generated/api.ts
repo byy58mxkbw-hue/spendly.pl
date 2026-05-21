@@ -488,8 +488,14 @@ export const GetFoodCostMonthlyResponse = zod.array(
 /**
  * @summary Get recent purchases comparison
  */
+export const getRecentPurchasesQueryLimitMax = 100;
+
 export const GetRecentPurchasesQueryParams = zod.object({
-  limit: zod.coerce.number().optional(),
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(getRecentPurchasesQueryLimitMax)
+    .optional(),
   days: zod.coerce
     .number()
     .optional()

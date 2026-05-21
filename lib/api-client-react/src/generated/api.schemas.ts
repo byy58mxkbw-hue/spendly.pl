@@ -552,6 +552,10 @@ export type GetFoodCostMonthlyParams = {
 };
 
 export type GetRecentPurchasesParams = {
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
   limit?: number;
   /**
    * If set, only return purchases from the last N days
