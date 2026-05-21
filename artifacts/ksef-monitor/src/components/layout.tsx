@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useUser, useClerk } from "@clerk/react";
 import { cn } from "@/lib/utils";
+import { useListKsefPending } from "@workspace/api-client-react";
 
 const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -28,6 +29,14 @@ const navItems = [
   { path: "/reports", label: "Raporty", icon: BarChart2 },
   { path: "/ai-cfo", label: "AI CFO", icon: Sparkles },
   { path: "/settings/ksef", label: "Ustawienia KSeF", icon: Settings },
+];
+
+const bottomNavItems = [
+  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/invoices", label: "Faktury", icon: FileText },
+  { path: "/pending-invoices", label: "Do przeglądu", icon: Inbox },
+  { path: "/products", label: "Produkty", icon: Package },
+  { path: "/suppliers", label: "Dostawcy", icon: Users },
 ];
 
 function SidebarContent({
@@ -106,6 +115,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
   const { signOut } = useClerk();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { data: pendingList } = useListKsefPending({ status: "pending" });
+  const pendingCount = pendingList?.length ?? 0;
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -197,11 +208,47 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main
-        className="flex-1 min-w-0 overflow-y-auto pt-14 md:pt-0"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="flex-1 min-w-0 overflow-y-auto pt-14 md:pt-0 pb-16 md:pb-0"
+        style={{ paddingBottom: "calc(4rem + env(safe-area-inset-bottom))" }}
       >
         {children}
       </main>
+
+      {/* Mobile bottom navigation */}
+      <nav
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur border-t border-border"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="flex">
+          {bottomNavItems.map(({ path, label, icon: Icon }) => {
+            const active = location === path || location.startsWith(path + "/");
+            const isPending = path === "/pending-invoices";
+            return (
+              <Link
+                key={path}
+                href={path}
+                className={cn(
+                  "flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium transition-colors relative",
+                  active ? "text-primary" : "text-muted-foreground"
+                )}
+                aria-label={label}
+              >
+                <div className="relative">
+                  <Icon className={cn("w-5 h-5", active && "stroke-[2.5]")} />
+                  {isPending && pendingCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center leading-none">
+                      {pendingCount > 9 ? "9+" : pendingCount}
+                    </span>
+                  )}
+                </div>
+                <span className="truncate max-w-[56px] text-center leading-tight">
+                  {label === "Do przeglądu" ? "Przegląd" : label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
@@ -225,7 +272,11 @@ export function PageHeader({
           <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
         )}
       </div>
-      {action && <div className="shrink-0 [&>*]:w-full md:[&>*]:w-auto">{action}</div>}
+      {action && (
+        <div className="shrink-0">
+          {action}
+        </div>
+      )}
     </div>
   );
 }

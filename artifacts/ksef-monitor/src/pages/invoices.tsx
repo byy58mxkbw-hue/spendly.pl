@@ -481,10 +481,87 @@ export default function Invoices() {
           </div>
         )}
 
-        {/* Table */}
-        <div className="bg-card border border-border rounded-xl overflow-x-auto">
+        {/* Mobile card list */}
+        <div className="md:hidden bg-card border border-border rounded-xl overflow-hidden">
+          {isLoading ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="px-4 py-4 flex items-center gap-3">
+                  <Skeleton className="w-9 h-9 rounded-lg shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <Skeleton className="h-5 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : isError ? (
+            <div className="px-4 py-8 text-center text-sm text-destructive">
+              Nie udało się załadować faktur.
+            </div>
+          ) : displayedInvoices.length > 0 ? (
+            <div className="divide-y divide-border">
+              {displayedInvoices.map((invoice) => (
+                <div
+                  key={invoice.id}
+                  className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/40"
+                  data-testid={`invoice-row-${invoice.id}`}
+                >
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{invoice.invoiceNumber}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {invoice.supplierName} · {formatDate(invoice.invoiceDate)} · {invoice.itemCount} poz.
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-foreground">{formatPrice(invoice.totalAmount)}</p>
+                  </div>
+                  <button
+                    className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    onClick={() => setDeleteId(invoice.id)}
+                    data-testid={`btn-delete-invoice-${invoice.id}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : invoices && invoices.length > 0 ? (
+            <div className="py-12 text-center">
+              <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-foreground font-medium mb-1">Brak faktur dla tego dostawcy</p>
+              <button className="text-xs text-primary hover:underline" onClick={() => setActiveSupplier(null)}>
+                Pokaż wszystkie
+              </button>
+            </div>
+          ) : (
+            <div className="py-14 text-center px-4">
+              <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-foreground font-medium mb-1">Brak faktur</p>
+              <p className="text-sm text-muted-foreground mb-4">Zaimportuj pierwszą fakturę z KSeF.</p>
+              <Button onClick={() => setShowImport(true)} className="gap-2">
+                <Plus className="w-4 h-4" /> Importuj fakturę
+              </Button>
+            </div>
+          )}
+          {!isLoading && displayedInvoices.length > 0 && (
+            <div className="px-4 py-3 border-t border-border bg-secondary/20 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">{displayedInvoices.length} faktur</p>
+              <p className="text-xs text-muted-foreground">
+                Łącznie: <span className="font-semibold text-foreground">{formatPrice(displayedInvoices.reduce((s, inv) => s + inv.totalAmount, 0))}</span>
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block bg-card border border-border rounded-xl overflow-x-auto">
           {/* Column headers with sort */}
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[820px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30 select-none">
+          <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[820px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30 select-none">
             <div className="w-8"></div>
             <div>Faktura</div>
             <button
@@ -517,7 +594,7 @@ export default function Invoices() {
           {isLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[820px] py-4 items-center">
+                <div key={i} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[820px] py-4 items-center">
                   <Skeleton className="w-8 h-8 rounded-lg" />
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-4 w-24" />
@@ -537,7 +614,7 @@ export default function Invoices() {
               {displayedInvoices.map((invoice) => (
                 <div
                   key={invoice.id}
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[820px] py-4 items-center hover:bg-secondary/40 transition-colors group"
+                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[820px] py-4 items-center hover:bg-secondary/40 transition-colors group"
                   data-testid={`invoice-row-${invoice.id}`}
                 >
                   <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">

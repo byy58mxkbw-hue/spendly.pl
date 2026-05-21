@@ -179,23 +179,31 @@ export default function Dashboard() {
           title="Dashboard"
           subtitle="Przegląd kosztów i zmian cen surowców"
           action={
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <PeriodSelector period={period} onChange={setPeriod} />
               {config ? (
                 <Button
                   variant="outline"
+                  size="default"
                   onClick={handleSync}
                   disabled={sync.isPending}
-                  className="gap-2"
+                  className="gap-2 shrink-0"
                   data-testid="btn-sync-ksef-dashboard"
                 >
                   <RefreshCw className={cn("w-4 h-4", sync.isPending && "animate-spin")} />
-                  {sync.isPending ? "Synchronizuję..." : "Synchronizuj z KSeF"}
+                  <span className="hidden sm:inline">
+                    {sync.isPending ? "Synchronizuję..." : "Synchronizuj z KSeF"}
+                  </span>
+                  <span className="sm:hidden">
+                    {sync.isPending ? "..." : "Sync"}
+                  </span>
                 </Button>
               ) : (
                 <Link href="/settings/ksef">
-                  <Button variant="outline" className="gap-2">
-                    <RefreshCw className="w-4 h-4" /> Skonfiguruj KSeF
+                  <Button variant="outline" className="gap-2 shrink-0">
+                    <RefreshCw className="w-4 h-4" />
+                    <span className="hidden sm:inline">Skonfiguruj KSeF</span>
+                    <span className="sm:hidden">KSeF</span>
                   </Button>
                 </Link>
               )}

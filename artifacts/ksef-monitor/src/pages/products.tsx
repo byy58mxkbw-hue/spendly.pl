@@ -869,8 +869,8 @@ export default function Products() {
           </div>
         )}
 
-        <div className="mb-6 flex gap-3 items-center flex-wrap">
-          <div className="relative max-w-sm flex-1 min-w-48">
+        <div className="mb-6 flex gap-2 items-center flex-wrap">
+          <div className="relative flex-1 min-w-44">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="search"
@@ -883,7 +883,7 @@ export default function Products() {
           </div>
 
           <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-            <SelectTrigger className="w-52" data-testid="select-filter-supplier">
+            <SelectTrigger className="w-44 sm:w-52" data-testid="select-filter-supplier">
               <Building2 className="w-3.5 h-3.5 text-muted-foreground mr-1" />
               <SelectValue placeholder="Wszyscy dostawcy" />
             </SelectTrigger>
@@ -898,7 +898,7 @@ export default function Products() {
           </Select>
 
           <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-            <SelectTrigger className="w-48" data-testid="select-sort-products">
+            <SelectTrigger className="w-40 sm:w-48" data-testid="select-sort-products">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -987,8 +987,71 @@ export default function Products() {
           </div>
         )}
 
-        <div className="bg-card border border-border rounded-xl overflow-x-auto">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[760px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30">
+        {/* Mobile card list */}
+        <div className="md:hidden bg-card border border-border rounded-xl overflow-hidden">
+          {isLoading ? (
+            <div className="divide-y divide-border">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="px-4 py-3.5 flex items-center gap-3">
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <div className="space-y-1 text-right">
+                    <Skeleton className="h-4 w-20 ml-auto" />
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : isError ? (
+            <div className="px-4 py-8 text-center text-sm text-destructive">
+              Nie udało się załadować produktów.
+            </div>
+          ) : filtered && filtered.length > 0 ? (
+            <div className="divide-y divide-border">
+              {filtered.map((product) => (
+                <div
+                  key={product.id}
+                  className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/40 cursor-pointer"
+                  onClick={() => openHistory(product.id, product.name)}
+                  data-testid={`product-row-${product.id}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {product.supplierName ?? "Brak dostawcy"} · {product.unit}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-foreground">
+                      {product.latestPrice != null ? formatPrice(product.latestPrice) : "—"}
+                    </p>
+                    <PriceChangeBadge change={product.priceChangePercent} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-12 text-center px-4">
+              <Package className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">
+                {search || supplierFilter !== "all"
+                  ? "Nie znaleziono produktów pasujących do filtrów."
+                  : "Brak produktów. Zaimportuj faktury, aby zobaczyć produkty."}
+              </p>
+            </div>
+          )}
+          {!isLoading && filtered && filtered.length > 0 && (
+            <div className="px-4 py-3 border-t border-border bg-secondary/20">
+              <p className="text-xs text-muted-foreground">{filtered.length} produktów</p>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block bg-card border border-border rounded-xl overflow-x-auto">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[760px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30">
             <div>Produkt</div>
             <div className="text-right w-28">Ostatnia cena</div>
             <div className="text-right w-28">Poprzednia</div>
@@ -1000,7 +1063,7 @@ export default function Products() {
           {isLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[760px] py-4">
+                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[760px] py-4">
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-24" />
@@ -1021,7 +1084,7 @@ export default function Products() {
                 return (
                   <div
                     key={product.id}
-                    className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-4 md:px-6 min-w-[760px] py-4 hover:bg-secondary/40 transition-colors items-center cursor-pointer"
+                    className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[760px] py-4 hover:bg-secondary/40 transition-colors items-center cursor-pointer"
                     onClick={() => openHistory(product.id, product.name)}
                     data-testid={`product-row-${product.id}`}
                   >
