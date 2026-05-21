@@ -239,7 +239,11 @@ function KeywordComparisonModal({
                                 {p.name.replace(/^#/, "")}
                               </p>
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                {p.unit} · ostatni zakup: {formatDate(p.lastPurchaseDate)}
+                                {p.unit}
+                                {p.totalQuantity != null && p.totalQuantity > 0 && (
+                                  <> · <span className="text-foreground/70">{new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(p.totalQuantity)} {p.unit}</span></>
+                                )}
+                                {" · "} ostatni zakup: {formatDate(p.lastPurchaseDate)}
                               </p>
                             </div>
                             <div className="text-right shrink-0">
