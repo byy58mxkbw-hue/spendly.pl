@@ -202,6 +202,39 @@ export interface CreatePriceAlertBody {
   thresholdPercent: number;
 }
 
+export interface UpdatePriceAlertBody {
+  isActive?: boolean;
+  thresholdPercent?: number;
+  /** @nullable */
+  supplierId?: number | null;
+}
+
+export interface DismissPriceAlertBody {
+  alertDate: string;
+  productName: string;
+  /** @nullable */
+  supplierName?: string | null;
+  currentPrice: number;
+  previousPrice: number;
+  changePercent: number;
+  thresholdPercent: number;
+}
+
+export interface DismissedAlert {
+  id: number;
+  /** @nullable */
+  alertId?: number | null;
+  productName: string;
+  /** @nullable */
+  supplierName?: string | null;
+  alertDate: string;
+  currentPrice: number;
+  previousPrice: number;
+  changePercent: number;
+  thresholdPercent: number;
+  dismissedAt: string;
+}
+
 export interface DashboardSummary {
   totalSuppliers: number;
   activeSuppliers: number;
@@ -455,6 +488,7 @@ export interface GenerateInsightsResponse {
 }
 
 export interface TriggeredAlert {
+  alertId: number;
   productName: string;
   /** @nullable */
   supplierName?: string | null;

@@ -7,6 +7,7 @@ import {
   invoiceItemsTable,
   productsTable,
   priceAlertsTable,
+  alertDismissalsTable,
 } from "@workspace/db";
 import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams, GetDashboardSummaryQueryParams } from "@workspace/api-zod";
 import { toNum } from "../lib/parse";
@@ -238,6 +239,14 @@ router.get("/dashboard/active-alerts", async (req, res): Promise<void> => {
     .leftJoin(suppliersTable, eq(priceAlertsTable.supplierId, suppliersTable.id))
     .where(and(eq(priceAlertsTable.userId, userId), eq(priceAlertsTable.isActive, true)));
 
+  // Load all dismissals for this user to filter already-confirmed triggers
+  const dismissals = await db
+    .select({ alertId: alertDismissalsTable.alertId, alertDate: alertDismissalsTable.alertDate })
+    .from(alertDismissalsTable)
+    .where(eq(alertDismissalsTable.userId, userId));
+
+  const dismissedSet = new Set(dismissals.map((d) => `${d.alertId}__${d.alertDate}`));
+
   const triggered = (
     await Promise.all(
       alerts.map(async (alert) => {
@@ -275,14 +284,20 @@ router.get("/dashboard/active-alerts", async (req, res): Promise<void> => {
 
         if (Math.abs(changePercent) < threshold) return null;
 
+        const alertDate = history[0].invoiceDate;
+
+        // Skip if this specific trigger was already dismissed
+        if (dismissedSet.has(`${alert.id}__${alertDate}`)) return null;
+
         return {
+          alertId: alert.id,
           productName: alert.productName,
           supplierName: alert.supplierName ?? null,
           currentPrice: current,
           previousPrice: previous,
           changePercent: Math.round(changePercent * 10) / 10,
           thresholdPercent: threshold,
-          alertDate: history[0].invoiceDate,
+          alertDate,
         };
       }),
     )

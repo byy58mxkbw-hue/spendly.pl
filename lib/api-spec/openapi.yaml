@@ -489,7 +489,47 @@ paths:
               schema:
                 $ref: "#/components/schemas/PriceAlert"
 
+  /price-alerts/history:
+    get:
+      operationId: getPriceAlertsHistory
+      tags: [price-alerts]
+      summary: Get history of dismissed triggered alerts
+      responses:
+        "200":
+          description: List of dismissed alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DismissedAlert"
+
   /price-alerts/{id}:
+    patch:
+      operationId: updatePriceAlert
+      tags: [price-alerts]
+      summary: Update a price alert (toggle active, change threshold or supplier)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePriceAlertBody"
+      responses:
+        "200":
+          description: Updated alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PriceAlert"
+        "404":
+          description: Not found
     delete:
       operationId: deletePriceAlert
       tags: [price-alerts]
@@ -503,6 +543,31 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  /price-alerts/{id}/dismiss:
+    post:
+      operationId: dismissPriceAlert
+      tags: [price-alerts]
+      summary: Dismiss a triggered alert occurrence
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DismissPriceAlertBody"
+      responses:
+        "201":
+          description: Dismissed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DismissedAlert"
 
   /dashboard/summary:
     get:
@@ -1193,6 +1258,74 @@ components:
         - productName
         - thresholdPercent
 
+    UpdatePriceAlertBody:
+      type: object
+      properties:
+        isActive:
+          type: boolean
+        thresholdPercent:
+          type: number
+        supplierId:
+          type: ["integer", "null"]
+
+    DismissPriceAlertBody:
+      type: object
+      properties:
+        alertDate:
+          type: string
+        productName:
+          type: string
+        supplierName:
+          type: ["string", "null"]
+        currentPrice:
+          type: number
+        previousPrice:
+          type: number
+        changePercent:
+          type: number
+        thresholdPercent:
+          type: number
+      required:
+        - alertDate
+        - productName
+        - currentPrice
+        - previousPrice
+        - changePercent
+        - thresholdPercent
+
+    DismissedAlert:
+      type: object
+      properties:
+        id:
+          type: integer
+        alertId:
+          type: ["integer", "null"]
+        productName:
+          type: string
+        supplierName:
+          type: ["string", "null"]
+        alertDate:
+          type: string
+        currentPrice:
+          type: number
+        previousPrice:
+          type: number
+        changePercent:
+          type: number
+        thresholdPercent:
+          type: number
+        dismissedAt:
+          type: string
+      required:
+        - id
+        - productName
+        - alertDate
+        - currentPrice
+        - previousPrice
+        - changePercent
+        - thresholdPercent
+        - dismissedAt
+
     DashboardSummary:
       type: object
       properties:
@@ -1689,6 +1822,8 @@ components:
     TriggeredAlert:
       type: object
       properties:
+        alertId:
+          type: integer
         productName:
           type: string
         supplierName:
@@ -1704,6 +1839,7 @@ components:
         alertDate:
           type: string
       required:
+        - alertId
         - productName
         - currentPrice
         - previousPrice

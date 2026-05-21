@@ -377,10 +377,69 @@ export const CreatePriceAlertBody = zod.object({
 });
 
 /**
+ * @summary Get history of dismissed triggered alerts
+ */
+export const GetPriceAlertsHistoryResponseItem = zod.object({
+  id: zod.number(),
+  alertId: zod.number().nullish(),
+  productName: zod.string(),
+  supplierName: zod.string().nullish(),
+  alertDate: zod.string(),
+  currentPrice: zod.number(),
+  previousPrice: zod.number(),
+  changePercent: zod.number(),
+  thresholdPercent: zod.number(),
+  dismissedAt: zod.string(),
+});
+export const GetPriceAlertsHistoryResponse = zod.array(
+  GetPriceAlertsHistoryResponseItem,
+);
+
+/**
+ * @summary Update a price alert (toggle active, change threshold or supplier)
+ */
+export const UpdatePriceAlertParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdatePriceAlertBody = zod.object({
+  isActive: zod.boolean().optional(),
+  thresholdPercent: zod.number().optional(),
+  supplierId: zod.number().nullish(),
+});
+
+export const UpdatePriceAlertResponse = zod.object({
+  id: zod.number(),
+  productName: zod.string(),
+  supplierId: zod.number().nullish(),
+  supplierName: zod.string().nullish(),
+  thresholdPercent: zod.number(),
+  isActive: zod.boolean(),
+  createdAt: zod.string(),
+});
+
+/**
  * @summary Delete a price alert
  */
 export const DeletePriceAlertParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Dismiss a triggered alert occurrence
+ */
+export const DismissPriceAlertParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DismissPriceAlertBody = zod.object({
+  alertDate: zod.string(),
+  productName: zod.string(),
+  supplierName: zod.string().nullish(),
+  currentPrice: zod.number(),
+  previousPrice: zod.number(),
+  changePercent: zod.number(),
+  thresholdPercent: zod.number(),
 });
 
 /**
@@ -777,6 +836,7 @@ export const RejectKsefPendingParams = zod.object({
  * @summary Get triggered price alerts for dashboard
  */
 export const GetDashboardActiveAlertsResponseItem = zod.object({
+  alertId: zod.number(),
   productName: zod.string(),
   supplierName: zod.string().nullish(),
   currentPrice: zod.number(),

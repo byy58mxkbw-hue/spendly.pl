@@ -25,6 +25,8 @@ import type {
   CreateSupplierBody,
   CreatedProduct,
   DashboardSummary,
+  DismissPriceAlertBody,
+  DismissedAlert,
   GenerateInsightsResponse,
   GetDashboardSummaryParams,
   GetFoodCostMonthlyParams,
@@ -62,6 +64,7 @@ import type {
   SupplierComparison,
   TriggeredAlert,
   UpdateKsefConfigBody,
+  UpdatePriceAlertBody,
   UpdateProductBody,
   UpdateSupplierBody,
 } from "./api.schemas";
@@ -2002,6 +2005,168 @@ export const useCreatePriceAlert = <
 };
 
 /**
+ * @summary Get history of dismissed triggered alerts
+ */
+export const getGetPriceAlertsHistoryUrl = () => {
+  return `/api/price-alerts/history`;
+};
+
+export const getPriceAlertsHistory = async (
+  options?: RequestInit,
+): Promise<DismissedAlert[]> => {
+  return customFetch<DismissedAlert[]>(getGetPriceAlertsHistoryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPriceAlertsHistoryQueryKey = () => {
+  return [`/api/price-alerts/history`] as const;
+};
+
+export const getGetPriceAlertsHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPriceAlertsHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPriceAlertsHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPriceAlertsHistoryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPriceAlertsHistory>>
+  > = ({ signal }) => getPriceAlertsHistory({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPriceAlertsHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPriceAlertsHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPriceAlertsHistory>>
+>;
+export type GetPriceAlertsHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get history of dismissed triggered alerts
+ */
+
+export function useGetPriceAlertsHistory<
+  TData = Awaited<ReturnType<typeof getPriceAlertsHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPriceAlertsHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPriceAlertsHistoryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a price alert (toggle active, change threshold or supplier)
+ */
+export const getUpdatePriceAlertUrl = (id: number) => {
+  return `/api/price-alerts/${id}`;
+};
+
+export const updatePriceAlert = async (
+  id: number,
+  updatePriceAlertBody: UpdatePriceAlertBody,
+  options?: RequestInit,
+): Promise<PriceAlert> => {
+  return customFetch<PriceAlert>(getUpdatePriceAlertUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updatePriceAlertBody),
+  });
+};
+
+export const getUpdatePriceAlertMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePriceAlert>>,
+    TError,
+    { id: number; data: BodyType<UpdatePriceAlertBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updatePriceAlert>>,
+  TError,
+  { id: number; data: BodyType<UpdatePriceAlertBody> },
+  TContext
+> => {
+  const mutationKey = ["updatePriceAlert"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updatePriceAlert>>,
+    { id: number; data: BodyType<UpdatePriceAlertBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updatePriceAlert(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdatePriceAlertMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updatePriceAlert>>
+>;
+export type UpdatePriceAlertMutationBody = BodyType<UpdatePriceAlertBody>;
+export type UpdatePriceAlertMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a price alert (toggle active, change threshold or supplier)
+ */
+export const useUpdatePriceAlert = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updatePriceAlert>>,
+    TError,
+    { id: number; data: BodyType<UpdatePriceAlertBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updatePriceAlert>>,
+  TError,
+  { id: number; data: BodyType<UpdatePriceAlertBody> },
+  TContext
+> => {
+  return useMutation(getUpdatePriceAlertMutationOptions(options));
+};
+
+/**
  * @summary Delete a price alert
  */
 export const getDeletePriceAlertUrl = (id: number) => {
@@ -2083,6 +2248,93 @@ export const useDeletePriceAlert = <
   TContext
 > => {
   return useMutation(getDeletePriceAlertMutationOptions(options));
+};
+
+/**
+ * @summary Dismiss a triggered alert occurrence
+ */
+export const getDismissPriceAlertUrl = (id: number) => {
+  return `/api/price-alerts/${id}/dismiss`;
+};
+
+export const dismissPriceAlert = async (
+  id: number,
+  dismissPriceAlertBody: DismissPriceAlertBody,
+  options?: RequestInit,
+): Promise<DismissedAlert> => {
+  return customFetch<DismissedAlert>(getDismissPriceAlertUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(dismissPriceAlertBody),
+  });
+};
+
+export const getDismissPriceAlertMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissPriceAlert>>,
+    TError,
+    { id: number; data: BodyType<DismissPriceAlertBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dismissPriceAlert>>,
+  TError,
+  { id: number; data: BodyType<DismissPriceAlertBody> },
+  TContext
+> => {
+  const mutationKey = ["dismissPriceAlert"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dismissPriceAlert>>,
+    { id: number; data: BodyType<DismissPriceAlertBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return dismissPriceAlert(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DismissPriceAlertMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dismissPriceAlert>>
+>;
+export type DismissPriceAlertMutationBody = BodyType<DismissPriceAlertBody>;
+export type DismissPriceAlertMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Dismiss a triggered alert occurrence
+ */
+export const useDismissPriceAlert = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dismissPriceAlert>>,
+    TError,
+    { id: number; data: BodyType<DismissPriceAlertBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof dismissPriceAlert>>,
+  TError,
+  { id: number; data: BodyType<DismissPriceAlertBody> },
+  TContext
+> => {
+  return useMutation(getDismissPriceAlertMutationOptions(options));
 };
 
 /**
