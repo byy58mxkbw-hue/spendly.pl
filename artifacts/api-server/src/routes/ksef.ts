@@ -345,55 +345,84 @@ async function runSync(
   let windowsDone = 0;
   onProgress({ type: "scanning", windowsDone: 0, windowsTotal: totalWindows });
 
+  const LIST_RETRY_DELAYS_MS = [2000, 5000, 10000];
   const allRefsMap = new Map<string, { ksefReferenceNumber: string }>();
   let truncatedWindow = false;
-  let rateLimitedWindowStart: Date | null = null;
-  windowLoop: for (let winStart = new Date(overallFrom); winStart < now; winStart = new Date(winStart.getTime() + WINDOW_MS)) {
+  // Track the end of the last *contiguous* run of successful windows from the start.
+  // Once any window is skipped we stop advancing so the next sync re-scans the gap.
+  let lastSuccessfulWinEnd: Date | null = null;
+  let hadSkippedWindow = false;
+  for (let winStart = new Date(overallFrom); winStart < now; winStart = new Date(winStart.getTime() + WINDOW_MS)) {
     const winEndMs = Math.min(winStart.getTime() + WINDOW_MS - 1, now.getTime());
     const winEnd = new Date(winEndMs);
     const dateFrom = winStart.toISOString();
     const dateTo = winEnd.toISOString();
 
+    let windowSkipped = false;
     let pageOffset = 0;
     while (true) {
-      let page;
-      try {
-        page = await client.listInvoices(session, {
-          subjectType: "buyer",
-          nip: cfg.nip,
-          dateFrom,
-          dateTo,
-          pageOffset,
-          pageSize: PAGE_SIZE,
-        });
-      } catch (err) {
-        req.log.warn({ err: String(err), dateFrom, dateTo, pageOffset }, "KSeF listInvoices failed");
-        if (err instanceof KsefRateLimitError) {
-          if (!rateLimitedWindowStart) rateLimitedWindowStart = winStart;
-          summary.errors.push(
-            `Okno ${dateFrom.slice(0, 10)}…${dateTo.slice(0, 10)}: KSeF ogranicza zapytania — faktury z tego okresu pobiorą się przy następnej synchronizacji.`,
-          );
-          break windowLoop;
+      let page: Awaited<ReturnType<typeof client.listInvoices>> | undefined;
+      let listErr: unknown;
+      for (let attempt = 0; attempt <= LIST_RETRY_DELAYS_MS.length; attempt++) {
+        try {
+          page = await client.listInvoices(session, {
+            subjectType: "buyer",
+            nip: cfg.nip,
+            dateFrom,
+            dateTo,
+            pageOffset,
+            pageSize: PAGE_SIZE,
+          });
+          listErr = undefined;
+          break;
+        } catch (err) {
+          listErr = err;
+          if (err instanceof KsefRateLimitError && attempt < LIST_RETRY_DELAYS_MS.length) {
+            req.log.warn(
+              { dateFrom, dateTo, pageOffset, attempt },
+              "KSeF listInvoices rate limited, retrying",
+            );
+            await sleep(LIST_RETRY_DELAYS_MS[attempt]);
+            continue;
+          }
+          break;
         }
-        const m = mapKsefError(err);
-        onProgress({ type: "error", status: m.status, message: m.message });
-        return;
+      }
+      if (listErr !== undefined) {
+        if (listErr instanceof KsefRateLimitError) {
+          // Rate-limited even after retries — skip this window, continue with the next.
+          req.log.warn(
+            { dateFrom, dateTo, pageOffset },
+            "KSeF listInvoices rate-limited after retries, skipping window",
+          );
+          summary.errors.push(
+            `Okno ${dateFrom.slice(0, 10)}–${dateTo.slice(0, 10)} pominięte: ${mapKsefError(listErr).message}`,
+          );
+          windowSkipped = true;
+          break;
+        } else {
+          // Other errors (auth, network, server) — abort the sync.
+          const m = mapKsefError(listErr);
+          req.log.warn({ err: String(listErr), dateFrom, dateTo, pageOffset }, "KSeF listInvoices failed");
+          onProgress({ type: "error", status: m.status, message: m.message });
+          return;
+        }
       }
 
-      for (const inv of page.invoices) {
+      for (const inv of page!.invoices) {
         if (inv.ksefReferenceNumber) {
           allRefsMap.set(inv.ksefReferenceNumber, inv);
         }
       }
-      if (page.isTruncated) {
+      if (page!.isTruncated) {
         truncatedWindow = true;
         summary.errors.push(
           `Okno ${dateFrom.slice(0, 10)}…${dateTo.slice(0, 10)} przekroczyło limit KSeF — część faktur pominięta.`,
         );
         break;
       }
-      if (!page.hasMore || page.invoices.length === 0) break;
-      pageOffset = page.nextOffset;
+      if (!page!.hasMore || page!.invoices.length === 0) break;
+      pageOffset = page!.nextOffset;
       if (pageOffset > MAX_PAGE_OFFSET) {
         truncatedWindow = true;
         summary.errors.push(
@@ -404,6 +433,13 @@ async function runSync(
     }
     windowsDone++;
     onProgress({ type: "scanning", windowsDone, windowsTotal: totalWindows });
+    if (windowSkipped) {
+      hadSkippedWindow = true;
+    } else if (!hadSkippedWindow) {
+      // Only advance through a contiguous prefix of successful windows.
+      // Once a gap appears, stop moving the checkpoint so the next sync re-scans it.
+      lastSuccessfulWinEnd = winEnd;
+    }
   }
   const allRefs = Array.from(allRefsMap.values());
 
@@ -692,16 +728,22 @@ async function runSync(
     }
   }
 
-  const newLastSyncedAt = rateLimitedWindowStart ?? now;
-  await db
-    .update(ksefConfigTable)
-    .set({ lastSyncedAt: newLastSyncedAt })
-    .where(eq(ksefConfigTable.id, cfg.id));
+  // Advance lastSyncedAt to the end of the last contiguous run of successful windows.
+  // If no window succeeded at all, leave lastSyncedAt unchanged so the next sync
+  // retries from the same starting point (do not advance to now).
+  const updatedLastSyncedAt = lastSuccessfulWinEnd ?? cfg.lastSyncedAt;
+
+  if (lastSuccessfulWinEnd !== null) {
+    await db
+      .update(ksefConfigTable)
+      .set({ lastSyncedAt: lastSuccessfulWinEnd })
+      .where(eq(ksefConfigTable.id, cfg.id));
+  }
 
   onProgress({
     type: "done",
     ...summary,
-    lastSyncedAt: newLastSyncedAt.toISOString(),
+    lastSyncedAt: updatedLastSyncedAt ? updatedLastSyncedAt.toISOString() : null,
   });
 
   // Fire-and-forget: recalculate price alert triggers after new invoices arrive.
