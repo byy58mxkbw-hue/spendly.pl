@@ -1,6 +1,5 @@
-import { useSignIn } from "@clerk/expo/legacy";
-import { isClerkAPIResponseError } from "@clerk/expo";
-import { Link, useRouter } from "expo-router";
+import { useSignIn } from "@clerk/expo";
+import { type Href, Link, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -17,51 +16,122 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
 export default function SignInPage() {
-  const { isLoaded, signIn, setActive } = useSignIn();
+  const { signIn, errors, fetchStatus } = useSignIn();
   const router = useRouter();
   const colors = useColors();
   const insets = useSafeAreaInsets();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [verifyCode, setVerifyCode] = useState("");
 
   const s = styles(colors, insets);
 
   const handleSignIn = async () => {
-    if (!isLoaded) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await signIn.create({
-        identifier: email,
-        password,
+    const { error } = await signIn.password({ emailAddress: email, password });
+    if (error) return;
+
+    if (signIn.status === "complete") {
+      await signIn.finalize({
+        navigate: ({ decorateUrl }) => {
+          const url = decorateUrl("/");
+          if (url.startsWith("http")) {
+            router.replace("/" as Href);
+          } else {
+            router.replace(url as Href);
+          }
+        },
       });
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
-        router.replace("/");
+    } else if (signIn.status === "needs_client_trust") {
+      const emailCodeFactor = signIn.supportedSecondFactors?.find(
+        (f) => f.strategy === "email_code",
+      );
+      if (emailCodeFactor) {
+        await signIn.mfa.sendEmailCode();
       }
-    } catch (err) {
-      if (isClerkAPIResponseError(err)) {
-        setError(err.errors[0]?.longMessage ?? err.errors[0]?.message ?? "Błąd logowania");
-      } else {
-        setError("Błąd logowania. Spróbuj ponownie.");
-      }
-    } finally {
-      setLoading(false);
     }
   };
+
+  const handleVerify = async () => {
+    await signIn.mfa.verifyEmailCode({ code: verifyCode });
+    if (signIn.status === "complete") {
+      await signIn.finalize({
+        navigate: ({ decorateUrl }) => {
+          const url = decorateUrl("/");
+          if (url.startsWith("http")) {
+            router.replace("/" as Href);
+          } else {
+            router.replace(url as Href);
+          }
+        },
+      });
+    }
+  };
+
+  if (signIn.status === "needs_client_trust") {
+    return (
+      <KeyboardAvoidingView
+        style={s.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+          <View style={s.header}>
+            <Text style={s.logo}>CheckIT</Text>
+            <Text style={s.subtitle}>Zweryfikuj swoją tożsamość</Text>
+          </View>
+          <View style={s.form}>
+            <Text style={s.label}>Kod weryfikacyjny</Text>
+            <TextInput
+              style={s.input}
+              value={verifyCode}
+              placeholder="Wprowadź kod"
+              placeholderTextColor={colors.mutedForeground}
+              onChangeText={setVerifyCode}
+              keyboardType="number-pad"
+              autoFocus
+            />
+            {errors?.fields?.code && (
+              <Text style={s.error}>{errors.fields.code.message}</Text>
+            )}
+            <Pressable
+              style={({ pressed }) => [
+                s.button,
+                (fetchStatus === "fetching" || !verifyCode) && s.buttonDisabled,
+                pressed && s.buttonPressed,
+              ]}
+              onPress={handleVerify}
+              disabled={fetchStatus === "fetching" || !verifyCode}
+            >
+              {fetchStatus === "fetching" ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={s.buttonText}>Zweryfikuj</Text>
+              )}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [s.secondaryButton, pressed && s.buttonPressed]}
+              onPress={() => signIn.mfa.sendEmailCode()}
+            >
+              <Text style={s.secondaryButtonText}>Wyślij nowy kod</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [s.secondaryButton, pressed && s.buttonPressed]}
+              onPress={() => signIn.reset()}
+            >
+              <Text style={s.secondaryButtonText}>Wróć do logowania</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
       style={s.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView
-        contentContainerStyle={s.scroll}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <View style={s.header}>
           <Text style={s.logo}>CheckIT</Text>
           <Text style={s.subtitle}>Monitoruj ceny. Reaguj szybciej.</Text>
@@ -80,6 +150,9 @@ export default function SignInPage() {
             autoCorrect={false}
             testID="email-input"
           />
+          {errors?.fields?.identifier && (
+            <Text style={s.error}>{errors.fields.identifier.message}</Text>
+          )}
 
           <Text style={[s.label, { marginTop: 16 }]}>Hasło</Text>
           <TextInput
@@ -91,20 +164,21 @@ export default function SignInPage() {
             secureTextEntry
             testID="password-input"
           />
-
-          {error && <Text style={s.error}>{error}</Text>}
+          {errors?.fields?.password && (
+            <Text style={s.error}>{errors.fields.password.message}</Text>
+          )}
 
           <Pressable
             style={({ pressed }) => [
               s.button,
-              (!email || !password || loading) && s.buttonDisabled,
+              (!email || !password || fetchStatus === "fetching") && s.buttonDisabled,
               pressed && s.buttonPressed,
             ]}
             onPress={handleSignIn}
-            disabled={!email || !password || loading}
+            disabled={!email || !password || fetchStatus === "fetching"}
             testID="sign-in-button"
           >
-            {loading ? (
+            {fetchStatus === "fetching" ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={s.buttonText}>Zaloguj się</Text>
@@ -194,6 +268,17 @@ const styles = (colors: ReturnType<typeof useColors>, insets: { top: number; bot
       fontFamily: "Inter_600SemiBold",
       color: "#ffffff",
     },
+    secondaryButton: {
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: 8,
+    },
+    secondaryButtonText: {
+      fontSize: 14,
+      fontFamily: "Inter_400Regular",
+      color: colors.mutedForeground,
+    },
     footer: {
       flexDirection: "row",
       justifyContent: "center",
@@ -214,6 +299,6 @@ const styles = (colors: ReturnType<typeof useColors>, insets: { top: number; bot
       fontSize: 12,
       fontFamily: "Inter_400Regular",
       color: colors.destructive,
-      marginTop: 8,
+      marginTop: 4,
     },
   });
