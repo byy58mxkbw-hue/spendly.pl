@@ -212,6 +212,24 @@ export class KsefClient {
 
         if (!res.ok) {
           const body = await res.text().catch(() => "");
+          // KSeF returns auth errors as HTTP 400 with exception codes 21300–21399.
+          // Treat these as KsefAuthError so callers surface a user-friendly message.
+          if (res.status === 400) {
+            try {
+              const parsed = JSON.parse(body) as {
+                exception?: { exceptionDetailList?: Array<{ exceptionCode?: number }> };
+              };
+              const codes =
+                parsed?.exception?.exceptionDetailList?.map((e) => e.exceptionCode) ?? [];
+              if (codes.some((c) => typeof c === "number" && c >= 21300 && c <= 21399)) {
+                throw new KsefAuthError(
+                  `KSeF odrzucił token (kod ${String(codes[0])}). Wygeneruj nowy token w aplikacji KSeF i zapisz go w Ustawieniach.`,
+                );
+              }
+            } catch (parseErr) {
+              if (parseErr instanceof KsefAuthError) throw parseErr;
+            }
+          }
           throw new KsefError(`KSeF HTTP ${res.status}: ${body.slice(0, 300)}`);
         }
 
