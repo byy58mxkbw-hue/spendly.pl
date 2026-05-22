@@ -658,6 +658,23 @@ export type GetPredictiveReportParams = {
   horizonDays?: number;
 };
 
+export type DeleteAllKsefPendingParams = {
+  status?: DeleteAllKsefPendingStatus;
+};
+
+export type DeleteAllKsefPendingStatus =
+  (typeof DeleteAllKsefPendingStatus)[keyof typeof DeleteAllKsefPendingStatus];
+
+export const DeleteAllKsefPendingStatus = {
+  pending: "pending",
+  accepted: "accepted",
+  rejected: "rejected",
+} as const;
+
+export type DeleteAllKsefPending200 = {
+  deleted: number;
+};
+
 export type ListKsefPendingParams = {
   status?: ListKsefPendingStatus;
 };

@@ -33,11 +33,22 @@ import {
   useCreateSupplier,
   useCreateProduct,
   useRetryKsefPending,
+  useDeleteAllKsefPending,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice, formatDate } from "@/lib/format";
-import { AlertTriangle, CheckCircle2, X, Inbox, ChevronDown, FileCode, Loader2, Plus, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertTriangle, CheckCircle2, X, Inbox, ChevronDown, FileCode, Loader2, Plus, ChevronLeft, ChevronRight, Receipt, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
@@ -115,8 +126,31 @@ export default function PendingInvoices() {
   const { data: pending, isLoading } = useListKsefPending({ status });
   const [openId, setOpenId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const deleteAll = useDeleteAllKsefPending();
 
   useEffect(() => { setPage(1); }, [status]);
+
+  function handleDeleteAll() {
+    deleteAll.mutate(
+      { params: { status } },
+      {
+        onSuccess: (data) => {
+          queryClient.invalidateQueries();
+          setShowDeleteAll(false);
+          const label =
+            status === "pending" ? "oczekujących" : status === "accepted" ? "zaakceptowanych" : "odrzuconych";
+          toast({
+            title: "Usunięto faktury",
+            description: `Usunięto ${data.deleted} ${label} faktur z kolejki.`,
+          });
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "Błąd", description: "Nie udało się usunąć faktur." });
+        },
+      }
+    );
+  }
 
   const totalAmount = useMemo(
     () => (pending ?? []).reduce((sum, r) => sum + (r.totalGross ?? 0), 0),
@@ -144,6 +178,17 @@ export default function PendingInvoices() {
                   <SelectItem value="rejected">Odrzucone</SelectItem>
                 </SelectContent>
               </Select>
+              {(pending?.length ?? 0) > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteAll(true)}
+                  className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                  data-testid="btn-delete-all-pending"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Usuń wszystkie</span>
+                </Button>
+              )}
             </div>
           }
         />
@@ -264,6 +309,35 @@ export default function PendingInvoices() {
           }}
         />
       )}
+
+      <AlertDialog open={showDeleteAll} onOpenChange={(open) => { if (!open) setShowDeleteAll(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Usuń wszystkie faktury z kolejki</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ta operacja jest nieodwracalna. Zostaną usunięte wszystkie{" "}
+              {status === "pending" ? "oczekujące" : status === "accepted" ? "zaakceptowane" : "odrzucone"}{" "}
+              faktury z kolejki "Do przeglądu".
+              {(pending?.length ?? 0) > 0 && (
+                <span className="block mt-2 font-medium text-foreground">
+                  Liczba faktur do usunięcia: {pending!.length}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAll}
+              disabled={deleteAll.isPending}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="btn-confirm-delete-all-pending"
+            >
+              {deleteAll.isPending ? "Usuwanie..." : "Usuń wszystkie"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }

@@ -29,6 +29,8 @@ import type {
   CreatedProduct,
   DashboardSummary,
   DeleteAllInvoices200,
+  DeleteAllKsefPending200,
+  DeleteAllKsefPendingParams,
   DismissPriceAlertBody,
   DismissedAlert,
   GenerateInsightsResponse,
@@ -3736,6 +3738,107 @@ export const useRetryKsefPending = <
   TContext
 > => {
   return useMutation(getRetryKsefPendingMutationOptions(options));
+};
+
+/**
+ * @summary Delete all pending KSeF invoices for the current user
+ */
+export const getDeleteAllKsefPendingUrl = (
+  params?: DeleteAllKsefPendingParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/ksef/pending/delete-all?${stringifiedParams}`
+    : `/api/ksef/pending/delete-all`;
+};
+
+export const deleteAllKsefPending = async (
+  params?: DeleteAllKsefPendingParams,
+  options?: RequestInit,
+): Promise<DeleteAllKsefPending200> => {
+  return customFetch<DeleteAllKsefPending200>(
+    getDeleteAllKsefPendingUrl(params),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getDeleteAllKsefPendingMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAllKsefPending>>,
+    TError,
+    { params?: DeleteAllKsefPendingParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAllKsefPending>>,
+  TError,
+  { params?: DeleteAllKsefPendingParams },
+  TContext
+> => {
+  const mutationKey = ["deleteAllKsefPending"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAllKsefPending>>,
+    { params?: DeleteAllKsefPendingParams }
+  > = (props) => {
+    const { params } = props ?? {};
+
+    return deleteAllKsefPending(params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAllKsefPendingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAllKsefPending>>
+>;
+
+export type DeleteAllKsefPendingMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete all pending KSeF invoices for the current user
+ */
+export const useDeleteAllKsefPending = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAllKsefPending>>,
+    TError,
+    { params?: DeleteAllKsefPendingParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAllKsefPending>>,
+  TError,
+  { params?: DeleteAllKsefPendingParams },
+  TContext
+> => {
+  return useMutation(getDeleteAllKsefPendingMutationOptions(options));
 };
 
 /**

@@ -881,6 +881,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/RetryKsefPendingResult"
 
+  /ksef/pending/delete-all:
+    delete:
+      operationId: deleteAllKsefPending
+      tags: [ksef]
+      summary: Delete all pending KSeF invoices for the current user
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, accepted, rejected]
+      responses:
+        "200":
+          description: Number of deleted pending invoices
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: integer
+
   /ksef/pending:
     get:
       operationId: listKsefPending

@@ -842,6 +842,17 @@ export const RetryKsefPendingResponse = zod.object({
 });
 
 /**
+ * @summary Delete all pending KSeF invoices for the current user
+ */
+export const DeleteAllKsefPendingQueryParams = zod.object({
+  status: zod.enum(["pending", "accepted", "rejected"]).optional(),
+});
+
+export const DeleteAllKsefPendingResponse = zod.object({
+  deleted: zod.number(),
+});
+
+/**
  * @summary List invoices pulled from KSeF that need manual review
  */
 export const ListKsefPendingQueryParams = zod.object({

@@ -990,6 +990,25 @@ router.get("/ksef/pending", async (req, res): Promise<void> => {
   );
 });
 
+router.delete("/ksef/pending/delete-all", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const status = typeof req.query.status === "string" ? req.query.status : undefined;
+  const validStatuses = ["pending", "accepted", "rejected"] as const;
+  type Status = (typeof validStatuses)[number];
+
+  const conditions = [eq(ksefPendingInvoicesTable.userId, userId)];
+  if (status && (validStatuses as readonly string[]).includes(status)) {
+    conditions.push(eq(ksefPendingInvoicesTable.status, status as Status));
+  }
+
+  const result = await db
+    .delete(ksefPendingInvoicesTable)
+    .where(and(...conditions))
+    .returning({ id: ksefPendingInvoicesTable.id });
+
+  res.json({ deleted: result.length });
+});
+
 router.get("/ksef/pending/:id", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const p = GetKsefPendingParams.safeParse(req.params);
