@@ -137,7 +137,6 @@ function AppMockup() {
 export default function Home() {
   return (
     <div className="min-h-screen bg-background">
-
       {/* ─── Nav ─────────────────────────────────────────────────────────── */}
       <header className="border-b border-border bg-background/90 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -155,14 +154,13 @@ export default function Home() {
               <Button variant="ghost" size="sm" data-testid="btn-signin">Zaloguj</Button>
             </Link>
             <Link href="/sign-up">
-              <Button size="sm" className="gap-1.5" data-testid="btn-signup">
+              <Button size="sm" className="gap-1.5 text-right" data-testid="btn-signup">
                 Zacznij za darmo
               </Button>
             </Link>
           </div>
         </div>
       </header>
-
       {/* ─── Hero ────────────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-6 pt-12 pb-10 md:pt-20 md:pb-28">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
@@ -183,17 +181,17 @@ export default function Home() {
               initial="hidden"
               animate="visible"
               transition={{ duration: 0.4, ease, delay: 0.07 }}
-              className="text-4xl md:text-5xl font-extrabold text-foreground tracking-tight leading-[1.08] mb-5"
+              className="text-4xl md:text-5xl font-extrabold text-foreground tracking-tight leading-[1.08] mb-5 text-center"
             >
               Przestań tracić<br />
-              na <span className="text-primary">food cost.</span>
+              na <span className="text-primary text-[32px]">PODWYŻKACH </span>
             </motion.h1>
             <motion.p
               variants={fadeUp}
               initial="hidden"
               animate="visible"
               transition={{ duration: 0.4, ease, delay: 0.14 }}
-              className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg"
+              className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg text-center"
             >
               CheckIT automatycznie pobiera faktury od dostawców z KSeF, śledzi zmiany cen każdego surowca i alarmuje zanim podwyżka uderzy w twój wynik.
             </motion.p>
@@ -243,7 +241,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-
       {/* ─── Trust bar ───────────────────────────────────────────────────── */}
       <motion.section
         variants={fadeIn}
@@ -268,7 +265,6 @@ export default function Home() {
           </div>
         </div>
       </motion.section>
-
       {/* ─── How it works ────────────────────────────────────────────────── */}
       <section id="jak-to-dziala" className="max-w-6xl mx-auto px-6 py-12 md:py-24">
         <motion.div
@@ -334,7 +330,6 @@ export default function Home() {
           ))}
         </div>
       </section>
-
       {/* ─── Problem / Solution ──────────────────────────────────────────── */}
       <section className="bg-secondary/30 border-y border-border">
         <div className="max-w-6xl mx-auto px-6 py-12 md:py-24">
@@ -395,7 +390,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
       {/* ─── Features ────────────────────────────────────────────────────── */}
       <section id="funkcje" className="max-w-6xl mx-auto px-6 py-12 md:py-24">
         <motion.div
@@ -468,7 +462,6 @@ export default function Home() {
           ))}
         </div>
       </section>
-
       {/* ─── Pricing ─────────────────────────────────────────────────────── */}
       <section id="cennik" className="bg-secondary/30 border-y border-border">
         <div className="max-w-6xl mx-auto px-6 py-12 md:py-24">
@@ -594,7 +587,6 @@ export default function Home() {
           </motion.p>
         </div>
       </section>
-
       {/* ─── Final CTA ───────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-6 py-12 md:py-24">
         <motion.div
@@ -650,11 +642,10 @@ export default function Home() {
           </div>
         </motion.div>
       </section>
-
       {/* ─── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-border bg-secondary/20">
         <div className="max-w-6xl mx-auto px-6 py-10">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 text-right">
             {/* Brand */}
             <div className="flex items-center gap-2.5">
               <img src="/logo.svg" alt="CheckIT" className="w-7 h-7 rounded-lg" />
@@ -663,7 +654,7 @@ export default function Home() {
             </div>
 
             {/* Links */}
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground text-center flex-row">
               <Link href="/sign-in" className="hover:text-foreground transition-colors">
                 Logowanie
               </Link>
