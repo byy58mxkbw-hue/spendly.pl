@@ -37,9 +37,11 @@ import { AdvisoryLock } from "../lib/advisory-lock";
 
 const router: IRouter = Router();
 
-// Small delay between per-invoice XML fetches to stay below KSeF's
-// rate limit. Empirically the production limiter is ~3–5 req/s per IP/token.
-const PER_INVOICE_DELAY_MS = 300;
+// Small delay between per-invoice XML fetches to stay below KSeF's rate limit.
+const PER_INVOICE_DELAY_MS = 400;
+// Delay between listInvoices window queries (metadata). KSeF rate-limits aggressively
+// on metadata queries — too many windows in quick succession triggers a 1-hour ban.
+const INTER_WINDOW_DELAY_MS = 600;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function describeDbErr(err: unknown): string {
@@ -340,12 +342,16 @@ async function runSync(
   }
 
   const now = new Date();
+  // First sync: look back 2 years. With 30-day windows that is only ~24 API calls,
+  // well within KSeF rate limits when combined with the inter-window delay.
   const overallFrom = cfg.lastSyncedAt
     ? cfg.lastSyncedAt
-    : new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+    : new Date(now.getTime() - 2 * 365 * 24 * 60 * 60 * 1000);
 
-  const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-  const PAGE_SIZE = 100;
+  // 30-day windows instead of 7-day windows → ~12 API calls/year instead of ~52.
+  // Fewer metadata queries = much lower risk of hitting KSeF's per-NIP rate limit.
+  const WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+  const PAGE_SIZE = 250;
   const MAX_PAGE_OFFSET = 9900;
 
   const totalWindows = Math.max(1, Math.ceil((now.getTime() - overallFrom.getTime()) / WINDOW_MS));
@@ -354,18 +360,23 @@ async function runSync(
 
   const allRefsMap = new Map<string, { ksefReferenceNumber: string }>();
   let truncatedWindow = false;
-  // Track the end of the last *contiguous* run of successful windows from the start.
-  // Once any window is skipped we stop advancing so the next sync re-scans the gap.
   let lastSuccessfulWinEnd: Date | null = null;
-  let hadSkippedWindow = false;
-  for (let winStart = new Date(overallFrom); winStart < now; winStart = new Date(winStart.getTime() + WINDOW_MS)) {
+  // Set when listInvoices is rate-limited — we proceed to import partial results
+  // instead of aborting, and let the user re-sync after the cooldown expires.
+  let scanRateLimited = false;
+  let scanRateLimitRetryAfterSecs = 0;
+
+  for (let winStart = new Date(overallFrom); winStart < now && !scanRateLimited; winStart = new Date(winStart.getTime() + WINDOW_MS)) {
+    // Throttle metadata queries: wait between windows (except the very first).
+    if (windowsDone > 0) await sleep(INTER_WINDOW_DELAY_MS);
+
     const winEndMs = Math.min(winStart.getTime() + WINDOW_MS - 1, now.getTime());
     const winEnd = new Date(winEndMs);
     const dateFrom = winStart.toISOString();
     const dateTo = winEnd.toISOString();
 
-    let windowSkipped = false;
     let pageOffset = 0;
+    let windowOk = true;
     while (true) {
       let page: Awaited<ReturnType<typeof client.listInvoices>> | undefined;
       try {
@@ -378,17 +389,23 @@ async function runSync(
           pageSize: PAGE_SIZE,
         });
       } catch (err) {
-        // Rate-limited: KSeF client already waited up to maxWaitS per attempt.
-        // When it gives up (retryAfter too large or retries exhausted), abort the
-        // entire sync — skipping windows is pointless because the limit applies
-        // to the whole session/token, not to individual windows.
-        const m = mapKsefError(err);
-        req.log.warn(
-          { err: String(err), dateFrom, dateTo, pageOffset },
-          "KSeF listInvoices failed, aborting sync",
-        );
-        onProgress({ type: "error", status: m.status, message: m.message });
-        return;
+        if (err instanceof KsefRateLimitError) {
+          // Rate limit during metadata scan: stop scanning, proceed to import
+          // what we've collected so far, and tell the user when to retry.
+          scanRateLimited = true;
+          scanRateLimitRetryAfterSecs = err.retryAfterSeconds;
+          windowOk = false;
+          req.log.warn(
+            { retryAfterSecs: err.retryAfterSeconds, windowsDone, dateFrom },
+            "KSeF rate-limited during scan, will do partial import",
+          );
+        } else {
+          const m = mapKsefError(err);
+          req.log.warn({ err: String(err), dateFrom, dateTo }, "KSeF listInvoices failed, aborting sync");
+          onProgress({ type: "error", status: m.status, message: m.message });
+          return;
+        }
+        break;
       }
 
       for (const inv of page!.invoices) {
@@ -399,7 +416,7 @@ async function runSync(
       if (page!.isTruncated) {
         truncatedWindow = true;
         summary.errors.push(
-          `Okno ${dateFrom.slice(0, 10)}…${dateTo.slice(0, 10)} przekroczyło limit KSeF — część faktur pominięta.`,
+          `Okno ${dateFrom.slice(0, 10)}–${dateTo.slice(0, 10)} przekroczyło limit KSeF — część faktur pominięta.`,
         );
         break;
       }
@@ -408,21 +425,33 @@ async function runSync(
       if (pageOffset > MAX_PAGE_OFFSET) {
         truncatedWindow = true;
         summary.errors.push(
-          `Okno ${dateFrom.slice(0, 10)}…${dateTo.slice(0, 10)} przekroczyło ${MAX_PAGE_OFFSET} wyników — część faktur pominięta.`,
+          `Okno ${dateFrom.slice(0, 10)}–${dateTo.slice(0, 10)} przekroczyło ${MAX_PAGE_OFFSET} wyników — część faktur pominięta.`,
         );
         break;
       }
     }
+
     windowsDone++;
     onProgress({ type: "scanning", windowsDone, windowsTotal: totalWindows });
-    if (windowSkipped) {
-      hadSkippedWindow = true;
-    } else if (!hadSkippedWindow) {
-      // Only advance through a contiguous prefix of successful windows.
-      // Once a gap appears, stop moving the checkpoint so the next sync re-scans it.
+    if (windowOk) {
       lastSuccessfulWinEnd = winEnd;
     }
   }
+
+  if (scanRateLimited) {
+    const mins = Math.ceil(scanRateLimitRetryAfterSecs / 60);
+    const waitNote = mins > 60
+      ? `za ponad godzinę`
+      : mins > 1
+        ? `za ok. ${mins} min`
+        : `za chwilę`;
+    const partialCount = allRefsMap.size;
+    onProgress({
+      type: "warning",
+      message: `KSeF ogranicza zapytania — zeskanowano ${windowsDone} z ${totalWindows} okien (${partialCount} faktur). Importuję co udało się pobrać. Uruchom synchronizację ponownie ${waitNote}, aby pobrać pozostałe faktury.`,
+    });
+  }
+
   const allRefs = Array.from(allRefsMap.values());
 
   // Filter out invoices we already have for this user.
@@ -453,7 +482,9 @@ async function runSync(
     newRefs = allRefs.filter((r) => !seen.has(r.ksefReferenceNumber));
   }
 
-  const RETRY_DELAYS_MS = [500, 1500, 4500];
+  // Retry short 429s (≤120s retryAfter) with backoff. Long 429s mean a NIP-level
+  // cooldown — don't retry them, just rethrow so the outer loop can stop cleanly.
+  const RETRY_DELAYS_MS = [1000, 3000];
   async function fetchXmlWithRetry(ksefRef: string): Promise<string> {
     let lastErr: unknown;
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
@@ -461,9 +492,13 @@ async function runSync(
         return await client.getInvoiceXml(session, ksefRef);
       } catch (err) {
         lastErr = err;
-        if (err instanceof KsefRateLimitError && attempt < RETRY_DELAYS_MS.length) {
-          await sleep(RETRY_DELAYS_MS[attempt]);
-          continue;
+        if (err instanceof KsefRateLimitError) {
+          // Long cooldown → stop fetching immediately, don't keep hammering the API.
+          if (err.retryAfterSeconds > 120) throw err;
+          if (attempt < RETRY_DELAYS_MS.length) {
+            await sleep(RETRY_DELAYS_MS[attempt]);
+            continue;
+          }
         }
         throw err;
       }
@@ -473,7 +508,10 @@ async function runSync(
 
   onProgress({ type: "fetching", fetched: 0, total: newRefs.length });
 
+  let fetchHardRateLimit = false;
+
   for (let idx = 0; idx < newRefs.length; idx++) {
+    if (fetchHardRateLimit) break;
     const ref = newRefs[idx];
     if (idx > 0) await sleep(PER_INVOICE_DELAY_MS);
     try {
@@ -598,14 +636,22 @@ async function runSync(
         summary.pending++;
       }
     } catch (err) {
-      summary.failed++;
-      const m = mapKsefError(err);
-      const friendly =
-        err instanceof KsefRateLimitError
-          ? "KSeF chwilowo ogranicza zapytania. Pozostałe faktury pobiorą się przy następnej synchronizacji za ok. 1 minutę."
-          : m.message;
-      summary.errors.push(`Faktura ${ref.ksefReferenceNumber}: ${friendly}`);
-      req.log.error({ ksefRef: ref.ksefReferenceNumber, err: describeDbErr(err) }, "KSeF per-invoice fetch failed");
+      if (err instanceof KsefRateLimitError && err.retryAfterSeconds > 120) {
+        // Hard NIP-level cooldown — stop fetching to avoid further 429s.
+        fetchHardRateLimit = true;
+        fetchRateLimitRetryAfterSecs = err.retryAfterSeconds;
+        const remaining = newRefs.length - idx;
+        const mins = Math.ceil(err.retryAfterSeconds / 60);
+        summary.errors.push(
+          `KSeF ogranicza zapytania — ${remaining} faktur zostanie pobrane przy kolejnej synchronizacji za ok. ${mins} min.`,
+        );
+        req.log.warn({ ksefRef: ref.ksefReferenceNumber, retryAfterSecs: err.retryAfterSeconds, remaining }, "KSeF hard rate limit during fetch, stopping");
+      } else {
+        summary.failed++;
+        const m = mapKsefError(err);
+        summary.errors.push(`Faktura ${ref.ksefReferenceNumber}: ${m.message}`);
+        req.log.error({ ksefRef: ref.ksefReferenceNumber, err: describeDbErr(err) }, "KSeF per-invoice fetch failed");
+      }
     }
     onProgress({ type: "fetching", fetched: idx + 1, total: newRefs.length });
   }
