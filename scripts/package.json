@@ -7,7 +7,8 @@
     "hello": "tsx ./src/hello.ts",
     "backfill-categories": "tsx ./src/backfill-categories.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "e2e": "playwright test --config playwright.config.ts"
+    "e2e": "playwright test --config playwright.config.ts",
+    "cleanup-prod-agata-pending": "tsx ./src/cleanup-prod-agata-pending.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
@@ -15,7 +16,9 @@
     "tsx": "catalog:"
   },
   "dependencies": {
+    "@types/pg": "^8.18.0",
     "@workspace/db": "workspace:*",
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "catalog:",
+    "pg": "^8.20.0"
   }
 }
