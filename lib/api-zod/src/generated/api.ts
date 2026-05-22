@@ -8,6 +8,99 @@
 import * as zod from "zod";
 
 /**
+ * @summary List all users with per-user stats and blocked status
+ */
+export const GetAdminUsersResponse = zod.object({
+  users: zod.array(
+    zod.object({
+      id: zod.string(),
+      firstName: zod.string().nullish(),
+      lastName: zod.string().nullish(),
+      email: zod.string().nullish(),
+      createdAt: zod.number(),
+      lastSignInAt: zod.number().nullish(),
+      blocked: zod.boolean(),
+      invoiceCount: zod.number(),
+      supplierCount: zod.number(),
+      productCount: zod.number(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get platform-wide aggregated statistics
+ */
+export const GetAdminStatsResponse = zod.object({
+  totalUsers: zod.number(),
+  totalInvoices: zod.number(),
+  totalSuppliers: zod.number(),
+  totalProducts: zod.number(),
+  registrationsChart: zod.array(
+    zod.object({
+      month: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get data preview for a specific user
+ */
+export const GetAdminUserDetailsParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const GetAdminUserDetailsResponse = zod.object({
+  suppliers: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      taxId: zod.string(),
+      isActive: zod.boolean(),
+    }),
+  ),
+  recentInvoices: zod.array(
+    zod.object({
+      id: zod.number(),
+      invoiceNumber: zod.string(),
+      invoiceDate: zod.string(),
+      totalAmount: zod.string(),
+      supplierName: zod.string(),
+    }),
+  ),
+  topProducts: zod.array(
+    zod.object({
+      productName: zod.string(),
+      totalSpend: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Block or unblock a user account
+ */
+export const PatchAdminUserBlockParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const PatchAdminUserBlockBody = zod.object({
+  blocked: zod.boolean(),
+});
+
+export const PatchAdminUserBlockResponse = zod.object({
+  ok: zod.boolean(),
+  blocked: zod.boolean(),
+});
+
+/**
+ * @summary Permanently delete a user account
+ */
+export const DeleteAdminUserParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+/**
  * @summary List AI insights for the current user
  */
 export const GetInsightsResponseItem = zod.object({

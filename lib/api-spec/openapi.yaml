@@ -26,8 +26,108 @@ tags:
     description: KSeF 2.0 integration (sync, config, pending review)
   - name: insights
     description: AI CFO — automated price insights
+  - name: admin
+    description: Admin panel — users, stats, account management
 
 paths:
+  /admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [admin]
+      summary: List all users with per-user stats and blocked status
+      responses:
+        "200":
+          description: User list with stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUsersResponse"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get platform-wide aggregated statistics
+      responses:
+        "200":
+          description: Platform stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatsResponse"
+
+  /admin/users/{userId}/details:
+    get:
+      operationId: getAdminUserDetails
+      tags: [admin]
+      summary: Get data preview for a specific user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserDetails"
+
+  /admin/users/{userId}/block:
+    patch:
+      operationId: patchAdminUserBlock
+      tags: [admin]
+      summary: Block or unblock a user account
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                blocked:
+                  type: boolean
+              required:
+                - blocked
+      responses:
+        "200":
+          description: Updated block status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  blocked:
+                    type: boolean
+                required:
+                  - ok
+                  - blocked
+
+  /admin/users/{userId}:
+    delete:
+      operationId: deleteAdminUser
+      tags: [admin]
+      summary: Permanently delete a user account
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
   /insights:
     get:
       operationId: getInsights
@@ -1863,3 +1963,148 @@ components:
         - changePercent
         - thresholdPercent
         - alertDate
+
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        createdAt:
+          type: number
+        lastSignInAt:
+          type: ["number", "null"]
+        blocked:
+          type: boolean
+        invoiceCount:
+          type: integer
+        supplierCount:
+          type: integer
+        productCount:
+          type: integer
+      required:
+        - id
+        - blocked
+        - invoiceCount
+        - supplierCount
+        - productCount
+        - createdAt
+
+    AdminUsersResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUser"
+        total:
+          type: integer
+      required:
+        - users
+        - total
+
+    AdminRegistrationPoint:
+      type: object
+      properties:
+        month:
+          type: string
+        count:
+          type: integer
+      required:
+        - month
+        - count
+
+    AdminStatsResponse:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        totalInvoices:
+          type: integer
+        totalSuppliers:
+          type: integer
+        totalProducts:
+          type: integer
+        registrationsChart:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminRegistrationPoint"
+      required:
+        - totalUsers
+        - totalInvoices
+        - totalSuppliers
+        - totalProducts
+        - registrationsChart
+
+    AdminSupplierSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        taxId:
+          type: string
+        isActive:
+          type: boolean
+      required:
+        - id
+        - name
+        - taxId
+        - isActive
+
+    AdminInvoiceSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        invoiceNumber:
+          type: string
+        invoiceDate:
+          type: string
+        totalAmount:
+          type: string
+        supplierName:
+          type: string
+      required:
+        - id
+        - invoiceNumber
+        - invoiceDate
+        - totalAmount
+        - supplierName
+
+    AdminTopProduct:
+      type: object
+      properties:
+        productName:
+          type: string
+        totalSpend:
+          type: string
+      required:
+        - productName
+        - totalSpend
+
+    AdminUserDetails:
+      type: object
+      properties:
+        suppliers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminSupplierSummary"
+        recentInvoices:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminInvoiceSummary"
+        topProducts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminTopProduct"
+      required:
+        - suppliers
+        - recentInvoices
+        - topProducts

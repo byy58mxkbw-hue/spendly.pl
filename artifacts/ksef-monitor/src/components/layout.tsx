@@ -73,7 +73,7 @@ function SidebarContent({
         {[
           ...navItems,
           ...(isAdmin
-            ? [{ path: "/admin/users", label: "Użytkownicy", icon: ShieldCheck }]
+            ? [{ path: "/admin/users", label: "Admin", icon: ShieldCheck }]
             : []),
         ].map(({ path, label, icon: Icon }) => {
           const active = location === path || location.startsWith(path + "/");
@@ -147,7 +147,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const pendingCount = pendingList?.length ?? 0;
   const { data: activeAlerts } = useGetDashboardActiveAlerts();
   const alertCount = activeAlerts?.length ?? 0;
-  const isAdmin = ADMIN_IDS.length === 0 || (userId != null && ADMIN_IDS.includes(userId));
+  const isAdmin = ADMIN_IDS.length > 0 && userId != null && ADMIN_IDS.includes(userId);
 
   // Close mobile drawer on route change
   useEffect(() => {

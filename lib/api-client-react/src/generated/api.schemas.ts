@@ -506,6 +506,76 @@ export interface TriggeredAlert {
   alertDate: string;
 }
 
+export interface AdminUser {
+  id: string;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
+  /** @nullable */
+  email?: string | null;
+  createdAt: number;
+  /** @nullable */
+  lastSignInAt?: number | null;
+  blocked: boolean;
+  invoiceCount: number;
+  supplierCount: number;
+  productCount: number;
+}
+
+export interface AdminUsersResponse {
+  users: AdminUser[];
+  total: number;
+}
+
+export interface AdminRegistrationPoint {
+  month: string;
+  count: number;
+}
+
+export interface AdminStatsResponse {
+  totalUsers: number;
+  totalInvoices: number;
+  totalSuppliers: number;
+  totalProducts: number;
+  registrationsChart: AdminRegistrationPoint[];
+}
+
+export interface AdminSupplierSummary {
+  id: number;
+  name: string;
+  taxId: string;
+  isActive: boolean;
+}
+
+export interface AdminInvoiceSummary {
+  id: number;
+  invoiceNumber: string;
+  invoiceDate: string;
+  totalAmount: string;
+  supplierName: string;
+}
+
+export interface AdminTopProduct {
+  productName: string;
+  totalSpend: string;
+}
+
+export interface AdminUserDetails {
+  suppliers: AdminSupplierSummary[];
+  recentInvoices: AdminInvoiceSummary[];
+  topProducts: AdminTopProduct[];
+}
+
+export type PatchAdminUserBlockBody = {
+  blocked: boolean;
+};
+
+export type PatchAdminUserBlock200 = {
+  ok: boolean;
+  blocked: boolean;
+};
+
 export type PostInsightsGenerateBody = { [key: string]: unknown };
 
 export type PostInsightsIdReadBody = { [key: string]: unknown };

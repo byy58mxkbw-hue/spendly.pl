@@ -84,6 +84,13 @@ export function requireUser(req: Request, res: Response, next: NextFunction): vo
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
+
+  const metadata = auth.sessionClaims?.["publicMetadata"] as Record<string, unknown> | undefined;
+  if (metadata?.["blocked"] === true) {
+    res.status(403).json({ error: "Konto zostało zablokowane." });
+    return;
+  }
+
   req.userId = auth.userId;
   maybeClaimLegacy(auth.userId)
     .catch((err) => req.log?.error?.({ err }, "Legacy claim failed"))
