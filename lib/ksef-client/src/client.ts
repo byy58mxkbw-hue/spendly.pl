@@ -197,7 +197,7 @@ export class KsefClient {
             continue;
           }
           this.logger.warn({ url: path, attempt, retryAfter: requested }, "KSeF 429, giving up");
-          throw new KsefRateLimitError();
+          throw new KsefRateLimitError(requested);
         }
 
         if (res.status >= 500) {

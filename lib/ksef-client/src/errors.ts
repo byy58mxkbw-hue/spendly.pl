@@ -16,8 +16,10 @@ export class KsefAuthError extends KsefError {
 
 export class KsefRateLimitError extends KsefError {
   override name = "KsefRateLimitError";
-  constructor(message = "Przekroczono limit zapytań do KSeF (HTTP 429).", cause?: unknown) {
+  readonly retryAfterSeconds: number;
+  constructor(retryAfterSeconds = 0, message = "Przekroczono limit zapytań do KSeF (HTTP 429).", cause?: unknown) {
     super(message, cause);
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 

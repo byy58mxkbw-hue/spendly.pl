@@ -151,9 +151,16 @@ function mapKsefError(err: unknown): { status: number; message: string } {
     };
   }
   if (err instanceof KsefRateLimitError) {
+    const secs = err.retryAfterSeconds;
+    const waitNote =
+      secs > 3600
+        ? `Spróbuj ponownie za ponad godzinę.`
+        : secs > 60
+          ? `Spróbuj ponownie za około ${Math.ceil(secs / 60)} min.`
+          : `Spróbuj ponownie za chwilę.`;
     return {
       status: 429,
-      message: "KSeF chwilowo ogranicza liczbę zapytań. Spróbuj ponownie za kilka minut.",
+      message: `KSeF ogranicza liczbę zapytań. ${waitNote}`,
     };
   }
   if (err instanceof KsefServerError) {
@@ -345,7 +352,6 @@ async function runSync(
   let windowsDone = 0;
   onProgress({ type: "scanning", windowsDone: 0, windowsTotal: totalWindows });
 
-  const LIST_RETRY_DELAYS_MS = [2000, 5000, 10000];
   const allRefsMap = new Map<string, { ksefReferenceNumber: string }>();
   let truncatedWindow = false;
   // Track the end of the last *contiguous* run of successful windows from the start.
@@ -362,51 +368,27 @@ async function runSync(
     let pageOffset = 0;
     while (true) {
       let page: Awaited<ReturnType<typeof client.listInvoices>> | undefined;
-      let listErr: unknown;
-      for (let attempt = 0; attempt <= LIST_RETRY_DELAYS_MS.length; attempt++) {
-        try {
-          page = await client.listInvoices(session, {
-            subjectType: "buyer",
-            nip: cfg.nip,
-            dateFrom,
-            dateTo,
-            pageOffset,
-            pageSize: PAGE_SIZE,
-          });
-          listErr = undefined;
-          break;
-        } catch (err) {
-          listErr = err;
-          if (err instanceof KsefRateLimitError && attempt < LIST_RETRY_DELAYS_MS.length) {
-            req.log.warn(
-              { dateFrom, dateTo, pageOffset, attempt },
-              "KSeF listInvoices rate limited, retrying",
-            );
-            await sleep(LIST_RETRY_DELAYS_MS[attempt]);
-            continue;
-          }
-          break;
-        }
-      }
-      if (listErr !== undefined) {
-        if (listErr instanceof KsefRateLimitError) {
-          // Rate-limited even after retries — skip this window, continue with the next.
-          req.log.warn(
-            { dateFrom, dateTo, pageOffset },
-            "KSeF listInvoices rate-limited after retries, skipping window",
-          );
-          summary.errors.push(
-            `Okno ${dateFrom.slice(0, 10)}–${dateTo.slice(0, 10)} pominięte: ${mapKsefError(listErr).message}`,
-          );
-          windowSkipped = true;
-          break;
-        } else {
-          // Other errors (auth, network, server) — abort the sync.
-          const m = mapKsefError(listErr);
-          req.log.warn({ err: String(listErr), dateFrom, dateTo, pageOffset }, "KSeF listInvoices failed");
-          onProgress({ type: "error", status: m.status, message: m.message });
-          return;
-        }
+      try {
+        page = await client.listInvoices(session, {
+          subjectType: "buyer",
+          nip: cfg.nip,
+          dateFrom,
+          dateTo,
+          pageOffset,
+          pageSize: PAGE_SIZE,
+        });
+      } catch (err) {
+        // Rate-limited: KSeF client already waited up to maxWaitS per attempt.
+        // When it gives up (retryAfter too large or retries exhausted), abort the
+        // entire sync — skipping windows is pointless because the limit applies
+        // to the whole session/token, not to individual windows.
+        const m = mapKsefError(err);
+        req.log.warn(
+          { err: String(err), dateFrom, dateTo, pageOffset },
+          "KSeF listInvoices failed, aborting sync",
+        );
+        onProgress({ type: "error", status: m.status, message: m.message });
+        return;
       }
 
       for (const inv of page!.invoices) {
