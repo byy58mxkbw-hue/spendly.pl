@@ -10,6 +10,9 @@ export const ksefConfigTable = pgTable("ksef_config", {
   tokenLast4: text("token_last4").notNull(),
   environment: text("environment").notNull().default("production"),
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  // When set, KSeF rate-limited this NIP until this time. Checked before every sync
+  // attempt so users don't burn retries against an active cooldown.
+  rateLimitedUntil: timestamp("rate_limited_until", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [uniqueIndex("ksef_config_user_id_uniq").on(t.userId)]);

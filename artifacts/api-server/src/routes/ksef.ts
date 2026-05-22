@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { toNum, toNumOrNull } from "../lib/parse";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import {
   db,
   ksefConfigTable,
@@ -256,6 +256,36 @@ async function tryMatch(userId: string, parsed: ParsedFa3): Promise<MatchResult>
   return { supplier, itemProductIds, missingProducts: missing };
 }
 
+// ─── Per-NIP rate limit helpers ──────────────────────────────────────────────
+
+/**
+ * Returns how many seconds the NIP is still blocked, or 0 if it's free.
+ * Checks ALL user configs for this NIP so that one user's sync exhaustion
+ * protects all other users sharing the same NIP.
+ */
+async function nipRateLimitSecondsRemaining(nip: string): Promise<number> {
+  const [row] = await db
+    .select({ rateLimitedUntil: ksefConfigTable.rateLimitedUntil })
+    .from(ksefConfigTable)
+    .where(and(eq(ksefConfigTable.nip, nip), gt(ksefConfigTable.rateLimitedUntil, sql`NOW()`)))
+    .orderBy(desc(ksefConfigTable.rateLimitedUntil))
+    .limit(1);
+  if (!row?.rateLimitedUntil) return 0;
+  return Math.max(0, Math.ceil((row.rateLimitedUntil.getTime() - Date.now()) / 1000));
+}
+
+/**
+ * Marks every ksef_config row for this NIP as rate-limited until `until`.
+ * This protects all accounts sharing the NIP from wasting retries.
+ */
+async function markNipRateLimited(nip: string, retryAfterSeconds: number): Promise<void> {
+  const until = new Date(Date.now() + retryAfterSeconds * 1000);
+  await db
+    .update(ksefConfigTable)
+    .set({ rateLimitedUntil: until })
+    .where(eq(ksefConfigTable.nip, nip));
+}
+
 // ─── Sync ────────────────────────────────────────────────────────────────────
 
 router.post("/ksef/sync", async (req, res): Promise<void> => {
@@ -264,6 +294,26 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
   if (!cfg) {
     res.status(400).json({
       error: "Brak konfiguracji KSeF. Przejdź do Ustawień KSeF i zapisz NIP oraz token.",
+    });
+    return;
+  }
+
+  // Check if this NIP is currently rate-limited before doing anything else.
+  // The limit is per-NIP (not per-user/token), so one user's rate-limit exhaustion
+  // blocks all accounts that share the same NIP.
+  const rateLimitSecsRemaining = await nipRateLimitSecondsRemaining(cfg.nip);
+  if (rateLimitSecsRemaining > 0) {
+    const mins = Math.ceil(rateLimitSecsRemaining / 60);
+    const timeNote =
+      mins > 60
+        ? `ponad godzinę`
+        : mins > 1
+          ? `ok. ${mins} minut`
+          : `mniej niż minutę`;
+    req.log.info({ nip: cfg.nip, rateLimitSecsRemaining }, "KSeF NIP rate-limited, rejecting sync early");
+    res.status(429).json({
+      error: `KSeF ogranicza zapytania dla tego NIP — zablokowany jeszcze przez ${timeNote}. Spróbuj ponownie później.`,
+      retryAfterSeconds: rateLimitSecsRemaining,
     });
     return;
   }
@@ -395,6 +445,9 @@ async function runSync(
           scanRateLimited = true;
           scanRateLimitRetryAfterSecs = err.retryAfterSeconds;
           windowOk = false;
+          // Persist rate limit per-NIP so subsequent requests (any user with same NIP)
+          // are rejected early without wasting an authentication round-trip.
+          await markNipRateLimited(cfg.nip, err.retryAfterSeconds).catch(() => {});
           req.log.warn(
             { retryAfterSecs: err.retryAfterSeconds, windowsDone, dateFrom },
             "KSeF rate-limited during scan, will do partial import",
@@ -639,7 +692,7 @@ async function runSync(
       if (err instanceof KsefRateLimitError && err.retryAfterSeconds > 120) {
         // Hard NIP-level cooldown — stop fetching to avoid further 429s.
         fetchHardRateLimit = true;
-        fetchRateLimitRetryAfterSecs = err.retryAfterSeconds;
+        await markNipRateLimited(cfg.nip, err.retryAfterSeconds).catch(() => {});
         const remaining = newRefs.length - idx;
         const mins = Math.ceil(err.retryAfterSeconds / 60);
         summary.errors.push(
