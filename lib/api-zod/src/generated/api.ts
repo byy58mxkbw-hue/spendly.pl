@@ -362,6 +362,26 @@ export const ListCategoriesResponseItem = zod.object({
 export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem);
 
 /**
+ * @summary Create a new custom category
+ */
+export const createCategoryBodyLabelMin = 2;
+export const createCategoryBodyLabelMax = 60;
+
+export const CreateCategoryBody = zod.object({
+  label: zod
+    .string()
+    .min(createCategoryBodyLabelMin)
+    .max(createCategoryBodyLabelMax),
+});
+
+/**
+ * @summary Delete a custom category (only user-created categories can be deleted)
+ */
+export const DeleteCategoryParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
  * @summary Get products with biggest price changes
  */
 export const GetTopPriceChangesQueryParams = zod.object({

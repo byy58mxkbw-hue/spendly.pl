@@ -9,6 +9,9 @@ import {
   useUpdateProduct,
   useGetCategorySpend,
   useListCategories,
+  useCreateCategory,
+  useDeleteCategory,
+  getListCategoriesQueryKey,
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
 } from "@workspace/api-client-react";
@@ -65,6 +68,8 @@ import {
   Calendar,
   Layers,
   X,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -673,6 +678,74 @@ function sortProducts<T extends { name: string; supplierName?: string | null; la
 
 type ModalMode = "history" | "comparison";
 
+function CreateCategoryModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (categoryId: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const createMutation = useCreateCategory();
+  const [label, setLabel] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = label.trim();
+    if (trimmed.length < 2) {
+      setError("Nazwa musi mieć co najmniej 2 znaki.");
+      return;
+    }
+    setError(null);
+    createMutation.mutate(
+      { data: { label: trimmed } },
+      {
+        onSuccess: (data) => {
+          queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+          onCreated(data.id);
+          onClose();
+        },
+        onError: (err: unknown) => {
+          const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+          setError(msg ?? "Nie udało się utworzyć kategorii.");
+        },
+      },
+    );
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>Nowa kategoria</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Input
+              autoFocus
+              placeholder="Nazwa kategorii, np. Dania gotowe"
+              value={label}
+              onChange={(e) => { setLabel(e.target.value); setError(null); }}
+              maxLength={60}
+              data-testid="input-new-category"
+            />
+            {error && <p className="text-xs text-destructive mt-1.5">{error}</p>}
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              Anuluj
+            </Button>
+            <Button type="submit" size="sm" disabled={createMutation.isPending}>
+              {createMutation.isPending ? "Tworzenie..." : "Utwórz"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CategoryBadge({
   productId,
   productName,
@@ -686,10 +759,13 @@ function CategoryBadge({
   categories: CategoryItem[] | undefined;
   onChanged: () => void;
 }) {
+  const queryClient = useQueryClient();
   const updateMutation = useUpdateProduct();
+  const deleteMutation = useDeleteCategory();
   const effectiveId = category ?? categorizeProduct(productName);
   const def = categories?.find((c) => c.id === effectiveId);
   const isAuto = category == null;
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const handleSelect = (newCategoryId: string | null) => {
     updateMutation.mutate(
@@ -698,55 +774,125 @@ function CategoryBadge({
     );
   };
 
+  const handleDelete = (e: React.MouseEvent, catId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    deleteMutation.mutate(
+      { id: catId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+          if (category === catId) {
+            handleSelect(null);
+          } else {
+            onChanged();
+          }
+        },
+      },
+    );
+  };
+
+  const customCategories = categories?.filter((c) => c.isCustom) ?? [];
+  const builtinCategories = categories?.filter((c) => !c.isCustom && c.id !== "inne") ?? [];
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-        <button
-          className={cn(
-            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium transition-colors",
-            "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
-            isAuto && "italic opacity-70",
-          )}
-          title={isAuto ? "Kategoria wykryta automatycznie — kliknij, aby zmienić" : "Zmień kategorię"}
-          data-testid={`product-category-${productId}`}
-        >
-          {def ? (
-            <>
-              <span>{def.emoji}</span>
-              <span>{def.label}</span>
-            </>
-          ) : (
-            <span>Inne</span>
-          )}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="max-h-80 overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {categories?.filter((c) => c.id !== "inne").map((cat) => (
-          <DropdownMenuItem
-            key={cat.id}
-            onSelect={() => handleSelect(cat.id)}
-            className={cn(effectiveId === cat.id && "bg-secondary")}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+          <button
+            className={cn(
+              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium transition-colors",
+              "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
+              isAuto && "italic opacity-70",
+            )}
+            title={isAuto ? "Kategoria wykryta automatycznie — kliknij, aby zmienić" : "Zmień kategorię"}
+            data-testid={`product-category-${productId}`}
           >
-            <span className="mr-2">{cat.emoji}</span>
-            {cat.label}
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuItem
-          onSelect={() => handleSelect("inne")}
-          className={cn(effectiveId === "inne" && "bg-secondary")}
+            {def ? (
+              <>
+                <span>{def.emoji}</span>
+                <span>{def.label}</span>
+              </>
+            ) : (
+              <span>Inne</span>
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="start"
+          className="max-h-80 overflow-y-auto w-52"
+          onClick={(e) => e.stopPropagation()}
         >
-          Inne
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => handleSelect(null)} className="text-muted-foreground text-xs">
-          Wykryj automatycznie
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {builtinCategories.map((cat) => (
+            <DropdownMenuItem
+              key={cat.id}
+              onSelect={() => handleSelect(cat.id)}
+              className={cn(effectiveId === cat.id && "bg-secondary")}
+            >
+              <span className="mr-2">{cat.emoji}</span>
+              {cat.label}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuItem
+            onSelect={() => handleSelect("inne")}
+            className={cn(effectiveId === "inne" && "bg-secondary")}
+          >
+            Inne
+          </DropdownMenuItem>
+
+          {customCategories.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <p className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                Własne kategorie
+              </p>
+              {customCategories.map((cat) => (
+                <DropdownMenuItem
+                  key={cat.id}
+                  onSelect={() => handleSelect(cat.id)}
+                  className={cn("group flex items-center justify-between pr-1", effectiveId === cat.id && "bg-secondary")}
+                >
+                  <span className="flex items-center gap-2 flex-1 min-w-0">
+                    <span>{cat.emoji}</span>
+                    <span className="truncate">{cat.label}</span>
+                  </span>
+                  <button
+                    className="ml-2 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    onClick={(e) => handleDelete(e, cat.id)}
+                    title={`Usuń kategorię ${cat.label}`}
+                    data-testid={`delete-category-${cat.id}`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
+
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              setTimeout(() => setShowCreateModal(true), 0);
+            }}
+            className="text-primary font-medium"
+            data-testid="create-category-option"
+          >
+            <Plus className="w-3.5 h-3.5 mr-2" />
+            Utwórz nową kategorię...
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => handleSelect(null)} className="text-muted-foreground text-xs">
+            Wykryj automatycznie
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {showCreateModal && (
+        <CreateCategoryModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={(newCatId) => handleSelect(newCatId)}
+        />
+      )}
+    </>
   );
 }
 

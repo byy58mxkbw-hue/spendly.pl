@@ -334,6 +334,14 @@ export interface PredictiveProductRow {
   confidence: PredictiveProductRowConfidence;
 }
 
+export interface CreateCategoryBody {
+  /**
+   * @minLength 2
+   * @maxLength 60
+   */
+  label: string;
+}
+
 export interface CategoryItem {
   id: string;
   label: string;

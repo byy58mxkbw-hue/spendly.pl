@@ -461,6 +461,44 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/CategoryItem"
+    post:
+      operationId: createCategory
+      tags: [products]
+      summary: Create a new custom category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryBody"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryItem"
+        "400":
+          description: Validation error
+
+  /categories/{id}:
+    delete:
+      operationId: deleteCategory
+      tags: [products]
+      summary: Delete a custom category (only user-created categories can be deleted)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Cannot delete built-in category
+        "404":
+          description: Category not found
 
   /products/top-price-changes:
     get:
@@ -1715,6 +1753,16 @@ components:
         - projectedMonthlyDelta
         - dataPoints
         - confidence
+
+    CreateCategoryBody:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 2
+          maxLength: 60
+      required:
+        - label
 
     CategoryItem:
       type: object

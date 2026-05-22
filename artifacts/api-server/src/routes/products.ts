@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { toNum } from "../lib/parse";
 import { eq, sql, desc, and } from "drizzle-orm";
 import { db, productsTable, invoiceItemsTable, invoicesTable, suppliersTable } from "@workspace/db";
+import { userCategoriesTable } from "@workspace/db/schema";
 import {
   ListProductsQueryParams,
   GetProductPriceHistoryParams,
@@ -11,8 +12,10 @@ import {
   UpdateProductParams,
   UpdateProductBody,
   CreateProductBody,
+  CreateCategoryBody,
 } from "@workspace/api-zod";
-import { getUserCategories } from "../lib/categorize-ai.js";
+import { getUserCategories, ensureCustomCategory } from "../lib/categorize-ai.js";
+import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
 
 const router: IRouter = Router();
 
@@ -373,6 +376,92 @@ router.get("/categories", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const categories = await getUserCategories(userId);
   res.json(categories);
+});
+
+router.post("/categories", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const body = CreateCategoryBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const label = body.data.label.trim();
+  if (label.length < 2) {
+    res.status(400).json({ error: "Nazwa kategorii musi mieć co najmniej 2 znaki." });
+    return;
+  }
+
+  // Slugify the label into a categoryId
+  const slug = label
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+
+  // Reject labels that produce an empty slug (e.g. pure emoji/punctuation)
+  if (slug.length === 0) {
+    res.status(400).json({ error: "Nazwa kategorii musi zawierać co najmniej jedną literę lub cyfrę." });
+    return;
+  }
+
+  // Ensure it doesn't conflict with built-in categories
+  if (BUILTIN_CATEGORY_DEFS[slug]) {
+    res.status(400).json({ error: "Kategoria o tej nazwie już istnieje jako wbudowana kategoria." });
+    return;
+  }
+
+  // Check if a custom category with this slug already exists for this user
+  const existing = await db
+    .select()
+    .from(userCategoriesTable)
+    .where(and(eq(userCategoriesTable.userId, userId), eq(userCategoriesTable.categoryId, slug)))
+    .limit(1);
+
+  if (existing.length > 0) {
+    res.status(400).json({ error: "Kategoria o tej nazwie już istnieje." });
+    return;
+  }
+
+  // Use a unique slug if there's a collision
+  let finalSlug = slug;
+  if (BUILTIN_CATEGORY_DEFS[slug]) {
+    finalSlug = `${slug}_custom`;
+  }
+
+  await ensureCustomCategory(userId, finalSlug, label);
+
+  res.status(201).json({
+    id: finalSlug,
+    label,
+    emoji: "🏷️",
+    isCustom: true,
+  });
+});
+
+router.delete("/categories/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const categoryId = req.params.id;
+
+  // Prevent deleting built-in categories
+  if (BUILTIN_CATEGORY_DEFS[categoryId]) {
+    res.status(403).json({ error: "Nie można usunąć wbudowanej kategorii." });
+    return;
+  }
+
+  const deleted = await db
+    .delete(userCategoriesTable)
+    .where(and(eq(userCategoriesTable.userId, userId), eq(userCategoriesTable.categoryId, categoryId)))
+    .returning({ id: userCategoriesTable.categoryId });
+
+  if (deleted.length === 0) {
+    res.status(404).json({ error: "Kategoria nie istnieje lub nie masz uprawnień do jej usunięcia." });
+    return;
+  }
+
+  res.status(204).end();
 });
 
 export default router;
