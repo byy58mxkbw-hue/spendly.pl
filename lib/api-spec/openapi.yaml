@@ -504,6 +504,23 @@ paths:
                 items:
                   $ref: "#/components/schemas/Invoice"
 
+  /invoices/delete-all:
+    delete:
+      operationId: deleteAllInvoices
+      tags: [invoices]
+      summary: Delete all invoices for the current user
+      responses:
+        "200":
+          description: Number of deleted invoices
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: integer
+
   /invoices/import:
     post:
       operationId: importInvoice

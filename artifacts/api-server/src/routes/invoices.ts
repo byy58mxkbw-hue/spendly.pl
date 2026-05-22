@@ -364,6 +364,15 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
   });
 });
 
+router.delete("/invoices/delete-all", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const result = await db
+    .delete(invoicesTable)
+    .where(eq(invoicesTable.userId, userId))
+    .returning({ id: invoicesTable.id });
+  res.json({ deleted: result.length });
+});
+
 router.delete("/invoices/:id", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const params = DeleteInvoiceParams.safeParse(req.params);

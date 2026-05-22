@@ -395,6 +395,13 @@ export const ListInvoicesResponseItem = zod.object({
 export const ListInvoicesResponse = zod.array(ListInvoicesResponseItem);
 
 /**
+ * @summary Delete all invoices for the current user
+ */
+export const DeleteAllInvoicesResponse = zod.object({
+  deleted: zod.number(),
+});
+
+/**
  * @summary Import invoice from KSeF XML
  */
 export const ImportInvoiceBody = zod.object({

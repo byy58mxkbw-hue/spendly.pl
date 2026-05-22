@@ -5,6 +5,7 @@ import {
   useImportInvoice,
   useListSuppliers,
   useDeleteInvoice,
+  useDeleteAllInvoices,
   useGetKsefConfig,
   useGetInvoice,
   getGetInvoiceQueryKey,
@@ -74,7 +75,7 @@ function syncPhaseLabel(phase: SyncPhase, mobile: boolean): string {
   }
 }
 
-function InvoicesHeaderActions({ onImportClick }: { onImportClick: () => void }) {
+function InvoicesHeaderActions({ onImportClick, onDeleteAllClick }: { onImportClick: () => void; onDeleteAllClick: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: config } = useGetKsefConfig();
@@ -173,6 +174,16 @@ function InvoicesHeaderActions({ onImportClick }: { onImportClick: () => void })
         <Plus className="w-4 h-4" />
         <span className="hidden sm:inline">Importuj fakturę</span>
         <span className="sm:hidden">Importuj</span>
+      </Button>
+      <Button
+        variant="outline"
+        onClick={onDeleteAllClick}
+        className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+        data-testid="btn-delete-all-invoices"
+      >
+        <Trash2 className="w-4 h-4" />
+        <span className="hidden sm:inline">Usuń wszystkie</span>
+        <span className="sm:hidden">Usuń</span>
       </Button>
     </div>
   );
@@ -400,9 +411,11 @@ export default function Invoices() {
   const { data: suppliers } = useListSuppliers();
   const importInvoice = useImportInvoice();
   const deleteInvoice = useDeleteInvoice();
+  const deleteAllInvoices = useDeleteAllInvoices();
 
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
   const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null);
   const [xmlPreview, setXmlPreview] = useState<XmlPreview | null>(null);
   const [duplicateConflict, setDuplicateConflict] = useState<{
@@ -503,6 +516,22 @@ export default function Invoices() {
     );
   }
 
+  function handleDeleteAll() {
+    deleteAllInvoices.mutate(undefined, {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries();
+        setShowDeleteAll(false);
+        toast({
+          title: "Usunięto wszystkie faktury",
+          description: `Usunięto ${data.deleted} ${data.deleted === 1 ? "fakturę" : data.deleted < 5 ? "faktury" : "faktur"}.`,
+        });
+      },
+      onError: () => {
+        toast({ variant: "destructive", title: "Błąd", description: "Nie udało się usunąć faktur." });
+      },
+    });
+  }
+
   // Unique suppliers from invoice list (preserves order by name)
   const supplierList = useMemo(() => {
     if (!invoices) return [];
@@ -566,7 +595,7 @@ export default function Invoices() {
         <PageHeader
           title="Faktury"
           subtitle="Historia zaimportowanych faktur KSeF"
-          action={<InvoicesHeaderActions onImportClick={() => setShowImport(true)} />}
+          action={<InvoicesHeaderActions onImportClick={() => setShowImport(true)} onDeleteAllClick={() => setShowDeleteAll(true)} />}
         />
 
         {/* Search + supplier filter bar */}
@@ -1089,6 +1118,33 @@ export default function Invoices() {
             <AlertDialogFooter>
               <AlertDialogCancel>Anuluj</AlertDialogCancel>
               <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Usuń</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={showDeleteAll} onOpenChange={(open) => { if (!open) setShowDeleteAll(false); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Usuń wszystkie faktury</AlertDialogTitle>
+              <AlertDialogDescription>
+                Ta operacja jest nieodwracalna. Zostaną usunięte wszystkie faktury wraz z pozycjami, historią cen i powiązanymi alertami cenowymi.
+                {invoices && invoices.length > 0 && (
+                  <span className="block mt-2 font-medium text-foreground">
+                    Liczba faktur do usunięcia: {invoices.length}
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Anuluj</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteAll}
+                disabled={deleteAllInvoices.isPending}
+                className="bg-destructive hover:bg-destructive/90"
+                data-testid="btn-confirm-delete-all"
+              >
+                {deleteAllInvoices.isPending ? "Usuwanie..." : "Usuń wszystkie"}
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

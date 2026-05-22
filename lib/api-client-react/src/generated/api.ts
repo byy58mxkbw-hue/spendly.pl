@@ -28,6 +28,7 @@ import type {
   CreateSupplierBody,
   CreatedProduct,
   DashboardSummary,
+  DeleteAllInvoices200,
   DismissPriceAlertBody,
   DismissedAlert,
   GenerateInsightsResponse,
@@ -2004,6 +2005,87 @@ export function useListInvoices<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Delete all invoices for the current user
+ */
+export const getDeleteAllInvoicesUrl = () => {
+  return `/api/invoices/delete-all`;
+};
+
+export const deleteAllInvoices = async (
+  options?: RequestInit,
+): Promise<DeleteAllInvoices200> => {
+  return customFetch<DeleteAllInvoices200>(getDeleteAllInvoicesUrl(), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteAllInvoicesMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAllInvoices>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAllInvoices>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["deleteAllInvoices"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAllInvoices>>,
+    void
+  > = () => {
+    return deleteAllInvoices(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAllInvoicesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAllInvoices>>
+>;
+
+export type DeleteAllInvoicesMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete all invoices for the current user
+ */
+export const useDeleteAllInvoices = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAllInvoices>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAllInvoices>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getDeleteAllInvoicesMutationOptions(options));
+};
 
 /**
  * @summary Import invoice from KSeF XML

@@ -615,6 +615,10 @@ export type ListInvoicesParams = {
   offset?: number;
 };
 
+export type DeleteAllInvoices200 = {
+  deleted: number;
+};
+
 export type GetDashboardSummaryParams = {
   /**
    * If set, summarize spend over the last N days instead of calendar month
