@@ -843,6 +843,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/KsefConfigView"
 
+  /ksef/config/sync-from-date:
+    put:
+      operationId: updateKsefSyncFromDate
+      tags: [ksef]
+      summary: Update the start date for full KSeF sync
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateKsefSyncFromDateBody"
+      responses:
+        "200":
+          description: Updated config (masked)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KsefConfigView"
+        "400":
+          description: Invalid date format or KSeF not configured
+
   /ksef/sync:
     post:
       operationId: syncKsefInvoices
@@ -1744,6 +1765,9 @@ components:
           type: string
         lastSyncedAt:
           type: ["string", "null"]
+        syncFromDate:
+          type: ["string", "null"]
+          description: Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.
       required:
         - nip
         - tokenMasked
@@ -1768,6 +1792,15 @@ components:
       required:
         - nip
         - token
+
+    UpdateKsefSyncFromDateBody:
+      type: object
+      properties:
+        syncFromDate:
+          type: string
+          description: Date string in YYYY-MM-DD format. Must be 2025-01-01 or later.
+      required:
+        - syncFromDate
 
     RetryKsefPendingResult:
       type: object

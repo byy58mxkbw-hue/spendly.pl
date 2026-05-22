@@ -73,6 +73,7 @@ import type {
   SyncKsefInvoicesBody,
   TriggeredAlert,
   UpdateKsefConfigBody,
+  UpdateKsefSyncFromDateBody,
   UpdatePriceAlertBody,
   UpdateProductBody,
   UpdateSupplierBody,
@@ -3571,6 +3572,93 @@ export const useUpdateKsefConfig = <
   TContext
 > => {
   return useMutation(getUpdateKsefConfigMutationOptions(options));
+};
+
+/**
+ * @summary Update the start date for full KSeF sync
+ */
+export const getUpdateKsefSyncFromDateUrl = () => {
+  return `/api/ksef/config/sync-from-date`;
+};
+
+export const updateKsefSyncFromDate = async (
+  updateKsefSyncFromDateBody: UpdateKsefSyncFromDateBody,
+  options?: RequestInit,
+): Promise<KsefConfigView | null> => {
+  return customFetch<KsefConfigView | null>(getUpdateKsefSyncFromDateUrl(), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateKsefSyncFromDateBody),
+  });
+};
+
+export const getUpdateKsefSyncFromDateMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateKsefSyncFromDate>>,
+    TError,
+    { data: BodyType<UpdateKsefSyncFromDateBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateKsefSyncFromDate>>,
+  TError,
+  { data: BodyType<UpdateKsefSyncFromDateBody> },
+  TContext
+> => {
+  const mutationKey = ["updateKsefSyncFromDate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateKsefSyncFromDate>>,
+    { data: BodyType<UpdateKsefSyncFromDateBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateKsefSyncFromDate(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateKsefSyncFromDateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateKsefSyncFromDate>>
+>;
+export type UpdateKsefSyncFromDateMutationBody =
+  BodyType<UpdateKsefSyncFromDateBody>;
+export type UpdateKsefSyncFromDateMutationError = ErrorType<void>;
+
+/**
+ * @summary Update the start date for full KSeF sync
+ */
+export const useUpdateKsefSyncFromDate = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateKsefSyncFromDate>>,
+    TError,
+    { data: BodyType<UpdateKsefSyncFromDateBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateKsefSyncFromDate>>,
+  TError,
+  { data: BodyType<UpdateKsefSyncFromDateBody> },
+  TContext
+> => {
+  return useMutation(getUpdateKsefSyncFromDateMutationOptions(options));
 };
 
 /**

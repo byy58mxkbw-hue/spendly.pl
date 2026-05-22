@@ -12,6 +12,7 @@ import {
 } from "@workspace/db";
 import {
   UpdateKsefConfigBody,
+  UpdateKsefSyncFromDateBody,
   SyncKsefInvoicesBody,
   AcceptKsefPendingBody,
   GetKsefPendingParams,
@@ -75,13 +76,14 @@ async function loadConfig(userId: string) {
 
 function viewConfig(
   cfg: Awaited<ReturnType<typeof loadConfig>>,
-): { nip: string; tokenMasked: string; environment: string; lastSyncedAt: string | null } | null {
+): { nip: string; tokenMasked: string; environment: string; lastSyncedAt: string | null; syncFromDate: string | null } | null {
   if (!cfg) return null;
   return {
     nip: cfg.nip,
     tokenMasked: `••••••${cfg.tokenLast4}`,
     environment: cfg.environment,
     lastSyncedAt: cfg.lastSyncedAt ? cfg.lastSyncedAt.toISOString() : null,
+    syncFromDate: cfg.syncFromDate ?? null,
   };
 }
 
@@ -140,6 +142,41 @@ router.put("/ksef/config", async (req, res): Promise<void> => {
   }
 
   req.log.info({ nip, tokenMasked: maskToken(token) }, "KSeF config updated");
+  res.json(viewConfig(saved));
+});
+
+router.put("/ksef/config/sync-from-date", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const parsed = UpdateKsefSyncFromDateBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { syncFromDate } = parsed.data;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(syncFromDate)) {
+    res.status(400).json({ error: "Data musi być w formacie YYYY-MM-DD." });
+    return;
+  }
+  const d = new Date(syncFromDate);
+  if (isNaN(d.getTime()) || d < new Date("2025-01-01") || d > new Date()) {
+    res.status(400).json({ error: "Data musi być pomiędzy 2025-01-01 a datą dzisiejszą." });
+    return;
+  }
+
+  const existing = await loadConfig(userId);
+  if (!existing) {
+    res.status(400).json({ error: "Brak konfiguracji KSeF. Najpierw zapisz NIP i token." });
+    return;
+  }
+
+  const [saved] = await db
+    .update(ksefConfigTable)
+    .set({ syncFromDate })
+    .where(eq(ksefConfigTable.id, existing.id))
+    .returning();
+
+  req.log.info({ syncFromDate }, "KSeF sync-from-date updated");
   res.json(viewConfig(saved));
 });
 
@@ -393,11 +430,13 @@ async function runSync(
   }
 
   const now = new Date();
-  // First sync: start from 2026-02-01 (when KSeF became mandatory in Poland).
-  // Starting from 2 years back caused ~25 windows and reliably hit the per-NIP
-  // rate limit before reaching the mandatory period where all invoices actually are.
+  // First sync: start from the user-configured syncFromDate, or 2026-02-01 (when KSeF
+  // became mandatory in Poland) as the default. Starting from 2 years back caused ~25
+  // windows and reliably hit the per-NIP rate limit before reaching the mandatory period.
   // Feb 2026 → today is only ~4–5 windows, completing in seconds with no rate risk.
-  const KSEF_MANDATORY_START = new Date("2026-02-01T00:00:00.000Z");
+  const KSEF_MANDATORY_START = new Date(
+    cfg.syncFromDate ? `${cfg.syncFromDate}T00:00:00.000Z` : "2026-02-01T00:00:00.000Z"
+  );
   const overallFrom = cfg.lastSyncedAt
     ? cfg.lastSyncedAt
     : KSEF_MANDATORY_START;

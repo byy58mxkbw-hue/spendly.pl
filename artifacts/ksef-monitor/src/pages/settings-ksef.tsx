@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useGetKsefConfig,
   useUpdateKsefConfig,
+  useUpdateKsefSyncFromDate,
 } from "@workspace/api-client-react";
 import { useSyncKsefProgress, syncPhaseProgress, type SyncPhase } from "@/hooks/use-sync-progress";
 import { Progress } from "@/components/ui/progress";
@@ -40,9 +41,12 @@ export default function SettingsKsef() {
   const updateConfig = useUpdateKsefConfig();
   const { phase: syncPhase, startSync, isPending: syncPending } = useSyncKsefProgress();
 
+  const updateSyncFromDate = useUpdateKsefSyncFromDate();
+
   const [nip, setNip] = useState("");
   const [token, setToken] = useState("");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [syncFromDate, setSyncFromDate] = useState("");
 
   function onSave(e: React.FormEvent) {
     e.preventDefault();
@@ -152,8 +156,57 @@ export default function SettingsKsef() {
               <div className="border-t border-border pt-4">
                 <h3 className="text-sm font-medium text-foreground mb-1">Synchronizacja historii</h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Resetuje punkt startowy i pobiera faktury od 1 lutego 2026 (start obowiązkowego KSeF). Użyj jeśli brakuje faktur z tego okresu.
+                  Ustaw datę, od której ma być pobierana historia faktur. Domyślnie synchronizacja zaczyna się od 1 lutego 2026 (start obowiązkowego KSeF).
                 </p>
+
+                <div className="mb-4">
+                  <label className="text-xs font-medium text-foreground mb-1.5 block">
+                    Data startowa synchronizacji
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      min="2025-01-01"
+                      max={new Date().toISOString().slice(0, 10)}
+                      value={syncFromDate || config?.syncFromDate || "2026-02-01"}
+                      onChange={(e) => setSyncFromDate(e.target.value)}
+                      className="w-44 text-sm"
+                      data-testid="input-sync-from-date"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={updateSyncFromDate.isPending}
+                      onClick={() => {
+                        const date = syncFromDate || config?.syncFromDate || "2026-02-01";
+                        updateSyncFromDate.mutate(
+                          { data: { syncFromDate: date } },
+                          {
+                            onSuccess: () => {
+                              queryClient.invalidateQueries();
+                              toast({ title: "Zapisano", description: "Data startowa synchronizacji została zaktualizowana." });
+                            },
+                            onError: (err: unknown) => {
+                              const e = err as { response?: { data?: { error?: string } }; message?: string };
+                              toast({
+                                variant: "destructive",
+                                title: "Błąd",
+                                description: e?.response?.data?.error ?? e?.message ?? "Nie udało się zapisać daty.",
+                              });
+                            },
+                          }
+                        );
+                      }}
+                      data-testid="btn-save-sync-from-date"
+                    >
+                      {updateSyncFromDate.isPending ? "Zapisuję..." : "Zapisz datę"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Aktualna wartość: <strong>{config?.syncFromDate ? new Date(config.syncFromDate).toLocaleDateString("pl-PL") : "1 lutego 2026 (domyślna)"}</strong>
+                  </p>
+                </div>
+
                 <div className="flex flex-col gap-2">
                   <Button
                     variant="outline"
@@ -256,7 +309,7 @@ export default function SettingsKsef() {
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>
-                  Ta opcja kasuje punkt startowy i pobiera faktury <strong>od 1 lutego 2026</strong> (start obowiązkowego KSeF) — to ok. 4–5 zapytań do API.
+                  Ta opcja kasuje punkt startowy i pobiera faktury <strong>od {config?.syncFromDate ? new Date(config.syncFromDate).toLocaleDateString("pl-PL") : "1 lutego 2026"}</strong>{!config?.syncFromDate && " (start obowiązkowego KSeF)"}.
                 </p>
                 <p className="text-amber-700 font-medium">
                   KSeF ogranicza liczbę zapytań. Jeśli limit zostanie przekroczony, synchronizacja zostanie wstrzymana na ok. 1 godzinę.

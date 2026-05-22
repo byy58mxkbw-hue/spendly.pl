@@ -13,6 +13,7 @@ export const ksefConfigTable = pgTable("ksef_config", {
   // When set, KSeF rate-limited this NIP until this time. Checked before every sync
   // attempt so users don't burn retries against an active cooldown.
   rateLimitedUntil: timestamp("rate_limited_until", { withTimezone: true }),
+  syncFromDate: text("sync_from_date"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [uniqueIndex("ksef_config_user_id_uniq").on(t.userId)]);

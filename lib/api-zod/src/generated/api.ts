@@ -780,6 +780,12 @@ export const GetKsefConfigResponse = zod
     tokenMasked: zod.string(),
     environment: zod.string(),
     lastSyncedAt: zod.string().nullish(),
+    syncFromDate: zod
+      .string()
+      .nullish()
+      .describe(
+        "Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.",
+      ),
   })
   .nullable();
 
@@ -801,6 +807,36 @@ export const UpdateKsefConfigResponse = zod
     tokenMasked: zod.string(),
     environment: zod.string(),
     lastSyncedAt: zod.string().nullish(),
+    syncFromDate: zod
+      .string()
+      .nullish()
+      .describe(
+        "Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.",
+      ),
+  })
+  .nullable();
+
+/**
+ * @summary Update the start date for full KSeF sync
+ */
+export const UpdateKsefSyncFromDateBody = zod.object({
+  syncFromDate: zod
+    .string()
+    .describe("Date string in YYYY-MM-DD format. Must be 2025-01-01 or later."),
+});
+
+export const UpdateKsefSyncFromDateResponse = zod
+  .object({
+    nip: zod.string(),
+    tokenMasked: zod.string(),
+    environment: zod.string(),
+    lastSyncedAt: zod.string().nullish(),
+    syncFromDate: zod
+      .string()
+      .nullish()
+      .describe(
+        "Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.",
+      ),
   })
   .nullable();
 
