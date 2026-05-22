@@ -185,7 +185,7 @@ async function findOrCreateProduct(
 ): Promise<number> {
   const trimmed = name.trim();
   const [existing] = await db
-    .select({ id: productsTable.id })
+    .select({ id: productsTable.id, category: productsTable.category })
     .from(productsTable)
     .where(
       and(
@@ -195,9 +195,14 @@ async function findOrCreateProduct(
     )
     .limit(1);
   if (existing) {
+    // Only update category when it's unset or "inne" — never overwrite a manual assignment
+    const shouldUpdateCategory =
+      category !== null &&
+      category !== "inne" &&
+      (existing.category === null || existing.category === "inne");
     await db
       .update(productsTable)
-      .set({ unit, category: category ?? undefined })
+      .set({ unit, ...(shouldUpdateCategory ? { category } : {}) })
       .where(eq(productsTable.id, existing.id));
     return existing.id;
   }
