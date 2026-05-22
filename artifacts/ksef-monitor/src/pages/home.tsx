@@ -184,7 +184,7 @@ export default function Home() {
               className="text-4xl md:text-5xl font-extrabold text-foreground tracking-tight leading-[1.08] mb-5 text-center"
             >
               Przestań tracić<br />
-              na <span className="text-primary text-[32px]">PODWYŻKACH </span>
+              na <span className="text-primary text-[38px]">PODWYŻKACH </span>
             </motion.h1>
             <motion.p
               variants={fadeUp}
