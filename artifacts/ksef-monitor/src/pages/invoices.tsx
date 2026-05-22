@@ -9,7 +9,8 @@ import {
   useGetInvoice,
   getGetInvoiceQueryKey,
 } from "@workspace/api-client-react";
-import { useSyncKsefProgress, type SyncPhase } from "@/hooks/use-sync-progress";
+import { useSyncKsefProgress, syncPhaseProgress, type SyncPhase } from "@/hooks/use-sync-progress";
+import { Progress } from "@/components/ui/progress";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -115,17 +116,26 @@ function InvoicesHeaderActions({ onImportClick }: { onImportClick: () => void })
         </span>
       )}
       {config ? (
-        <Button
-          variant="outline"
-          onClick={handleSync}
-          disabled={isPending}
-          className="gap-2"
-          data-testid="btn-sync-ksef"
-        >
-          <RefreshCw className={cn("w-4 h-4", isPending && "animate-spin")} />
-          <span className="hidden sm:inline">{syncPhaseLabel(phase, false)}</span>
-          <span className="sm:hidden">{syncPhaseLabel(phase, true)}</span>
-        </Button>
+        <div className="flex flex-col gap-1">
+          <Button
+            variant="outline"
+            onClick={handleSync}
+            disabled={isPending}
+            className="gap-2"
+            data-testid="btn-sync-ksef"
+          >
+            <RefreshCw className={cn("w-4 h-4", isPending && "animate-spin")} />
+            <span className="hidden sm:inline">{syncPhaseLabel(phase, false)}</span>
+            <span className="sm:hidden">{syncPhaseLabel(phase, true)}</span>
+          </Button>
+          {isPending && (
+            <Progress
+              value={syncPhaseProgress(phase) ?? 0}
+              className="h-1 w-full"
+              data-testid="sync-progress-bar"
+            />
+          )}
+        </div>
       ) : (
         <Link href="/settings/ksef">
           <Button variant="outline" className="gap-2" data-testid="btn-configure-ksef">

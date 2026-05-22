@@ -7,7 +7,8 @@ import {
   useGetKsefConfig,
   useUpdateKsefConfig,
 } from "@workspace/api-client-react";
-import { useSyncKsefProgress, type SyncPhase } from "@/hooks/use-sync-progress";
+import { useSyncKsefProgress, syncPhaseProgress, type SyncPhase } from "@/hooks/use-sync-progress";
+import { Progress } from "@/components/ui/progress";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { ShieldCheck, ExternalLink, RefreshCw, RotateCcw } from "lucide-react";
@@ -135,20 +136,29 @@ export default function SettingsKsef() {
                 <p className="text-xs text-muted-foreground mb-3">
                   Resetuje punkt startowy i pobiera faktury z ostatnich 365 dni. Użyj jeśli brakuje starszych faktur.
                 </p>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowResetConfirm(true)}
-                  disabled={syncPending}
-                  className="gap-2"
-                  data-testid="btn-sync-from-beginning"
-                >
-                  {syncPending ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <RotateCcw className="w-4 h-4" />
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowResetConfirm(true)}
+                    disabled={syncPending}
+                    className="gap-2 self-start"
+                    data-testid="btn-sync-from-beginning"
+                  >
+                    {syncPending ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-4 h-4" />
+                    )}
+                    {syncPending ? syncPhaseLabel(syncPhase) : "Synchronizuj od początku"}
+                  </Button>
+                  {syncPending && (
+                    <Progress
+                      value={syncPhaseProgress(syncPhase) ?? 0}
+                      className="h-1 max-w-xs"
+                      data-testid="sync-progress-bar"
+                    />
                   )}
-                  {syncPending ? syncPhaseLabel(syncPhase) : "Synchronizuj od początku"}
-                </Button>
+                </div>
               </div>
             </>
           ) : (

@@ -112,3 +112,22 @@ export function useSyncKsefProgress() {
 
   return { phase, startSync, reset, isPending };
 }
+
+export function syncPhaseProgress(phase: SyncPhase): number | null {
+  switch (phase.type) {
+    case "connecting":
+      return 0;
+    case "scanning":
+      return phase.windowsTotal > 0
+        ? (phase.windowsDone / phase.windowsTotal) * 50
+        : 0;
+    case "fetching":
+      return phase.total > 0
+        ? 50 + (phase.fetched / phase.total) * 50
+        : 50;
+    case "done":
+      return 100;
+    default:
+      return null;
+  }
+}
