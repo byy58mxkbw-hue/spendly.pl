@@ -18,6 +18,22 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+
+// ─── Animation helpers ─────────────────────────────────────────────────────────
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0 },
+};
+
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+};
+
+const ease = [0.4, 0, 0.2, 1] as const;
+const viewportOpts = { once: true, amount: 0.15 } as const;
 
 // ─── App UI Mockup ────────────────────────────────────────────────────────────
 
@@ -152,18 +168,42 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left */}
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-xs font-medium text-primary mb-7">
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.4, ease, delay: 0 }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-xs font-medium text-primary mb-7"
+            >
               <ShieldCheck className="w-3.5 h-3.5" />
               Zintegrowane z KSeF
-            </div>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-foreground tracking-tight leading-[1.08] mb-5">
+            </motion.div>
+            <motion.h1
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.4, ease, delay: 0.07 }}
+              className="text-4xl md:text-5xl font-extrabold text-foreground tracking-tight leading-[1.08] mb-5"
+            >
               Przestań tracić<br />
               na <span className="text-primary">food cost.</span>
-            </h1>
-            <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg">
+            </motion.h1>
+            <motion.p
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.4, ease, delay: 0.14 }}
+              className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg"
+            >
               CheckIT automatycznie pobiera faktury od dostawców z KSeF, śledzi zmiany cen każdego surowca i alarmuje zanim podwyżka uderzy w twój wynik.
-            </p>
-            <div className="flex flex-wrap items-center gap-3 mb-8">
+            </motion.p>
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.4, ease, delay: 0.21 }}
+              className="flex flex-wrap items-center gap-3 mb-8"
+            >
               <Link href="/sign-up">
                 <Button size="lg" className="gap-2" data-testid="btn-cta-signup">
                   Zacznij bezpłatnie <ArrowRight className="w-4 h-4" />
@@ -174,26 +214,44 @@ export default function Home() {
                   Zaloguj się
                 </Button>
               </Link>
-            </div>
-            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+            </motion.div>
+            <motion.div
+              variants={fadeIn}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.35, ease, delay: 0.32 }}
+              className="flex flex-wrap gap-4 text-sm text-muted-foreground"
+            >
               {["Bez karty kredytowej", "Konfiguracja w 5 minut", "Faktury z KSeF od razu"].map((t) => (
                 <div key={t} className="flex items-center gap-1.5">
                   <Check className="w-3.5 h-3.5 text-primary shrink-0" />
                   {t}
                 </div>
               ))}
-            </div>
+            </motion.div>
           </div>
 
           {/* Right — app mockup */}
-          <div className="flex justify-center lg:justify-end pt-4 pb-8 lg:pt-0 lg:pb-0">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+            transition={{ duration: 0.4, ease, delay: 0.15 }}
+            className="flex justify-center lg:justify-end pt-4 pb-8 lg:pt-0 lg:pb-0"
+          >
             <AppMockup />
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* ─── Trust bar ───────────────────────────────────────────────────── */}
-      <section className="border-y border-border bg-secondary/40">
+      <motion.section
+        variants={fadeIn}
+        initial="hidden"
+        whileInView="visible"
+        viewport={viewportOpts}
+        className="border-y border-border bg-secondary/40"
+      >
         <div className="max-w-6xl mx-auto px-6 py-6">
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
             {[
@@ -209,16 +267,22 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ─── How it works ────────────────────────────────────────────────── */}
       <section id="jak-to-dziala" className="max-w-6xl mx-auto px-6 py-20 md:py-24">
-        <div className="text-center mb-14">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOpts}
+          className="text-center mb-14"
+        >
           <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Jak to działa</p>
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
             Od faktury do alertu<br className="hidden md:block" /> w trzech krokach
           </h2>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
           {/* Connector line (desktop) */}
@@ -230,21 +294,32 @@ export default function Home() {
               icon: RefreshCw,
               title: "Synchronizuj z KSeF",
               desc: "Podajesz NIP i token KSeF. CheckIT automatycznie pobiera faktury zakupowe od wszystkich twoich dostawców — bez ręcznego wgrywania plików.",
+              delay: 0,
             },
             {
               num: "2",
               icon: TrendingUp,
               title: "Śledź zmiany cen",
               desc: "Każda pozycja z faktury trafia do bazy. Widzisz historię ceny każdego surowca i wykres trendu — kto podniósł i o ile.",
+              delay: 0.1,
             },
             {
               num: "3",
               icon: Bell,
               title: "Reaguj na podwyżki",
               desc: "Ustawiasz progi cenowe dla kluczowych składników. CheckIT alarmuje cię zanim podwyżka wpłynie na marżę i food cost.",
+              delay: 0.2,
             },
-          ].map(({ num, icon: Icon, title, desc }) => (
-            <div key={num} className="relative flex flex-col items-center text-center px-4">
+          ].map(({ num, icon: Icon, title, desc, delay }) => (
+            <motion.div
+              key={num}
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={viewportOpts}
+              transition={{ duration: 0.4, ease, delay }}
+              className="relative flex flex-col items-center text-center px-4"
+            >
               <div className="relative w-20 h-20 rounded-2xl bg-primary/8 border border-primary/15 flex items-center justify-center mb-5 z-10">
                 <Icon className="w-8 h-8 text-primary" />
                 <span className="absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
@@ -253,7 +328,7 @@ export default function Home() {
               </div>
               <h3 className="text-base font-semibold text-foreground mb-2">{title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>
@@ -261,29 +336,46 @@ export default function Home() {
       {/* ─── Problem / Solution ──────────────────────────────────────────── */}
       <section className="bg-secondary/30 border-y border-border">
         <div className="max-w-6xl mx-auto px-6 py-20 md:py-24">
-          <div className="text-center mb-14">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOpts}
+            className="text-center mb-14"
+          >
             <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Dla kogo</p>
             <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
               Znasz te problemy?
             </h2>
-          </div>
+          </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
                 problem: "Dowiadujesz się o podwyżce dopiero gdy liczy się food cost na koniec miesiąca.",
                 solution: "CheckIT monitoruje ceny na bieżąco i alarmuje tuż po dostawie — masz czas zareagować.",
+                delay: 0,
               },
               {
                 problem: "Ręcznie wpisujesz ceny z faktur do arkusza. Zajmuje godziny, błędy się zdarzają.",
                 solution: "Automatyczny import z KSeF. Ceny są w systemie zanim zdążysz otworzyć Excela.",
+                delay: 0.1,
               },
               {
                 problem: "Nie wiesz który dostawca ciągnie food cost w górę i o ile.",
                 solution: "Raporty per-dostawca i per-produkt pokazują dokładnie kto i kiedy zmienił cenę.",
+                delay: 0.2,
               },
-            ].map(({ problem, solution }) => (
-              <div key={problem} className="bg-card rounded-2xl border border-border overflow-hidden">
+            ].map(({ problem, solution, delay }) => (
+              <motion.div
+                key={problem}
+                variants={fadeUp}
+                initial="hidden"
+                whileInView="visible"
+                viewport={viewportOpts}
+                transition={{ duration: 0.4, ease, delay }}
+                className="bg-card rounded-2xl border border-border overflow-hidden"
+              >
                 <div className="px-5 py-4 border-b border-border bg-red-50/50 dark:bg-red-900/10">
                   <div className="flex items-start gap-2.5">
                     <X className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
@@ -296,7 +388,7 @@ export default function Home() {
                     <p className="text-sm text-foreground leading-relaxed font-medium">{solution}</p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -304,12 +396,18 @@ export default function Home() {
 
       {/* ─── Features ────────────────────────────────────────────────────── */}
       <section id="funkcje" className="max-w-6xl mx-auto px-6 py-20 md:py-24">
-        <div className="text-center mb-14">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOpts}
+          className="text-center mb-14"
+        >
           <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Funkcje</p>
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
             Wszystko czego potrzebujesz<br className="hidden md:block" /> do kontroli kosztów
           </h2>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[
@@ -317,40 +415,54 @@ export default function Home() {
               icon: RefreshCw,
               title: "Synchronizacja KSeF",
               desc: "Automatyczne pobieranie faktur zakupowych z Krajowego Systemu e-Faktur dla twojego NIP-u.",
+              delay: 0,
             },
             {
               icon: TrendingDown,
               title: "Historia cen",
               desc: "Wykres trendu każdego surowca z zaznaczonymi datami zmian. Jedno spojrzenie — cały kontekst.",
+              delay: 0.07,
             },
             {
               icon: Bell,
               title: "Alerty cenowe",
               desc: "Ustawiasz próg procentowy lub kwotowy. Alert trafia do ciebie zanim przyjdzie kolejna dostawa.",
+              delay: 0.14,
             },
             {
               icon: FileBarChart2,
               title: "Raporty miesięczne",
               desc: "Zestawienie zakupów per-dostawca i per-kategoria. Wiesz gdzie idzie budżet zakupowy.",
+              delay: 0.0,
             },
             {
               icon: FileText,
               title: "Faktury do przeglądu",
               desc: "Faktury bez automatycznego dopasowania trafiają do kolejki. Przypisujesz dostawcę jednym kliknięciem.",
+              delay: 0.07,
             },
             {
               icon: Sparkles,
               title: "AI CFO",
               desc: "Sztuczna inteligencja analizuje twoje zakupy i daje konkretne rekomendacje co renegocjować.",
+              delay: 0.14,
             },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="group border border-border rounded-xl p-5 bg-card hover:border-primary/40 hover:shadow-sm transition-all">
+          ].map(({ icon: Icon, title, desc, delay }) => (
+            <motion.div
+              key={title}
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={viewportOpts}
+              transition={{ duration: 0.4, ease, delay }}
+              className="group border border-border rounded-xl p-5 bg-card hover:border-primary/40 hover:shadow-sm transition-all"
+            >
               <div className="w-10 h-10 rounded-xl bg-primary/8 text-primary flex items-center justify-center mb-4 group-hover:bg-primary/12 transition-colors">
                 <Icon className="w-5 h-5" />
               </div>
               <h3 className="font-semibold text-foreground mb-1.5">{title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </section>
@@ -358,17 +470,30 @@ export default function Home() {
       {/* ─── Pricing ─────────────────────────────────────────────────────── */}
       <section id="cennik" className="bg-secondary/30 border-y border-border">
         <div className="max-w-6xl mx-auto px-6 py-20 md:py-24">
-          <div className="text-center mb-14">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOpts}
+            className="text-center mb-14"
+          >
             <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Cennik</p>
             <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight mb-3">
               Prosty, przejrzysty cennik
             </h2>
             <p className="text-muted-foreground text-base">Zacznij za darmo, rozwijaj się kiedy chcesz.</p>
-          </div>
+          </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {/* Free */}
-            <div className="bg-card border border-border rounded-2xl p-7 flex flex-col">
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={viewportOpts}
+              transition={{ duration: 0.4, ease, delay: 0 }}
+              className="bg-card border border-border rounded-2xl p-7 flex flex-col"
+            >
               <div className="mb-6">
                 <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-1">Starter</p>
                 <div className="flex items-baseline gap-1">
@@ -402,10 +527,17 @@ export default function Home() {
                   Zacznij za darmo
                 </Button>
               </Link>
-            </div>
+            </motion.div>
 
             {/* Pro */}
-            <div className="bg-primary rounded-2xl p-7 flex flex-col relative overflow-hidden">
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={viewportOpts}
+              transition={{ duration: 0.4, ease, delay: 0.1 }}
+              className="bg-primary rounded-2xl p-7 flex flex-col relative overflow-hidden"
+            >
               <div className="absolute top-5 right-5 text-[10px] font-bold text-primary bg-primary-foreground px-2.5 py-1 rounded-full uppercase tracking-wide">
                 Polecany
               </div>
@@ -442,21 +574,34 @@ export default function Home() {
                   Wypróbuj Pro za darmo
                 </Button>
               </Link>
-            </div>
+            </motion.div>
           </div>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
+          <motion.p
+            variants={fadeIn}
+            initial="hidden"
+            whileInView="visible"
+            viewport={viewportOpts}
+            transition={{ duration: 0.35, ease, delay: 0.15 }}
+            className="text-center text-sm text-muted-foreground mt-6"
+          >
             Potrzebujesz więcej lokali lub niestandardowej integracji?{" "}
             <a href="mailto:kontakt@checkit.pl" className="text-primary hover:underline font-medium">
               Napisz do nas
             </a>
-          </p>
+          </motion.p>
         </div>
       </section>
 
       {/* ─── Final CTA ───────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-6 py-20 md:py-24">
-        <div className="relative bg-primary rounded-3xl overflow-hidden px-8 py-14 md:px-16 md:py-20 text-center">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={viewportOpts}
+          className="relative bg-primary rounded-3xl overflow-hidden px-8 py-14 md:px-16 md:py-20 text-center"
+        >
           {/* Decorative circles */}
           <div className="absolute -top-16 -left-16 w-64 h-64 bg-white/5 rounded-full" />
           <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-white/5 rounded-full" />
@@ -501,7 +646,7 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ─── Footer ──────────────────────────────────────────────────────── */}
