@@ -6,8 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useGetKsefConfig,
   useUpdateKsefConfig,
-  useSyncKsefInvoices,
 } from "@workspace/api-client-react";
+import { useSyncKsefProgress, type SyncPhase } from "@/hooks/use-sync-progress";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { ShieldCheck, ExternalLink, RefreshCw, RotateCcw } from "lucide-react";
@@ -22,12 +22,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+function syncPhaseLabel(phase: SyncPhase): string {
+  switch (phase.type) {
+    case "connecting": return "Łączę z KSeF...";
+    case "scanning": return `Skanuję ${phase.windowsDone}/${phase.windowsTotal} okien`;
+    case "fetching":
+      return phase.total > 0 ? `Pobieranie ${phase.fetched} z ${phase.total}` : "Pobieranie...";
+    default: return "Synchronizuj od początku";
+  }
+}
+
 export default function SettingsKsef() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: config, isLoading, isError } = useGetKsefConfig();
   const updateConfig = useUpdateKsefConfig();
-  const syncKsef = useSyncKsefInvoices();
+  const { phase: syncPhase, startSync, isPending: syncPending } = useSyncKsefProgress();
 
   const [nip, setNip] = useState("");
   const [token, setToken] = useState("");
@@ -65,29 +75,20 @@ export default function SettingsKsef() {
     );
   }
 
-  function handleSyncFromBeginning() {
+  async function handleSyncFromBeginning() {
     setShowResetConfirm(false);
-    syncKsef.mutate(
-      { data: { fromBeginning: true } },
-      {
-        onSuccess: (res) => {
-          queryClient.invalidateQueries();
-          const errs = res.errors && res.errors.length > 0 ? ` Błędów: ${res.errors.length}.` : "";
-          toast({
-            title: "Synchronizacja zakończona",
-            description: `Punkt startowy zresetowany. Zaimportowano: ${res.imported}, do przeglądu: ${res.pending}, nieudanych: ${res.failed}.${errs}`,
-          });
-        },
-        onError: (err: unknown) => {
-          const e = err as { response?: { data?: { error?: string } }; message?: string };
-          toast({
-            variant: "destructive",
-            title: "Błąd synchronizacji",
-            description: e?.response?.data?.error ?? e?.message ?? "Nie udało się zsynchronizować z KSeF.",
-          });
-        },
-      },
-    );
+    try {
+      const res = await startSync(true);
+      queryClient.invalidateQueries();
+      const errs = res.errors && res.errors.length > 0 ? ` Błędów: ${res.errors.length}.` : "";
+      toast({
+        title: "Synchronizacja zakończona",
+        description: `Punkt startowy zresetowany. Zaimportowano: ${res.imported}, do przeglądu: ${res.pending}, nieudanych: ${res.failed}.${errs}`,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Nie udało się zsynchronizować z KSeF.";
+      toast({ variant: "destructive", title: "Błąd synchronizacji", description: msg });
+    }
   }
 
   return (
@@ -137,16 +138,16 @@ export default function SettingsKsef() {
                 <Button
                   variant="outline"
                   onClick={() => setShowResetConfirm(true)}
-                  disabled={syncKsef.isPending}
+                  disabled={syncPending}
                   className="gap-2"
                   data-testid="btn-sync-from-beginning"
                 >
-                  {syncKsef.isPending ? (
+                  {syncPending ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
                   ) : (
                     <RotateCcw className="w-4 h-4" />
                   )}
-                  {syncKsef.isPending ? "Synchronizuję..." : "Synchronizuj od początku"}
+                  {syncPending ? syncPhaseLabel(syncPhase) : "Synchronizuj od początku"}
                 </Button>
               </div>
             </>

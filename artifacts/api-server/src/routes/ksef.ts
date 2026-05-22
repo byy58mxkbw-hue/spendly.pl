@@ -279,29 +279,38 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
     return;
   }
 
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  function sendEvent(event: Record<string, unknown>): void {
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+  }
+
   try {
-    await runSync(req, res, userId, cfg);
+    await runSync(req, userId, cfg, sendEvent);
   } finally {
     await lock.release().catch((err: unknown) =>
       req.log.warn({ err: String(err) }, "Failed to release ksef_sync advisory lock"),
     );
   }
+  res.end();
 });
 
 async function runSync(
   req: Request,
-  res: Response,
   userId: string,
   cfg: NonNullable<Awaited<ReturnType<typeof loadConfig>>>,
+  onProgress: (event: Record<string, unknown>) => void,
 ): Promise<void> {
   let token: string;
   try {
     token = decryptSecret(cfg.encryptedToken);
   } catch (err) {
     req.log.error({ err }, "Failed to decrypt KSeF token");
-    res.status(500).json({
-      error: "Nie udało się odszyfrować zapisanego tokena KSeF. Zapisz go ponownie w Ustawieniach.",
-    });
+    onProgress({ type: "error", status: 500, message: "Nie udało się odszyfrować zapisanego tokena KSeF. Zapisz go ponownie w Ustawieniach." });
     return;
   }
 
@@ -319,7 +328,7 @@ async function runSync(
   } catch (err) {
     const m = mapKsefError(err);
     req.log.warn({ err: String(err) }, "KSeF authenticate failed");
-    res.status(m.status).json({ error: m.message });
+    onProgress({ type: "error", status: m.status, message: m.message });
     return;
   }
 
@@ -331,6 +340,10 @@ async function runSync(
   const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
   const PAGE_SIZE = 100;
   const MAX_PAGE_OFFSET = 9900;
+
+  const totalWindows = Math.max(1, Math.ceil((now.getTime() - overallFrom.getTime()) / WINDOW_MS));
+  let windowsDone = 0;
+  onProgress({ type: "scanning", windowsDone: 0, windowsTotal: totalWindows });
 
   const allRefsMap = new Map<string, { ksefReferenceNumber: string }>();
   let truncatedWindow = false;
@@ -363,7 +376,7 @@ async function runSync(
           break windowLoop;
         }
         const m = mapKsefError(err);
-        res.status(m.status).json({ error: m.message });
+        onProgress({ type: "error", status: m.status, message: m.message });
         return;
       }
 
@@ -389,6 +402,8 @@ async function runSync(
         break;
       }
     }
+    windowsDone++;
+    onProgress({ type: "scanning", windowsDone, windowsTotal: totalWindows });
   }
   const allRefs = Array.from(allRefsMap.values());
 
@@ -437,6 +452,8 @@ async function runSync(
     }
     throw lastErr;
   }
+
+  onProgress({ type: "fetching", fetched: 0, total: newRefs.length });
 
   for (let idx = 0; idx < newRefs.length; idx++) {
     const ref = newRefs[idx];
@@ -572,6 +589,7 @@ async function runSync(
       summary.errors.push(`Faktura ${ref.ksefReferenceNumber}: ${friendly}`);
       req.log.error({ ksefRef: ref.ksefReferenceNumber, err: describeDbErr(err) }, "KSeF per-invoice fetch failed");
     }
+    onProgress({ type: "fetching", fetched: idx + 1, total: newRefs.length });
   }
 
   // Retry existing pending invoices for this user.
@@ -679,11 +697,11 @@ async function runSync(
     .update(ksefConfigTable)
     .set({ lastSyncedAt: newLastSyncedAt })
     .where(eq(ksefConfigTable.id, cfg.id));
-  const updatedLastSyncedAt = newLastSyncedAt;
 
-  res.json({
+  onProgress({
+    type: "done",
     ...summary,
-    lastSyncedAt: updatedLastSyncedAt ? updatedLastSyncedAt.toISOString() : null,
+    lastSyncedAt: newLastSyncedAt.toISOString(),
   });
 
   // Fire-and-forget: recalculate price alert triggers after new invoices arrive.

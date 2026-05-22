@@ -5,11 +5,11 @@ import {
   useImportInvoice,
   useListSuppliers,
   useDeleteInvoice,
-  useSyncKsefInvoices,
   useGetKsefConfig,
   useGetInvoice,
   getGetInvoiceQueryKey,
 } from "@workspace/api-client-react";
+import { useSyncKsefProgress, type SyncPhase } from "@/hooks/use-sync-progress";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -54,13 +54,32 @@ import { useToast } from "@/hooks/use-toast";
 
 // ─── KSeF sync button ───────────────────────────────────────────────────────
 
+function syncPhaseLabel(phase: SyncPhase, mobile: boolean): string {
+  switch (phase.type) {
+    case "connecting":
+      return mobile ? "Łączę..." : "Łączę z KSeF...";
+    case "scanning":
+      return mobile
+        ? `${phase.windowsDone}/${phase.windowsTotal}`
+        : `Skanuję ${phase.windowsDone}/${phase.windowsTotal} okien`;
+    case "fetching":
+      return mobile
+        ? `${phase.fetched}/${phase.total}`
+        : phase.total > 0
+          ? `Pobieranie ${phase.fetched} z ${phase.total}`
+          : "Pobieranie...";
+    default:
+      return mobile ? "KSeF" : "Synchronizuj z KSeF";
+  }
+}
+
 function InvoicesHeaderActions({ onImportClick }: { onImportClick: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: config } = useGetKsefConfig();
-  const sync = useSyncKsefInvoices();
+  const { phase, startSync, isPending } = useSyncKsefProgress();
 
-  function handleSync() {
+  async function handleSync() {
     if (!config) {
       toast({
         variant: "destructive",
@@ -69,24 +88,18 @@ function InvoicesHeaderActions({ onImportClick }: { onImportClick: () => void })
       });
       return;
     }
-    sync.mutate({ data: {} }, {
-      onSuccess: (res) => {
-        queryClient.invalidateQueries();
-        const errs = res.errors && res.errors.length > 0 ? ` Błędów: ${res.errors.length}.` : "";
-        toast({
-          title: "Synchronizacja zakończona",
-          description: `Zaimportowano: ${res.imported}, do przeglądu: ${res.pending}, nieudanych: ${res.failed}.${errs}`,
-        });
-      },
-      onError: (err: unknown) => {
-        const e = err as { response?: { data?: { error?: string } }; message?: string };
-        toast({
-          variant: "destructive",
-          title: "Błąd synchronizacji",
-          description: e?.response?.data?.error ?? e?.message ?? "Nie udało się zsynchronizować z KSeF.",
-        });
-      },
-    });
+    try {
+      const res = await startSync();
+      queryClient.invalidateQueries();
+      const errs = res.errors && res.errors.length > 0 ? ` Błędów: ${res.errors.length}.` : "";
+      toast({
+        title: "Synchronizacja zakończona",
+        description: `Zaimportowano: ${res.imported}, do przeglądu: ${res.pending}, nieudanych: ${res.failed}.${errs}`,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Nie udało się zsynchronizować z KSeF.";
+      toast({ variant: "destructive", title: "Błąd synchronizacji", description: msg });
+    }
   }
 
   return (
@@ -105,13 +118,13 @@ function InvoicesHeaderActions({ onImportClick }: { onImportClick: () => void })
         <Button
           variant="outline"
           onClick={handleSync}
-          disabled={sync.isPending}
+          disabled={isPending}
           className="gap-2"
           data-testid="btn-sync-ksef"
         >
-          <RefreshCw className={cn("w-4 h-4", sync.isPending && "animate-spin")} />
-          <span className="hidden sm:inline">{sync.isPending ? "Synchronizuję..." : "Synchronizuj z KSeF"}</span>
-          <span className="sm:hidden">{sync.isPending ? "Sync..." : "KSeF"}</span>
+          <RefreshCw className={cn("w-4 h-4", isPending && "animate-spin")} />
+          <span className="hidden sm:inline">{syncPhaseLabel(phase, false)}</span>
+          <span className="sm:hidden">{syncPhaseLabel(phase, true)}</span>
         </Button>
       ) : (
         <Link href="/settings/ksef">
