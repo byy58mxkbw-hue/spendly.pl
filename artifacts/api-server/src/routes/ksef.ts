@@ -12,6 +12,7 @@ import {
 } from "@workspace/db";
 import {
   UpdateKsefConfigBody,
+  SyncKsefInvoicesBody,
   AcceptKsefPendingBody,
   GetKsefPendingParams,
   AcceptKsefPendingParams,
@@ -27,6 +28,7 @@ import {
   KsefRateLimitError,
   KsefServerError,
   parseFA3Xml,
+  type KsefSession,
   type ParsedFa3,
 } from "@workspace/ksef-client";
 import { decryptSecret, encryptSecret, maskToken } from "../lib/encryption";
@@ -249,12 +251,24 @@ async function tryMatch(userId: string, parsed: ParsedFa3): Promise<MatchResult>
 
 router.post("/ksef/sync", async (req, res): Promise<void> => {
   const userId = req.userId!;
-  const cfg = await loadConfig(userId);
+  let cfg = await loadConfig(userId);
   if (!cfg) {
     res.status(400).json({
       error: "Brak konfiguracji KSeF. Przejdź do Ustawień KSeF i zapisz NIP oraz token.",
     });
     return;
+  }
+
+  const parsed = SyncKsefInvoicesBody.safeParse(req.body ?? {});
+  const fromBeginning = parsed.success && parsed.data.fromBeginning === true;
+
+  if (fromBeginning) {
+    await db
+      .update(ksefConfigTable)
+      .set({ lastSyncedAt: null })
+      .where(eq(ksefConfigTable.id, cfg.id));
+    cfg = { ...cfg, lastSyncedAt: null };
+    req.log.info({ userId }, "KSeF sync reset: lastSyncedAt cleared");
   }
 
   const lock = await AdvisoryLock.tryAcquire("ksef_sync", userId);
@@ -299,7 +313,7 @@ async function runSync(
     errors: [] as string[],
   };
 
-  let session;
+  let session: KsefSession;
   try {
     session = await client.authenticate(cfg.nip, token);
   } catch (err) {

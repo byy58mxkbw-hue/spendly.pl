@@ -707,6 +707,15 @@ export const UpdateKsefConfigResponse = zod
 /**
  * @summary Pull new buyer invoices from KSeF for the configured NIP
  */
+export const SyncKsefInvoicesBody = zod.object({
+  fromBeginning: zod
+    .boolean()
+    .optional()
+    .describe(
+      "If true, clears the last sync checkpoint and fetches invoices from the past 365 days.",
+    ),
+});
+
 export const SyncKsefInvoicesResponse = zod.object({
   imported: zod.number(),
   pending: zod.number(),

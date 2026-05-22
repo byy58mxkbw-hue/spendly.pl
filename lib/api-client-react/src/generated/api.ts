@@ -62,6 +62,7 @@ import type {
   RetryKsefPendingResult,
   Supplier,
   SupplierComparison,
+  SyncKsefInvoicesBody,
   TriggeredAlert,
   UpdateKsefConfigBody,
   UpdatePriceAlertBody,
@@ -3078,11 +3079,14 @@ export const getSyncKsefInvoicesUrl = () => {
 };
 
 export const syncKsefInvoices = async (
+  syncKsefInvoicesBody?: SyncKsefInvoicesBody,
   options?: RequestInit,
 ): Promise<KsefSyncResult> => {
   return customFetch<KsefSyncResult>(getSyncKsefInvoicesUrl(), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(syncKsefInvoicesBody),
   });
 };
 
@@ -3093,14 +3097,14 @@ export const getSyncKsefInvoicesMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof syncKsefInvoices>>,
     TError,
-    void,
+    { data: BodyType<SyncKsefInvoicesBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof syncKsefInvoices>>,
   TError,
-  void,
+  { data: BodyType<SyncKsefInvoicesBody> },
   TContext
 > => {
   const mutationKey = ["syncKsefInvoices"];
@@ -3114,9 +3118,11 @@ export const getSyncKsefInvoicesMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof syncKsefInvoices>>,
-    void
-  > = () => {
-    return syncKsefInvoices(requestOptions);
+    { data: BodyType<SyncKsefInvoicesBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return syncKsefInvoices(data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -3125,7 +3131,7 @@ export const getSyncKsefInvoicesMutationOptions = <
 export type SyncKsefInvoicesMutationResult = NonNullable<
   Awaited<ReturnType<typeof syncKsefInvoices>>
 >;
-
+export type SyncKsefInvoicesMutationBody = BodyType<SyncKsefInvoicesBody>;
 export type SyncKsefInvoicesMutationError = ErrorType<void>;
 
 /**
@@ -3138,14 +3144,14 @@ export const useSyncKsefInvoices = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof syncKsefInvoices>>,
     TError,
-    void,
+    { data: BodyType<SyncKsefInvoicesBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof syncKsefInvoices>>,
   TError,
-  void,
+  { data: BodyType<SyncKsefInvoicesBody> },
   TContext
 > => {
   return useMutation(getSyncKsefInvoicesMutationOptions(options));

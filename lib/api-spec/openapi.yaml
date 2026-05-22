@@ -731,6 +731,12 @@ paths:
       operationId: syncKsefInvoices
       tags: [ksef]
       summary: Pull new buyer invoices from KSeF for the configured NIP
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncKsefInvoicesBody"
       responses:
         "200":
           description: Sync summary
@@ -1601,6 +1607,13 @@ components:
         - nip
         - tokenMasked
         - environment
+
+    SyncKsefInvoicesBody:
+      type: object
+      properties:
+        fromBeginning:
+          type: boolean
+          description: If true, clears the last sync checkpoint and fetches invoices from the past 365 days.
 
     UpdateKsefConfigBody:
       type: object

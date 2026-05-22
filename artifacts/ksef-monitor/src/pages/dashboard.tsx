@@ -129,7 +129,7 @@ export default function Dashboard() {
       });
       return;
     }
-    sync.mutate(undefined, {
+    sync.mutate({ data: {} }, {
       onSuccess: (res) => {
         queryClient.invalidateQueries();
         const errs = res.errors && res.errors.length > 0 ? ` Błędów: ${res.errors.length}.` : "";

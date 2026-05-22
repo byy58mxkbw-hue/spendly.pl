@@ -3,19 +3,35 @@ import { Layout, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetKsefConfig, useUpdateKsefConfig } from "@workspace/api-client-react";
+import {
+  useGetKsefConfig,
+  useUpdateKsefConfig,
+  useSyncKsefInvoices,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldCheck, ExternalLink } from "lucide-react";
+import { ShieldCheck, ExternalLink, RefreshCw, RotateCcw } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function SettingsKsef() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: config, isLoading, isError } = useGetKsefConfig();
   const updateConfig = useUpdateKsefConfig();
+  const syncKsef = useSyncKsefInvoices();
 
   const [nip, setNip] = useState("");
   const [token, setToken] = useState("");
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   function onSave(e: React.FormEvent) {
     e.preventDefault();
@@ -49,6 +65,31 @@ export default function SettingsKsef() {
     );
   }
 
+  function handleSyncFromBeginning() {
+    setShowResetConfirm(false);
+    syncKsef.mutate(
+      { data: { fromBeginning: true } },
+      {
+        onSuccess: (res) => {
+          queryClient.invalidateQueries();
+          const errs = res.errors && res.errors.length > 0 ? ` Błędów: ${res.errors.length}.` : "";
+          toast({
+            title: "Synchronizacja zakończona",
+            description: `Punkt startowy zresetowany. Zaimportowano: ${res.imported}, do przeglądu: ${res.pending}, nieudanych: ${res.failed}.${errs}`,
+          });
+        },
+        onError: (err: unknown) => {
+          const e = err as { response?: { data?: { error?: string } }; message?: string };
+          toast({
+            variant: "destructive",
+            title: "Błąd synchronizacji",
+            description: e?.response?.data?.error ?? e?.message ?? "Nie udało się zsynchronizować z KSeF.",
+          });
+        },
+      },
+    );
+  }
+
   return (
     <Layout>
       <div className="px-4 py-5 md:px-8 md:py-8 max-w-3xl">
@@ -72,20 +113,43 @@ export default function SettingsKsef() {
               Nie udało się załadować konfiguracji. Odśwież stronę lub spróbuj ponownie później.
             </p>
           ) : config ? (
-            <dl className="grid grid-cols-[140px_1fr] gap-y-2 text-sm">
-              <dt className="text-muted-foreground">NIP</dt>
-              <dd className="font-medium text-foreground" data-testid="text-ksef-nip">{config.nip}</dd>
-              <dt className="text-muted-foreground">Token</dt>
-              <dd className="font-mono text-foreground" data-testid="text-ksef-token">{config.tokenMasked}</dd>
-              <dt className="text-muted-foreground">Środowisko</dt>
-              <dd className="text-foreground">{config.environment === "production" ? "Produkcja" : config.environment}</dd>
-              <dt className="text-muted-foreground">Ostatnia synchronizacja</dt>
-              <dd className="text-foreground">
-                {config.lastSyncedAt
-                  ? new Date(config.lastSyncedAt).toLocaleString("pl-PL")
-                  : "—"}
-              </dd>
-            </dl>
+            <>
+              <dl className="grid grid-cols-[140px_1fr] gap-y-2 text-sm mb-6">
+                <dt className="text-muted-foreground">NIP</dt>
+                <dd className="font-medium text-foreground" data-testid="text-ksef-nip">{config.nip}</dd>
+                <dt className="text-muted-foreground">Token</dt>
+                <dd className="font-mono text-foreground" data-testid="text-ksef-token">{config.tokenMasked}</dd>
+                <dt className="text-muted-foreground">Środowisko</dt>
+                <dd className="text-foreground">{config.environment === "production" ? "Produkcja" : config.environment}</dd>
+                <dt className="text-muted-foreground">Ostatnia synchronizacja</dt>
+                <dd className="text-foreground">
+                  {config.lastSyncedAt
+                    ? new Date(config.lastSyncedAt).toLocaleString("pl-PL")
+                    : "—"}
+                </dd>
+              </dl>
+
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-medium text-foreground mb-1">Synchronizacja historii</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Resetuje punkt startowy i pobiera faktury z ostatnich 365 dni. Użyj jeśli brakuje starszych faktur.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowResetConfirm(true)}
+                  disabled={syncKsef.isPending}
+                  className="gap-2"
+                  data-testid="btn-sync-from-beginning"
+                >
+                  {syncKsef.isPending ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-4 h-4" />
+                  )}
+                  {syncKsef.isPending ? "Synchronizuję..." : "Synchronizuj od początku"}
+                </Button>
+              </div>
+            </>
           ) : (
             <p className="text-sm text-muted-foreground">
               Brak konfiguracji. Wpisz NIP i token poniżej, aby uruchomić synchronizację z KSeF.
@@ -155,6 +219,24 @@ export default function SettingsKsef() {
           </p>
         </div>
       </div>
+
+      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Synchronizuj od początku?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Punkt startowy synchronizacji zostanie zresetowany. Aplikacja pobierze faktury
+              z ostatnich 365 dni z KSeF. Może to potrwać kilka minut.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSyncFromBeginning}>
+              Tak, synchronizuj od początku
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Layout>
   );
 }

@@ -366,6 +366,11 @@ export type KsefConfigView = {
   lastSyncedAt?: string | null;
 } | null;
 
+export interface SyncKsefInvoicesBody {
+  /** If true, clears the last sync checkpoint and fetches invoices from the past 365 days. */
+  fromBeginning?: boolean;
+}
+
 export interface UpdateKsefConfigBody {
   /** 10-digit Polish tax ID (NIP) of the company. */
   nip: string;
