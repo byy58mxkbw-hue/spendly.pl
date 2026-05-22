@@ -164,7 +164,7 @@ export default function Home() {
       </header>
 
       {/* ─── Hero ────────────────────────────────────────────────────────── */}
-      <section className="max-w-6xl mx-auto px-6 pt-16 pb-20 md:pt-20 md:pb-28">
+      <section className="max-w-6xl mx-auto px-6 pt-12 pb-10 md:pt-20 md:pb-28">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left */}
           <div>
@@ -237,7 +237,7 @@ export default function Home() {
             initial="hidden"
             animate="visible"
             transition={{ duration: 0.4, ease, delay: 0.15 }}
-            className="flex justify-center lg:justify-end pt-4 pb-8 lg:pt-0 lg:pb-0"
+            className="flex justify-center lg:justify-end pt-2 pb-2 lg:pt-0 lg:pb-0"
           >
             <AppMockup />
           </motion.div>
@@ -253,7 +253,7 @@ export default function Home() {
         className="border-y border-border bg-secondary/40"
       >
         <div className="max-w-6xl mx-auto px-6 py-6">
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-8 sm:gap-y-3">
             {[
               { icon: RefreshCw, text: "Automatyczna integracja z KSeF" },
               { icon: TrendingDown, text: "Historia cen każdego surowca" },
@@ -270,13 +270,13 @@ export default function Home() {
       </motion.section>
 
       {/* ─── How it works ────────────────────────────────────────────────── */}
-      <section id="jak-to-dziala" className="max-w-6xl mx-auto px-6 py-20 md:py-24">
+      <section id="jak-to-dziala" className="max-w-6xl mx-auto px-6 py-12 md:py-24">
         <motion.div
           variants={fadeUp}
           initial="hidden"
           whileInView="visible"
           viewport={viewportOpts}
-          className="text-center mb-14"
+          className="text-center mb-8 md:mb-14"
         >
           <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Jak to działa</p>
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
@@ -318,16 +318,18 @@ export default function Home() {
               whileInView="visible"
               viewport={viewportOpts}
               transition={{ duration: 0.4, ease, delay }}
-              className="relative flex flex-col items-center text-center px-4"
+              className="relative flex items-start gap-4 md:flex-col md:items-center md:text-center md:gap-0 md:px-4"
             >
-              <div className="relative w-20 h-20 rounded-2xl bg-primary/8 border border-primary/15 flex items-center justify-center mb-5 z-10">
-                <Icon className="w-8 h-8 text-primary" />
-                <span className="absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+              <div className="relative w-12 h-12 shrink-0 md:w-20 md:h-20 rounded-2xl bg-primary/8 border border-primary/15 flex items-center justify-center md:mb-5 z-10">
+                <Icon className="w-5 h-5 md:w-8 md:h-8 text-primary" />
+                <span className="absolute -top-2 -right-2 w-5 h-5 md:-top-2.5 md:-right-2.5 md:w-6 md:h-6 rounded-full bg-primary text-primary-foreground text-[10px] md:text-xs font-bold flex items-center justify-center">
                   {num}
                 </span>
               </div>
-              <h3 className="text-base font-semibold text-foreground mb-2">{title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              <div className="pt-0.5">
+                <h3 className="text-base font-semibold text-foreground mb-1.5 md:mb-2">{title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              </div>
             </motion.div>
           ))}
         </div>
@@ -335,13 +337,13 @@ export default function Home() {
 
       {/* ─── Problem / Solution ──────────────────────────────────────────── */}
       <section className="bg-secondary/30 border-y border-border">
-        <div className="max-w-6xl mx-auto px-6 py-20 md:py-24">
+        <div className="max-w-6xl mx-auto px-6 py-12 md:py-24">
           <motion.div
             variants={fadeUp}
             initial="hidden"
             whileInView="visible"
             viewport={viewportOpts}
-            className="text-center mb-14"
+            className="text-center mb-8 md:mb-14"
           >
             <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Dla kogo</p>
             <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
@@ -395,13 +397,13 @@ export default function Home() {
       </section>
 
       {/* ─── Features ────────────────────────────────────────────────────── */}
-      <section id="funkcje" className="max-w-6xl mx-auto px-6 py-20 md:py-24">
+      <section id="funkcje" className="max-w-6xl mx-auto px-6 py-12 md:py-24">
         <motion.div
           variants={fadeUp}
           initial="hidden"
           whileInView="visible"
           viewport={viewportOpts}
-          className="text-center mb-14"
+          className="text-center mb-8 md:mb-14"
         >
           <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Funkcje</p>
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
@@ -469,13 +471,13 @@ export default function Home() {
 
       {/* ─── Pricing ─────────────────────────────────────────────────────── */}
       <section id="cennik" className="bg-secondary/30 border-y border-border">
-        <div className="max-w-6xl mx-auto px-6 py-20 md:py-24">
+        <div className="max-w-6xl mx-auto px-6 py-12 md:py-24">
           <motion.div
             variants={fadeUp}
             initial="hidden"
             whileInView="visible"
             viewport={viewportOpts}
-            className="text-center mb-14"
+            className="text-center mb-8 md:mb-14"
           >
             <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Cennik</p>
             <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight mb-3">
@@ -594,13 +596,13 @@ export default function Home() {
       </section>
 
       {/* ─── Final CTA ───────────────────────────────────────────────────── */}
-      <section className="max-w-6xl mx-auto px-6 py-20 md:py-24">
+      <section className="max-w-6xl mx-auto px-6 py-12 md:py-24">
         <motion.div
           variants={fadeUp}
           initial="hidden"
           whileInView="visible"
           viewport={viewportOpts}
-          className="relative bg-primary rounded-3xl overflow-hidden px-8 py-14 md:px-16 md:py-20 text-center"
+          className="relative bg-primary rounded-3xl overflow-hidden px-6 py-10 md:px-16 md:py-20 text-center"
         >
           {/* Decorative circles */}
           <div className="absolute -top-16 -left-16 w-64 h-64 bg-white/5 rounded-full" />
