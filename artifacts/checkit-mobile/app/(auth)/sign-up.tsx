@@ -1,4 +1,5 @@
-import { useSignUp } from "@clerk/expo";
+import { useSignUp } from "@clerk/expo/legacy";
+import { isClerkAPIResponseError } from "@clerk/expo";
 import { Link, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -16,7 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
 export default function SignUpPage() {
-  const { signUp, errors, fetchStatus } = useSignUp();
+  const { isLoaded, signUp, setActive } = useSignUp();
   const router = useRouter();
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -24,34 +25,62 @@ export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const s = styles(colors, insets);
 
   const handleSignUp = async () => {
-    const { error } = await signUp.password({ emailAddress: email, password });
-    if (error) return;
-    if (!error) await signUp.verifications.sendEmailCode();
-  };
-
-  const handleVerify = async () => {
-    await signUp.verifications.verifyEmailCode({ code });
-    if (signUp.status === "complete") {
-      await signUp.finalize({
-        navigate: ({ decorateUrl }) => {
-          const url = decorateUrl("/");
-          if (!url.startsWith("http")) {
-            router.replace(url as any);
-          }
-        },
-      });
+    if (!isLoaded) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await signUp.create({ emailAddress: email, password });
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      setPendingVerification(true);
+    } catch (err) {
+      if (isClerkAPIResponseError(err)) {
+        setError(err.errors[0]?.longMessage ?? err.errors[0]?.message ?? "Błąd rejestracji");
+      } else {
+        setError("Błąd rejestracji. Spróbuj ponownie.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (
-    signUp.status === "missing_requirements" &&
-    signUp.unverifiedFields.includes("email_address") &&
-    signUp.missingFields.length === 0
-  ) {
+  const handleVerify = async () => {
+    if (!isLoaded) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await signUp.attemptEmailAddressVerification({ code });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.replace("/");
+      }
+    } catch (err) {
+      if (isClerkAPIResponseError(err)) {
+        setError(err.errors[0]?.longMessage ?? err.errors[0]?.message ?? "Nieprawidłowy kod");
+      } else {
+        setError("Błąd weryfikacji. Spróbuj ponownie.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!isLoaded) return;
+    try {
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+    } catch {
+      // ignore
+    }
+  };
+
+  if (pendingVerification) {
     return (
       <KeyboardAvoidingView
         style={s.container}
@@ -79,19 +108,17 @@ export default function SignUpPage() {
               keyboardType="number-pad"
               autoFocus
             />
-            {errors?.fields?.code && (
-              <Text style={s.error}>{errors.fields.code.message}</Text>
-            )}
+            {error && <Text style={s.error}>{error}</Text>}
             <Pressable
               style={({ pressed }) => [
                 s.button,
-                (fetchStatus === "fetching" || !code) && s.buttonDisabled,
+                (loading || !code) && s.buttonDisabled,
                 pressed && s.buttonPressed,
               ]}
               onPress={handleVerify}
-              disabled={fetchStatus === "fetching" || !code}
+              disabled={loading || !code}
             >
-              {fetchStatus === "fetching" ? (
+              {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={s.buttonText}>Zweryfikuj</Text>
@@ -99,7 +126,7 @@ export default function SignUpPage() {
             </Pressable>
             <Pressable
               style={({ pressed }) => [s.secondaryButton, pressed && s.buttonPressed]}
-              onPress={() => signUp.verifications.sendEmailCode()}
+              onPress={handleResendCode}
             >
               <Text style={s.secondaryButtonText}>Wyślij nowy kod</Text>
             </Pressable>
@@ -136,9 +163,6 @@ export default function SignUpPage() {
             autoCapitalize="none"
             autoCorrect={false}
           />
-          {errors?.fields?.emailAddress && (
-            <Text style={s.error}>{errors.fields.emailAddress.message}</Text>
-          )}
 
           <Text style={[s.label, { marginTop: 16 }]}>Hasło</Text>
           <TextInput
@@ -149,20 +173,19 @@ export default function SignUpPage() {
             onChangeText={setPassword}
             secureTextEntry
           />
-          {errors?.fields?.password && (
-            <Text style={s.error}>{errors.fields.password.message}</Text>
-          )}
+
+          {error && <Text style={s.error}>{error}</Text>}
 
           <Pressable
             style={({ pressed }) => [
               s.button,
-              (!email || !password || fetchStatus === "fetching") && s.buttonDisabled,
+              (!email || !password || loading) && s.buttonDisabled,
               pressed && s.buttonPressed,
             ]}
             onPress={handleSignUp}
-            disabled={!email || !password || fetchStatus === "fetching"}
+            disabled={!email || !password || loading}
           >
-            {fetchStatus === "fetching" ? (
+            {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={s.buttonText}>Zarejestruj się</Text>
@@ -291,6 +314,6 @@ const styles = (colors: ReturnType<typeof useColors>, insets: { top: number; bot
       fontSize: 12,
       fontFamily: "Inter_400Regular",
       color: colors.destructive,
-      marginTop: 4,
+      marginTop: 8,
     },
   });

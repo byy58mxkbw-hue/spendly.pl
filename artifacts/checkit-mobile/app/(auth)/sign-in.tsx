@@ -1,4 +1,5 @@
-import { useSignIn } from "@clerk/expo";
+import { useSignIn } from "@clerk/expo/legacy";
+import { isClerkAPIResponseError } from "@clerk/expo";
 import { Link, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -16,107 +17,41 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
 export default function SignInPage() {
-  const { signIn, errors, fetchStatus } = useSignIn();
+  const { isLoaded, signIn, setActive } = useSignIn();
   const router = useRouter();
   const colors = useColors();
   const insets = useSafeAreaInsets();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [verifyCode, setVerifyCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const s = styles(colors, insets);
 
   const handleSignIn = async () => {
-    const { error } = await signIn.password({ emailAddress: email, password });
-    if (error) return;
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: ({ decorateUrl }) => {
-          const url = decorateUrl("/");
-          if (url.startsWith("http")) {
-            return;
-          }
-          router.replace(url as any);
-        },
+    if (!isLoaded) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await signIn.create({
+        identifier: email,
+        password,
       });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.replace("/");
+      }
+    } catch (err) {
+      if (isClerkAPIResponseError(err)) {
+        setError(err.errors[0]?.longMessage ?? err.errors[0]?.message ?? "Błąd logowania");
+      } else {
+        setError("Błąd logowania. Spróbuj ponownie.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleVerify = async () => {
-    await signIn.mfa.verifyEmailCode({ code: verifyCode });
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: ({ decorateUrl }) => {
-          const url = decorateUrl("/");
-          if (!url.startsWith("http")) {
-            router.replace(url as any);
-          }
-        },
-      });
-    }
-  };
-
-  if (signIn.status === "needs_client_trust") {
-    return (
-      <KeyboardAvoidingView
-        style={s.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <ScrollView
-          contentContainerStyle={s.scroll}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={s.header}>
-            <Text style={s.logo}>CheckIT</Text>
-            <Text style={s.subtitle}>Zweryfikuj swoją tożsamość</Text>
-          </View>
-          <View style={s.form}>
-            <Text style={s.label}>Kod weryfikacyjny</Text>
-            <TextInput
-              style={s.input}
-              value={verifyCode}
-              placeholder="Wprowadź kod"
-              placeholderTextColor={colors.mutedForeground}
-              onChangeText={setVerifyCode}
-              keyboardType="number-pad"
-              autoFocus
-            />
-            {errors?.fields?.code && (
-              <Text style={s.error}>{errors.fields.code.message}</Text>
-            )}
-            <Pressable
-              style={({ pressed }) => [
-                s.button,
-                (fetchStatus === "fetching" || !verifyCode) && s.buttonDisabled,
-                pressed && s.buttonPressed,
-              ]}
-              onPress={handleVerify}
-              disabled={fetchStatus === "fetching" || !verifyCode}
-            >
-              {fetchStatus === "fetching" ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={s.buttonText}>Zweryfikuj</Text>
-              )}
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [s.secondaryButton, pressed && s.buttonPressed]}
-              onPress={() => signIn.mfa.sendEmailCode()}
-            >
-              <Text style={s.secondaryButtonText}>Wyślij nowy kod</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [s.secondaryButton, pressed && s.buttonPressed]}
-              onPress={() => signIn.reset()}
-            >
-              <Text style={s.secondaryButtonText}>Wróć do logowania</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    );
-  }
 
   return (
     <KeyboardAvoidingView
@@ -145,9 +80,6 @@ export default function SignInPage() {
             autoCorrect={false}
             testID="email-input"
           />
-          {errors?.fields?.identifier && (
-            <Text style={s.error}>{errors.fields.identifier.message}</Text>
-          )}
 
           <Text style={[s.label, { marginTop: 16 }]}>Hasło</Text>
           <TextInput
@@ -159,21 +91,20 @@ export default function SignInPage() {
             secureTextEntry
             testID="password-input"
           />
-          {errors?.fields?.password && (
-            <Text style={s.error}>{errors.fields.password.message}</Text>
-          )}
+
+          {error && <Text style={s.error}>{error}</Text>}
 
           <Pressable
             style={({ pressed }) => [
               s.button,
-              (!email || !password || fetchStatus === "fetching") && s.buttonDisabled,
+              (!email || !password || loading) && s.buttonDisabled,
               pressed && s.buttonPressed,
             ]}
             onPress={handleSignIn}
-            disabled={!email || !password || fetchStatus === "fetching"}
+            disabled={!email || !password || loading}
             testID="sign-in-button"
           >
-            {fetchStatus === "fetching" ? (
+            {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={s.buttonText}>Zaloguj się</Text>
@@ -263,17 +194,6 @@ const styles = (colors: ReturnType<typeof useColors>, insets: { top: number; bot
       fontFamily: "Inter_600SemiBold",
       color: "#ffffff",
     },
-    secondaryButton: {
-      height: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 8,
-    },
-    secondaryButtonText: {
-      fontSize: 14,
-      fontFamily: "Inter_400Regular",
-      color: colors.mutedForeground,
-    },
     footer: {
       flexDirection: "row",
       justifyContent: "center",
@@ -294,6 +214,6 @@ const styles = (colors: ReturnType<typeof useColors>, insets: { top: number; bot
       fontSize: 12,
       fontFamily: "Inter_400Regular",
       color: colors.destructive,
-      marginTop: 4,
+      marginTop: 8,
     },
   });
