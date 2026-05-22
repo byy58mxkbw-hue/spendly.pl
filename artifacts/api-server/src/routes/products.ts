@@ -13,6 +13,7 @@ import {
   UpdateProductBody,
   CreateProductBody,
   CreateCategoryBody,
+  UpdateCategoryBody,
 } from "@workspace/api-zod";
 import { getUserCategories, ensureCustomCategory } from "../lib/categorize-ai.js";
 import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
@@ -436,6 +437,46 @@ router.post("/categories", async (req, res): Promise<void> => {
   res.status(201).json({
     id: finalSlug,
     label,
+    emoji: "🏷️",
+    isCustom: true,
+  });
+});
+
+router.patch("/categories/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const categoryId = req.params.id;
+
+  if (BUILTIN_CATEGORY_DEFS[categoryId]) {
+    res.status(403).json({ error: "Nie można zmienić nazwy wbudowanej kategorii." });
+    return;
+  }
+
+  const body = UpdateCategoryBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const newLabel = body.data.label.trim();
+  if (newLabel.length < 2) {
+    res.status(400).json({ error: "Nazwa kategorii musi mieć co najmniej 2 znaki." });
+    return;
+  }
+
+  const [updated] = await db
+    .update(userCategoriesTable)
+    .set({ label: newLabel })
+    .where(and(eq(userCategoriesTable.userId, userId), eq(userCategoriesTable.categoryId, categoryId)))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Kategoria nie istnieje lub nie masz uprawnień do jej edycji." });
+    return;
+  }
+
+  res.json({
+    id: updated.categoryId,
+    label: updated.label,
     emoji: "🏷️",
     isCustom: true,
   });

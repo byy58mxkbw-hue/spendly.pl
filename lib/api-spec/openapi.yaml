@@ -482,6 +482,35 @@ paths:
           description: Validation error
 
   /categories/{id}:
+    patch:
+      operationId: updateCategory
+      tags: [products]
+      summary: Rename a custom category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryBody"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryItem"
+        "400":
+          description: Validation error
+        "403":
+          description: Cannot rename built-in category
+        "404":
+          description: Category not found
     delete:
       operationId: deleteCategory
       tags: [products]
@@ -1755,6 +1784,16 @@ components:
         - confidence
 
     CreateCategoryBody:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 2
+          maxLength: 60
+      required:
+        - label
+
+    UpdateCategoryBody:
       type: object
       properties:
         label:

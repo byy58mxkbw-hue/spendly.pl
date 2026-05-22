@@ -375,6 +375,30 @@ export const CreateCategoryBody = zod.object({
 });
 
 /**
+ * @summary Rename a custom category
+ */
+export const UpdateCategoryParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const updateCategoryBodyLabelMin = 2;
+export const updateCategoryBodyLabelMax = 60;
+
+export const UpdateCategoryBody = zod.object({
+  label: zod
+    .string()
+    .min(updateCategoryBodyLabelMin)
+    .max(updateCategoryBodyLabelMax),
+});
+
+export const UpdateCategoryResponse = zod.object({
+  id: zod.string(),
+  label: zod.string(),
+  emoji: zod.string(),
+  isCustom: zod.boolean(),
+});
+
+/**
  * @summary Delete a custom category (only user-created categories can be deleted)
  */
 export const DeleteCategoryParams = zod.object({

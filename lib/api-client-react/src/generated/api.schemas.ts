@@ -342,6 +342,14 @@ export interface CreateCategoryBody {
   label: string;
 }
 
+export interface UpdateCategoryBody {
+  /**
+   * @minLength 2
+   * @maxLength 60
+   */
+  label: string;
+}
+
 export interface CategoryItem {
   id: string;
   label: string;

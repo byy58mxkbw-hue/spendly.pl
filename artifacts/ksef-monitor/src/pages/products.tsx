@@ -11,6 +11,7 @@ import {
   useListCategories,
   useCreateCategory,
   useDeleteCategory,
+  useUpdateCategory,
   getListCategoriesQueryKey,
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
@@ -70,6 +71,7 @@ import {
   X,
   Plus,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -746,6 +748,73 @@ function CreateCategoryModal({
   );
 }
 
+function RenameCategoryModal({
+  category,
+  onClose,
+}: {
+  category: CategoryItem;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const renameMutation = useUpdateCategory();
+  const [label, setLabel] = useState(category.label);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = label.trim();
+    if (trimmed.length < 2) {
+      setError("Nazwa musi mieć co najmniej 2 znaki.");
+      return;
+    }
+    setError(null);
+    renameMutation.mutate(
+      { id: category.id, data: { label: trimmed } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+          onClose();
+        },
+        onError: (err: unknown) => {
+          const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+          setError(msg ?? "Nie udało się zmienić nazwy kategorii.");
+        },
+      },
+    );
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>Zmień nazwę kategorii</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Input
+              autoFocus
+              placeholder="Nowa nazwa kategorii"
+              value={label}
+              onChange={(e) => { setLabel(e.target.value); setError(null); }}
+              maxLength={60}
+              data-testid="input-rename-category"
+            />
+            {error && <p className="text-xs text-destructive mt-1.5">{error}</p>}
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              Anuluj
+            </Button>
+            <Button type="submit" size="sm" disabled={renameMutation.isPending}>
+              {renameMutation.isPending ? "Zapisywanie..." : "Zapisz"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CategoryBadge({
   productId,
   productName,
@@ -766,6 +835,7 @@ function CategoryBadge({
   const def = categories?.find((c) => c.id === effectiveId);
   const isAuto = category == null;
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [renameCategory, setRenameCategory] = useState<CategoryItem | null>(null);
 
   const handleSelect = (newCategoryId: string | null) => {
     updateMutation.mutate(
@@ -856,14 +926,28 @@ function CategoryBadge({
                     <span>{cat.emoji}</span>
                     <span className="truncate">{cat.label}</span>
                   </span>
-                  <button
-                    className="ml-2 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                    onClick={(e) => handleDelete(e, cat.id)}
-                    title={`Usuń kategorię ${cat.label}`}
-                    data-testid={`delete-category-${cat.id}`}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                  <span className="flex items-center gap-0.5 ml-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <button
+                      className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setTimeout(() => setRenameCategory(cat), 0);
+                      }}
+                      title={`Zmień nazwę kategorii ${cat.label}`}
+                      data-testid={`rename-category-${cat.id}`}
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => handleDelete(e, cat.id)}
+                      title={`Usuń kategorię ${cat.label}`}
+                      data-testid={`delete-category-${cat.id}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </span>
                 </DropdownMenuItem>
               ))}
             </>
@@ -890,6 +974,13 @@ function CategoryBadge({
         <CreateCategoryModal
           onClose={() => setShowCreateModal(false)}
           onCreated={(newCatId) => handleSelect(newCatId)}
+        />
+      )}
+
+      {renameCategory && (
+        <RenameCategoryModal
+          category={renameCategory}
+          onClose={() => setRenameCategory(null)}
         />
       )}
     </>
