@@ -14,6 +14,7 @@ import {
   Sparkles,
   Menu,
   X,
+  ShieldCheck,
 } from "lucide-react";
 import { useUser, useClerk } from "@clerk/react";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ const navItems = [
   { path: "/reports", label: "Raporty", icon: BarChart2 },
   { path: "/ai-cfo", label: "AI CFO", icon: Sparkles },
   { path: "/settings/ksef", label: "Ustawienia KSeF", icon: Settings },
+  { path: "/admin/users", label: "Użytkownicy", icon: ShieldCheck },
 ];
 
 const bottomNavItems = [

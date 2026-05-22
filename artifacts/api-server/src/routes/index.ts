@@ -26,4 +26,7 @@ router.use(reportsRouter);
 router.use(ksefRouter);
 router.use(insightsRouter);
 
+import adminRouter from "./admin";
+router.use(adminRouter);
+
 export default router;
