@@ -253,15 +253,24 @@ export default function SettingsKsef() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Synchronizuj od początku?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Punkt startowy synchronizacji zostanie zresetowany. Aplikacja pobierze faktury
-              z ostatnich 365 dni z KSeF. Może to potrwać kilka minut.
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Ta opcja kasuje punkt startowy i pobiera faktury z <strong>ostatnich 2 lat</strong> z KSeF — to ok. 25 zapytań do API.
+                </p>
+                <p className="text-amber-700 font-medium">
+                  KSeF ogranicza liczbę zapytań. Jeśli limit zostanie przekroczony, synchronizacja zostanie wstrzymana na ok. 1 godzinę.
+                </p>
+                <p>
+                  Jeśli po ostatniej synchronizacji pojawiły się nowe faktury, użyj zwykłego przycisku <strong>"Synchronizuj z KSeF"</strong> na stronie Faktury — jest szybszy i nie ryzykuje blokady.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Anuluj</AlertDialogCancel>
             <AlertDialogAction onClick={handleSyncFromBeginning}>
-              Tak, synchronizuj od początku
+              Rozumiem — synchronizuj od początku
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

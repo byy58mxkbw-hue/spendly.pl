@@ -40,8 +40,9 @@ const router: IRouter = Router();
 // Small delay between per-invoice XML fetches to stay below KSeF's rate limit.
 const PER_INVOICE_DELAY_MS = 400;
 // Delay between listInvoices window queries (metadata). KSeF rate-limits aggressively
-// on metadata queries — too many windows in quick succession triggers a 1-hour ban.
-const INTER_WINDOW_DELAY_MS = 600;
+// on metadata queries — 600ms was too short for 20+ windows (triggered 1-hour ban).
+// 2 500ms gives ~62s total for 25 windows, well within observed rate limits.
+const INTER_WINDOW_DELAY_MS = 2500;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function describeDbErr(err: unknown): string {
