@@ -92,11 +92,35 @@ function InvoicesHeaderActions({ onImportClick }: { onImportClick: () => void })
     try {
       const res = await startSync();
       queryClient.invalidateQueries();
-      const errs = res.errors && res.errors.length > 0 ? ` Błędów: ${res.errors.length}.` : "";
-      toast({
-        title: "Synchronizacja zakończona",
-        description: `Zaimportowano: ${res.imported}, do przeglądu: ${res.pending}, nieudanych: ${res.failed}.${errs}`,
-      });
+      const hasPending = (res.pending ?? 0) > 0;
+      const hasImported = (res.imported ?? 0) > 0;
+      const hasErrors = res.errors && res.errors.length > 0;
+
+      if (hasPending && !hasImported) {
+        toast({
+          title: "Faktury wymagają przypisania",
+          description: `${res.pending} faktur trafiło do "Do przeglądu" — dostawcy nie są jeszcze dodani w systemie. Otwórz "Do przeglądu" i przypisz je ręcznie lub najpierw dodaj dostawców w sekcji Dostawcy.`,
+          duration: 8000,
+        });
+      } else if (hasPending && hasImported) {
+        toast({
+          title: "Synchronizacja zakończona",
+          description: `Zaimportowano ${res.imported} faktur. Kolejne ${res.pending} czeka w "Do przeglądu" — wymaga przypisania dostawców.`,
+          duration: 6000,
+        });
+      } else if (hasErrors) {
+        toast({
+          title: "Synchronizacja zakończona",
+          description: `Zaimportowano: ${res.imported}. Błędów: ${res.errors!.length}.`,
+        });
+      } else {
+        toast({
+          title: "Synchronizacja zakończona",
+          description: hasImported
+            ? `Zaimportowano ${res.imported} nowych faktur.`
+            : "Wszystkie faktury są aktualne.",
+        });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Nie udało się zsynchronizować z KSeF.";
       toast({ variant: "destructive", title: "Błąd synchronizacji", description: msg });

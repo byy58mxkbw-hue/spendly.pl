@@ -47,6 +47,7 @@ function SidebarContent({
   user,
   onSignOut,
   alertCount,
+  pendingCount,
   isAdmin,
 }: {
   location: string;
@@ -54,6 +55,7 @@ function SidebarContent({
   user: ReturnType<typeof useUser>["user"];
   onSignOut: () => void;
   alertCount: number;
+  pendingCount: number;
   isAdmin: boolean;
 }) {
   return (
@@ -74,7 +76,9 @@ function SidebarContent({
         ].map(({ path, label, icon: Icon }) => {
           const active = location === path || location.startsWith(path + "/");
           const isAlerts = path === "/price-alerts";
-          const showBadge = isAlerts && alertCount > 0;
+          const isPendingNav = path === "/pending-invoices";
+          const badgeCount = isAlerts ? alertCount : isPendingNav ? pendingCount : 0;
+          const showBadge = badgeCount > 0;
           return (
             <Link
               key={path}
@@ -97,7 +101,7 @@ function SidebarContent({
                     ? "bg-primary-foreground/20 text-primary-foreground"
                     : "bg-destructive text-destructive-foreground"
                 )}>
-                  {alertCount > 9 ? "9+" : alertCount}
+                  {badgeCount > 99 ? "99+" : badgeCount > 9 ? "9+" : badgeCount}
                 </span>
               )}
               {active && !showBadge && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
@@ -185,6 +189,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           user={user}
           onSignOut={() => signOut()}
           alertCount={alertCount}
+          pendingCount={pendingCount}
           isAdmin={isAdmin}
         />
       </aside>
@@ -241,6 +246,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 signOut();
               }}
               alertCount={alertCount}
+              pendingCount={pendingCount}
               isAdmin={isAdmin}
             />
           </aside>
