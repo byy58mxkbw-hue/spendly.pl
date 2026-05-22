@@ -312,7 +312,7 @@ async function runSync(
   const now = new Date();
   const overallFrom = cfg.lastSyncedAt
     ? cfg.lastSyncedAt
-    : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    : new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
 
   const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
   const PAGE_SIZE = 100;
@@ -398,11 +398,29 @@ async function runSync(
     newRefs = allRefs.filter((r) => !seen.has(r.ksefReferenceNumber));
   }
 
+  const RETRY_DELAYS_MS = [500, 1500, 4500];
+  async function fetchXmlWithRetry(ksefRef: string): Promise<string> {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        return await client.getInvoiceXml(session, ksefRef);
+      } catch (err) {
+        lastErr = err;
+        if (err instanceof KsefRateLimitError && attempt < RETRY_DELAYS_MS.length) {
+          await sleep(RETRY_DELAYS_MS[attempt]);
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastErr;
+  }
+
   for (let idx = 0; idx < newRefs.length; idx++) {
     const ref = newRefs[idx];
     if (idx > 0) await sleep(PER_INVOICE_DELAY_MS);
     try {
-      const xml = await client.getInvoiceXml(session, ref.ksefReferenceNumber);
+      const xml = await fetchXmlWithRetry(ref.ksefReferenceNumber);
       const parsed = parseFA3Xml(xml, ref.ksefReferenceNumber);
 
       const match = await tryMatch(userId, parsed);
@@ -634,14 +652,11 @@ async function runSync(
     }
   }
 
-  let updatedLastSyncedAt: Date | null = cfg.lastSyncedAt;
-  if (summary.failed === 0 && !truncatedWindow) {
-    await db
-      .update(ksefConfigTable)
-      .set({ lastSyncedAt: now })
-      .where(eq(ksefConfigTable.id, cfg.id));
-    updatedLastSyncedAt = now;
-  }
+  await db
+    .update(ksefConfigTable)
+    .set({ lastSyncedAt: now })
+    .where(eq(ksefConfigTable.id, cfg.id));
+  const updatedLastSyncedAt = now;
 
   res.json({
     ...summary,
