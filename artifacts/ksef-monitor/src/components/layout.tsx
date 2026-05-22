@@ -17,6 +17,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useUser, useClerk, useAuth } from "@clerk/react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useListKsefPending, useGetDashboardActiveAlerts } from "@workspace/api-client-react";
 
@@ -31,11 +32,6 @@ const navItems = [
   { path: "/ai-cfo", label: "AI CFO", icon: Sparkles },
   { path: "/settings/ksef", label: "Ustawienia KSeF", icon: Settings },
 ];
-
-const ADMIN_IDS = (import.meta.env.VITE_ADMIN_USER_IDS ?? "")
-  .split(",")
-  .map((s: string) => s.trim())
-  .filter(Boolean) as string[];
 
 const bottomNavItems = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -141,13 +137,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user } = useUser();
   const { signOut } = useClerk();
-  const { userId } = useAuth();
+  const { getToken } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: pendingList } = useListKsefPending({ status: "pending" });
   const pendingCount = pendingList?.length ?? 0;
   const { data: activeAlerts } = useGetDashboardActiveAlerts();
   const alertCount = activeAlerts?.length ?? 0;
-  const isAdmin = ADMIN_IDS.length > 0 && userId != null && ADMIN_IDS.includes(userId);
+  const { data: adminCheck } = useQuery({
+    queryKey: ["admin-check"],
+    queryFn: async () => {
+      const token = await getToken();
+      const res = await fetch("/api/admin/check", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.ok;
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const isAdmin = adminCheck === true;
 
   // Close mobile drawer on route change
   useEffect(() => {

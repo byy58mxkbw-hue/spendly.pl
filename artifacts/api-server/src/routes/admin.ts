@@ -18,6 +18,15 @@ function denyAdmin(res: Response): void {
   res.status(403).json({ error: "Brak dostępu." });
 }
 
+router.get("/admin/check", (req, res): void => {
+  req.log.info({ userId: req.userId, isAdmin: isAdmin(req) }, "admin check");
+  if (!isAdmin(req)) {
+    res.status(403).json({ admin: false, userId: req.userId });
+    return;
+  }
+  res.json({ admin: true, userId: req.userId });
+});
+
 router.get("/admin/users", async (req, res): Promise<void> => {
   if (!isAdmin(req)) { denyAdmin(res); return; }
 
