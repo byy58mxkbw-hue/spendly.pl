@@ -16,7 +16,7 @@ import {
   X,
   ShieldCheck,
 } from "lucide-react";
-import { useUser, useClerk } from "@clerk/react";
+import { useUser, useClerk, useAuth } from "@clerk/react";
 import { cn } from "@/lib/utils";
 import { useListKsefPending, useGetDashboardActiveAlerts } from "@workspace/api-client-react";
 
@@ -30,8 +30,12 @@ const navItems = [
   { path: "/reports", label: "Raporty", icon: BarChart2 },
   { path: "/ai-cfo", label: "AI CFO", icon: Sparkles },
   { path: "/settings/ksef", label: "Ustawienia KSeF", icon: Settings },
-  { path: "/admin/users", label: "Użytkownicy", icon: ShieldCheck },
 ];
+
+const ADMIN_IDS = (import.meta.env.VITE_ADMIN_USER_IDS ?? "")
+  .split(",")
+  .map((s: string) => s.trim())
+  .filter(Boolean) as string[];
 
 const bottomNavItems = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -47,12 +51,14 @@ function SidebarContent({
   user,
   onSignOut,
   alertCount,
+  isAdmin,
 }: {
   location: string;
   onNavigate?: () => void;
   user: ReturnType<typeof useUser>["user"];
   onSignOut: () => void;
   alertCount: number;
+  isAdmin: boolean;
 }) {
   return (
     <>
@@ -64,7 +70,12 @@ function SidebarContent({
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ path, label, icon: Icon }) => {
+        {[
+          ...navItems,
+          ...(isAdmin
+            ? [{ path: "/admin/users", label: "Użytkownicy", icon: ShieldCheck }]
+            : []),
+        ].map(({ path, label, icon: Icon }) => {
           const active = location === path || location.startsWith(path + "/");
           const isAlerts = path === "/price-alerts";
           const showBadge = isAlerts && alertCount > 0;
@@ -73,7 +84,7 @@ function SidebarContent({
               key={path}
               href={path}
               onClick={onNavigate}
-              data-testid={`nav-${path.replace("/", "")}`}
+              data-testid={`nav-${path.replace("/", "").replace("/", "-")}`}
               className={cn(
                 "flex items-center gap-3 px-3 py-3.5 md:py-2.5 rounded-lg text-base md:text-sm font-medium transition-colors",
                 active
@@ -130,11 +141,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { userId } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: pendingList } = useListKsefPending({ status: "pending" });
   const pendingCount = pendingList?.length ?? 0;
   const { data: activeAlerts } = useGetDashboardActiveAlerts();
   const alertCount = activeAlerts?.length ?? 0;
+  const isAdmin = ADMIN_IDS.length === 0 || (userId != null && ADMIN_IDS.includes(userId));
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -164,6 +177,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           user={user}
           onSignOut={() => signOut()}
           alertCount={alertCount}
+          isAdmin={isAdmin}
         />
       </aside>
       {/* Mobile top bar */}
@@ -219,6 +233,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 signOut();
               }}
               alertCount={alertCount}
+              isAdmin={isAdmin}
             />
           </aside>
         </div>

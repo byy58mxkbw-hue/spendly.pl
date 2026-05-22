@@ -69,7 +69,7 @@ export default function AdminUsers() {
 
         {isError && (
           <p className="mt-6 text-sm text-destructive">
-            Nie udało się pobrać listy użytkowników.
+            Brak dostępu lub błąd pobierania listy użytkowników.
           </p>
         )}
 
