@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { toNum, toNumOrNull } from "../lib/parse";
 import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { categorizeProductWithAI } from "../lib/categorize-ai.js";
 import {
   db,
   ksefConfigTable,
@@ -245,9 +246,10 @@ async function findOrCreateProductByName(
     )
     .limit(1);
   if (existing) return existing.id;
+  const category = await categorizeProductWithAI(trimmed, userId);
   const [created] = await db
     .insert(productsTable)
-    .values({ userId, name: trimmed, unit: unit?.trim() || "szt" })
+    .values({ userId, name: trimmed, unit: unit?.trim() || "szt", category })
     .returning({ id: productsTable.id });
   return created.id;
 }

@@ -8,12 +8,14 @@ import {
   useGetProductSupplierComparison,
   useUpdateProduct,
   useGetCategorySpend,
+  useListCategories,
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
 } from "@workspace/api-client-react";
 import { usePeriod, periodToDays, PERIOD_LABELS } from "@/hooks/use-period";
 import { PeriodSelector } from "@/components/period-selector";
-import { CATEGORIES, categorizeProduct } from "@/lib/categories";
+import { categorizeProduct } from "@/lib/categories";
+import type { CategoryItem } from "@workspace/api-client-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -675,16 +677,18 @@ function CategoryBadge({
   productId,
   productName,
   category,
+  categories,
   onChanged,
 }: {
   productId: number;
   productName: string;
   category: string | null | undefined;
+  categories: CategoryItem[] | undefined;
   onChanged: () => void;
 }) {
   const updateMutation = useUpdateProduct();
   const effectiveId = category ?? categorizeProduct(productName);
-  const def = CATEGORIES.find((c) => c.id === effectiveId);
+  const def = categories?.find((c) => c.id === effectiveId);
   const isAuto = category == null;
 
   const handleSelect = (newCategoryId: string | null) => {
@@ -721,7 +725,7 @@ function CategoryBadge({
         className="max-h-80 overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {CATEGORIES.map((cat) => (
+        {categories?.filter((c) => c.id !== "inne").map((cat) => (
           <DropdownMenuItem
             key={cat.id}
             onSelect={() => handleSelect(cat.id)}
@@ -752,6 +756,7 @@ export default function Products() {
   const { data: products, isLoading, isError } = useListProducts({ days: periodToDays(period) });
   const { data: suppliers } = useListSuppliers();
   const { data: spendItems } = useGetCategorySpend();
+  const { data: categories } = useListCategories();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
@@ -785,8 +790,8 @@ export default function Products() {
   }, {});
 
   const availableCategories = [
-    ...CATEGORIES.filter((c) => (categoryCountMap[c.id] ?? 0) > 0),
-    ...(categoryCountMap["inne"] ? [{ id: "inne", label: "Inne", emoji: "📦" }] : []),
+    ...(categories ?? []).filter((c) => c.id !== "inne" && (categoryCountMap[c.id] ?? 0) > 0),
+    ...(categoryCountMap["inne"] ? [{ id: "inne", label: "Inne", emoji: "📦", isCustom: false }] : []),
   ];
 
   // Aggregate spending from API by effective category (explicit from DB or auto-detected by name)
@@ -799,7 +804,7 @@ export default function Products() {
     }
     const totalSpend = Object.values(map).reduce((s, v) => s + v, 0);
     const allCatDefs: Record<string, { label: string; emoji: string }> = Object.fromEntries(
-      [...CATEGORIES, { id: "inne", label: "Inne", emoji: "📦" }].map((c) => [c.id, c])
+      [...(categories ?? []), { id: "inne", label: "Inne", emoji: "📦", isCustom: false }].map((c) => [c.id, c])
     );
     return Object.entries(map)
       .map(([id, spend]) => ({
@@ -1098,7 +1103,7 @@ export default function Products() {
               {filtered.map((product) => {
                 const hasMultipleSuppliers = (product.supplierCount ?? 1) > 1;
                 const effectiveCatId = product.category ?? categorizeProduct(product.name);
-                const catDef = CATEGORIES.find((c) => c.id === effectiveCatId);
+                const catDef = categories?.find((c) => c.id === effectiveCatId);
 
                 return (
                   <div
@@ -1241,6 +1246,7 @@ export default function Products() {
                           productId={product.id}
                           productName={product.name}
                           category={product.category}
+                          categories={categories}
                           onChanged={() => queryClient.invalidateQueries()}
                         />
                         {hasMultipleSuppliers && (

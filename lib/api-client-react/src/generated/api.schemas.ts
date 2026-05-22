@@ -334,6 +334,13 @@ export interface PredictiveProductRow {
   confidence: PredictiveProductRowConfidence;
 }
 
+export interface CategoryItem {
+  id: string;
+  label: string;
+  emoji: string;
+  isCustom: boolean;
+}
+
 export interface CategorySpendItem {
   productName: string;
   category?: string | null;

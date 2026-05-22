@@ -351,6 +351,17 @@ export const GetProductPriceHistoryResponse = zod.array(
 );
 
 /**
+ * @summary List all categories (built-in + user custom)
+ */
+export const ListCategoriesResponseItem = zod.object({
+  id: zod.string(),
+  label: zod.string(),
+  emoji: zod.string(),
+  isCustom: zod.boolean(),
+});
+export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem);
+
+/**
  * @summary Get products with biggest price changes
  */
 export const GetTopPriceChangesQueryParams = zod.object({

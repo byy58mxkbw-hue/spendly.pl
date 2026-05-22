@@ -12,6 +12,7 @@ import {
   UpdateProductBody,
   CreateProductBody,
 } from "@workspace/api-zod";
+import { getUserCategories } from "../lib/categorize-ai.js";
 
 const router: IRouter = Router();
 
@@ -366,6 +367,12 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   }
 
   res.status(204).end();
+});
+
+router.get("/categories", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const categories = await getUserCategories(userId);
+  res.json(categories);
 });
 
 export default router;

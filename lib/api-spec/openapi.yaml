@@ -447,6 +447,21 @@ paths:
                 items:
                   $ref: "#/components/schemas/PriceHistoryEntry"
 
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [products]
+      summary: List all categories (built-in + user custom)
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryItem"
+
   /products/top-price-changes:
     get:
       operationId: getTopPriceChanges
@@ -1700,6 +1715,23 @@ components:
         - projectedMonthlyDelta
         - dataPoints
         - confidence
+
+    CategoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        emoji:
+          type: string
+        isCustom:
+          type: boolean
+      required:
+        - id
+        - label
+        - emoji
+        - isCustom
 
     CategorySpendItem:
       type: object

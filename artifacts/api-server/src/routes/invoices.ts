@@ -8,7 +8,7 @@ import {
   GetInvoiceParams,
   DeleteInvoiceParams,
 } from "@workspace/api-zod";
-import { categorizeProduct } from "../lib/categorize";
+import { categorizeProductWithAI } from "../lib/categorize-ai.js";
 import { checkAlertsAfterImport } from "../services/alert-checker";
 
 const router: IRouter = Router();
@@ -278,7 +278,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   }> = [];
 
   for (const item of parsedItems) {
-    const category = categorizeProduct(item.productName);
+    const category = await categorizeProductWithAI(item.productName, userId, req.log);
     const productId = await findOrCreateProduct(userId, item.productName, item.unit, category);
 
     const [invoiceItem] = await db
