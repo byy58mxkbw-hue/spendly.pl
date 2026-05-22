@@ -334,7 +334,8 @@ async function runSync(
 
   const allRefsMap = new Map<string, { ksefReferenceNumber: string }>();
   let truncatedWindow = false;
-  for (let winStart = new Date(overallFrom); winStart < now; winStart = new Date(winStart.getTime() + WINDOW_MS)) {
+  let rateLimitedWindowStart: Date | null = null;
+  windowLoop: for (let winStart = new Date(overallFrom); winStart < now; winStart = new Date(winStart.getTime() + WINDOW_MS)) {
     const winEndMs = Math.min(winStart.getTime() + WINDOW_MS - 1, now.getTime());
     const winEnd = new Date(winEndMs);
     const dateFrom = winStart.toISOString();
@@ -353,8 +354,15 @@ async function runSync(
           pageSize: PAGE_SIZE,
         });
       } catch (err) {
-        const m = mapKsefError(err);
         req.log.warn({ err: String(err), dateFrom, dateTo, pageOffset }, "KSeF listInvoices failed");
+        if (err instanceof KsefRateLimitError) {
+          if (!rateLimitedWindowStart) rateLimitedWindowStart = winStart;
+          summary.errors.push(
+            `Okno ${dateFrom.slice(0, 10)}…${dateTo.slice(0, 10)}: KSeF ogranicza zapytania — faktury z tego okresu pobiorą się przy następnej synchronizacji.`,
+          );
+          break windowLoop;
+        }
+        const m = mapKsefError(err);
         res.status(m.status).json({ error: m.message });
         return;
       }
@@ -666,11 +674,12 @@ async function runSync(
     }
   }
 
+  const newLastSyncedAt = rateLimitedWindowStart ?? now;
   await db
     .update(ksefConfigTable)
-    .set({ lastSyncedAt: now })
+    .set({ lastSyncedAt: newLastSyncedAt })
     .where(eq(ksefConfigTable.id, cfg.id));
-  const updatedLastSyncedAt = now;
+  const updatedLastSyncedAt = newLastSyncedAt;
 
   res.json({
     ...summary,
