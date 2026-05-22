@@ -18,6 +18,25 @@ function denyAdmin(res: Response): void {
   res.status(403).json({ error: "Brak dostępu." });
 }
 
+async function fetchAllClerkUsers() {
+  const PAGE = 500;
+  const allUsers: Awaited<ReturnType<typeof clerkClient.users.getUserList>>["data"] = [];
+  let offset = 0;
+  let total = Infinity;
+  while (allUsers.length < total) {
+    const page = await clerkClient.users.getUserList({
+      limit: PAGE,
+      offset,
+      orderBy: "-created_at",
+    });
+    total = page.totalCount;
+    allUsers.push(...page.data);
+    offset += page.data.length;
+    if (page.data.length < PAGE) break;
+  }
+  return { data: allUsers, totalCount: total };
+}
+
 router.get("/admin/check", (req, res): void => {
   req.log.info({ userId: req.userId, isAdmin: isAdmin(req) }, "admin check");
   if (!isAdmin(req)) {
@@ -31,7 +50,7 @@ router.get("/admin/users", async (req, res): Promise<void> => {
   if (!isAdmin(req)) { denyAdmin(res); return; }
 
   const [clerkResult, invoiceCounts, supplierCounts, productCounts] = await Promise.all([
-    clerkClient.users.getUserList({ limit: 200, orderBy: "-created_at" }),
+    fetchAllClerkUsers(),
     db.execute(sql`SELECT user_id, COUNT(*)::int AS cnt FROM invoices GROUP BY user_id`),
     db.execute(sql`SELECT user_id, COUNT(*)::int AS cnt FROM suppliers GROUP BY user_id`),
     db.execute(sql`SELECT user_id, COUNT(*)::int AS cnt FROM products GROUP BY user_id`),
@@ -71,7 +90,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
   if (!isAdmin(req)) { denyAdmin(res); return; }
 
   const [clerkResult, invoiceCount, supplierCount, productCount] = await Promise.all([
-    clerkClient.users.getUserList({ limit: 500, orderBy: "-created_at" }),
+    fetchAllClerkUsers(),
     db.execute(sql`SELECT COUNT(*)::int AS cnt FROM invoices`),
     db.execute(sql`SELECT COUNT(*)::int AS cnt FROM suppliers`),
     db.execute(sql`SELECT COUNT(*)::int AS cnt FROM products`),
