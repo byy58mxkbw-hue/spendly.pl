@@ -202,15 +202,15 @@ export default function Home() {
               initial="hidden"
               animate="visible"
               transition={{ duration: 0.4, ease, delay: 0.21 }}
-              className="flex flex-wrap items-center gap-3 mb-8"
+              className="flex flex-col sm:flex-row gap-3 mb-8"
             >
-              <Link href="/sign-up">
-                <Button size="lg" className="gap-2" data-testid="btn-cta-signup">
+              <Link href="/sign-up" className="w-full sm:w-auto">
+                <Button size="lg" className="gap-2 w-full sm:w-auto" data-testid="btn-cta-signup">
                   Zacznij bezpłatnie <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
-              <Link href="/sign-in">
-                <Button size="lg" variant="outline" data-testid="btn-cta-signin">
+              <Link href="/sign-in" className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto" data-testid="btn-cta-signin">
                   Zaloguj się
                 </Button>
               </Link>
@@ -616,22 +616,22 @@ export default function Home() {
             <p className="text-primary-foreground/75 text-base mb-8 max-w-xl mx-auto leading-relaxed">
               Dołącz do restauratorów, którzy wiedzą za co płacą — i reagują na podwyżki zanim wpłyną na marżę.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <Link href="/sign-up">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link href="/sign-up" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="secondary"
-                  className="gap-2 bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-semibold px-8"
+                  className="gap-2 bg-primary-foreground text-primary hover:bg-primary-foreground/90 font-semibold px-8 w-full sm:w-auto"
                   data-testid="btn-cta-final"
                 >
                   Zarejestruj się za darmo <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
-              <Link href="/sign-in">
+              <Link href="/sign-in" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="ghost"
-                  className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-white/10"
+                  className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-white/10 w-full sm:w-auto"
                 >
                   Mam już konto <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>

@@ -130,7 +130,7 @@ export default function Suppliers() {
                 data-testid={`supplier-card-${supplier.id}`}
               >
                 <button
-                  className="absolute top-4 right-4 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
+                  className="absolute top-4 right-4 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all"
                   onClick={(e) => { e.stopPropagation(); setDeleteId(supplier.id); }}
                   data-testid={`btn-delete-supplier-${supplier.id}`}
                 >

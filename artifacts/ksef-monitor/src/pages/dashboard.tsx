@@ -275,7 +275,8 @@ export default function Dashboard() {
             </div>
             <Link href="/pending-invoices">
               <Button size="sm" variant="outline" className="border-amber-300 bg-white text-amber-800 hover:bg-amber-100 hover:border-amber-400 shrink-0">
-                Przejdź do przeglądu
+                <span className="hidden sm:inline">Przejdź do przeglądu</span>
+                <span className="sm:hidden">Przejrzyj</span>
               </Button>
             </Link>
           </div>

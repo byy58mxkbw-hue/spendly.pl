@@ -257,7 +257,7 @@ export default function PendingInvoices() {
                   <button
                     key={row.id}
                     onClick={() => setOpenId(row.id)}
-                    className="w-full px-6 py-4 flex items-start gap-4 hover:bg-secondary/40 transition-colors text-left"
+                    className="w-full px-4 md:px-6 py-4 flex items-start gap-4 active:bg-secondary/40 hover:bg-secondary/40 transition-colors text-left"
                     data-testid={`pending-row-${row.id}`}
                   >
                     <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
@@ -574,7 +574,7 @@ function PendingDetailDialog({
               {showNewSupplier && (
                 <div className="mt-3 rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
                   <p className="text-xs font-medium text-foreground">Nowy dostawca</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="new-supplier-name" className="text-xs">
                         Nazwa <span className="text-destructive">*</span>
