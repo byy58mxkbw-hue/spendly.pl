@@ -1,24 +1,17 @@
 /**
  * E2E tests: KSeF synchronisation flows
  *
- * Covers:
- * 1. New user (no KSeF config) on /invoices → "Skonfiguruj KSeF" button, no sync button
- * 2. "Skonfiguruj KSeF" navigates to /settings/ksef
- * 3. After creating KSeF config + reload, btn-sync-ksef appears on /invoices
- * 4. After creating KSeF config + reload, btn-sync-ksef-dashboard appears on /dashboard
- * 5. Clicking dashboard sync button shows "Synchronizuję..." pending state
- * 6. Rate-limited NIP → sync button click → toast mentions rate-limit hold-off (opt-in)
- * 7. Settings page description says "od 1 lutego 2026" (NOT "365 dni" / "2 lat")
- * 8. "Synchronizuj od początku" AlertDialog shows Feb 2026 text + rate-limit warning
- * 9. Cancelling the AlertDialog keeps the user on /settings/ksef
+ * Auth:  Tests run authenticated via Clerk.  In real CI, configure a global setup
+ *        (see global-setup.ts) that signs in with CLERK_TEST_EMAIL/CLERK_TEST_PASSWORD
+ *        and stores the auth state in .auth/user.json so every test starts logged-in.
+ *        Locally, the tests use a fresh Clerk sign-up per describe block (each user
+ *        is unique to avoid state collisions across runs).
  *
- * NOTE: These tests require the application to be running (ksef-monitor + api-server).
- * The app uses Clerk auth; set CLERK_TEST_USER / testClerkAuth in CI.
+ * Sync mocking: POST /api/ksef/sync returns a text/event-stream. Several tests mock
+ *        this endpoint with Playwright's page.route() so results are deterministic and
+ *        fast without a real KSeF token.
+ *
  * Run: pnpm --filter @workspace/scripts run e2e
- *
- * The test setup creates a KSeF config by calling PUT /api/ksef/config from within the
- * page context (carries the Clerk session cookie), then reloads so React Query picks up
- * the new config before assertions run.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -26,120 +19,184 @@ import { test, expect, type Page } from "@playwright/test";
 const APP_BASE = process.env.BASE_URL ?? "http://localhost:80";
 const KSEF_CONFIG_API = `${APP_BASE}/api/ksef/config`;
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 async function createKsefConfig(page: Page, nip = "6811060157", token = "fake-token-12345") {
   const cookies = await page.context().cookies();
   const sessionCookie = cookies.find((c) => c.name.startsWith("__session"));
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (sessionCookie) {
-    headers["Cookie"] = `${sessionCookie.name}=${sessionCookie.value}`;
-  }
+  if (sessionCookie) headers["Cookie"] = `${sessionCookie.name}=${sessionCookie.value}`;
   return page.request.put(KSEF_CONFIG_API, { data: { nip, token }, headers });
 }
 
-// ─── Setup helper ─────────────────────────────────────────────────────────────
-
-/**
- * Navigate to /settings/ksef, create KSeF config via API, then reload so
- * React Query picks up the new config before assertions on other pages.
- */
+/** Navigate to /settings/ksef, create KSeF config via API, reload (so React Query updates). */
 async function setupKsefConfig({ page }: { page: Page }) {
   await page.goto("/settings/ksef");
   const resp = await createKsefConfig(page);
   expect(resp.ok()).toBe(true);
   await page.reload();
-  // Confirm config is live — btn-sync-from-beginning appears when config exists
   await expect(page.getByTestId("btn-sync-from-beginning")).toBeVisible({ timeout: 10_000 });
 }
 
-// ─── Tests: no config ────────────────────────────────────────────────────────
+/**
+ * Intercept POST /api/ksef/sync and return a mocked SSE stream.
+ * Enables deterministic toast/state assertions without a real KSeF token.
+ */
+async function mockSyncEndpoint(
+  page: Page,
+  opts: { imported?: number; pending?: number; failed?: number; error?: string } = {},
+) {
+  await page.route("**/api/ksef/sync", async (route) => {
+    if (opts.error) {
+      // Simulate a 401/error response as JSON (checked by the hook's !response.ok branch)
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ error: opts.error }),
+      });
+      return;
+    }
+    const imported = opts.imported ?? 0;
+    const pending = opts.pending ?? 0;
+    const failed = opts.failed ?? 0;
+    const events = [
+      `data: ${JSON.stringify({ type: "scanning", windowsDone: 1, windowsTotal: 1 })}\n\n`,
+      `data: ${JSON.stringify({ type: "done", imported, pending, failed, errors: [] })}\n\n`,
+    ].join("");
+    await route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      body: events,
+    });
+  });
+}
 
-test.describe("KSeF sync — invoices page (no config)", () => {
-  test("shows Skonfiguruj KSeF button; sync button not present", async ({ page }) => {
+// ─── Group A: no config ───────────────────────────────────────────────────────
+
+test.describe("KSeF — no config", () => {
+  test("invoices: Skonfiguruj KSeF visible, sync button absent", async ({ page }) => {
     await page.goto("/invoices");
     await expect(page.getByTestId("btn-configure-ksef")).toBeVisible();
     await expect(page.getByTestId("btn-sync-ksef")).not.toBeVisible();
   });
 
-  test("Skonfiguruj KSeF button navigates to /settings/ksef", async ({ page }) => {
+  test("invoices: Skonfiguruj KSeF navigates to settings", async ({ page }) => {
     await page.goto("/invoices");
     await page.getByTestId("btn-configure-ksef").click();
     await expect(page).toHaveURL(/\/settings\/ksef/);
   });
+
+  // NOTE: When no config exists the sync button is hidden entirely, so there is no
+  // "sync click → error toast" path available in the UI. The backend guard
+  // (status 400, "Brak konfiguracji KSeF…") is a server-side failsafe for direct API
+  // callers, not a UI-reachable code path.
 });
 
-// ─── Tests: with config ───────────────────────────────────────────────────────
+// ─── Group B: with config — invoices page ─────────────────────────────────────
 
-test.describe("KSeF sync — invoices page (config present)", () => {
+test.describe("KSeF — invoices (config present)", () => {
   test.beforeEach(setupKsefConfig);
 
-  test("sync button is visible; configure button is hidden", async ({ page }) => {
+  test("sync button visible, configure button hidden", async ({ page }) => {
     await page.goto("/invoices");
     await expect(page.getByTestId("btn-sync-ksef")).toBeVisible();
     await expect(page.getByTestId("btn-configure-ksef")).not.toBeVisible();
   });
+
+  test("sync (mocked — no imports): shows 'Wszystkie faktury są aktualne' toast", async ({
+    page,
+  }) => {
+    await mockSyncEndpoint(page, { imported: 0, pending: 0, failed: 0 });
+    await page.goto("/invoices");
+    await page.getByTestId("btn-sync-ksef").click();
+    await expect(
+      page.locator('[role="status"]').filter({ hasText: "Wszystkie faktury są aktualne" }),
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("sync (mocked — 3 imported): shows 'Zaimportowano 3 nowych faktur' toast", async ({
+    page,
+  }) => {
+    await mockSyncEndpoint(page, { imported: 3, pending: 0, failed: 0 });
+    await page.goto("/invoices");
+    await page.getByTestId("btn-sync-ksef").click();
+    await expect(
+      page.locator('[role="status"]').filter({ hasText: /Zaimportowano 3 nowych faktur/ }),
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("sync (mocked — auth error): shows 'Błąd synchronizacji' toast", async ({ page }) => {
+    await mockSyncEndpoint(page, { error: "KSeF odrzucił token — sprawdź ustawienia." });
+    await page.goto("/invoices");
+    await page.getByTestId("btn-sync-ksef").click();
+    await expect(
+      page.locator('[role="status"]').filter({ hasText: /Błąd synchronizacji/ }),
+    ).toBeVisible({ timeout: 15_000 });
+  });
 });
 
-test.describe("KSeF sync — dashboard page (config present)", () => {
+// ─── Group C: with config — dashboard page ────────────────────────────────────
+
+test.describe("KSeF — dashboard (config present)", () => {
   test.beforeEach(setupKsefConfig);
 
-  test("dashboard sync button is visible", async ({ page }) => {
+  test("sync button visible on dashboard", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(page.getByTestId("btn-sync-ksef-dashboard")).toBeVisible();
   });
 
-  test("clicking dashboard sync button shows pending state (Synchronizuję...)", async ({ page }) => {
+  test("sync click shows 'Synchronizuję...' pending state", async ({ page }) => {
     await page.goto("/dashboard");
     await page.getByTestId("btn-sync-ksef-dashboard").click();
-    // Button text changes to "Synchronizuję..." while mutation is in-flight
-    await expect(page.getByTestId("btn-sync-ksef-dashboard")).toHaveText(/Synchronizuję|Sync/, {
+    await expect(page.getByTestId("btn-sync-ksef-dashboard")).toHaveText(/Synchronizuję/, {
       timeout: 10_000,
     });
   });
 });
 
-// ─── Tests: rate-limited NIP ─────────────────────────────────────────────────
+// ─── Group D: rate-limited NIP ────────────────────────────────────────────────
 
-test.describe("KSeF sync — rate-limited NIP (opt-in)", () => {
+test.describe("KSeF — rate-limited NIP", () => {
+  test.beforeEach(setupKsefConfig);
+
   /**
-   * Validates that when rate_limited_until is set in the DB for this NIP, the
-   * sync endpoint returns 429 and the UI shows the hold-off message.
-   *
-   * Requires:
-   *   FORCE_RATE_LIMIT_TEST=1
-   *   DB access to set rate_limited_until for the test NIP to a future time
-   * (e.g. run: UPDATE ksef_config SET rate_limited_until = NOW() + INTERVAL '1 hour'
-   *            WHERE nip = '6811060157')
+   * Seed the rate limit via Playwright route mock: intercept POST /api/ksef/sync and return
+   * a 429 response with the same message format as the real backend.
+   * This test does NOT require a live DB mutation or FORCE_RATE_LIMIT_TEST env var.
    */
-  test("invoices sync shows rate-limit message when NIP is blocked", async ({ page }) => {
-    test.skip(
-      !process.env.FORCE_RATE_LIMIT_TEST,
-      "Requires DB access to set rate_limited_until; run with FORCE_RATE_LIMIT_TEST=1",
+  test("invoices: 429 rate-limit response → 'KSeF ogranicza' toast", async ({ page }) => {
+    await page.route("**/api/ksef/sync", (route) =>
+      route.fulfill({
+        status: 429,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "KSeF ogranicza zapytania dla tego NIP — zablokowany jeszcze przez ok. 59 minut. Spróbuj ponownie później.",
+          retryAfterSeconds: 3540,
+        }),
+      }),
     );
-
-    await setupKsefConfig({ page });
     await page.goto("/invoices");
     await page.getByTestId("btn-sync-ksef").click();
-    // API returns 429: "KSeF ogranicza zapytania dla tego NIP — zablokowany jeszcze przez X"
     await expect(
       page.locator('[role="status"]').filter({ hasText: /KSeF ogranicza|zablokowany/ }),
-    ).toBeVisible({ timeout: 30_000 });
+    ).toBeVisible({ timeout: 15_000 });
   });
 });
 
-// ─── Tests: settings page dialog ─────────────────────────────────────────────
+// ─── Group E: settings page dialog ───────────────────────────────────────────
 
-test.describe("KSeF sync — settings page (Feb 2026 copy)", () => {
+test.describe("KSeF — settings dialog (Feb 2026 copy)", () => {
   test.beforeEach(setupKsefConfig);
 
-  test('button description shows "od 1 lutego 2026" — not "365 dni" or "2 lat"', async ({
-    page,
-  }) => {
+  test('button description says "od 1 lutego 2026"; no "365 dni" or "2 lat"', async ({ page }) => {
     await expect(page.locator("text=od 1 lutego 2026").first()).toBeVisible();
     await expect(page.locator("text=ostatnich 365 dni")).not.toBeVisible();
     await expect(page.locator("text=ostatnich 2 lat")).not.toBeVisible();
   });
 
-  test("AlertDialog contains Feb 2026 text, 4–5 queries, rate-limit warning", async ({ page }) => {
+  test("AlertDialog: Feb 2026 body, 4–5 queries, rate-limit amber, no old text", async ({
+    page,
+  }) => {
     await page.getByTestId("btn-sync-from-beginning").click();
     const dialog = page.getByRole("alertdialog");
     await expect(dialog).toBeVisible();
@@ -151,7 +208,7 @@ test.describe("KSeF sync — settings page (Feb 2026 copy)", () => {
     await expect(dialog).not.toContainText("ostatnich 2 lat");
   });
 
-  test("Anuluj closes the dialog and keeps user on /settings/ksef", async ({ page }) => {
+  test("Anuluj closes dialog, stays on /settings/ksef", async ({ page }) => {
     await page.getByTestId("btn-sync-from-beginning").click();
     await expect(page.getByRole("alertdialog")).toBeVisible();
     await page.getByRole("button", { name: "Anuluj" }).click();
