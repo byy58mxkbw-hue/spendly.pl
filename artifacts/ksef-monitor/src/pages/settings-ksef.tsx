@@ -152,7 +152,7 @@ export default function SettingsKsef() {
               <div className="border-t border-border pt-4">
                 <h3 className="text-sm font-medium text-foreground mb-1">Synchronizacja historii</h3>
                 <p className="text-xs text-muted-foreground mb-3">
-                  Resetuje punkt startowy i pobiera faktury z ostatnich 365 dni. Użyj jeśli brakuje starszych faktur.
+                  Resetuje punkt startowy i pobiera faktury od 1 lutego 2026 (start obowiązkowego KSeF). Użyj jeśli brakuje faktur z tego okresu.
                 </p>
                 <div className="flex flex-col gap-2">
                   <Button
@@ -256,7 +256,7 @@ export default function SettingsKsef() {
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>
-                  Ta opcja kasuje punkt startowy i pobiera faktury z <strong>ostatnich 2 lat</strong> z KSeF — to ok. 25 zapytań do API.
+                  Ta opcja kasuje punkt startowy i pobiera faktury <strong>od 1 lutego 2026</strong> (start obowiązkowego KSeF) — to ok. 4–5 zapytań do API.
                 </p>
                 <p className="text-amber-700 font-medium">
                   KSeF ogranicza liczbę zapytań. Jeśli limit zostanie przekroczony, synchronizacja zostanie wstrzymana na ok. 1 godzinę.

@@ -393,11 +393,14 @@ async function runSync(
   }
 
   const now = new Date();
-  // First sync: look back 2 years. With 30-day windows that is only ~24 API calls,
-  // well within KSeF rate limits when combined with the inter-window delay.
+  // First sync: start from 2026-02-01 (when KSeF became mandatory in Poland).
+  // Starting from 2 years back caused ~25 windows and reliably hit the per-NIP
+  // rate limit before reaching the mandatory period where all invoices actually are.
+  // Feb 2026 → today is only ~4–5 windows, completing in seconds with no rate risk.
+  const KSEF_MANDATORY_START = new Date("2026-02-01T00:00:00.000Z");
   const overallFrom = cfg.lastSyncedAt
     ? cfg.lastSyncedAt
-    : new Date(now.getTime() - 2 * 365 * 24 * 60 * 60 * 1000);
+    : KSEF_MANDATORY_START;
 
   // 30-day windows instead of 7-day windows → ~12 API calls/year instead of ~52.
   // Fewer metadata queries = much lower risk of hitting KSeF's per-NIP rate limit.
