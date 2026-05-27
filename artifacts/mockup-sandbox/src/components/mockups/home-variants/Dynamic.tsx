@@ -649,6 +649,54 @@ export function Dynamic() {
         </div>
       </section>
 
+      {/* COMPARISON */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12 md:py-20">
+        <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} initial="hidden" whileInView="visible" viewport={vp} transition={{ duration: 0.45 }} className="text-center mb-10">
+          <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: "#14B8A6" }}>Widzisz różnicę?</p>
+          <h2 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight">Przed i po SPENDLY</h2>
+        </motion.div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} initial="hidden" whileInView="visible" viewport={vp} transition={{ duration: 0.4 }}
+            className="bg-white border border-gray-200 rounded-2xl p-7 shadow-sm">
+            <div className="flex items-center gap-2 mb-5">
+              <X className="w-4 h-4 text-red-400" />
+              <h3 className="font-bold text-gray-900">Bez SPENDLY</h3>
+            </div>
+            <ul className="space-y-3.5">
+              {[
+                "Dowiadujesz się o podwyżce na koniec miesiąca",
+                "Godziny ręcznego przepisywania faktur do Excela",
+                "Nie wiesz który dostawca drożeje i dlaczego",
+                "Reagujesz po fakcie — marża już ucierpiała",
+              ].map(t => (
+                <li key={t} className="flex items-start gap-3 text-sm text-gray-500">
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-300 shrink-0 mt-1.5" />{t}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+          <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} initial="hidden" whileInView="visible" viewport={vp} transition={{ duration: 0.4, delay: 0.1 }}
+            className="bg-white border rounded-2xl p-7 shadow-sm" style={{ borderColor: "rgba(20,184,166,0.35)" }}>
+            <div className="flex items-center gap-2 mb-5">
+              <CheckCircle2 className="w-4 h-4" style={{ color: "#14B8A6" }} />
+              <h3 className="font-bold text-gray-900">Z SPENDLY</h3>
+            </div>
+            <ul className="space-y-3.5">
+              {[
+                "Alert natychmiast po dostawie — czas zareagować",
+                "Automatyczny import z KSeF — zero przepisywania",
+                "Raporty per-dostawca i per-produkt z wykresem trendu",
+                "Działasz z wyprzedzeniem — marża pod kontrolą",
+              ].map(t => (
+                <li key={t} className="flex items-start gap-3 text-sm text-gray-700">
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5" style={{ background: "#14B8A6" }} />{t}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        </div>
+      </section>
+
       {/* FEATURES */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12 md:py-20">
         <motion.div
