@@ -286,7 +286,7 @@ export default function Home() {
             SPENDLY<span style={{ color: C.text }}>.</span>
           </span>
 
-          <nav className="hidden md:flex" style={{ display: "flex", gap: 28 }}>
+          <nav className="hidden md:flex" style={{ gap: 28 }}>
             {navLinks.map(([href, label]) => (
               <a key={href} href={href} style={{ fontSize: 13, color: C.muted, textDecoration: "none", transition: "color 0.15s" }}
                 onMouseEnter={e => (e.currentTarget.style.color = C.text)}
@@ -296,7 +296,7 @@ export default function Home() {
             ))}
           </nav>
 
-          <div className="hidden md:flex" style={{ display: "flex", gap: 8 }}>
+          <div className="hidden md:flex" style={{ gap: 8 }}>
             <Link href="/sign-in">
               <button data-testid="btn-signin" style={{
                 padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
@@ -391,7 +391,7 @@ export default function Home() {
                   Umów demo <ArrowRight size={16} />
                 </button>
               </Link>
-              <Link href="/sign-in">
+              <a href="#jak-to-dziala">
                 <button data-testid="btn-cta-signin" style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
                   padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 500,
@@ -402,7 +402,7 @@ export default function Home() {
                   onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}>
                   Zobacz jak działa
                 </button>
-              </Link>
+              </a>
             </motion.div>
 
             <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.35, delay: 0.3 }}
@@ -415,22 +415,12 @@ export default function Home() {
             </motion.div>
           </div>
 
-          {/* Mockup — desktop */}
+          {/* Mockup — visible on all screen sizes; centered on mobile, right-aligned on lg+ */}
           <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ duration: 0.45, ease, delay: 0.15 }}
-            className="hidden lg:flex" style={{ justifyContent: "flex-end" }}>
+            style={{ display: "flex", justifyContent: "center" }}
+            className="lg:justify-end">
             <DashboardMockup />
           </motion.div>
-
-          {/* Mobile stats */}
-          <div className="lg:hidden" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            {[{ v: "-18%", l: "strat kosztowych" }, { v: "15s", l: "OCR faktury" }, { v: "0 zł", l: "żeby zacząć" }].map(({ v, l }) => (
-              <motion.div key={l} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.2 }}
-                style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 10px", textAlign: "center" }}>
-                <p style={{ fontSize: 22, fontWeight: 800, color: C.accent, margin: 0 }}>{v}</p>
-                <p style={{ fontSize: 11, color: C.muted, marginTop: 4, lineHeight: 1.3 }}>{l}</p>
-              </motion.div>
-            ))}
-          </div>
         </div>
       </section>
 
