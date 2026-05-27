@@ -184,14 +184,16 @@ function buildPrompt(
 ): string {
   const today = new Date();
   const dateStr = today.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
-  const month = today.getMonth() + 1; // 1-12
+  const month = today.getMonth() + 1;
 
   const spikes = trends.filter((t) => t.changePercent > 5).slice(0, 10);
   const drops = trends.filter((t) => t.changePercent < -5).slice(0, 6);
   const stable = trends.filter((t) => Math.abs(t.changePercent) <= 5).slice(0, 5);
 
+  const avgMonthly = monthly.length > 0 ? monthly.reduce((s, m) => s + m.total, 0) / monthly.length : 0;
+
   const fmtTrend = (t: ProductTrend) =>
-    `${t.productName} | ${t.supplierName} | ${t.previousPrice.toFixed(2)}->${t.currentPrice.toFixed(2)} PLN (${t.changePercent > 0 ? "+" : ""}${t.changePercent.toFixed(1)}%) | ${t.purchaseCount}x zakupów`;
+    `${t.productName} | ${t.supplierName} | ${t.previousPrice.toFixed(2)}->${t.currentPrice.toFixed(2)} PLN (${t.changePercent > 0 ? "+" : ""}${t.changePercent.toFixed(1)}%) | wydatki90d: ${t.totalSpend90d.toFixed(0)} PLN | ${t.purchaseCount}x zakupów`;
 
   const fmtSupplier = (s: SupplierSummary) =>
     `${s.supplierName}: ${s.totalSpend.toFixed(0)} PLN (${s.sharePercent}% budżetu, ${s.productCount} prod., ${s.invoiceCount} fakt.)`;
@@ -203,6 +205,7 @@ function buildPrompt(
   const sections: string[] = [];
 
   sections.push(`DATA ANALIZY: ${dateStr} (miesiąc ${month}/12)`);
+  sections.push(`ŚREDNI MIESIĘCZNY BUDŻET: ${avgMonthly.toFixed(0)} PLN`);
 
   sections.push(`MIESIĘCZNE WYDATKI (ostatnie 6 mies.):
 ${monthly.map(fmtMonthly).join("\n") || "(brak)"}`);
@@ -226,27 +229,33 @@ ${stable.map(fmtTrend).join("\n")}`);
   sections.push(`WSZYSTKIE ŚLEDZONE PRODUKTY (próbka):
 ${allProductNames}`);
 
-  return `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur i dostarczasz actionable insighty.
+  return `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur KSeF i dostarczasz precyzyjne rekomendacje finansowe z szacunkami PLN.
 
 === DANE PANELU RESTAURACJI ===
 ${sections.join("\n\n")}
 
 === TWOJE ZADANIE ===
-Wygeneruj do 10 insightów biznesowych. MUSISZ pokryć różne kategorie:
+Wygeneruj 8-12 insightów biznesowych. MUSISZ pokryć różne kategorie:
 
-1. BIEŻĄCE ALERTY CENOWE — co drożeje/tanieje w tym momencie na podstawie faktur
-2. SEZONOWOŚĆ — wiedząc że dzisiaj jest ${dateStr} (miesiąc ${month}), które produkty z listy wejdą w sezon lub wyjdą z sezonu w ciągu najbliższych 4-8 tygodni? Co podrożeje przez sezon (lato/jesień/zima)? Np. truskawki sezon maj-lipiec, arbuz czerwiec-sierpień, ziemniaki nowe lipiec-sierpień, mięso zgrillowane lato droższe etc.
-3. TRENDY GLOBALNE I RYNKOWE — na podstawie swojej aktualnej wiedzy o rynkach: co się dzieje z cenami mięsa (wołowina, wieprzowina, drób), olejów roślinnych, zbóż, nabiału, ryb w Polsce i Europie w ${dateStr}? Jakie czynniki (inflacja, susza, embargo, sezon) wpływają na ceny tych produktów które restauracja kupuje?
-4. RYZYKO KONCENTRACJI DOSTAWCÓW — czy restauracja jest zbyt uzależniona od jednego dostawcy?
-5. REKOMENDACJE DZIAŁANIA — co konkretnie zrobić: negocjować, zmienić dostawcę, zrobić zapasy przed podwyżką, szukać zamiennika
+1. BIEŻĄCE ALERTY CENOWE — co drożeje/tanieje w tym momencie na podstawie faktur. Oblicz realny wpływ finansowy w PLN/miesiąc na podstawie totalSpend90d.
+2. SEZONOWOŚĆ — wiedząc że dzisiaj jest ${dateStr} (miesiąc ${month}), które produkty z listy wejdą w sezon lub wyjdą z sezonu w ciągu najbliższych 4-8 tygodni? Co podrożeje przez sezon?
+3. TRENDY GLOBALNE I RYNKOWE — na podstawie swojej aktualnej wiedzy o rynkach: co się dzieje z cenami mięsa, olejów, zbóż, nabiału, ryb w Polsce i Europie w ${dateStr}?
+4. RYZYKO KONCENTRACJI DOSTAWCÓW — czy restauracja jest zbyt uzależniona od jednego dostawcy? Wylicz ryzyko finansowe.
+5. REKOMENDACJE OSZCZĘDNOŚCI — konkretne działania: negocjować, zmienić dostawcę, zrobić zapasy przed podwyżką. Szacuj ile PLN/miesiąc można zaoszczędzić.
+
+Dla KAŻDEGO insightu oblicz estimatedImpact w PLN/miesiąc:
+- Ujemna liczba = koszt/strata (np. -1240 = tracisz 1240 zł/mies z powodu podwyżki)
+- Dodatnia liczba = potencjalna oszczędność (np. +940 = możesz zaoszczędzić 940 zł/mies)
 
 Każdy insight = jedna konkretna, actionable obserwacja z liczbami lub datami. Brak ogólników.
 
 Odpowiedz TYLKO jako JSON array (bez żadnego tekstu przed/po nawiasem):
-[{"type":"TYP","severity":"POZIOM","title":"Tytuł max 70 zn","body":"Treść max 160 zn z konkretnymi liczbami/datami","riskScore":75,"productName":"nazwa lub null","supplierName":"nazwa lub null"}]
+[{"type":"TYP","severity":"POZIOM","title":"Tytuł max 70 zn","body":"Treść max 200 zn z konkretnymi liczbami/datami","riskScore":75,"estimatedImpact":-1240,"category":"risk","productName":"nazwa lub null","supplierName":"nazwa lub null"}]
 
 Dostępne typy: price_spike | price_drop | seasonal | market_outlook | supplier_risk | action_required | cost_forecast | record_high
 severity: low | medium | high | critical
+category: risk | opportunity | warning | info
+estimatedImpact: liczba PLN/miesiąc (ujemna=strata, dodatnia=oszczędność, 0=neutralna)
 riskScore: 0-100 (100=krytyczne ryzyko dla food cost)`;
 }
 
@@ -301,6 +310,8 @@ async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
         metadata: {
           productName: r.productName ?? null,
           supplierName: r.supplierName ?? null,
+          estimatedImpact: typeof r.estimatedImpact === "number" ? r.estimatedImpact : null,
+          category: r.category ?? null,
         },
       }));
   } catch (e) {
@@ -353,7 +364,6 @@ export async function generateInsights(userId: string, logger?: Logger): Promise
   const insights = await callAI(prompt, logger);
   if (insights.length === 0) return 0;
 
-  // Replace all existing insights for this user
   await db.delete(aiInsightsTable).where(eq(aiInsightsTable.userId, userId));
 
   const rows = insights.map((ins) => {
