@@ -504,28 +504,40 @@ function CategorySpendSection({ month }: { month: string }) {
                                     </p>
                                   </div>
                                   {/* Per-supplier sub-rows */}
-                                  {rows.map((p, ri) => (
-                                    <div
-                                      key={ri}
-                                      className="pl-10 pr-6 md:pl-14 md:pr-8 py-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center"
-                                    >
-                                      <div className="min-w-0 flex items-center gap-1.5">
-                                        <span className="text-muted-foreground/40 text-xs shrink-0">└</span>
-                                        <p className="text-sm text-muted-foreground truncate">{p.supplierName ?? "—"}</p>
-                                      </div>
-                                      <p className="text-sm text-muted-foreground text-right w-20 shrink-0">
-                                        {p.totalQuantity != null
-                                          ? `${new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(p.totalQuantity)}${p.unit ? ` ${p.unit}` : ""}`
-                                          : "—"}
-                                      </p>
-                                      <p className="text-sm text-muted-foreground text-right w-24 shrink-0">
-                                        {p.avgUnitPrice != null ? formatPrice(p.avgUnitPrice) : "—"}
-                                      </p>
-                                      <p className="text-sm text-foreground text-right w-24 shrink-0">
-                                        {formatPrice(p.totalSpend)}
-                                      </p>
-                                    </div>
-                                  ))}
+                                  {(() => {
+                                    const priced = rows.filter((r) => r.avgUnitPrice != null);
+                                    const minPrice = priced.length >= 2 ? Math.min(...priced.map((r) => r.avgUnitPrice!)) : null;
+                                    return rows.map((p, ri) => {
+                                      const isCheapest = minPrice != null && p.avgUnitPrice != null && p.avgUnitPrice === minPrice;
+                                      return (
+                                        <div
+                                          key={ri}
+                                          className="pl-10 pr-6 md:pl-14 md:pr-8 py-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center"
+                                        >
+                                          <div className="min-w-0 flex items-center gap-1.5">
+                                            <span className="text-muted-foreground/40 text-xs shrink-0">└</span>
+                                            <p className="text-sm text-muted-foreground truncate">{p.supplierName ?? "—"}</p>
+                                            {isCheapest && (
+                                              <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 leading-none">
+                                                Najtaniej
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-sm text-muted-foreground text-right w-20 shrink-0">
+                                            {p.totalQuantity != null
+                                              ? `${new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(p.totalQuantity)}${p.unit ? ` ${p.unit}` : ""}`
+                                              : "—"}
+                                          </p>
+                                          <p className={`text-sm text-right w-24 shrink-0 ${isCheapest ? "text-teal-600 dark:text-teal-400 font-medium" : "text-muted-foreground"}`}>
+                                            {p.avgUnitPrice != null ? formatPrice(p.avgUnitPrice) : "—"}
+                                          </p>
+                                          <p className="text-sm text-foreground text-right w-24 shrink-0">
+                                            {formatPrice(p.totalSpend)}
+                                          </p>
+                                        </div>
+                                      );
+                                    });
+                                  })()}
                                 </>
                               ) : (
                                 /* Single-supplier row — unchanged appearance */
