@@ -56,7 +56,7 @@ function AppMockup() {
         {/* Card header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-secondary/30">
           <div className="flex items-center gap-2.5">
-            <span className="text-sm font-black tracking-tighter text-primary">SPENDLY</span>
+            <span className="text-sm font-black tracking-tighter text-primary">SPENDLY<span className="text-foreground">.</span></span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
@@ -139,7 +139,7 @@ export default function Home() {
       {/* ─── Nav ─────────────────────────────────────────────────────────── */}
       <header className="border-b border-border bg-background/90 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <span className="font-black text-xl tracking-tighter text-primary">SPENDLY</span>
+          <span className="font-black text-xl tracking-tighter text-primary">SPENDLY<span className="text-foreground">.</span></span>
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
             <a href="#jak-to-dziala" className="hover:text-foreground transition-colors">Jak to działa</a>
             <a href="#funkcje" className="hover:text-foreground transition-colors">Funkcje</a>
@@ -180,7 +180,7 @@ export default function Home() {
               transition={{ duration: 0.4, ease, delay: 0.05 }}
               className="text-7xl md:text-8xl font-black tracking-tighter text-primary leading-none mb-4"
             >
-              SPENDLY
+              SPENDLY<span className="text-foreground">.</span>
             </motion.div>
             <motion.h1
               variants={fadeUp}
@@ -660,7 +660,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-6 py-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex items-center gap-3">
-              <span className="font-black text-lg tracking-tighter text-primary">SPENDLY</span>
+              <span className="font-black text-lg tracking-tighter text-primary">SPENDLY<span className="text-foreground">.</span></span>
               <span className="text-muted-foreground text-xs hidden md:inline">— monitoring cen surowców dla restauracji</span>
             </div>
 

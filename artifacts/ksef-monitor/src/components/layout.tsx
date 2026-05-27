@@ -117,7 +117,7 @@ function SidebarContent({
   return (
     <>
       <div className="px-5 py-5 border-b border-border">
-        <span className="text-foreground text-xl tracking-tighter font-black text-primary">SPENDLY</span>
+        <span className="text-foreground text-xl tracking-tighter font-black text-primary">SPENDLY<span className="text-foreground">.</span></span>
       </div>
 
       <nav className="flex-1 px-3 py-3 overflow-y-auto">
@@ -272,7 +272,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Menu className="w-6 h-6" />
           </button>
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="font-black tracking-tighter text-primary text-sm shrink-0">SPENDLY</span>
+            <span className="font-black tracking-tighter text-primary text-sm shrink-0">SPENDLY<span className="text-foreground">.</span></span>
             {activeItem && (
               <>
                 <span className="text-border text-sm shrink-0">/</span>
