@@ -173,12 +173,21 @@ export default function Home() {
               <ShieldCheck className="w-3.5 h-3.5" />
               Zintegrowane z KSeF
             </motion.div>
+            <motion.div
+              variants={fadeUp}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.4, ease, delay: 0.05 }}
+              className="text-7xl md:text-8xl font-black tracking-tighter text-primary leading-none mb-4"
+            >
+              SPENDLY
+            </motion.div>
             <motion.h1
               variants={fadeUp}
               initial="hidden"
               animate="visible"
-              transition={{ duration: 0.4, ease, delay: 0.07 }}
-              className="text-5xl md:text-6xl font-black text-foreground tracking-tight leading-[1.05] mb-5"
+              transition={{ duration: 0.4, ease, delay: 0.12 }}
+              className="text-3xl md:text-4xl font-black text-foreground tracking-tight leading-[1.1] mb-5"
             >
               Przestań tracić<br />
               na <span className="text-primary">podwyżkach</span>
