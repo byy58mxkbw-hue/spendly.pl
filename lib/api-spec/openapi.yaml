@@ -1987,6 +1987,18 @@ components:
         category:
           type: string
           nullable: true
+        supplierName:
+          type: string
+          nullable: true
+        totalQuantity:
+          type: number
+          nullable: true
+        unit:
+          type: string
+          nullable: true
+        avgUnitPrice:
+          type: number
+          nullable: true
         totalSpend:
           type: number
       required:

@@ -471,16 +471,34 @@ function CategorySpendSection({ month }: { month: string }) {
                 {/* Drill-down product list */}
                 {isActive && (
                   <div className="border-t border-border bg-secondary/10">
+                    {/* Header row */}
+                    <div className="px-6 md:px-8 py-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Produkt / Dostawca</p>
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide text-right w-20">Ilość</p>
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide text-right w-24">Śr. cena/jed.</p>
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide text-right w-24">Łączny koszt</p>
+                    </div>
                     <div className="divide-y divide-border">
                       {cat.products.map((p, pi) => (
                         <div
                           key={pi}
-                          className="px-6 md:px-8 py-2.5 flex items-center justify-between gap-3"
+                          className="px-6 md:px-8 py-2 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center"
                         >
-                          <p className="text-sm text-foreground truncate">
-                            {p.productName}
+                          <div className="min-w-0">
+                            <p className="text-sm text-foreground truncate">{p.productName}</p>
+                            {p.supplierName && (
+                              <p className="text-xs text-muted-foreground truncate">{p.supplierName}</p>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground text-right w-20 shrink-0">
+                            {p.totalQuantity != null
+                              ? `${new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(p.totalQuantity)}${p.unit ? ` ${p.unit}` : ""}`
+                              : "—"}
                           </p>
-                          <p className="text-sm font-semibold text-foreground shrink-0">
+                          <p className="text-sm text-muted-foreground text-right w-24 shrink-0">
+                            {p.avgUnitPrice != null ? formatPrice(p.avgUnitPrice) : "—"}
+                          </p>
+                          <p className="text-sm font-semibold text-foreground text-right w-24 shrink-0">
                             {formatPrice(p.totalSpend)}
                           </p>
                         </div>

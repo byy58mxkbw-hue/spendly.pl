@@ -399,6 +399,10 @@ export interface CategoryItem {
 export interface CategorySpendItem {
   productName: string;
   category?: string | null;
+  supplierName?: string | null;
+  totalQuantity?: number | null;
+  unit?: string | null;
+  avgUnitPrice?: number | null;
   totalSpend: number;
 }
 

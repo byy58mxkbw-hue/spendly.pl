@@ -802,6 +802,10 @@ export const GetCategorySpendQueryParams = zod.object({
 export const GetCategorySpendResponseItem = zod.object({
   productName: zod.string(),
   category: zod.string().nullish(),
+  supplierName: zod.string().nullish(),
+  totalQuantity: zod.number().nullish(),
+  unit: zod.string().nullish(),
+  avgUnitPrice: zod.number().nullish(),
   totalSpend: zod.number(),
 });
 export const GetCategorySpendResponse = zod.array(GetCategorySpendResponseItem);

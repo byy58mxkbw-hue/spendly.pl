@@ -404,25 +404,38 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
     SELECT
       COALESCE(p.name, ii.product_name) AS product_name,
       p.category,
+      s.name AS supplier_name,
+      SUM(ii.quantity::numeric)::float AS total_quantity,
+      MAX(ii.unit) AS unit,
+      (SUM(ii.total_price::numeric) / NULLIF(SUM(ii.quantity::numeric), 0))::float AS avg_unit_price,
       SUM(ii.total_price::numeric)::float AS total_spend
     FROM invoice_items ii
     INNER JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products p ON ii.product_id = p.id
+    LEFT JOIN suppliers s ON i.supplier_id = s.id
     WHERE i.user_id = ${userId}
       ${dateCondition}
-    GROUP BY COALESCE(p.name, ii.product_name), p.category
+    GROUP BY COALESCE(p.name, ii.product_name), p.category, s.name
     ORDER BY total_spend DESC
   `);
 
   const rows = result.rows as Array<{
     product_name: string;
     category: string | null;
+    supplier_name: string | null;
+    total_quantity: number | null;
+    unit: string | null;
+    avg_unit_price: number | null;
     total_spend: number;
   }>;
 
   res.json(rows.map((r) => ({
     productName: r.product_name,
     category: r.category ?? null,
+    supplierName: r.supplier_name ?? null,
+    totalQuantity: r.total_quantity != null ? toNum(r.total_quantity) : null,
+    unit: r.unit ?? null,
+    avgUnitPrice: r.avg_unit_price != null ? toNum(r.avg_unit_price) : null,
     totalSpend: toNum(r.total_spend),
   })));
 });
