@@ -1,18 +1,19 @@
 import { useState, useMemo } from "react";
 import { Layout, PageHeader } from "@/components/layout";
-import { useGetMonthlyReport } from "@workspace/api-client-react";
+import { useGetMonthlyReport, useGetCategorySpend } from "@workspace/api-client-react";
+import type { CategorySpendItem } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
-  ChevronLeft, ChevronRight, ShoppingCart, FileText, Package, TrendingUp, ChevronDown, ChevronUp,
-  ArrowUp, ArrowDown, Download,
+  ChevronLeft, ChevronRight, ShoppingCart, FileText, Package,
+  ChevronDown, ChevronUp, ArrowUp, ArrowDown, Download,
 } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CATEGORIES, categorizeProduct } from "@/lib/categories";
+import { CATEGORIES } from "@/lib/categories";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 
 // ─── Month helpers ────────────────────────────────────────────────────────────
@@ -45,7 +46,33 @@ const COLORS = [
   "hsl(220, 60%, 55%)",
   "hsl(250, 60%, 60%)",
   "hsl(280, 55%, 55%)",
+  "hsl(30,  75%, 50%)",
+  "hsl(50,  80%, 45%)",
+  "hsl(340, 65%, 52%)",
+  "hsl(160, 60%, 42%)",
+  "hsl(10,  70%, 52%)",
+  "hsl(195, 65%, 48%)",
+  "hsl(265, 60%, 58%)",
+  "hsl(95,  55%, 42%)",
+  "hsl(315, 55%, 50%)",
 ];
+
+// ─── Stat card ────────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, sub, icon: Icon }: { label: string; value: string; sub?: string; icon: React.ElementType }) {
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 md:p-5 flex items-start gap-3 md:gap-4">
+      <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+        <Icon className="w-4 h-4 md:w-5 md:h-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground mb-0.5 truncate">{label}</p>
+        <p className="text-lg md:text-xl font-bold text-foreground">{value}</p>
+        {sub && <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>}
+      </div>
+    </div>
+  );
+}
 
 // ─── Price change mini badge ──────────────────────────────────────────────────
 
@@ -105,23 +132,6 @@ function QuantityChangeMini({
       <Icon className="w-2.5 h-2.5" />
       {Math.abs(pct).toFixed(1)}%&nbsp;il.
     </span>
-  );
-}
-
-// ─── Stat card ────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, icon: Icon }: { label: string; value: string; sub?: string; icon: React.ElementType }) {
-  return (
-    <div className="bg-card border border-border rounded-xl p-4 md:p-5 flex items-start gap-3 md:gap-4">
-      <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-        <Icon className="w-4 h-4 md:w-5 md:h-5" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground mb-0.5 truncate">{label}</p>
-        <p className="text-lg md:text-xl font-bold text-foreground">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>}
-      </div>
-    </div>
   );
 }
 
@@ -247,197 +257,241 @@ function SupplierCard({ supplier, rank }: {
   );
 }
 
-// ─── Top products section ─────────────────────────────────────────────────────
+// ─── Category spend section ───────────────────────────────────────────────────
 
-type TopProduct = {
-  productName: string;
-  unit: string;
-  totalQuantity: number;
-  avgPrice: number;
-  totalCost: number;
-  supplierName?: string | null;
-  prevMonthAvgPrice?: number | null;
-  prevMonthTotalQuantity?: number | null;
+type CategoryGroup = {
+  id: string;
+  label: string;
+  emoji: string;
+  spend: number;
+  products: CategorySpendItem[];
 };
 
-function TopProductsSection({ products }: { products: TopProduct[] }) {
-  const [activeCategory, setActiveCategory] = useState("wszystkie");
+function CategorySpendSection({ month }: { month: string }) {
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
-  const categorized = useMemo(() => {
-    return products.map((p) => ({ ...p, category: categorizeProduct(p.productName) }));
-  }, [products]);
+  const prevMonthStr = prevMonth(month);
 
-  const presentCategories = useMemo(() => {
-    const ids = new Set(categorized.map((p) => p.category));
-    return CATEGORIES.filter((c) => ids.has(c.id));
-  }, [categorized]);
+  const { data: currentData, isLoading } = useGetCategorySpend(
+    { month },
+    { query: { queryKey: ["category-spend", month] } },
+  );
 
-  const hasInne = categorized.some((p) => p.category === "inne");
+  const { data: prevData } = useGetCategorySpend(
+    { month: prevMonthStr },
+    { query: { queryKey: ["category-spend", prevMonthStr] } },
+  );
 
-  const displayProducts = useMemo(() => {
-    if (activeCategory === "wszystkie") return categorized;
-    return categorized.filter((p) => p.category === activeCategory);
-  }, [categorized, activeCategory]);
+  const categoryGroups: CategoryGroup[] = useMemo(() => {
+    if (!currentData) return [];
+    const map = new Map<string, { spend: number; products: CategorySpendItem[] }>();
+    for (const item of currentData) {
+      const cat = item.category ?? "inne";
+      if (!map.has(cat)) map.set(cat, { spend: 0, products: [] });
+      const g = map.get(cat)!;
+      g.spend += item.totalSpend;
+      g.products.push(item);
+    }
+    return Array.from(map.entries())
+      .map(([id, { spend, products }]) => {
+        const catDef = CATEGORIES.find((c) => c.id === id);
+        return {
+          id,
+          label: catDef?.label ?? "Inne",
+          emoji: catDef?.emoji ?? "📦",
+          spend,
+          products: [...products].sort((a, b) => b.totalSpend - a.totalSpend),
+        };
+      })
+      .sort((a, b) => b.spend - a.spend);
+  }, [currentData]);
 
-  const categoryTotals = useMemo(() => {
-    const totals: Record<string, number> = {};
-    categorized.forEach((p) => {
-      totals[p.category] = (totals[p.category] || 0) + p.totalCost;
-    });
-    return totals;
-  }, [categorized]);
+  const prevCategoryMap = useMemo(() => {
+    if (!prevData) return new Map<string, number>();
+    const map = new Map<string, number>();
+    for (const item of prevData) {
+      const cat = item.category ?? "inne";
+      map.set(cat, (map.get(cat) ?? 0) + item.totalSpend);
+    }
+    return map;
+  }, [prevData]);
 
-  const totalAll = products.reduce((s, p) => s + p.totalCost, 0);
+  const totalSpend = useMemo(
+    () => categoryGroups.reduce((s, c) => s + c.spend, 0),
+    [categoryGroups],
+  );
+
+  const pieData = useMemo(
+    () =>
+      categoryGroups.map((c, i) => ({
+        name: `${c.emoji} ${c.label}`,
+        value: c.spend,
+        id: c.id,
+        fill: COLORS[i % COLORS.length],
+      })),
+    [categoryGroups],
+  );
+
+  if (isLoading) {
+    return <Skeleton className="h-64 rounded-xl mb-6 md:mb-8" />;
+  }
+  if (!currentData || categoryGroups.length === 0) return null;
 
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden mb-8">
-      {/* Header */}
-      <div className="px-4 md:px-6 py-4 border-b border-border flex items-center gap-2">
-        <Package className="w-4 h-4 text-primary shrink-0" />
-        <p className="text-sm font-semibold text-foreground">Top produkty miesiąca</p>
-        <span className="ml-auto text-xs text-muted-foreground shrink-0">wg kosztu</span>
-      </div>
+    <div className="mb-6 md:mb-8">
+      <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+        <Package className="w-4 h-4 text-primary" />
+        Wydatki według kategorii
+      </p>
 
-      {/* Category tabs — horizontally scrollable on mobile */}
-      <div className="border-b border-border">
-        <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 overflow-x-auto scrollbar-none">
-          <button
-            onClick={() => setActiveCategory("wszystkie")}
-            className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0",
-              activeCategory === "wszystkie"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            )}
-          >
-            Wszystkie
-            <span className={cn(
-              "text-[10px] px-1.5 py-0.5 rounded-full",
-              activeCategory === "wszystkie" ? "bg-white/20" : "bg-muted"
-            )}>
-              {products.length}
-            </span>
-          </button>
-
-          {presentCategories.map((cat) => {
-            const count = categorized.filter((p) => p.category === cat.id).length;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0",
-                  activeCategory === cat.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                )}
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        {/* Donut chart */}
+        <div className="border-b border-border px-4 pt-4 pb-2 md:px-6">
+          <ResponsiveContainer width="100%" height={190}>
+            <PieChart>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                innerRadius={52}
+                outerRadius={82}
+                paddingAngle={2}
+                dataKey="value"
+                onClick={(entry) => {
+                  setActiveCategory(
+                    activeCategory === entry.id ? null : entry.id,
+                  );
+                }}
+                style={{ cursor: "pointer" }}
               >
-                <span>{cat.emoji}</span>
-                {cat.label}
-                <span className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded-full",
-                  activeCategory === cat.id ? "bg-white/20" : "bg-muted"
-                )}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-
-          {hasInne && (
-            <button
-              onClick={() => setActiveCategory("inne")}
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0",
-                activeCategory === "inne"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              )}
-            >
-              Inne
-              <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full",
-                activeCategory === "inne" ? "bg-white/20" : "bg-muted"
-              )}>
-                {categorized.filter((p) => p.category === "inne").length}
-              </span>
-            </button>
-          )}
+                {pieData.map((entry, i) => (
+                  <Cell
+                    key={entry.id}
+                    fill={entry.fill}
+                    opacity={
+                      !activeCategory || activeCategory === entry.id ? 1 : 0.35
+                    }
+                  />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
+                formatter={(v: number) => [formatPrice(v)]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* Active category spend summary */}
-        {activeCategory !== "wszystkie" && (
-          <p className="px-4 pb-2.5 text-xs text-muted-foreground">
-            Wydano:{" "}
-            <span className="font-semibold text-foreground">
-              {formatPrice(categoryTotals[activeCategory] ?? 0)}
-            </span>
-            <span className="ml-1">
-              ({totalAll > 0 ? ((categoryTotals[activeCategory] ?? 0) / totalAll * 100).toFixed(1) : 0}% budżetu)
-            </span>
-          </p>
-        )}
-      </div>
+        {/* Category rows */}
+        <div className="divide-y divide-border">
+          {categoryGroups.map((cat, i) => {
+            const pct = totalSpend > 0 ? (cat.spend / totalSpend) * 100 : 0;
+            const prevSpend = prevCategoryMap.get(cat.id) ?? 0;
+            const trend =
+              prevSpend > 0
+                ? ((cat.spend - prevSpend) / prevSpend) * 100
+                : null;
+            const isActive = activeCategory === cat.id;
+            const color = COLORS[i % COLORS.length];
 
-      {displayProducts.length === 0 ? (
-        <div className="py-8 text-center text-sm text-muted-foreground">
-          Brak produktów w tej kategorii w danym miesiącu.
-        </div>
-      ) : (
-        <>
-          {/* Mobile card list */}
-          <div className="md:hidden divide-y divide-border">
-            {displayProducts.map((p, i) => (
-              <div key={i} className="px-4 py-3 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{p.productName}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {p.supplierName ?? "—"} · {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-bold text-foreground">{formatPrice(p.totalCost)}</p>
-                  <div className="flex items-center justify-end gap-1 mt-0.5">
-                    <span className="text-[11px] text-muted-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
-                    <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
-                    <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+            return (
+              <div key={cat.id}>
+                <button
+                  onClick={() =>
+                    setActiveCategory(isActive ? null : cat.id)
+                  }
+                  className={cn(
+                    "w-full px-4 md:px-6 py-3 flex items-center gap-3 text-left transition-colors",
+                    isActive
+                      ? "bg-primary/5"
+                      : "hover:bg-secondary/30",
+                  )}
+                >
+                  {/* Color dot */}
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ background: color }}
+                  />
 
-          {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto">
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 min-w-[700px] py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
-              <div>Produkt</div>
-              <div className="text-right w-32">Dostawca</div>
-              <div className="text-right w-20">Ilość</div>
-              <div className="text-right w-36">Śr. cena</div>
-              <div className="text-right w-28">Łącznie</div>
-            </div>
-            <div className="divide-y divide-border">
-              {displayProducts.map((p, i) => (
-                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-6 min-w-[700px] py-3 items-center">
-                  <p className="text-sm font-medium text-foreground truncate pr-2">{p.productName}</p>
-                  <p className="text-xs text-muted-foreground text-right w-32 truncate">{p.supplierName ?? "—"}</p>
-                  <p className="text-sm text-muted-foreground text-right w-20">
-                    {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
-                  </p>
-                  <div className="text-right w-36 flex flex-col items-end gap-0.5">
-                    <span className="text-sm text-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
-                    <div className="flex items-center gap-1">
-                      <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
-                      <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
+                  {/* Label + progress bar */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="text-sm leading-none">{cat.emoji}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {cat.label}
+                      </span>
+                      {trend !== null && (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-0.5 text-[10px] font-medium",
+                            trend > 0 ? "text-red-500" : "text-emerald-600",
+                          )}
+                        >
+                          {trend > 0 ? (
+                            <ArrowUp className="w-2.5 h-2.5" />
+                          ) : (
+                            <ArrowDown className="w-2.5 h-2.5" />
+                          )}
+                          {Math.abs(trend).toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${pct}%`, background: color }}
+                      />
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-foreground text-right w-28">{formatPrice(p.totalCost)}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+
+                  {/* Spend + % */}
+                  <div className="text-right shrink-0 min-w-[80px]">
+                    <p className="text-sm font-bold text-foreground">
+                      {formatPrice(cat.spend)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {pct.toFixed(1)}%
+                    </p>
+                  </div>
+
+                  {/* Chevron */}
+                  {isActive ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+
+                {/* Drill-down product list */}
+                {isActive && (
+                  <div className="border-t border-border bg-secondary/10">
+                    <div className="divide-y divide-border">
+                      {cat.products.map((p, pi) => (
+                        <div
+                          key={pi}
+                          className="px-6 md:px-8 py-2.5 flex items-center justify-between gap-3"
+                        >
+                          <p className="text-sm text-foreground truncate">
+                            {p.productName}
+                          </p>
+                          <p className="text-sm font-semibold text-foreground shrink-0">
+                            {formatPrice(p.totalSpend)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -455,13 +509,6 @@ export default function Reports() {
     { month: reportMonth },
     { query: { queryKey: ["reports-monthly", reportMonth] } }
   );
-
-  const chartData = useMemo(() => {
-    if (!data) return [];
-    return data.suppliers
-      .slice(0, 8)
-      .map((s) => ({ name: s.supplierName.split(" ")[0], value: s.totalSpend, full: s.supplierName }));
-  }, [data]);
 
   return (
     <Layout>
@@ -530,7 +577,9 @@ export default function Reports() {
                   </Button>
                   <span className="text-sm font-medium min-w-32 text-center px-1 tabular-nums">{monthLabel(month)}</span>
                   <Button
-                    variant="ghost" size="icon" className="w-8 h-8 shrink-0"
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8 shrink-0"
                     onClick={() => setMonth(nextMonth(month))}
                     disabled={isCurrentMonth}
                   >
@@ -563,47 +612,9 @@ export default function Reports() {
           </div>
         ) : null}
 
-        {/* Supplier spend chart */}
-        {!isLoading && data && data.suppliers.length > 0 && (
-          <div className="bg-card border border-border rounded-xl p-4 md:p-6 mb-6 md:mb-8">
-            <p className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              Wydatki wg dostawcy
-            </p>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval={0}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `${Math.round(v / 1000)}k`}
-                  width={36}
-                />
-                <Tooltip
-                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
-                  formatter={(v: number, _, props) => [formatPrice(v), props.payload?.full]}
-                />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {chartData.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {/* Top products with category tabs */}
-        {!isLoading && data && data.topProducts.length > 0 && (
-          <TopProductsSection products={data.topProducts} />
+        {/* Category spend — only in month mode */}
+        {viewMode === "month" && !isLoading && data && data.topProducts.length > 0 && (
+          <CategorySpendSection month={month} />
         )}
 
         {/* Per-supplier reports */}
