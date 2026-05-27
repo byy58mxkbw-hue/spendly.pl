@@ -465,6 +465,32 @@ export const DeleteAllInvoicesResponse = zod.object({
 });
 
 /**
+ * @summary Scan a receipt or invoice image with OCR (GPT-4o Vision) and extract structured data
+ */
+export const ScanReceiptBody = zod.object({
+  imageBase64: zod.string().describe("Base64-encoded image data"),
+  mimeType: zod
+    .string()
+    .describe("MIME type of the image (e.g. image\/jpeg, image\/png)"),
+});
+
+export const ScanReceiptResponse = zod.object({
+  supplierNip: zod.string().nullish(),
+  supplierName: zod.string().nullish(),
+  invoiceNumber: zod.string().nullish(),
+  invoiceDate: zod.string().nullish(),
+  items: zod.array(
+    zod.object({
+      productName: zod.string(),
+      quantity: zod.number(),
+      unit: zod.string(),
+      unitPrice: zod.number(),
+      totalPrice: zod.number(),
+    }),
+  ),
+});
+
+/**
  * @summary Import invoice from KSeF XML
  */
 export const ImportInvoiceBody = zod.object({
@@ -477,6 +503,20 @@ export const ImportInvoiceBody = zod.object({
     .optional()
     .describe(
       "If true, skip duplicate detection and create the invoice even if one with the same number already exists.",
+    ),
+  items: zod
+    .array(
+      zod.object({
+        productName: zod.string(),
+        quantity: zod.number(),
+        unit: zod.string(),
+        unitPrice: zod.number(),
+        totalPrice: zod.number(),
+      }),
+    )
+    .optional()
+    .describe(
+      "Manual item list from OCR scan. Used instead of xmlContent when provided.",
     ),
 });
 

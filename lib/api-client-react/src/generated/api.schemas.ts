@@ -176,6 +176,41 @@ export interface InvoiceWithItems {
   items: InvoiceItem[];
 }
 
+export interface ScanReceiptBody {
+  /** Base64-encoded image data */
+  imageBase64: string;
+  /** MIME type of the image (e.g. image/jpeg, image/png) */
+  mimeType: string;
+}
+
+export interface ScannedReceiptItem {
+  productName: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface ScannedReceiptData {
+  /** @nullable */
+  supplierNip?: string | null;
+  /** @nullable */
+  supplierName?: string | null;
+  /** @nullable */
+  invoiceNumber?: string | null;
+  /** @nullable */
+  invoiceDate?: string | null;
+  items: ScannedReceiptItem[];
+}
+
+export interface ManualInvoiceItem {
+  productName: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  totalPrice: number;
+}
+
 export interface ImportInvoiceBody {
   supplierId: number;
   xmlContent?: string;
@@ -183,6 +218,8 @@ export interface ImportInvoiceBody {
   invoiceDate: string;
   /** If true, skip duplicate detection and create the invoice even if one with the same number already exists. */
   force?: boolean;
+  /** Manual item list from OCR scan. Used instead of xmlContent when provided. */
+  items?: ManualInvoiceItem[];
 }
 
 export interface PriceAlert {

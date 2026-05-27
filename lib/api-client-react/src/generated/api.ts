@@ -71,6 +71,8 @@ import type {
   Product,
   RecentPurchase,
   RetryKsefPendingResult,
+  ScanReceiptBody,
+  ScannedReceiptData,
   Supplier,
   SupplierComparison,
   SyncKsefInvoicesBody,
@@ -2424,6 +2426,92 @@ export const useDeleteAllInvoices = <
   TContext
 > => {
   return useMutation(getDeleteAllInvoicesMutationOptions(options));
+};
+
+/**
+ * @summary Scan a receipt or invoice image with OCR (GPT-4o Vision) and extract structured data
+ */
+export const getScanReceiptUrl = () => {
+  return `/api/invoices/scan-receipt`;
+};
+
+export const scanReceipt = async (
+  scanReceiptBody: ScanReceiptBody,
+  options?: RequestInit,
+): Promise<ScannedReceiptData> => {
+  return customFetch<ScannedReceiptData>(getScanReceiptUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(scanReceiptBody),
+  });
+};
+
+export const getScanReceiptMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof scanReceipt>>,
+    TError,
+    { data: BodyType<ScanReceiptBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof scanReceipt>>,
+  TError,
+  { data: BodyType<ScanReceiptBody> },
+  TContext
+> => {
+  const mutationKey = ["scanReceipt"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof scanReceipt>>,
+    { data: BodyType<ScanReceiptBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return scanReceipt(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ScanReceiptMutationResult = NonNullable<
+  Awaited<ReturnType<typeof scanReceipt>>
+>;
+export type ScanReceiptMutationBody = BodyType<ScanReceiptBody>;
+export type ScanReceiptMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Scan a receipt or invoice image with OCR (GPT-4o Vision) and extract structured data
+ */
+export const useScanReceipt = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof scanReceipt>>,
+    TError,
+    { data: BodyType<ScanReceiptBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof scanReceipt>>,
+  TError,
+  { data: BodyType<ScanReceiptBody> },
+  TContext
+> => {
+  return useMutation(getScanReceiptMutationOptions(options));
 };
 
 /**

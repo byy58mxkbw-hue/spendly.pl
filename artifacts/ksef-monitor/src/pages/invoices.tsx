@@ -1,14 +1,16 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useListInvoices,
   useImportInvoice,
+  useScanReceipt,
   useListSuppliers,
   useDeleteInvoice,
   useDeleteAllInvoices,
   useGetKsefConfig,
   useGetInvoice,
   getGetInvoiceQueryKey,
+  type ScannedReceiptData,
 } from "@workspace/api-client-react";
 import { useSyncKsefProgress, syncPhaseProgress, type SyncPhase } from "@/hooks/use-sync-progress";
 import { Progress } from "@/components/ui/progress";
@@ -49,7 +51,9 @@ import { z } from "zod";
 import {
   Plus, FileText, Trash2, Upload, CheckCircle2, AlertCircle, Package,
   ChevronUp, ChevronDown, ChevronsUpDown, Search, X, RefreshCw, Download,
+  Camera, ScanLine, Loader2,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
@@ -423,6 +427,7 @@ export default function Invoices() {
   const { data: invoices, isLoading, isError } = useListInvoices({ limit: 1000 });
   const { data: suppliers } = useListSuppliers();
   const importInvoice = useImportInvoice();
+  const scanReceipt = useScanReceipt();
   const deleteInvoice = useDeleteInvoice();
   const deleteAllInvoices = useDeleteAllInvoices();
 
@@ -435,6 +440,12 @@ export default function Invoices() {
     message: string;
     values: ImportFormValues;
   } | null>(null);
+
+  // Photo import state
+  const [importTab, setImportTab] = useState<"xml" | "photo">("xml");
+  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
+  const [scannedData, setScannedData] = useState<ScannedReceiptData | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filter & sort state
   const [activeSupplier, setActiveSupplier] = useState<number | null>(null);
@@ -466,14 +477,75 @@ export default function Invoices() {
     }
   }, [form]);
 
+  function handleReceiptFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setReceiptPreviewUrl(ev.target?.result as string);
+      setScannedData(null);
+      scanReceipt.reset();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleScanReceipt() {
+    if (!receiptPreviewUrl) return;
+    const commaIdx = receiptPreviewUrl.indexOf(",");
+    if (commaIdx === -1) return;
+    const header = receiptPreviewUrl.slice(0, commaIdx);
+    const base64 = receiptPreviewUrl.slice(commaIdx + 1);
+    const mimeType = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+
+    scanReceipt.mutate(
+      { data: { imageBase64: base64, mimeType } },
+      {
+        onSuccess: (data) => {
+          setScannedData(data);
+          if (data.invoiceDate && /^\d{4}-\d{2}-\d{2}$/.test(data.invoiceDate)) {
+            form.setValue("invoiceDate", data.invoiceDate);
+          }
+          if (data.invoiceNumber && !form.getValues("invoiceNumber")) {
+            form.setValue("invoiceNumber", data.invoiceNumber);
+          }
+          if (data.supplierNip && suppliers) {
+            const nip = data.supplierNip.replace(/[\s\-]/g, "");
+            const matched = suppliers.find(
+              (s) => "nip" in s && typeof s.nip === "string" && s.nip.replace(/[\s\-]/g, "") === nip
+            );
+            if (matched && !form.getValues("supplierId")) {
+              form.setValue("supplierId", String(matched.id));
+            }
+          }
+        },
+        onError: () => {
+          toast({
+            variant: "destructive",
+            title: "Błąd skanowania",
+            description: "Nie udało się przetworzyć zdjęcia. Sprawdź jakość obrazu i spróbuj ponownie.",
+          });
+        },
+      }
+    );
+  }
+
+  function resetPhotoState() {
+    setReceiptPreviewUrl(null);
+    setScannedData(null);
+    scanReceipt.reset();
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   function submitImport(values: ImportFormValues, force: boolean) {
+    const hasScannedItems = importTab === "photo" && scannedData && scannedData.items.length > 0;
     importInvoice.mutate(
       {
         data: {
           supplierId: parseInt(values.supplierId, 10),
           invoiceNumber: values.invoiceNumber || undefined,
           invoiceDate: values.invoiceDate,
-          xmlContent: values.xmlContent || undefined,
+          xmlContent: hasScannedItems ? undefined : (values.xmlContent || undefined),
+          items: hasScannedItems ? scannedData.items : undefined,
           force: force || undefined,
         },
       },
@@ -963,87 +1035,220 @@ export default function Invoices() {
         )}
 
         {/* Import dialog */}
-        <Dialog open={showImport} onOpenChange={(open) => { setShowImport(open); if (!open) { setXmlPreview(null); form.reset(); } }}>
+        <Dialog open={showImport} onOpenChange={(open) => { setShowImport(open); if (!open) { setXmlPreview(null); setImportTab("xml"); resetPhotoState(); form.reset(); } }}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-import-invoice">
             <DialogHeader>
-              <DialogTitle>Importuj fakturę KSeF</DialogTitle>
+              <DialogTitle>Importuj fakturę</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="xmlContent"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        Zawartość XML KSeF
-                        {isValidXml && xmlPreview && (
-                          <span className={cn(
-                            "inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded",
-                            xmlPreview.items.length > 0
-                              ? "bg-emerald-500/10 text-emerald-600"
-                              : "bg-amber-500/10 text-amber-600"
-                          )}>
-                            {xmlPreview.items.length > 0
-                              ? <><CheckCircle2 className="w-3 h-3" />{xmlPreview.items.length} pozycji</>
-                              : <><AlertCircle className="w-3 h-3" />brak pozycji</>}
-                          </span>
-                        )}
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Wklej tutaj zawartość pliku XML z KSeF (FA2)..."
-                          className="h-36 text-xs font-mono resize-none"
-                          {...field}
-                          onChange={(e) => { field.onChange(e); handleXmlChange(e.target.value); }}
-                          data-testid="textarea-xml"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
-                {xmlPreview && xmlPreview.items.length > 0 && (
-                  <div className="rounded-lg border border-border bg-secondary/30 overflow-hidden">
-                    <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
-                      <p className="text-xs font-medium text-foreground flex items-center gap-2">
-                        <Package className="w-3.5 h-3.5 text-primary" />
-                        Podgląd pozycji z XML
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {xmlPreview.items.length} pozycji · łącznie {formatPrice(xmlPreview.items.reduce((s, i) => s + i.totalPrice, 0))}
-                      </p>
-                    </div>
-                    <div className="divide-y divide-border max-h-48 overflow-y-auto">
-                      {xmlPreview.items.map((item, i) => (
-                        <div key={i} className="px-4 py-2.5 flex items-center justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.quantity} {item.unit} × {formatPrice(item.unitPrice)}
-                              {item.vatRate != null && ` · VAT ${item.vatRate}%`}
-                            </p>
-                          </div>
-                          <p className="text-sm font-semibold text-foreground shrink-0">{formatPrice(item.totalPrice)}</p>
+                {/* Mode tabs */}
+                <Tabs value={importTab} onValueChange={(v) => setImportTab(v as "xml" | "photo")}>
+                  <TabsList className="w-full">
+                    <TabsTrigger value="xml" className="flex-1">XML z KSeF</TabsTrigger>
+                    <TabsTrigger value="photo" className="flex-1 gap-1.5">
+                      <Camera className="w-3.5 h-3.5" />
+                      Ze zdjęcia
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* ── XML tab ── */}
+                  <TabsContent value="xml" className="space-y-4 mt-4">
+                    <FormField
+                      control={form.control}
+                      name="xmlContent"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            Zawartość XML KSeF
+                            {isValidXml && xmlPreview && (
+                              <span className={cn(
+                                "inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded",
+                                xmlPreview.items.length > 0
+                                  ? "bg-emerald-500/10 text-emerald-600"
+                                  : "bg-amber-500/10 text-amber-600"
+                              )}>
+                                {xmlPreview.items.length > 0
+                                  ? <><CheckCircle2 className="w-3 h-3" />{xmlPreview.items.length} pozycji</>
+                                  : <><AlertCircle className="w-3 h-3" />brak pozycji</>}
+                              </span>
+                            )}
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Wklej tutaj zawartość pliku XML z KSeF (FA2)..."
+                              className="h-36 text-xs font-mono resize-none"
+                              {...field}
+                              onChange={(e) => { field.onChange(e); handleXmlChange(e.target.value); }}
+                              data-testid="textarea-xml"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {xmlPreview && xmlPreview.items.length > 0 && (
+                      <div className="rounded-lg border border-border bg-secondary/30 overflow-hidden">
+                        <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+                          <p className="text-xs font-medium text-foreground flex items-center gap-2">
+                            <Package className="w-3.5 h-3.5 text-primary" />
+                            Podgląd pozycji z XML
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {xmlPreview.items.length} pozycji · łącznie {formatPrice(xmlPreview.items.reduce((s, i) => s + i.totalPrice, 0))}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                        <div className="divide-y divide-border max-h-48 overflow-y-auto">
+                          {xmlPreview.items.map((item, i) => (
+                            <div key={i} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.quantity} {item.unit} × {formatPrice(item.unitPrice)}
+                                  {item.vatRate != null && ` · VAT ${item.vatRate}%`}
+                                </p>
+                              </div>
+                              <p className="text-sm font-semibold text-foreground shrink-0">{formatPrice(item.totalPrice)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                {isValidXml && xmlPreview && xmlPreview.items.length === 0 && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
-                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-amber-800">Nie wykryto pozycji</p>
-                      <p className="text-xs text-amber-700 mt-0.5">
-                        XML zostanie zapisany, ale bez pozycji linii. Upewnij się, że to jest faktura w formacie KSeF FA2 z blokami &lt;FaWiersz&gt;.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                    {isValidXml && xmlPreview && xmlPreview.items.length === 0 && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+                        <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-800">Nie wykryto pozycji</p>
+                          <p className="text-xs text-amber-700 mt-0.5">
+                            XML zostanie zapisany, ale bez pozycji linii. Upewnij się, że to jest faktura w formacie KSeF FA2 z blokami &lt;FaWiersz&gt;.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
 
+                  {/* ── Photo / OCR tab ── */}
+                  <TabsContent value="photo" className="space-y-4 mt-4">
+                    {/* Upload zone */}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="border-2 border-dashed border-border rounded-lg overflow-hidden cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click(); }}
+                    >
+                      {receiptPreviewUrl ? (
+                        <div className="p-3 flex justify-center bg-secondary/20">
+                          <img
+                            src={receiptPreviewUrl}
+                            alt="Podgląd paragonu"
+                            className="max-h-52 rounded object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="py-10 flex flex-col items-center gap-2 text-muted-foreground">
+                          <Camera className="w-8 h-8" />
+                          <p className="text-sm font-medium text-foreground">Kliknij aby wybrać zdjęcie</p>
+                          <p className="text-xs">Paragon lub faktura z widocznym NIP-em</p>
+                          <p className="text-xs text-muted-foreground/60">JPEG, PNG, WebP · max 10 MB</p>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      className="hidden"
+                      onChange={handleReceiptFileChange}
+                    />
+
+                    {/* Action buttons after image selected */}
+                    {receiptPreviewUrl && (
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          onClick={handleScanReceipt}
+                          disabled={scanReceipt.isPending}
+                          className="flex-1 gap-2"
+                        >
+                          {scanReceipt.isPending
+                            ? <><Loader2 className="w-4 h-4 animate-spin" />Analizuję zdjęcie...</>
+                            : <><ScanLine className="w-4 h-4" />Skanuj paragon</>}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={resetPhotoState}
+                          title="Usuń zdjęcie"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Scan results */}
+                    {scannedData && (
+                      <div className="rounded-lg border border-border bg-secondary/30 overflow-hidden">
+                        <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
+                          <p className="text-xs font-medium text-foreground flex items-center gap-2">
+                            <Package className="w-3.5 h-3.5 text-primary" />
+                            Wykryte pozycje
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {scannedData.items.length} pozycji
+                            {scannedData.items.length > 0 && ` · łącznie ${formatPrice(scannedData.items.reduce((s, i) => s + i.totalPrice, 0))}`}
+                          </p>
+                        </div>
+                        {scannedData.items.length > 0 ? (
+                          <div className="divide-y divide-border max-h-48 overflow-y-auto">
+                            {scannedData.items.map((item, i) => (
+                              <div key={i} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-foreground truncate">{item.productName}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {item.quantity} {item.unit} × {formatPrice(item.unitPrice)}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-semibold text-foreground shrink-0">{formatPrice(item.totalPrice)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="px-4 py-3 flex items-center gap-2 text-sm text-muted-foreground">
+                            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                            Nie wykryto pozycji. Sprawdź jakość zdjęcia.
+                          </div>
+                        )}
+                        {(scannedData.supplierName || scannedData.supplierNip) && (
+                          <div className="px-4 py-2.5 border-t border-border flex items-center gap-2 text-xs text-muted-foreground">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                            {scannedData.supplierName && (
+                              <span className="font-medium text-foreground">{scannedData.supplierName}</span>
+                            )}
+                            {scannedData.supplierNip && (
+                              <span>NIP: {scannedData.supplierNip}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Scan error */}
+                    {scanReceipt.isError && (
+                      <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                        <p className="text-sm text-destructive">
+                          Nie udało się przetworzyć zdjęcia. Sprawdź jakość obrazu i spróbuj ponownie.
+                        </p>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+
+                {/* ── Common fields (always visible) ── */}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -1103,15 +1308,17 @@ export default function Invoices() {
                 />
 
                 <DialogFooter className="pt-2">
-                  <Button type="button" variant="outline" onClick={() => { setShowImport(false); setXmlPreview(null); form.reset(); }}>
+                  <Button type="button" variant="outline" onClick={() => { setShowImport(false); setXmlPreview(null); setImportTab("xml"); resetPhotoState(); form.reset(); }}>
                     Anuluj
                   </Button>
-                  <Button type="submit" disabled={importInvoice.isPending} data-testid="btn-submit-import">
+                  <Button type="submit" disabled={importInvoice.isPending || (importTab === "photo" && !scannedData)} data-testid="btn-submit-import">
                     {importInvoice.isPending
                       ? "Importuję..."
-                      : xmlPreview && xmlPreview.items.length > 0
-                        ? `Importuj (${xmlPreview.items.length} pozycji)`
-                        : "Importuj"}
+                      : importTab === "photo" && scannedData && scannedData.items.length > 0
+                        ? `Importuj (${scannedData.items.length} pozycji)`
+                        : importTab === "xml" && xmlPreview && xmlPreview.items.length > 0
+                          ? `Importuj (${xmlPreview.items.length} pozycji)`
+                          : "Importuj"}
                   </Button>
                 </DialogFooter>
               </form>

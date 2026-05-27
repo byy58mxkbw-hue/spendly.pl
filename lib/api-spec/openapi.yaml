@@ -615,6 +615,25 @@ paths:
                   deleted:
                     type: integer
 
+  /invoices/scan-receipt:
+    post:
+      operationId: scanReceipt
+      tags: [invoices]
+      summary: Scan a receipt or invoice image with OCR (GPT-4o Vision) and extract structured data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanReceiptBody"
+      responses:
+        "200":
+          description: Extracted receipt data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScannedReceiptData"
+
   /invoices/import:
     post:
       operationId: importInvoice
@@ -1495,6 +1514,77 @@ components:
         - importedAt
         - items
 
+    ScanReceiptBody:
+      type: object
+      properties:
+        imageBase64:
+          type: string
+          description: Base64-encoded image data
+        mimeType:
+          type: string
+          description: MIME type of the image (e.g. image/jpeg, image/png)
+      required:
+        - imageBase64
+        - mimeType
+
+    ScannedReceiptItem:
+      type: object
+      properties:
+        productName:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+        unitPrice:
+          type: number
+        totalPrice:
+          type: number
+      required:
+        - productName
+        - quantity
+        - unit
+        - unitPrice
+        - totalPrice
+
+    ScannedReceiptData:
+      type: object
+      properties:
+        supplierNip:
+          type: ["string", "null"]
+        supplierName:
+          type: ["string", "null"]
+        invoiceNumber:
+          type: ["string", "null"]
+        invoiceDate:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScannedReceiptItem"
+      required:
+        - items
+
+    ManualInvoiceItem:
+      type: object
+      properties:
+        productName:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+        unitPrice:
+          type: number
+        totalPrice:
+          type: number
+      required:
+        - productName
+        - quantity
+        - unit
+        - unitPrice
+        - totalPrice
+
     ImportInvoiceBody:
       type: object
       properties:
@@ -1509,6 +1599,11 @@ components:
         force:
           type: boolean
           description: If true, skip duplicate detection and create the invoice even if one with the same number already exists.
+        items:
+          type: array
+          description: Manual item list from OCR scan. Used instead of xmlContent when provided.
+          items:
+            $ref: "#/components/schemas/ManualInvoiceItem"
       required:
         - supplierId
         - invoiceDate

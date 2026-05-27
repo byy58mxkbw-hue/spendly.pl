@@ -4,12 +4,14 @@ import { eq, desc, and, sql } from "drizzle-orm";
 import { db, invoicesTable, invoiceItemsTable, suppliersTable, productsTable } from "@workspace/db";
 import {
   ImportInvoiceBody,
+  ScanReceiptBody,
   ListInvoicesQueryParams,
   GetInvoiceParams,
   DeleteInvoiceParams,
 } from "@workspace/api-zod";
 import { categorizeProductWithAI } from "../lib/categorize-ai.js";
 import { checkAlertsAfterImport } from "../services/alert-checker";
+import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router: IRouter = Router();
 
@@ -213,6 +215,103 @@ async function findOrCreateProduct(
   return created.id;
 }
 
+router.post("/invoices/scan-receipt", async (req, res): Promise<void> => {
+  const parsed = ScanReceiptBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { imageBase64, mimeType } = parsed.data;
+
+  const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+  if (!allowedMimeTypes.includes(mimeType)) {
+    res.status(400).json({ error: "Nieobsługiwany format obrazu. Użyj JPEG, PNG, WebP lub GIF." });
+    return;
+  }
+
+  const prompt = `Analyze this receipt or invoice image and extract the data as JSON. Be precise with numbers.
+
+Return ONLY a JSON object with this exact structure (all fields optional except items):
+{
+  "supplierNip": "string or null — NIP number (10 digits, may appear as 'NIP: XXXXXXXXXX' or similar)",
+  "supplierName": "string or null — name of the seller/supplier (not the buyer)",
+  "invoiceNumber": "string or null — invoice or receipt number",
+  "invoiceDate": "string or null — date in YYYY-MM-DD format",
+  "items": [
+    {
+      "productName": "exact product name",
+      "quantity": number,
+      "unit": "unit (szt, kg, l, etc.)",
+      "unitPrice": number (net price per unit),
+      "totalPrice": number (net total for this line)
+    }
+  ]
+}
+
+Important:
+- NIP is a 10-digit Polish tax ID, often preceded by 'NIP' label
+- For prices, use NET values (without VAT) when both are shown
+- If only gross prices are visible, use those
+- quantity should be a number (e.g. 1, 2.5, 0.5)
+- Return empty items array if no line items are visible
+- invoiceDate must be YYYY-MM-DD format`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${imageBase64}`,
+                detail: "high",
+              },
+            },
+            { type: "text", text: prompt },
+          ],
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 2000,
+      temperature: 0,
+    });
+
+    const raw = response.choices[0]?.message?.content ?? "{}";
+    let extracted: {
+      supplierNip?: string | null;
+      supplierName?: string | null;
+      invoiceNumber?: string | null;
+      invoiceDate?: string | null;
+      items?: Array<{ productName: string; quantity: number; unit: string; unitPrice: number; totalPrice: number }>;
+    };
+    try {
+      extracted = JSON.parse(raw);
+    } catch {
+      extracted = {};
+    }
+
+    // Normalise NIP — strip spaces and dashes
+    if (extracted.supplierNip) {
+      extracted.supplierNip = extracted.supplierNip.replace(/[\s\-]/g, "");
+    }
+
+    res.json({
+      supplierNip: extracted.supplierNip ?? null,
+      supplierName: extracted.supplierName ?? null,
+      invoiceNumber: extracted.invoiceNumber ?? null,
+      invoiceDate: extracted.invoiceDate ?? null,
+      items: Array.isArray(extracted.items) ? extracted.items : [],
+    });
+  } catch (err) {
+    req.log.error({ err }, "scan-receipt: OpenAI Vision error");
+    res.status(500).json({ error: "Nie udało się przetworzyć zdjęcia. Sprawdź jakość obrazu i spróbuj ponownie." });
+  }
+});
+
 router.post("/invoices/import", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const parsed = ImportInvoiceBody.safeParse(req.body);
@@ -221,7 +320,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, xmlContent, invoiceNumber, invoiceDate, force } = parsed.data;
+  const { supplierId, xmlContent, invoiceNumber, invoiceDate, force, items: manualItems } = parsed.data;
 
   const [supplier] = await db
     .select()
@@ -234,7 +333,11 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   }
 
   const parsed2 = xmlContent ? parseKSeFXml(xmlContent) : null;
-  const parsedItems = parsed2?.items ?? [];
+  // Manual items (from OCR scan) take precedence over XML-parsed items
+  const parsedItems: Array<{ productName: string; quantity: number; unit: string; unitPrice: number; totalPrice: number; vatRate?: number | null }> =
+    manualItems && manualItems.length > 0
+      ? manualItems
+      : (parsed2?.items ?? []);
 
   const hasExplicitNumber = Boolean(invoiceNumber || parsed2?.invoiceNumber);
   const finalInvoiceNumber = invoiceNumber || parsed2?.invoiceNumber || `FV/${Date.now()}`;
