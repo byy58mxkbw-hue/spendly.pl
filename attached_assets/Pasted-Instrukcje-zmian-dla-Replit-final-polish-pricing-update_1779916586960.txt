@@ -1,0 +1,332 @@
+Instrukcje zmian dla Replit — final polish + pricing update
+
+CEL
+
+Nie zmieniać już całego designu ani kolorystyki.
+Aktualny kierunek jest dobry.
+
+Teraz zrobić:
+
+* bardziej profesjonalny CTA,
+* lepszy pricing,
+* bardziej premium SaaS feeling,
+* uproszczenie komunikacji,
+* zwiększenie konwersji.
+
+⸻
+
+1. ZMIEŃ GŁÓWNE CTA
+
+USUŃ:
+
+* „Umów demo”
+
+To brzmi:
+
+* zbyt enterprise,
+* zbyt sprzedażowo,
+* tworzy tarcie,
+* obniża conversion rate.
+
+⸻
+
+ZASTĄP:
+
+Primary CTA:
+
+„Wypróbuj za darmo”
+
+lub
+
+„Sprawdź teraz”
+
+lub najlepiej:
+
+„Rozpocznij za darmo”
+
+⸻
+
+Secondary CTA:
+
+* „Zobacz system”
+* „Jak działa Spendly”
+
+⸻
+
+2. ZMIEŃ MODEL PRICINGU
+
+USUŃ:
+
+* plan FREE,
+* „0 zł”,
+* darmowy forever plan.
+
+To obniża perceived value.
+
+Produkt wygląda wtedy jak:
+
+* tani startup,
+* mało profesjonalny,
+* mniej B2B.
+
+⸻
+
+NOWY MODEL
+
+Jeden plan
+
+Spendly Pro
+
+Cena:
+
+200 zł / miesiąc
+
+Trial:
+
+30 dni za darmo
+
+⸻
+
+COPY PRICING SECTION
+
+Headline:
+
+„Prosta cena. Pełna kontrola kosztów.”
+
+Subheadline:
+
+„30 dni bez opłat. Anuluj w dowolnym momencie.”
+
+⸻
+
+Pricing card
+
+Cena:
+
+200 zł
+
+/miesięcznie
+
+Features:
+
+* Integracja z KSeF
+* OCR faktur
+* Kontrola food cost
+* Analiza kosztów restauracji
+* Alerty kosztowe
+* Dashboard wydatków
+* Raporty miesięczne
+* Monitoring cen dostawców
+
+⸻
+
+CTA:
+
+„Rozpocznij 30 dni za darmo”
+
+⸻
+
+3. DODAJ TRUST ELEMENT POD CENĄ
+
+Mały tekst pod CTA:
+
+„Bez umowy. Bez wdrożenia. Bez ukrytych kosztów.”
+
+To bardzo zwiększa conversion.
+
+⸻
+
+4. HERO CTA UPDATE
+
+Aktualizacja hero buttons
+
+PRIMARY:
+
+„Rozpocznij za darmo”
+
+SECONDARY:
+
+„Zobacz jak działa”
+
+⸻
+
+5. ZMIEŃ TON KOMUNIKACJI
+
+Usuń:
+
+* „AI powered”
+* „revolutionary”
+* „cutting edge”
+
+Dodaj:
+
+* konkrety,
+* oszczędności,
+* kontrolę kosztów,
+* prostotę.
+
+⸻
+
+6. DODAJ “30 DNI ZA DARMO” W 3 MIEJSCACH
+
+Hero:
+
+badge nad headline
+
+Pricing:
+
+pod ceną
+
+Final CTA:
+
+sekcja końcowa
+
+⸻
+
+7. NOWY FINAL CTA
+
+Headline:
+
+„Zobacz ile kosztów możesz odzyskać.”
+
+Subheadline:
+
+„Spendly pomaga restauracjom kontrolować wydatki, food cost i faktury w jednym miejscu.”
+
+Button:
+
+„Rozpocznij za darmo”
+
+⸻
+
+8. USUŃ ZBĘDNE IKONY I ELEMENTY
+
+Zmniejszyć clutter.
+
+Usuń:
+
+* nadmiar gradientów,
+* zbyt dużo glow,
+* zbyt dużo floating cards,
+* zbyt dużo animations.
+
+Ma być:
+
+* spokojnie,
+* premium,
+* enterprise.
+
+⸻
+
+9. DODAJ MAŁY BADGE W HERO
+
+Mały pill badge nad H1:
+
+„KSeF + kontrola kosztów gastronomii”
+
+Style:
+
+* dark glass,
+* subtle border,
+* small green dot.
+
+To poprawi:
+
+* SEO relevance,
+* clarity,
+* premium feel.
+
+⸻
+
+10. DODAJ WIĘCEJ “REAL PRODUCT FEEL”
+
+Dashboard powinien wyglądać bardziej jak:
+
+* prawdziwe narzędzie,
+* nie marketing mockup.
+
+Dodaj:
+
+* tabelę faktur,
+* status KSeF,
+* wykres kosztów,
+* food cost percentage,
+* alerts.
+
+⸻
+
+11. PRICING UX
+
+Card:
+
+* trochę większa niż reszta,
+* centered,
+* max-w-md,
+* subtle border glow.
+
+⸻
+
+12. SEO UPDATE
+
+Meta title:
+
+„Spendly — Kontrola kosztów restauracji i integracja KSeF”
+
+Meta description:
+
+„System do kontroli kosztów restauracji, food cost i analizy faktur. Integracja z KSeF, OCR faktur i monitoring wydatków gastronomii.”
+
+⸻
+
+13. DODAJ FAQ POD PRICING
+
+Pytania:
+
+Czy mogę anulować w dowolnym momencie?
+
+Tak.
+
+Czy jest okres próbny?
+
+Tak, 30 dni za darmo.
+
+Czy Spendly integruje się z KSeF?
+
+Tak.
+
+Czy system działa dla wielu lokali?
+
+Tak.
+
+Jak działa OCR faktur?
+
+Automatycznie odczytuje dane z faktur kosztowych.
+
+⸻
+
+14. MICROCOPY
+
+Dodaj małe teksty typu:
+
+* „Bez wdrożenia”
+* „Gotowe w kilka minut”
+* „Automatyczny import faktur”
+* „Działa z KSeF”
+
+To bardzo podnosi SaaS quality.
+
+⸻
+
+15. FINAL DESIGN GOAL
+
+Strona ma wyglądać jak:
+
+* nowoczesny system SaaS dla gastronomii,
+* profesjonalne narzędzie finansowe,
+* premium B2B software.
+
+Nie jak:
+
+* startup MVP,
+* aplikacja konsumencka,
+* template z Tailwinda.

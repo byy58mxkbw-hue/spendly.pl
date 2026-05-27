@@ -245,20 +245,20 @@ function FaqItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const FEATURES = [
-  { icon: ScanLine, title: "OCR faktur", desc: "Automatyczne odczytywanie faktur kosztowych — ze zdjęcia lub pliku." },
-  { icon: RefreshCw, title: "Integracja KSeF", desc: "Automatyczny import faktur z Krajowego Systemu e-Faktur dla Twojego NIP." },
-  { icon: TrendingDown, title: "Food Cost AI", desc: "Monitoruj rentowność produktów, składników i całego menu." },
-  { icon: BarChart3, title: "Analiza kosztów", desc: "Wykrywaj wzrosty cen i anomalie zanim uderzą w marżę." },
-  { icon: FileBarChart2, title: "Raporty restauracyjne", desc: "Dzienny i miesięczny monitoring kosztów z eksportem CSV." },
-  { icon: Bell, title: "Alerty cenowe", desc: "Powiadomienia o niekontrolowanych wydatkach i przekroczeniu progów." },
+  { icon: RefreshCw, title: "Integracja z KSeF", desc: "Automatyczny import faktur zakupowych z Krajowego Systemu e-Faktur. Bez ręcznego wgrywania plików." },
+  { icon: ScanLine, title: "OCR faktur", desc: "System odczytuje dane z faktur kosztowych — ze zdjęcia lub PDF — w kilkanaście sekund." },
+  { icon: TrendingDown, title: "Kontrola food cost", desc: "Monitoruj udział kosztów w przychodach restauracji i reaguj zanim food cost przekroczy cel." },
+  { icon: BarChart3, title: "Analiza kosztów", desc: "Wykrywaj wzrosty cen surowców, porównuj dostawców i analizuj trendy zakupowe miesiąc po miesiącu." },
+  { icon: FileBarChart2, title: "Raporty miesięczne", desc: "Zestawienie wydatków per-dostawca i per-kategoria z eksportem do CSV — gotowe do księgowości." },
+  { icon: Bell, title: "Alerty kosztowe", desc: "Ustawiasz progi procentowe lub kwotowe dla kluczowych składników. Alert trafia do Ciebie od razu." },
 ];
 
 const FAQS = [
-  { q: "Czy Spendly integruje się z KSeF?", a: "Tak. Spendly łączy się bezpośrednio z Krajowym Systemem e-Faktur przez API i automatycznie pobiera faktury zakupowe dla Twojego NIP-u. Wystarczy podać NIP i token KSeF — resztą zajmuje się system." },
-  { q: "Jak działa OCR faktur?", a: "Spendly wykorzystuje AI do odczytywania faktur ze zdjęć lub plików PDF. System automatycznie rozpoznaje dostawcę, produkty, ceny i daty — bez ręcznego przepisywania danych." },
-  { q: "Czy Spendly pomaga kontrolować food cost?", a: "Tak. System monitoruje ceny każdego surowca z faktur, porównuje z poprzednimi miesiącami i wylicza wpływ na food cost. Możesz ustawić progi cenowe dla kluczowych składników i otrzymywać alerty." },
-  { q: "Czy system działa dla wielu lokali?", a: "Plan Pro obsługuje nielimitowaną liczbę dostawców. Obsługa wielu lokali z jednego panelu jest dostępna w planie Enterprise — skontaktuj się z nami." },
-  { q: "Jak wygląda wdrożenie?", a: "Konfiguracja zajmuje około 2 minut: zakładasz konto, podajesz NIP i token KSeF, a system automatycznie pobiera faktury. Nie musisz instalować żadnego oprogramowania." },
+  { q: "Czy mogę anulować w dowolnym momencie?", a: "Tak. Brak długoterminowych umów — anulujesz subskrypcję kiedy chcesz, bez żadnych opłat za rezygnację." },
+  { q: "Czy jest okres próbny?", a: "Tak. Pierwsze 30 dni jest bezpłatne. Nie wymagamy karty kredytowej na etapie rejestracji." },
+  { q: "Czy Spendly integruje się z KSeF?", a: "Tak. Spendly łączy się bezpośrednio z API Krajowego Systemu e-Faktur i automatycznie pobiera faktury zakupowe dla Twojego NIP-u. Wystarczy jednorazowo podać NIP i token — resztą zajmuje się system." },
+  { q: "Czy system działa dla wielu lokali?", a: "Tak. System obsługuje wiele lokali i dostawców z jednego panelu. Skontaktuj się z nami, jeśli masz specyficzne wymagania dla sieci restauracji." },
+  { q: "Jak działa OCR faktur?", a: "System automatycznie odczytuje dane z faktur kosztowych — ze zdjęcia telefonu lub pliku PDF. Rozpoznaje dostawcę, produkty, ceny i daty bez ręcznego przepisywania." },
 ];
 
 export default function Home() {
@@ -316,7 +316,7 @@ export default function Home() {
               }}
                 onMouseEnter={e => (e.currentTarget.style.background = C.accentHover)}
                 onMouseLeave={e => (e.currentTarget.style.background = C.accent)}>
-                Umów demo
+                Rozpocznij za darmo
               </button>
             </Link>
           </div>
@@ -349,7 +349,7 @@ export default function Home() {
                 </Link>
                 <Link href="/sign-up">
                   <button data-testid="btn-signup-mobile" style={{ width: "100%", padding: "10px", borderRadius: 8, fontSize: 14, fontWeight: 600, background: C.accent, border: "none", color: "#0B0F14", cursor: "pointer" }}>
-                    Umów demo
+                    Rozpocznij za darmo
                   </button>
                 </Link>
               </div>
@@ -362,8 +362,28 @@ export default function Home() {
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "72px 24px 80px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 48 }} className="lg:grid-cols-2 lg:gap-20 lg:items-center">
           <div>
-            <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ duration: 0.4, ease }} style={{ marginBottom: 24 }}>
-              <Badge icon={ShieldCheck} label="Zintegrowane z KSeF" />
+            <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ duration: 0.4, ease }} style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {/* Hero pill badge with green dot */}
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 7,
+                padding: "5px 12px", borderRadius: 999,
+                border: `1px solid ${C.border}`,
+                background: "rgba(255,255,255,0.04)",
+                color: C.muted, fontSize: 12, fontWeight: 500,
+              }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: C.accent, flexShrink: 0 }} />
+                KSeF + kontrola kosztów gastronomii
+              </div>
+              {/* 30 dni trial badge */}
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "5px 12px", borderRadius: 999,
+                border: `1px solid ${C.accentDim}`,
+                background: C.accentDim,
+                color: C.accent, fontSize: 12, fontWeight: 600,
+              }}>
+                30 dni za darmo
+              </div>
             </motion.div>
 
             <motion.h1 variants={fadeUp} initial="hidden" animate="visible" transition={{ duration: 0.45, ease, delay: 0.07 }}
@@ -374,11 +394,11 @@ export default function Home() {
 
             <motion.p variants={fadeUp} initial="hidden" animate="visible" transition={{ duration: 0.4, ease, delay: 0.14 }}
               style={{ fontSize: 17, color: C.muted, lineHeight: 1.7, maxWidth: 480, marginBottom: 36 }}>
-              Spendly automatycznie analizuje faktury, kontroluje food cost i integruje się z KSeF, pomagając restauracjom ograniczać straty i zwiększać marżę.
+              Spendly automatycznie importuje faktury z KSeF, kontroluje food cost i alarmuje o podwyżkach — zanim uderzą w marżę Twojej restauracji.
             </motion.p>
 
             <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ duration: 0.4, ease, delay: 0.2 }}
-              style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 32 }}>
+              style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 28 }}>
               <Link href="/sign-up">
                 <button data-testid="btn-cta-signup" style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
@@ -388,11 +408,11 @@ export default function Home() {
                 }}
                   onMouseEnter={e => (e.currentTarget.style.background = C.accentHover)}
                   onMouseLeave={e => (e.currentTarget.style.background = C.accent)}>
-                  Umów demo <ArrowRight size={16} />
+                  Rozpocznij za darmo <ArrowRight size={16} />
                 </button>
               </Link>
               <a href="#jak-to-dziala">
-                <button data-testid="btn-cta-signin" style={{
+                <button data-testid="btn-cta-secondary" style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
                   padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 500,
                   background: "none", border: `1px solid ${C.border}`,
@@ -407,7 +427,7 @@ export default function Home() {
 
             <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.35, delay: 0.3 }}
               style={{ display: "flex", flexWrap: "wrap", gap: "8px 20px" }}>
-              {["Bez karty kredytowej", "Konfiguracja w 2 minuty", "Import z KSeF od razu"].map(t => (
+              {["Bez wdrożenia", "Gotowe w kilka minut", "Działa z KSeF"].map(t => (
                 <div key={t} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.muted }}>
                   <Check size={13} style={{ color: C.accent, flexShrink: 0 }} />{t}
                 </div>
@@ -671,85 +691,74 @@ export default function Home() {
           <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={vp} style={{ textAlign: "center", marginBottom: 48 }}>
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accent, textTransform: "uppercase", marginBottom: 12 }}>Cennik</p>
             <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, marginBottom: 12 }}>
-              Prosty, przejrzysty cennik
+              Prosta cena. Pełna kontrola kosztów.
             </h2>
-            <p style={{ fontSize: 15, color: C.muted, margin: 0 }}>Zacznij za darmo, rozwijaj się kiedy chcesz.</p>
+            <p style={{ fontSize: 15, color: C.muted, margin: 0 }}>30 dni bez opłat. Anuluj w dowolnym momencie.</p>
           </motion.div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, maxWidth: 680, margin: "0 auto" }}>
-            {/* Free */}
+          {/* Single Pro card — centered, max-w-md */}
+          <div style={{ maxWidth: 420, margin: "0 auto" }}>
             <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={vp} transition={{ duration: 0.4 }}
-              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: "28px", display: "flex", flexDirection: "column" }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Free</p>
-              <div style={{ marginBottom: 20 }}>
-                <span style={{ fontSize: 36, fontWeight: 800, color: C.text }}>0 zł</span>
-                <span style={{ fontSize: 13, color: C.muted, marginLeft: 6 }}>/ mies.</span>
-              </div>
-              <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-                {["Synchronizacja z KSeF", "Do 3 dostawców", "Historia cen — 90 dni", "5 alertów cenowych", "OCR faktur ze zdjęcia"].map(f => (
-                  <li key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.text }}>
-                    <Check size={14} style={{ color: C.accent, flexShrink: 0 }} />{f}
-                  </li>
-                ))}
-                {["Raporty miesięczne", "AI CFO"].map(f => (
-                  <li key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.muted, opacity: 0.5 }}>
-                    <X size={14} style={{ flexShrink: 0 }} />{f}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/sign-up">
-                <button style={{
-                  width: "100%", padding: "11px", borderRadius: 10, fontSize: 13, fontWeight: 600,
-                  background: "none", border: `1px solid ${C.border}`, color: C.text, cursor: "pointer",
-                  transition: "border-color 0.15s",
-                }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)")}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}>
-                  Zacznij za darmo
-                </button>
-              </Link>
-            </motion.div>
-
-            {/* Pro */}
-            <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={vp} transition={{ duration: 0.4, delay: 0.1 }}
               style={{
-                background: C.accent, borderRadius: 20, padding: "28px",
-                display: "flex", flexDirection: "column", position: "relative", overflow: "hidden",
+                background: C.card,
+                border: `1px solid rgba(61,220,151,0.25)`,
+                borderRadius: 24, padding: "36px 32px",
+                display: "flex", flexDirection: "column",
+                boxShadow: "0 0 0 1px rgba(61,220,151,0.08), 0 32px 64px rgba(0,0,0,0.4)",
               }}>
-              <div style={{
-                position: "absolute", top: 16, right: 16,
-                fontSize: 9, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase",
-                background: "rgba(0,0,0,0.15)", color: "#0B0F14", padding: "3px 8px", borderRadius: 999,
-              }}>Polecany</div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(11,15,20,0.6)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Pro</p>
-              <div style={{ marginBottom: 20 }}>
-                <span style={{ fontSize: 36, fontWeight: 800, color: "#0B0F14" }}>99 zł</span>
-                <span style={{ fontSize: 13, color: "rgba(11,15,20,0.6)", marginLeft: 6 }}>/ mies.</span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: 0, letterSpacing: "-0.01em" }}>Spendly Pro</p>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+                  background: C.accentDim, color: C.accent, padding: "4px 10px", borderRadius: 999,
+                }}>30 dni za darmo</div>
               </div>
-              <ul style={{ listStyle: "none", padding: 0, margin: "0 0 24px", display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-                {["Nieograniczona liczba dostawców", "Nieograniczona historia cen", "Nieograniczone alerty cenowe", "Raporty miesięczne + eksport CSV", "AI CFO — rekomendacje zakupowe", "Wsparcie priorytetowe"].map(f => (
-                  <li key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#0B0F14" }}>
-                    <Check size={14} style={{ flexShrink: 0 }} />{f}
+
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                  <span style={{ fontSize: 52, fontWeight: 800, color: C.text, letterSpacing: "-0.03em", lineHeight: 1 }}>200</span>
+                  <span style={{ fontSize: 16, color: C.muted }}>zł / mies.</span>
+                </div>
+                <p style={{ fontSize: 13, color: C.muted, marginTop: 8 }}>po zakończeniu okresu próbnego</p>
+              </div>
+
+              <ul style={{ listStyle: "none", padding: 0, margin: "0 0 28px", display: "flex", flexDirection: "column", gap: 12 }}>
+                {[
+                  "Integracja z KSeF",
+                  "OCR faktur",
+                  "Kontrola food cost",
+                  "Analiza kosztów restauracji",
+                  "Alerty kosztowe",
+                  "Dashboard wydatków",
+                  "Raporty miesięczne",
+                  "Monitoring cen dostawców",
+                ].map(f => (
+                  <li key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: C.text }}>
+                    <Check size={15} style={{ color: C.accent, flexShrink: 0 }} />{f}
                   </li>
                 ))}
               </ul>
+
               <Link href="/sign-up">
                 <button style={{
-                  width: "100%", padding: "11px", borderRadius: 10, fontSize: 13, fontWeight: 700,
-                  background: "#0B0F14", border: "none", color: C.accent, cursor: "pointer",
-                  transition: "opacity 0.15s",
+                  width: "100%", padding: "14px", borderRadius: 12, fontSize: 14, fontWeight: 700,
+                  background: C.accent, border: "none", color: "#0B0F14", cursor: "pointer",
+                  transition: "background 0.15s", marginBottom: 12,
                 }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = "0.9")}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = "1")}>
-                  Wypróbuj Pro za darmo
+                  onMouseEnter={e => (e.currentTarget.style.background = C.accentHover)}
+                  onMouseLeave={e => (e.currentTarget.style.background = C.accent)}>
+                  Rozpocznij 30 dni za darmo
                 </button>
               </Link>
+              <p style={{ textAlign: "center", fontSize: 12, color: C.muted, margin: 0 }}>
+                Bez umowy. Bez wdrożenia. Bez ukrytych kosztów.
+              </p>
             </motion.div>
           </div>
 
           <motion.p variants={fadeIn} initial="hidden" whileInView="visible" viewport={vp}
             style={{ textAlign: "center", fontSize: 13, color: C.muted, marginTop: 24 }}>
-            Potrzebujesz wielu lokali lub dedykowanej integracji?{" "}
+            Potrzebujesz dedykowanej integracji lub wsparcia dla sieci lokali?{" "}
             <a href="mailto:kontakt@spendly.pl" style={{ color: C.accent, textDecoration: "none" }}>Napisz do nas</a>
           </motion.p>
         </div>
@@ -779,14 +788,19 @@ export default function Home() {
             border: `1px solid rgba(61,220,151,0.2)`, borderRadius: 24,
             padding: "60px 40px", textAlign: "center",
           }}>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accent, textTransform: "uppercase", marginBottom: 16 }}>
-            Zacznij kontrolować koszty już dziś
-          </p>
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "5px 12px", borderRadius: 999, marginBottom: 20,
+            border: `1px solid ${C.accentDim}`, background: C.accentDim,
+            color: C.accent, fontSize: 12, fontWeight: 600,
+          }}>
+            30 dni za darmo
+          </div>
           <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, marginBottom: 16 }}>
-            Zobacz gdzie uciekają pieniądze.
+            Zobacz ile kosztów możesz odzyskać.
           </h2>
-          <p style={{ fontSize: 15, color: C.muted, maxWidth: 480, margin: "0 auto 32px", lineHeight: 1.65 }}>
-            Dołącz do restauratorów, którzy wiedzą za co płacą — i reagują na podwyżki zanim wpłyną na marżę.
+          <p style={{ fontSize: 15, color: C.muted, maxWidth: 520, margin: "0 auto 32px", lineHeight: 1.65 }}>
+            Spendly pomaga restauracjom kontrolować wydatki, food cost i faktury w jednym miejscu.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/sign-up">
@@ -798,7 +812,7 @@ export default function Home() {
               }}
                 onMouseEnter={e => (e.currentTarget.style.background = C.accentHover)}
                 onMouseLeave={e => (e.currentTarget.style.background = C.accent)}>
-                Umów demo <ArrowRight size={16} />
+                Rozpocznij za darmo <ArrowRight size={16} />
               </button>
             </Link>
             <Link href="/sign-in">
@@ -813,7 +827,7 @@ export default function Home() {
             </Link>
           </div>
           <div style={{ display: "flex", justifyContent: "center", gap: 24, marginTop: 24, flexWrap: "wrap" }}>
-            {["Darmowy plan na zawsze", "Bez zobowiązań", "Konfiguracja w 2 minuty"].map(t => (
+            {["Bez umowy", "Bez wdrożenia", "Bez ukrytych kosztów"].map(t => (
               <div key={t} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.muted }}>
                 <Check size={12} style={{ color: C.accent }} />{t}
               </div>
