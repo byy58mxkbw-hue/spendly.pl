@@ -792,24 +792,61 @@ export default function Reports() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5 self-start sm:self-auto"
-                  onClick={() =>
-                    exportToCsv(
-                      [
-                        ["Dostawca", "Łączne wydatki (PLN)", "Faktury", "Produkty"],
-                        ...data.suppliers.map((s) => [
-                          s.supplierName,
-                          s.totalSpend,
-                          s.invoiceCount,
-                          s.productCount,
-                        ]),
-                      ],
-                      `raport-${reportMonth}-${todaySlug()}.csv`,
-                    )
-                  }
+                  onClick={() => {
+                    const label = viewMode === "all" ? "Wszystkie okresy" : monthLabel(reportMonth);
+                    const today = new Date().toLocaleDateString("pl-PL");
+                    const totalSpend = data.totalSpend;
+
+                    const rows: (string | number | null | undefined)[][] = [
+                      // ── Nagłówek ──────────────────────────────────────────
+                      [`RAPORT MIESIĘCZNY — ${label.toUpperCase()}`],
+                      [`Wygenerowano: ${today}`],
+                      [],
+                      // ── Podsumowanie ──────────────────────────────────────
+                      ["PODSUMOWANIE"],
+                      ["Łączne wydatki (PLN)", "Liczba faktur", "Unikalnych produktów", "Liczba dostawców"],
+                      [data.totalSpend, data.invoiceCount, data.productCount, data.suppliers.length],
+                      [],
+                      // ── Dostawcy ──────────────────────────────────────────
+                      ["DOSTAWCY"],
+                      ["#", "Dostawca", "Wydatki (PLN)", "% budżetu", "Faktury", "Produkty"],
+                      ...data.suppliers.map((s, i) => [
+                        i + 1,
+                        s.supplierName,
+                        s.totalSpend,
+                        totalSpend > 0 ? `${((s.totalSpend / totalSpend) * 100).toFixed(1)}%` : "—",
+                        s.invoiceCount,
+                        s.productCount,
+                      ]),
+                      [],
+                      // ── Produkty ──────────────────────────────────────────
+                      ["PRODUKTY (wg kosztu malejąco)"],
+                      ["Produkt", "Dostawca", "Ilość", "Jednostka", "Śr. cena (PLN)", "Łączny koszt (PLN)", "Zmiana ceny"],
+                      ...data.suppliers.flatMap((s) =>
+                        s.topProducts.map((p) => {
+                          const change =
+                            p.prevMonthAvgPrice && p.prevMonthAvgPrice > 0
+                              ? `${(((p.avgPrice - p.prevMonthAvgPrice) / p.prevMonthAvgPrice) * 100).toFixed(1)}%`
+                              : "—";
+                          return [
+                            p.productName,
+                            s.supplierName,
+                            p.totalQuantity % 1 === 0 ? p.totalQuantity : Number(p.totalQuantity.toFixed(3)),
+                            p.unit,
+                            p.avgPrice,
+                            p.totalCost,
+                            change,
+                          ];
+                        })
+                      ).sort((a, b) => Number(b[5]) - Number(a[5])),
+                    ];
+
+                    exportToCsv(rows, `raport-${reportMonth}-${todaySlug()}.csv`);
+                  }}
                   data-testid="btn-export-csv-reports"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Eksportuj CSV</span>
+                  <span className="hidden sm:inline">Pobierz raport CSV</span>
                   <span className="sm:hidden">CSV</span>
                 </Button>
               )}
