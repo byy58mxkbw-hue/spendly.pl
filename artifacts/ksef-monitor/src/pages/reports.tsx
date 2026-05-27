@@ -8,11 +8,12 @@ import {
 } from "recharts";
 import {
   ChevronLeft, ChevronRight, ShoppingCart, FileText, Package, TrendingUp, ChevronDown, ChevronUp,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, Download,
 } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CATEGORIES, categorizeProduct } from "@/lib/categories";
+import { exportToCsv, todaySlug } from "@/lib/export-csv";
 
 // ─── Month helpers ────────────────────────────────────────────────────────────
 
@@ -470,6 +471,32 @@ export default function Reports() {
           subtitle={viewMode === "all" ? "Wszystkie okresy — łączne podsumowanie" : "Miesięczne podsumowanie zakupów i analiza dostawców"}
           action={
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              {data && (data.suppliers.length > 0 || data.topProducts.length > 0) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 self-start sm:self-auto"
+                  onClick={() =>
+                    exportToCsv(
+                      [
+                        ["Dostawca", "Łączne wydatki (PLN)", "Faktury", "Produkty"],
+                        ...data.suppliers.map((s) => [
+                          s.supplierName,
+                          s.totalSpend,
+                          s.invoiceCount,
+                          s.productCount,
+                        ]),
+                      ],
+                      `raport-${reportMonth}-${todaySlug()}.csv`,
+                    )
+                  }
+                  data-testid="btn-export-csv-reports"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Eksportuj CSV</span>
+                  <span className="sm:hidden">CSV</span>
+                </Button>
+              )}
               {/* Mode toggle */}
               <div className="flex items-center bg-card border border-border rounded-lg p-1 gap-0.5 self-start sm:self-auto">
                 <button

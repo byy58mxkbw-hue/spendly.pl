@@ -619,7 +619,7 @@ export const GetDashboardSummaryResponse = zod.object({
   spendChangePercent: zod.number(),
   trackedProducts: zod.number(),
   activeAlerts: zod.number(),
-  avgPriceChange: zod.number(),
+  avgPriceChange: zod.number().nullish(),
 });
 
 /**

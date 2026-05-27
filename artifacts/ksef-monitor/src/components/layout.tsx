@@ -15,31 +15,87 @@ import {
   Menu,
   X,
   ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 import { useUser, useClerk, useAuth } from "@clerk/react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useListKsefPending, useGetDashboardActiveAlerts } from "@workspace/api-client-react";
 
-const navItems = [
+type NavItem = { path: string; label: string; icon: React.ElementType };
+
+const coreNavItems: NavItem[] = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/suppliers", label: "Dostawcy", icon: Users },
-  { path: "/products", label: "Produkty", icon: Package },
   { path: "/invoices", label: "Faktury", icon: FileText },
   { path: "/pending-invoices", label: "Do przeglądu", icon: Inbox },
-  { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
-  { path: "/reports", label: "Raporty", icon: BarChart2 },
-  { path: "/ai-cfo", label: "AI CFO", icon: Sparkles },
-  { path: "/settings/ksef", label: "Ustawienia KSeF", icon: Settings },
+  { path: "/suppliers", label: "Dostawcy", icon: Users },
+  { path: "/products", label: "Produkty", icon: Package },
 ];
 
-const bottomNavItems = [
+const analyticsNavItems: NavItem[] = [
+  { path: "/reports", label: "Raporty", icon: BarChart2 },
+  { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
+  { path: "/ai-cfo", label: "AI CFO", icon: Sparkles },
+];
+
+const navItems: NavItem[] = [...coreNavItems, ...analyticsNavItems];
+
+const bottomNavItems: NavItem[] = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/invoices", label: "Faktury", icon: FileText },
   { path: "/pending-invoices", label: "Do przeglądu", icon: Inbox },
   { path: "/products", label: "Produkty", icon: Package },
   { path: "/suppliers", label: "Dostawcy", icon: Users },
 ];
+
+function NavLink({
+  path,
+  label,
+  icon: Icon,
+  badgeCount,
+  location,
+  onNavigate,
+}: NavItem & { badgeCount?: number; location: string; onNavigate?: () => void }) {
+  const active = location === path || location.startsWith(path + "/");
+  const showBadge = (badgeCount ?? 0) > 0;
+  return (
+    <Link
+      href={path}
+      onClick={onNavigate}
+      data-testid={`nav-${path.replace("/", "").replace("/", "-")}`}
+      className={cn(
+        "flex items-center gap-3 px-3 py-3.5 md:py-2.5 rounded-lg text-base md:text-sm font-medium transition-colors",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "text-foreground/80 hover:bg-secondary hover:text-foreground active:bg-secondary",
+      )}
+    >
+      <Icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
+      {label}
+      {showBadge && (
+        <span
+          className={cn(
+            "ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none min-w-[18px] text-center",
+            active
+              ? "bg-primary-foreground/20 text-primary-foreground"
+              : "bg-destructive text-destructive-foreground",
+          )}
+        >
+          {(badgeCount ?? 0) > 99 ? "99+" : (badgeCount ?? 0) > 9 ? "9+" : badgeCount}
+        </span>
+      )}
+      {active && !showBadge && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
+    </Link>
+  );
+}
+
+function SectionLabel({ label }: { label: string }) {
+  return (
+    <p className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 select-none">
+      {label}
+    </p>
+  );
+}
 
 function SidebarContent({
   location,
@@ -61,62 +117,71 @@ function SidebarContent({
   return (
     <>
       <div className="px-5 py-5 border-b border-border">
-        <div className="flex items-center gap-2.5">
-          <span className="text-foreground text-xl tracking-tighter font-black text-primary">SPENDLY</span>
-        </div>
+        <span className="text-foreground text-xl tracking-tighter font-black text-primary">SPENDLY</span>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {[
-          ...navItems,
-          ...(isAdmin
-            ? [{ path: "/admin/users", label: "Admin", icon: ShieldCheck }]
-            : []),
-        ].map(({ path, label, icon: Icon }) => {
-          const active = location === path || location.startsWith(path + "/");
-          const isAlerts = path === "/price-alerts";
-          const isPendingNav = path === "/pending-invoices";
-          const badgeCount = isAlerts ? alertCount : isPendingNav ? pendingCount : 0;
-          const showBadge = badgeCount > 0;
-          return (
-            <Link
-              key={path}
-              href={path}
-              onClick={onNavigate}
-              data-testid={`nav-${path.replace("/", "").replace("/", "-")}`}
-              className={cn(
-                "flex items-center gap-3 px-3 py-3.5 md:py-2.5 rounded-lg text-base md:text-sm font-medium transition-colors",
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-foreground/80 hover:bg-secondary hover:text-foreground active:bg-secondary",
-              )}
-            >
-              <Icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
-              {label}
-              {showBadge && (
-                <span className={cn(
-                  "ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none min-w-[18px] text-center",
-                  active
-                    ? "bg-primary-foreground/20 text-primary-foreground"
-                    : "bg-destructive text-destructive-foreground"
-                )}>
-                  {badgeCount > 99 ? "99+" : badgeCount > 9 ? "9+" : badgeCount}
-                </span>
-              )}
-              {active && !showBadge && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 px-3 py-3 overflow-y-auto">
+        {coreNavItems.map((item) => (
+          <NavLink
+            key={item.path}
+            {...item}
+            badgeCount={item.path === "/pending-invoices" ? pendingCount : 0}
+            location={location}
+            onNavigate={onNavigate}
+          />
+        ))}
+
+        <SectionLabel label="Analityka" />
+
+        {analyticsNavItems.map((item) => (
+          <NavLink
+            key={item.path}
+            {...item}
+            badgeCount={item.path === "/price-alerts" ? alertCount : 0}
+            location={location}
+            onNavigate={onNavigate}
+          />
+        ))}
+
+        {isAdmin && (
+          <>
+            <SectionLabel label="Admin" />
+            <NavLink
+              path="/admin/users"
+              label="Użytkownicy"
+              icon={ShieldCheck}
+              location={location}
+              onNavigate={onNavigate}
+            />
+          </>
+        )}
       </nav>
 
-      <div className="px-3 py-4 border-t border-border" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+      <div className="px-3 pb-2 border-t border-border pt-3">
+        <NavLink
+          path="/settings/ksef"
+          label="Ustawienia KSeF"
+          icon={Settings}
+          location={location}
+          onNavigate={onNavigate}
+        />
+      </div>
+
+      <div
+        className="px-3 py-4 border-t border-border"
+        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      >
         <div className="flex items-center gap-3 px-3 py-2 mb-1">
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">
-            {user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ?? "U"}
+            {user?.firstName?.[0] ??
+              user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ??
+              "U"}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground truncate">
-              {user?.firstName ?? user?.emailAddresses?.[0]?.emailAddress ?? "Użytkownik"}
+              {user?.firstName ??
+                user?.emailAddresses?.[0]?.emailAddress ??
+                "Użytkownik"}
             </p>
             <p className="text-xs text-muted-foreground truncate">
               {user?.emailAddresses?.[0]?.emailAddress}
@@ -160,12 +225,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   });
   const isAdmin = adminCheck === true;
 
-  // Close mobile drawer on route change
   useEffect(() => {
     setMobileOpen(false);
   }, [location]);
 
-  // Lock body scroll while drawer is open
   useEffect(() => {
     if (!mobileOpen) return;
     const prev = document.body.style.overflow;
@@ -192,6 +255,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           isAdmin={isAdmin}
         />
       </aside>
+
       {/* Mobile top bar */}
       <header
         className="md:hidden fixed top-0 inset-x-0 z-40 bg-card/95 backdrop-blur border-b border-border"
@@ -207,14 +271,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             <Menu className="w-6 h-6" />
           </button>
-          <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo.svg" alt="CheckIT" className="w-7 h-7 rounded-lg shrink-0" />
-            <span className="text-base font-extrabold tracking-tight text-foreground truncate">
-              {activeItem?.label ?? "CheckIT"}
-            </span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="font-black tracking-tighter text-primary text-sm shrink-0">SPENDLY</span>
+            {activeItem && (
+              <>
+                <span className="text-border text-sm shrink-0">/</span>
+                <span className="text-sm font-semibold text-foreground truncate">
+                  {activeItem.label}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </header>
+
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-50">
@@ -251,6 +321,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </aside>
         </div>
       )}
+
       {/* Main content */}
       <main
         className="flex-1 min-w-0 overflow-y-auto pt-14 md:pt-0 pb-16 md:pb-0"
@@ -258,6 +329,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
+
       {/* Mobile bottom navigation */}
       <nav
         className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur border-t border-border"
@@ -273,7 +345,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 href={path}
                 className={cn(
                   "flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium transition-colors relative",
-                  active ? "text-primary" : "text-muted-foreground"
+                  active ? "text-primary" : "text-muted-foreground",
                 )}
                 aria-label={label}
               >
@@ -312,15 +384,9 @@ export function PageHeader({
         <h1 className="text-xl md:text-2xl font-semibold text-foreground tracking-tight">
           {title}
         </h1>
-        {subtitle && (
-          <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-        )}
+        {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
       </div>
-      {action && (
-        <div className="shrink-0">
-          {action}
-        </div>
-      )}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

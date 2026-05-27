@@ -373,9 +373,9 @@ export default function Dashboard() {
                 icon={Package}
               />
               <StatCard
-                label="Aktywne alerty"
-                value={String(summary.activeAlerts)}
-                icon={Bell}
+                label="Śr. zmiana cen"
+                value={summary.avgPriceChange != null ? formatPercent(summary.avgPriceChange) : "—"}
+                icon={TrendingUp}
               />
             </>
           ) : null}

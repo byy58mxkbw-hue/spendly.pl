@@ -246,7 +246,7 @@ export interface DashboardSummary {
   spendChangePercent: number;
   trackedProducts: number;
   activeAlerts: number;
-  avgPriceChange: number;
+  avgPriceChange?: number | null;
 }
 
 export interface MonthlyFoodCost {

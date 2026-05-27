@@ -72,9 +72,11 @@ import {
   Plus,
   Trash2,
   Pencil,
+  Download,
 } from "lucide-react";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { exportToCsv, todaySlug } from "@/lib/export-csv";
 
 type ProductItem = {
   id: number;
@@ -1245,15 +1247,44 @@ export default function Products() {
               Wyczyść filtry
             </button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden md:flex ml-auto gap-1.5 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50"
-            onClick={() => setShowKeywordComparison(true)}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            Porównaj po frazie
-          </Button>
+          <div className="hidden md:flex ml-auto items-center gap-2">
+            {filtered && filtered.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() =>
+                  exportToCsv(
+                    [
+                      ["Produkt", "Dostawca", "Jednostka", "Ostatnia cena (PLN)", "Poprzednia cena (PLN)", "Zmiana (%)"],
+                      ...filtered.map((p) => [
+                        p.name,
+                        p.supplierName ?? "",
+                        p.unit,
+                        p.latestPrice ?? "",
+                        p.previousPrice ?? "",
+                        p.priceChangePercent ?? "",
+                      ]),
+                    ],
+                    `produkty-${todaySlug()}.csv`,
+                  )
+                }
+                data-testid="btn-export-csv-products"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Eksportuj CSV
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50"
+              onClick={() => setShowKeywordComparison(true)}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              Porównaj po frazie
+            </Button>
+          </div>
         </div>
 
         {/* Mobile: active filters strip + clear */}

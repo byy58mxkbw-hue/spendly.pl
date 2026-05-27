@@ -1609,6 +1609,7 @@ components:
           type: integer
         avgPriceChange:
           type: number
+          nullable: true
       required:
         - totalSuppliers
         - activeSuppliers
@@ -1618,7 +1619,6 @@ components:
         - spendChangePercent
         - trackedProducts
         - activeAlerts
-        - avgPriceChange
 
     MonthlyFoodCost:
       type: object

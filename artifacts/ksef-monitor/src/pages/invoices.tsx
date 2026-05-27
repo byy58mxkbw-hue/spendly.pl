@@ -48,10 +48,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Plus, FileText, Trash2, Upload, CheckCircle2, AlertCircle, Package,
-  ChevronUp, ChevronDown, ChevronsUpDown, Search, X, RefreshCw,
+  ChevronUp, ChevronDown, ChevronsUpDown, Search, X, RefreshCw, Download,
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import { useToast } from "@/hooks/use-toast";
 
 // ─── KSeF sync button ───────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ function syncPhaseLabel(phase: SyncPhase, mobile: boolean): string {
   }
 }
 
-function InvoicesHeaderActions({ onImportClick, onDeleteAllClick }: { onImportClick: () => void; onDeleteAllClick: () => void }) {
+function InvoicesHeaderActions({ onImportClick, onDeleteAllClick, onExport }: { onImportClick: () => void; onDeleteAllClick: () => void; onExport?: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: config } = useGetKsefConfig();
@@ -175,6 +176,18 @@ function InvoicesHeaderActions({ onImportClick, onDeleteAllClick }: { onImportCl
         <span className="hidden sm:inline">Importuj fakturę</span>
         <span className="sm:hidden">Importuj</span>
       </Button>
+      {onExport && (
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onExport}
+          title="Eksportuj do CSV"
+          className="shrink-0"
+          data-testid="btn-export-csv-invoices"
+        >
+          <Download className="w-4 h-4" />
+        </Button>
+      )}
       <Button
         variant="outline"
         onClick={onDeleteAllClick}
@@ -595,7 +608,31 @@ export default function Invoices() {
         <PageHeader
           title="Faktury"
           subtitle="Historia zaimportowanych faktur KSeF"
-          action={<InvoicesHeaderActions onImportClick={() => setShowImport(true)} onDeleteAllClick={() => setShowDeleteAll(true)} />}
+          action={
+            <InvoicesHeaderActions
+              onImportClick={() => setShowImport(true)}
+              onDeleteAllClick={() => setShowDeleteAll(true)}
+              onExport={
+                displayedInvoices.length > 0
+                  ? () =>
+                      exportToCsv(
+                        [
+                          ["Nr faktury", "Data faktury", "Dostawca", "Kwota (PLN)", "Pozycji", "Zaimportowano"],
+                          ...displayedInvoices.map((inv) => [
+                            inv.invoiceNumber,
+                            inv.invoiceDate,
+                            inv.supplierName,
+                            inv.totalAmount,
+                            inv.itemCount ?? "",
+                            inv.importedAt?.slice(0, 10) ?? "",
+                          ]),
+                        ],
+                        `faktury-${todaySlug()}.csv`,
+                      )
+                  : undefined
+              }
+            />
+          }
         />
 
         {/* Search + supplier filter bar */}
