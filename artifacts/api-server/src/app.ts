@@ -1,5 +1,7 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
@@ -12,6 +14,22 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Za dużo żądań. Spróbuj ponownie za chwilę." },
+  skip: (req) => req.path === "/api/health",
+});
+
+app.use(limiter);
 
 app.use(
   pinoHttp({
@@ -36,8 +54,8 @@ app.use(
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 app.use(
   clerkMiddleware((req) => ({

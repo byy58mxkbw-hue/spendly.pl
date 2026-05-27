@@ -251,11 +251,13 @@ const FEATURES = [
   { icon: BarChart3, title: "Analiza kosztów", desc: "Wykrywaj wzrosty cen surowców, porównuj dostawców i analizuj trendy zakupowe miesiąc po miesiącu." },
   { icon: FileBarChart2, title: "Raporty miesięczne", desc: "Zestawienie wydatków per-dostawca i per-kategoria z eksportem do CSV — gotowe do księgowości." },
   { icon: Bell, title: "Alerty kosztowe", desc: "Ustawiasz progi procentowe lub kwotowe dla kluczowych składników. Alert trafia do Ciebie od razu." },
+  { icon: ShieldCheck, title: "Bezpieczeństwo danych", desc: "Faktury i tokeny KSeF szyfrowane AES-256 w bazie. Każdy użytkownik widzi wyłącznie swoje dane." },
 ];
 
 const FAQS = [
   { q: "Czy mogę anulować w dowolnym momencie?", a: "Tak. Brak długoterminowych umów — anulujesz subskrypcję kiedy chcesz, bez żadnych opłat za rezygnację." },
   { q: "Czy jest okres próbny?", a: "Tak. Pierwsze 30 dni jest bezpłatne. Nie wymagamy karty kredytowej na etapie rejestracji." },
+  { q: "Jak chronione są moje dane?", a: "Faktury i tokeny KSeF są szyfrowane AES-256-GCM w bazie danych. Każdy użytkownik ma dostęp wyłącznie do swoich danych — bez wyjątków. Komunikacja odbywa się wyłącznie przez szyfrowane połączenie HTTPS." },
   { q: "Czy Spendly integruje się z KSeF?", a: "Tak. Spendly łączy się bezpośrednio z API Krajowego Systemu e-Faktur i automatycznie pobiera faktury zakupowe dla Twojego NIP-u. Wystarczy jednorazowo podać NIP i token — resztą zajmuje się system." },
   { q: "Czy system działa dla wielu lokali?", a: "Tak. System obsługuje wiele lokali i dostawców z jednego panelu. Skontaktuj się z nami, jeśli masz specyficzne wymagania dla sieci restauracji." },
   { q: "Jak działa OCR faktur?", a: "System automatycznie odczytuje dane z faktur kosztowych — ze zdjęcia telefonu lub pliku PDF. Rozpoznaje dostawcę, produkty, ceny i daty bez ręcznego przepisywania." },

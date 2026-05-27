@@ -37,6 +37,16 @@ import { decryptSecret, encryptSecret, maskToken } from "../lib/encryption";
 import { checkAlertsAfterImport } from "../services/alert-checker";
 import { AdvisoryLock } from "../lib/advisory-lock";
 
+function encryptXml(xml: string | null | undefined): string | null {
+  if (!xml) return null;
+  try { return encryptSecret(xml); } catch { return null; }
+}
+
+function decryptXml(enc: string | null | undefined): string | null {
+  if (!enc) return null;
+  try { return decryptSecret(enc); } catch { return enc; }
+}
+
 const router: IRouter = Router();
 
 // Small delay between per-invoice XML fetches to stay below KSeF's rate limit.
@@ -658,7 +668,7 @@ async function runSync(
               .update(invoicesTable)
               .set({
                 ksefNumber: ref.ksefReferenceNumber,
-                xmlContent: xml,
+                xmlContent: encryptXml(xml),
                 totalAmount: totalAmount.toFixed(2),
                 invoiceDate: invDate,
               })
@@ -674,7 +684,7 @@ async function runSync(
               invoiceNumber: invNum,
               invoiceDate: invDate,
               totalAmount: totalAmount.toFixed(2),
-              xmlContent: xml,
+              xmlContent: encryptXml(xml),
               ksefNumber: ref.ksefReferenceNumber,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
@@ -803,7 +813,7 @@ async function runSync(
             .update(invoicesTable)
             .set({
               ksefNumber: row.ksefNumber,
-              xmlContent: row.rawXml,
+              xmlContent: encryptXml(row.rawXml),
               totalAmount: totalAmount.toFixed(2),
               invoiceDate: invDate,
             })
@@ -817,7 +827,7 @@ async function runSync(
               invoiceNumber: invNum,
               invoiceDate: invDate,
               totalAmount: totalAmount.toFixed(2),
-              xmlContent: row.rawXml,
+              xmlContent: encryptXml(row.rawXml),
               ksefNumber: row.ksefNumber,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
@@ -943,7 +953,7 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
             .update(invoicesTable)
             .set({
               ksefNumber: row.ksefNumber,
-              xmlContent: row.rawXml,
+              xmlContent: encryptXml(row.rawXml),
               totalAmount: totalAmount.toFixed(2),
               invoiceDate: invDate,
             })
@@ -957,7 +967,7 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
               invoiceNumber: invNum,
               invoiceDate: invDate,
               totalAmount: totalAmount.toFixed(2),
-              xmlContent: row.rawXml,
+              xmlContent: encryptXml(row.rawXml),
               ksefNumber: row.ksefNumber,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
@@ -1093,7 +1103,6 @@ router.get("/ksef/pending/:id", async (req, res): Promise<void> => {
       ...it,
       suggestedProductId: match.itemProductIds[i] ?? null,
     })),
-    rawXml: row.rawXml,
   });
 });
 
@@ -1187,7 +1196,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
         invoiceNumber: parsed.header.invoiceNumber ?? row.ksefNumber,
         invoiceDate: parsed.header.invoiceDate ?? isoDate(new Date()),
         totalAmount: totalAmount.toFixed(2),
-        xmlContent: row.rawXml,
+        xmlContent: encryptXml(row.rawXml),
         ksefNumber: row.ksefNumber,
       })
       .returning();

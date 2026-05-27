@@ -12,6 +12,7 @@ import {
 import { categorizeProductWithAI } from "../lib/categorize-ai.js";
 import { checkAlertsAfterImport } from "../services/alert-checker";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { encryptSecret, decryptSecret } from "../lib/encryption";
 
 const router: IRouter = Router();
 
@@ -376,7 +377,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
       invoiceNumber: finalInvoiceNumber,
       invoiceDate: finalInvoiceDate,
       totalAmount: totalAmount.toFixed(2),
-      xmlContent: xmlContent ?? null,
+      xmlContent: xmlContent ? encryptSecret(xmlContent) : null,
     })
     .returning();
 
