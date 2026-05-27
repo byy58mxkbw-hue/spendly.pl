@@ -239,7 +239,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
   );
 
   const filtered = changes
-    .filter((c): c is NonNullable<typeof c> => c !== null && c.changePercent > 0)
+    .filter((c): c is NonNullable<typeof c> => c !== null && c.changePercent != null && !isNaN(c.changePercent) && c.changePercent >= 0.05)
     .sort((a, b) => b.changePercent - a.changePercent)
     .slice(0, limit);
 

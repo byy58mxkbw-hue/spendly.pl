@@ -549,7 +549,7 @@ export default function Dashboard() {
                           <p className="text-[10px] text-muted-foreground">{item.supplierName}</p>
                         </div>
                         <span className="text-xs font-bold text-destructive shrink-0">
-                          +{(item.changePercent ?? 0).toFixed(1)}%
+                          +{item.changePercent.toFixed(1)}%
                         </span>
                       </div>
                     ))}
@@ -695,7 +695,7 @@ export default function Dashboard() {
                         "text-[11px] font-bold px-1.5 py-0.5 rounded-full",
                         item.changeDirection === "up" ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600"
                       )}>
-                        {item.changeDirection === "up" ? "+" : "-"}{(item.changePercent ?? 0).toFixed(1)}%
+                        {item.changeDirection === "up" ? "+" : "-"}{item.changePercent.toFixed(1)}%
                       </span>
                     </div>
                   </div>
