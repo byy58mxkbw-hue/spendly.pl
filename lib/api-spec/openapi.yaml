@@ -1675,6 +1675,8 @@ components:
           type: ["string", "null"]
         prevMonthAvgPrice:
           type: ["number", "null"]
+        prevMonthTotalQuantity:
+          type: ["number", "null"]
       required:
         - productName
         - unit

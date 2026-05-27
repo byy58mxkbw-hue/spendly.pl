@@ -43,16 +43,18 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     total_spend: number;
   };
 
-  // Previous month avg prices: keyed by "productName|unit|supplierName"
-  type PrevRow = { product_name: string; unit: string; supplier_name: string; avg_price: number };
+  // Previous month avg prices + total quantities: keyed by "productName|unit|supplierName"
+  type PrevRow = { product_name: string; unit: string; supplier_name: string; avg_price: number; total_quantity: number };
   const prevMap = new Map<string, number>();
+  const prevQtyMap = new Map<string, number>();
   if (!isAllTime) {
     const prevResult = await db.execute(sql`
       SELECT
         COALESCE(p.name, ii.product_name) AS product_name,
         ii.unit,
         s.name AS supplier_name,
-        AVG(ii.unit_price::numeric)::float AS avg_price
+        AVG(ii.unit_price::numeric)::float AS avg_price,
+        SUM(ii.quantity::numeric)::float AS total_quantity
       FROM invoice_items ii
       INNER JOIN invoices i ON ii.invoice_id = i.id
       LEFT JOIN products p ON ii.product_id = p.id
@@ -63,6 +65,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     `);
     for (const r of prevResult.rows as PrevRow[]) {
       prevMap.set(`${r.product_name}|${r.unit}|${r.supplier_name}`, r.avg_price);
+      prevQtyMap.set(`${r.product_name}|${r.unit}|${r.supplier_name}`, r.total_quantity);
     }
   }
 
@@ -102,6 +105,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       totalCost: r.total_cost,
       supplierName: r.supplier_name,
       prevMonthAvgPrice: prevMap.get(`${name}|${r.unit}|${r.supplier_name}`) ?? null,
+      prevMonthTotalQuantity: prevQtyMap.get(`${name}|${r.unit}|${r.supplier_name}`) ?? null,
     };
   });
 
@@ -184,6 +188,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       totalCost: r.total_cost,
       supplierName: s.supplier_name,
       prevMonthAvgPrice: prevMap.get(`${r.product_name}|${r.unit}|${s.supplier_name}`) ?? null,
+      prevMonthTotalQuantity: prevQtyMap.get(`${r.product_name}|${r.unit}|${s.supplier_name}`) ?? null,
     })),
   }));
 

@@ -75,6 +75,38 @@ function PriceChangeMini({
   );
 }
 
+// ─── Quantity change mini badge ───────────────────────────────────────────────
+
+function QuantityChangeMini({
+  current,
+  prev,
+  unit,
+}: {
+  current: number;
+  prev: number | null | undefined;
+  unit: string;
+}) {
+  if (prev == null || prev <= 0) return null;
+  const pct = ((current - prev) / prev) * 100;
+  if (Math.abs(pct) < 0.05) return null;
+
+  const up = pct > 0;
+  const Icon = up ? ArrowUp : ArrowDown;
+  const prevFormatted = prev % 1 === 0 ? prev : prev.toFixed(2);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 text-[10px] font-medium leading-none",
+        up ? "text-blue-500" : "text-orange-500",
+      )}
+      title={`Ilość poprzedni miesiąc: ${prevFormatted} ${unit}`}
+    >
+      <Icon className="w-2.5 h-2.5" />
+      {Math.abs(pct).toFixed(1)}%&nbsp;il.
+    </span>
+  );
+}
+
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, icon: Icon }: { label: string; value: string; sub?: string; icon: React.ElementType }) {
@@ -108,6 +140,7 @@ function SupplierCard({ supplier, rank }: {
       avgPrice: number;
       totalCost: number;
       prevMonthAvgPrice?: number | null;
+      prevMonthTotalQuantity?: number | null;
     }>;
   };
   rank: number;
@@ -154,6 +187,7 @@ function SupplierCard({ supplier, rank }: {
                 <div className="flex items-center justify-end gap-1 mt-0.5">
                   <span className="text-[11px] text-muted-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
                   <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                  <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
                 </div>
               </div>
             </div>
@@ -188,7 +222,10 @@ function SupplierCard({ supplier, rank }: {
               </p>
               <div className="text-right w-36 flex flex-col items-end gap-0.5">
                 <span className="text-sm text-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
-                <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                <div className="flex items-center gap-1">
+                  <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                  <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
+                </div>
               </div>
               <p className="text-sm font-semibold text-foreground text-right w-28">{formatPrice(p.totalCost)}</p>
             </div>
@@ -219,6 +256,7 @@ type TopProduct = {
   totalCost: number;
   supplierName?: string | null;
   prevMonthAvgPrice?: number | null;
+  prevMonthTotalQuantity?: number | null;
 };
 
 function TopProductsSection({ products }: { products: TopProduct[] }) {
@@ -361,6 +399,7 @@ function TopProductsSection({ products }: { products: TopProduct[] }) {
                   <div className="flex items-center justify-end gap-1 mt-0.5">
                     <span className="text-[11px] text-muted-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
                     <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                    <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
                   </div>
                 </div>
               </div>
@@ -386,7 +425,10 @@ function TopProductsSection({ products }: { products: TopProduct[] }) {
                   </p>
                   <div className="text-right w-36 flex flex-col items-end gap-0.5">
                     <span className="text-sm text-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
-                    <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                    <div className="flex items-center gap-1">
+                      <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                      <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
+                    </div>
                   </div>
                   <p className="text-sm font-bold text-foreground text-right w-28">{formatPrice(p.totalCost)}</p>
                 </div>

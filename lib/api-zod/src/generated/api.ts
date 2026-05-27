@@ -704,6 +704,7 @@ export const GetMonthlyReportResponse = zod.object({
           totalCost: zod.number(),
           supplierName: zod.string().nullish(),
           prevMonthAvgPrice: zod.number().nullish(),
+          prevMonthTotalQuantity: zod.number().nullish(),
         }),
       ),
     }),
@@ -717,6 +718,7 @@ export const GetMonthlyReportResponse = zod.object({
       totalCost: zod.number(),
       supplierName: zod.string().nullish(),
       prevMonthAvgPrice: zod.number().nullish(),
+      prevMonthTotalQuantity: zod.number().nullish(),
     }),
   ),
 });
