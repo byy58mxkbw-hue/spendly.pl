@@ -36,6 +36,7 @@ import type {
   DismissPriceAlertBody,
   DismissedAlert,
   GenerateInsightsResponse,
+  GetCategorySpendParams,
   GetDashboardSummaryParams,
   GetFoodCostMonthlyParams,
   GetMonthlyReportParams,
@@ -3576,41 +3577,60 @@ export function useGetMonthlyReport<
 /**
  * @summary Get total spend per product grouped by category
  */
-export const getGetCategorySpendUrl = () => {
-  return `/api/reports/category-spend`;
+export const getGetCategorySpendUrl = (params?: GetCategorySpendParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/category-spend?${stringifiedParams}`
+    : `/api/reports/category-spend`;
 };
 
 export const getCategorySpend = async (
+  params?: GetCategorySpendParams,
   options?: RequestInit,
 ): Promise<CategorySpendItem[]> => {
-  return customFetch<CategorySpendItem[]>(getGetCategorySpendUrl(), {
+  return customFetch<CategorySpendItem[]>(getGetCategorySpendUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetCategorySpendQueryKey = () => {
-  return [`/api/reports/category-spend`] as const;
+export const getGetCategorySpendQueryKey = (
+  params?: GetCategorySpendParams,
+) => {
+  return [`/api/reports/category-spend`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetCategorySpendQueryOptions = <
   TData = Awaited<ReturnType<typeof getCategorySpend>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getCategorySpend>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: GetCategorySpendParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCategorySpend>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetCategorySpendQueryKey();
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCategorySpendQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getCategorySpend>>
-  > = ({ signal }) => getCategorySpend({ signal, ...requestOptions });
+  > = ({ signal }) => getCategorySpend(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getCategorySpend>>,
@@ -3631,15 +3651,18 @@ export type GetCategorySpendQueryError = ErrorType<unknown>;
 export function useGetCategorySpend<
   TData = Awaited<ReturnType<typeof getCategorySpend>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getCategorySpend>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetCategorySpendQueryOptions(options);
+>(
+  params?: GetCategorySpendParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCategorySpend>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCategorySpendQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

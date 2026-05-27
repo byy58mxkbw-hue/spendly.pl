@@ -863,6 +863,14 @@ paths:
       operationId: getCategorySpend
       tags: [reports]
       summary: Get total spend per product grouped by category
+      parameters:
+        - name: days
+          in: query
+          required: false
+          description: "Lookback window in days (e.g. 30 for last month). Omit for all-time data."
+          schema:
+            type: integer
+            minimum: 1
       responses:
         "200":
           description: Category spend breakdown

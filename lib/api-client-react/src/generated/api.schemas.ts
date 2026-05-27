@@ -684,6 +684,14 @@ export type GetMonthlyReportParams = {
   month?: string;
 };
 
+export type GetCategorySpendParams = {
+  /**
+   * Lookback window in days (e.g. 30 for last month). Omit for all-time data.
+   * @minimum 1
+   */
+  days?: number;
+};
+
 export type GetPredictiveReportParams = {
   /**
    * How far ahead to project unit prices (default 30 days)

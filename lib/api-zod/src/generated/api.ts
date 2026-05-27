@@ -726,6 +726,17 @@ export const GetMonthlyReportResponse = zod.object({
 /**
  * @summary Get total spend per product grouped by category
  */
+
+export const GetCategorySpendQueryParams = zod.object({
+  days: zod.coerce
+    .number()
+    .min(1)
+    .optional()
+    .describe(
+      "Lookback window in days (e.g. 30 for last month). Omit for all-time data.",
+    ),
+});
+
 export const GetCategorySpendResponseItem = zod.object({
   productName: zod.string(),
   category: zod.string().nullish(),

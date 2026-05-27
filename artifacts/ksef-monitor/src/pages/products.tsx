@@ -992,7 +992,7 @@ export default function Products() {
   const { period, setPeriod } = usePeriod();
   const { data: products, isLoading, isError } = useListProducts({ days: periodToDays(period) });
   const { data: suppliers } = useListSuppliers();
-  const { data: spendItems } = useGetCategorySpend();
+  const { data: spendItems } = useGetCategorySpend({ days: periodToDays(period) });
   const { data: categories } = useListCategories();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");

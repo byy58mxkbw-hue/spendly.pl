@@ -384,6 +384,8 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
 
 router.get("/reports/category-spend", async (req, res): Promise<void> => {
   const userId = req.userId!;
+  const daysRaw = parseInt(String(req.query.days ?? ""), 10);
+  const days = Number.isFinite(daysRaw) && daysRaw > 0 ? daysRaw : null;
 
   const result = await db.execute(sql`
     SELECT
@@ -394,6 +396,7 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
     INNER JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
+      ${days ? sql`AND i.invoice_date >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')` : sql.raw("")}
     GROUP BY COALESCE(p.name, ii.product_name), p.category
     ORDER BY total_spend DESC
   `);
