@@ -25,6 +25,11 @@ function monthEnd(month: string): string {
   return new Date(y, m, 1).toISOString().split("T")[0];
 }
 
+function monthStart(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m - 1, 1).toISOString().split("T")[0];
+}
+
 router.get("/products", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const queryParams = ListProductsQueryParams.safeParse(req.query);
@@ -139,44 +144,97 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
     .from(productsTable)
     .where(eq(productsTable.userId, userId));
 
+  const mStart = topMonth ? monthStart(topMonth) : null;
+  const mEnd = topMonth ? monthEnd(topMonth) : null;
+
   const changes = await Promise.all(
     products.map(async (product) => {
-      const history = await db
-        .select({
-          unitPrice: invoiceItemsTable.unitPrice,
-          invoiceDate: invoicesTable.invoiceDate,
-          supplierName: suppliersTable.name,
-        })
-        .from(invoiceItemsTable)
-        .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-        .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-        .where(
-          and(
-            eq(invoiceItemsTable.productId, product.id),
-            eq(invoicesTable.userId, userId),
-            topMonth ? sql`${invoicesTable.invoiceDate} < ${monthEnd(topMonth)}` : undefined,
-          ),
-        )
-        .orderBy(desc(invoicesTable.invoiceDate))
-        .limit(2);
+      const baseWhere = and(
+        eq(invoiceItemsTable.productId, product.id),
+        eq(invoicesTable.userId, userId),
+      );
 
-      if (history.length < 2) return null;
+      if (mStart && mEnd) {
+        // "current" = latest entry within the selected month
+        const currentRows = await db
+          .select({
+            unitPrice: invoiceItemsTable.unitPrice,
+            invoiceDate: invoicesTable.invoiceDate,
+            supplierName: suppliersTable.name,
+          })
+          .from(invoiceItemsTable)
+          .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
+          .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+          .where(and(baseWhere, sql`${invoicesTable.invoiceDate} >= ${mStart} AND ${invoicesTable.invoiceDate} < ${mEnd}`))
+          .orderBy(desc(invoicesTable.invoiceDate))
+          .limit(1);
 
-      const current = toNum(history[0].unitPrice);
-      const previous = toNum(history[1].unitPrice);
-      const changePercent = ((current - previous) / previous) * 100;
+        if (!currentRows.length) return null;
 
-      return {
-        productId: product.id,
-        productName: product.name,
-        unit: product.unit,
-        currentPrice: current,
-        previousPrice: previous,
-        changePercent: Math.abs(changePercent),
-        changeDirection: changePercent >= 0 ? "up" : "down",
-        supplierName: history[0].supplierName,
-        lastDate: history[0].invoiceDate,
-      };
+        // "previous" = latest entry BEFORE the selected month
+        const previousRows = await db
+          .select({
+            unitPrice: invoiceItemsTable.unitPrice,
+            invoiceDate: invoicesTable.invoiceDate,
+            supplierName: suppliersTable.name,
+          })
+          .from(invoiceItemsTable)
+          .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
+          .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+          .where(and(baseWhere, sql`${invoicesTable.invoiceDate} < ${mStart}`))
+          .orderBy(desc(invoicesTable.invoiceDate))
+          .limit(1);
+
+        if (!previousRows.length) return null;
+
+        const current = toNum(currentRows[0].unitPrice);
+        const previous = toNum(previousRows[0].unitPrice);
+        const changePercent = ((current - previous) / previous) * 100;
+
+        return {
+          productId: product.id,
+          productName: product.name,
+          unit: product.unit,
+          currentPrice: current,
+          previousPrice: previous,
+          changePercent: Math.abs(changePercent),
+          changeDirection: changePercent >= 0 ? "up" : "down",
+          supplierName: currentRows[0].supplierName,
+          lastDate: currentRows[0].invoiceDate,
+        };
+      } else {
+        // No month filter — compare last 2 entries globally
+        const history = await db
+          .select({
+            unitPrice: invoiceItemsTable.unitPrice,
+            invoiceDate: invoicesTable.invoiceDate,
+            supplierName: suppliersTable.name,
+          })
+          .from(invoiceItemsTable)
+          .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
+          .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+          .where(baseWhere)
+          .orderBy(desc(invoicesTable.invoiceDate))
+          .limit(2);
+
+        if (history.length < 2) return null;
+
+        const current = toNum(history[0].unitPrice);
+        const previous = toNum(history[1].unitPrice);
+        const changePercent = ((current - previous) / previous) * 100;
+
+        return {
+          productId: product.id,
+          productName: product.name,
+          unit: product.unit,
+          currentPrice: current,
+          previousPrice: previous,
+          changePercent: Math.abs(changePercent),
+          changeDirection: changePercent >= 0 ? "up" : "down",
+          supplierName: history[0].supplierName,
+          lastDate: history[0].invoiceDate,
+        };
+      }
     }),
   );
 
