@@ -33,8 +33,8 @@ import { CATEGORIES, categorizeProduct } from "@/lib/categories";
 import { PriceHistoryModal } from "./products";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { usePeriod, periodToDays, periodToMonths } from "@/hooks/use-period";
-import { PeriodSelector } from "@/components/period-selector";
+import { currentMonth } from "@/lib/month";
+import { MonthNavigator } from "@/components/month-navigator";
 
 function StatCard({
   label,
@@ -100,16 +100,13 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { period, setPeriod } = usePeriod();
+  const [month, setMonth] = useState(() => currentMonth());
 
-  // For "month" use calendar-month logic (no days param → backend defaults to 1st of current month).
-  // For quarter/year use rolling window so the comparison makes sense.
-  const summaryDays = period === "month" ? undefined : periodToDays(period);
-  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useGetDashboardSummary({ days: summaryDays });
-  const { data: monthly, isLoading: monthlyLoading, isError: monthlyError } = useGetFoodCostMonthly({ months: periodToMonths(period) });
-  const { data: recent, isLoading: recentLoading, isError: recentError } = useGetRecentPurchases({ limit: 8, days: periodToDays(period) });
+  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useGetDashboardSummary({ month });
+  const { data: monthly, isLoading: monthlyLoading, isError: monthlyError } = useGetFoodCostMonthly({ months: 12 });
+  const { data: recent, isLoading: recentLoading, isError: recentError } = useGetRecentPurchases({ limit: 8, month });
   const { data: activeAlerts } = useGetDashboardActiveAlerts();
-  const { data: topChanges } = useGetTopPriceChanges({ limit: 100, days: periodToDays(period) });
+  const { data: topChanges } = useGetTopPriceChanges({ limit: 100, month });
   const { data: config } = useGetKsefConfig();
   const { data: pendingList } = useListKsefPending({ status: "pending" });
   const { data: suppliers } = useListSuppliers();
@@ -231,7 +228,7 @@ export default function Dashboard() {
           subtitle="Przegląd kosztów i zmian cen surowców"
           action={
             <div className="flex items-center gap-2">
-              <PeriodSelector period={period} onChange={setPeriod} />
+              <MonthNavigator month={month} onChange={setMonth} />
               {config ? (
                 <Button
                   variant="outline"
@@ -357,7 +354,7 @@ export default function Dashboard() {
           ) : summary ? (
             <>
               <StatCard
-                label={period === "month" ? "Wydatki w tym miesiącu" : period === "quarter" ? "Wydatki (ostatnie 3 mies.)" : "Wydatki (ostatni rok)"}
+                label="Wydatki w miesiącu"
                 value={formatPrice(summary.totalSpendThisMonth)}
                 change={summary.spendChangePercent}
                 icon={FileText}
@@ -445,7 +442,7 @@ export default function Dashboard() {
               <Skeleton className="h-48 w-full rounded-lg" />
             ) : monthly && monthly.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={monthly} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <BarChart data={[...monthly].reverse()} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="label"

@@ -16,8 +16,8 @@ import {
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
 } from "@workspace/api-client-react";
-import { usePeriod, periodToDays, PERIOD_LABELS } from "@/hooks/use-period";
-import { PeriodSelector } from "@/components/period-selector";
+import { currentMonth } from "@/lib/month";
+import { MonthNavigator } from "@/components/month-navigator";
 import { categorizeProduct } from "@/lib/categories";
 import type { CategoryItem } from "@workspace/api-client-react";
 import {
@@ -991,10 +991,10 @@ function CategoryBadge({
 
 export default function Products() {
   const queryClient = useQueryClient();
-  const { period, setPeriod } = usePeriod();
-  const { data: products, isLoading, isError } = useListProducts({ days: periodToDays(period) });
+  const [month, setMonth] = useState(() => currentMonth());
+  const { data: products, isLoading, isError } = useListProducts({ month });
   const { data: suppliers } = useListSuppliers();
-  const { data: spendItems } = useGetCategorySpend({ days: periodToDays(period) });
+  const { data: spendItems } = useGetCategorySpend({ month });
   const { data: categories } = useListCategories();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");
@@ -1073,7 +1073,7 @@ export default function Products() {
         <PageHeader
           title="Produkty"
           subtitle="Ceny surowców i historia zmian"
-          action={<PeriodSelector period={period} onChange={setPeriod} />}
+          action={<MonthNavigator month={month} onChange={setMonth} />}
         />
 
         {/* Category spend summary */}
@@ -1471,7 +1471,7 @@ export default function Products() {
             <div className="text-right w-24">Zmiana</div>
             <div className="text-right w-28">
               <div>Ilość</div>
-              <div className="text-[10px] font-normal text-muted-foreground/70">{PERIOD_LABELS[period]}</div>
+              <div className="text-[10px] font-normal text-muted-foreground/70">miesiąc</div>
             </div>
             <div className="text-right w-32">Ostatni zakup</div>
             <div className="w-24" />

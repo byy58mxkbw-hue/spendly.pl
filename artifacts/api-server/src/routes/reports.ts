@@ -386,6 +386,19 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const daysRaw = parseInt(String(req.query.days ?? ""), 10);
   const days = Number.isFinite(daysRaw) && daysRaw > 0 ? daysRaw : null;
+  const month = typeof req.query.month === "string" && /^\d{4}-\d{2}$/.test(req.query.month) ? req.query.month : null;
+
+  let dateCondition;
+  if (month) {
+    const [y, m] = month.split("-").map(Number);
+    const mStart = new Date(y, m - 1, 1).toISOString().split("T")[0];
+    const mEnd = new Date(y, m, 1).toISOString().split("T")[0];
+    dateCondition = sql`AND i.invoice_date >= ${mStart} AND i.invoice_date < ${mEnd}`;
+  } else if (days) {
+    dateCondition = sql`AND i.invoice_date >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')`;
+  } else {
+    dateCondition = sql.raw("");
+  }
 
   const result = await db.execute(sql`
     SELECT
@@ -396,7 +409,7 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
     INNER JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
-      ${days ? sql`AND i.invoice_date >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')` : sql.raw("")}
+      ${dateCondition}
     GROUP BY COALESCE(p.name, ii.product_name), p.category
     ORDER BY total_spend DESC
   `);

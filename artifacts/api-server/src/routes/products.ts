@@ -20,6 +20,11 @@ import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
 
 const router: IRouter = Router();
 
+function monthEnd(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m, 1).toISOString().split("T")[0];
+}
+
 router.get("/products", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const queryParams = ListProductsQueryParams.safeParse(req.query);
@@ -28,7 +33,7 @@ router.get("/products", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, category, days } = queryParams.data;
+  const { supplierId, category, days, month } = queryParams.data;
 
   const products = await db
     .select({
@@ -58,7 +63,9 @@ router.get("/products", async (req, res): Promise<void> => {
             eq(invoiceItemsTable.productId, product.id),
             eq(invoicesTable.userId, userId),
             supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
-            days
+            month
+              ? sql`${invoicesTable.invoiceDate} >= ${month + "-01"} AND ${invoicesTable.invoiceDate} < ${(() => { const [y, m2] = month.split("-").map(Number); return new Date(y, m2, 1).toISOString().split("T")[0]; })()}`
+              : days
               ? sql`${invoicesTable.invoiceDate} >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')`
               : undefined,
           ),
@@ -80,7 +87,9 @@ router.get("/products", async (req, res): Promise<void> => {
           and(
             eq(invoiceItemsTable.productId, product.id),
             eq(invoicesTable.userId, userId),
-            days
+            month
+              ? sql`${invoicesTable.invoiceDate} >= ${month + "-01"} AND ${invoicesTable.invoiceDate} < ${(() => { const [y, m2] = month.split("-").map(Number); return new Date(y, m2, 1).toISOString().split("T")[0]; })()}`
+              : days
               ? sql`${invoicesTable.invoiceDate} >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')`
               : undefined,
           ),
@@ -123,6 +132,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
   }
 
   const limit = queryParams.data.limit ?? 10;
+  const topMonth = queryParams.data.month;
 
   const products = await db
     .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit })
@@ -140,7 +150,13 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
         .from(invoiceItemsTable)
         .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
         .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-        .where(and(eq(invoiceItemsTable.productId, product.id), eq(invoicesTable.userId, userId)))
+        .where(
+          and(
+            eq(invoiceItemsTable.productId, product.id),
+            eq(invoicesTable.userId, userId),
+            topMonth ? sql`${invoicesTable.invoiceDate} < ${monthEnd(topMonth)}` : undefined,
+          ),
+        )
         .orderBy(desc(invoicesTable.invoiceDate))
         .limit(2);
 

@@ -8,7 +8,7 @@ import {
   productsTable,
   priceAlertsTable,
 } from "@workspace/db";
-import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams, GetDashboardSummaryQueryParams } from "@workspace/api-zod";
+import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams, GetDashboardSummaryQueryParams, GetTopPriceChangesQueryParams } from "@workspace/api-zod";
 import { toNum } from "../lib/parse";
 import { computeTriggeredAlerts } from "../services/alert-checker";
 
@@ -21,23 +21,32 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     res.status(400).json({ error: queryParams.error.message });
     return;
   }
-  const days = queryParams.data.days;
+  const { days, month } = queryParams.data;
 
   const now = new Date();
 
-  // Period boundaries — either last N days or calendar month
+  // Period boundaries — month param takes priority, then days, then current calendar month
   let periodStart: string;
+  let periodEnd: string | null;
   let prevPeriodStart: string;
   let prevPeriodEnd: string;
 
-  if (days) {
+  if (month) {
+    const [y, m] = month.split("-").map(Number);
+    periodStart = new Date(y, m - 1, 1).toISOString().split("T")[0];
+    periodEnd = new Date(y, m, 1).toISOString().split("T")[0];
+    prevPeriodStart = new Date(y, m - 2, 1).toISOString().split("T")[0];
+    prevPeriodEnd = periodStart;
+  } else if (days) {
     const start = new Date(now.getTime() - days * 86400000);
     const prevStart = new Date(start.getTime() - days * 86400000);
     periodStart = start.toISOString().split("T")[0];
+    periodEnd = null;
     prevPeriodStart = prevStart.toISOString().split("T")[0];
     prevPeriodEnd = start.toISOString().split("T")[0];
   } else {
     periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+    periodEnd = null;
     prevPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
     prevPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split("T")[0];
   }
@@ -59,7 +68,13 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-    .where(and(eq(invoicesTable.userId, userId), gte(invoicesTable.invoiceDate, periodStart)));
+    .where(
+      and(
+        eq(invoicesTable.userId, userId),
+        gte(invoicesTable.invoiceDate, periodStart),
+        periodEnd ? sql`${invoicesTable.invoiceDate} < ${periodEnd}` : undefined,
+      ),
+    );
 
   const [prevPeriodSpend] = await db
     .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
@@ -156,7 +171,7 @@ router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
     GROUP BY 1, 2, 3, 4
-    ORDER BY 1
+    ORDER BY 1 DESC
     LIMIT ${sql.raw(String(months))}
   `);
 
@@ -180,11 +195,19 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
   }
 
   const limit = Math.min(queryParams.data.limit ?? 10, 100);
-  const days = queryParams.data.days;
+  const { days, month } = queryParams.data;
 
-  const dateFilter = days
-    ? sql`${invoicesTable.invoiceDate} >= to_char(current_date - ${sql.raw(String(days))} * interval '1 day', 'YYYY-MM-DD')`
-    : sql`1=1`;
+  let dateFilter;
+  if (month) {
+    const [y, m] = month.split("-").map(Number);
+    const mStart = new Date(y, m - 1, 1).toISOString().split("T")[0];
+    const mEnd = new Date(y, m, 1).toISOString().split("T")[0];
+    dateFilter = sql`${invoicesTable.invoiceDate} >= ${mStart} AND ${invoicesTable.invoiceDate} < ${mEnd}`;
+  } else if (days) {
+    dateFilter = sql`${invoicesTable.invoiceDate} >= to_char(current_date - ${sql.raw(String(days))} * interval '1 day', 'YYYY-MM-DD')`;
+  } else {
+    dateFilter = sql`1=1`;
+  }
 
   const recentItems = await db
     .select({

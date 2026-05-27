@@ -632,6 +632,10 @@ export type ListProductsParams = {
    * If set, limits price history to the last N days when computing previousPrice and changePercent
    */
   days?: number;
+  /**
+   * Month in YYYY-MM format (takes priority over days)
+   */
+  month?: string;
 };
 
 export type GetProductPriceHistoryParams = {
@@ -642,6 +646,10 @@ export type GetProductPriceHistoryParams = {
 export type GetTopPriceChangesParams = {
   limit?: number;
   days?: number;
+  /**
+   * Month in YYYY-MM format (takes priority over days)
+   */
+  month?: string;
 };
 
 export type ListInvoicesParams = {
@@ -659,6 +667,10 @@ export type GetDashboardSummaryParams = {
    * If set, summarize spend over the last N days instead of calendar month
    */
   days?: number;
+  /**
+   * Month in YYYY-MM format. If set, summarizes spend for that specific calendar month (takes priority over days).
+   */
+  month?: string;
 };
 
 export type GetFoodCostMonthlyParams = {
@@ -675,6 +687,10 @@ export type GetRecentPurchasesParams = {
    * If set, only return purchases from the last N days
    */
   days?: number;
+  /**
+   * Month in YYYY-MM format (takes priority over days)
+   */
+  month?: string;
 };
 
 export type GetMonthlyReportParams = {
@@ -690,6 +706,10 @@ export type GetCategorySpendParams = {
    * @minimum 1
    */
   days?: number;
+  /**
+   * Month in YYYY-MM format (takes priority over days)
+   */
+  month?: string;
 };
 
 export type GetPredictiveReportParams = {

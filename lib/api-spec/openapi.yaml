@@ -345,6 +345,12 @@ paths:
           schema:
             type: integer
           description: If set, limits price history to the last N days when computing previousPrice and changePercent
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Month in YYYY-MM format (takes priority over days)"
       responses:
         "200":
           description: List of products
@@ -545,6 +551,12 @@ paths:
           required: false
           schema:
             type: integer
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Month in YYYY-MM format (takes priority over days)"
       responses:
         "200":
           description: Top price change products
@@ -780,6 +792,12 @@ paths:
           schema:
             type: integer
           description: If set, summarize spend over the last N days instead of calendar month
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Month in YYYY-MM format. If set, summarizes spend for that specific calendar month (takes priority over days)."
       responses:
         "200":
           description: Dashboard summary
@@ -828,6 +846,12 @@ paths:
           schema:
             type: integer
           description: If set, only return purchases from the last N days
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Month in YYYY-MM format (takes priority over days)"
       responses:
         "200":
           description: Recent purchases
@@ -871,6 +895,12 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Month in YYYY-MM format (takes priority over days)"
       responses:
         "200":
           description: Category spend breakdown

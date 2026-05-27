@@ -257,6 +257,10 @@ export const ListProductsQueryParams = zod.object({
     .describe(
       "If set, limits price history to the last N days when computing previousPrice and changePercent",
     ),
+  month: zod.coerce
+    .string()
+    .optional()
+    .describe("Month in YYYY-MM format (takes priority over days)"),
 });
 
 export const ListProductsResponseItem = zod.object({
@@ -411,6 +415,10 @@ export const DeleteCategoryParams = zod.object({
 export const GetTopPriceChangesQueryParams = zod.object({
   limit: zod.coerce.number().optional(),
   days: zod.coerce.number().optional(),
+  month: zod.coerce
+    .string()
+    .optional()
+    .describe("Month in YYYY-MM format (takes priority over days)"),
 });
 
 export const GetTopPriceChangesResponseItem = zod.object({
@@ -608,6 +616,12 @@ export const GetDashboardSummaryQueryParams = zod.object({
     .describe(
       "If set, summarize spend over the last N days instead of calendar month",
     ),
+  month: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Month in YYYY-MM format. If set, summarizes spend for that specific calendar month (takes priority over days).",
+    ),
 });
 
 export const GetDashboardSummaryResponse = zod.object({
@@ -655,6 +669,10 @@ export const GetRecentPurchasesQueryParams = zod.object({
     .number()
     .optional()
     .describe("If set, only return purchases from the last N days"),
+  month: zod.coerce
+    .string()
+    .optional()
+    .describe("Month in YYYY-MM format (takes priority over days)"),
 });
 
 export const GetRecentPurchasesResponseItem = zod.object({
@@ -735,6 +753,10 @@ export const GetCategorySpendQueryParams = zod.object({
     .describe(
       "Lookback window in days (e.g. 30 for last month). Omit for all-time data.",
     ),
+  month: zod.coerce
+    .string()
+    .optional()
+    .describe("Month in YYYY-MM format (takes priority over days)"),
 });
 
 export const GetCategorySpendResponseItem = zod.object({
