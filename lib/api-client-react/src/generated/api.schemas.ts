@@ -402,6 +402,14 @@ export interface CategorySpendItem {
   totalSpend: number;
 }
 
+export interface CategorySpendTrendRow {
+  /** Month in YYYY-MM format */
+  month: string;
+  /** Category id (null means uncategorized) */
+  category?: string | null;
+  totalSpend: number;
+}
+
 export interface PredictiveReport {
   horizonDays: number;
   generatedAt: string;
@@ -747,6 +755,15 @@ export type GetCategorySpendParams = {
    * Month in YYYY-MM format (takes priority over days)
    */
   month?: string;
+};
+
+export type GetCategorySpendTrendParams = {
+  /**
+   * Number of months to include (default 6, max 12)
+   * @minimum 2
+   * @maximum 12
+   */
+  months?: number;
 };
 
 export type GetPredictiveReportParams = {

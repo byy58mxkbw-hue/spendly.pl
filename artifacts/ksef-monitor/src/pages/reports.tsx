@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
 import { Layout, PageHeader } from "@/components/layout";
-import { useGetMonthlyReport, useGetCategorySpend } from "@workspace/api-client-react";
+import { useGetMonthlyReport, useGetCategorySpend, useGetCategorySpendTrend } from "@workspace/api-client-react";
 import type { CategorySpendItem } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import {
   ChevronLeft, ChevronRight, ShoppingCart, FileText, Package,
@@ -496,6 +497,166 @@ function CategorySpendSection({ month }: { month: string }) {
   );
 }
 
+// ─── Category spend trend chart ───────────────────────────────────────────────
+
+function shortMonthLabel(month: string) {
+  const [year, m] = month.split("-");
+  const names = ["Sty","Lut","Mar","Kwi","Maj","Cze","Lip","Sie","Wrz","Paź","Lis","Gru"];
+  return `${names[parseInt(m) - 1]} '${year.slice(2)}`;
+}
+
+function CategorySpendTrendSection() {
+  const { data, isLoading } = useGetCategorySpendTrend(
+    { months: 6 },
+    { query: { queryKey: ["category-spend-trend", 6] } },
+  );
+
+  // Build sorted list of all categories by total spend across all months
+  const allCategories = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const totals = new Map<string, number>();
+    for (const row of data) {
+      const cat = row.category ?? "inne";
+      totals.set(cat, (totals.get(cat) ?? 0) + row.totalSpend);
+    }
+    return Array.from(totals.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([id]) => id);
+  }, [data]);
+
+  // Default selection: top 5 categories
+  const [selected, setSelected] = useState<Set<string> | null>(null);
+  const activeSelected: Set<string> = selected ?? new Set(allCategories.slice(0, 5));
+
+  // Build chart data: one entry per month
+  const chartData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    // Collect all months in order
+    const monthSet = new Set<string>();
+    for (const row of data) monthSet.add(row.month);
+    const months = Array.from(monthSet).sort();
+
+    return months.map((month) => {
+      const entry: Record<string, string | number> = { month, label: shortMonthLabel(month) };
+      for (const row of data) {
+        if (row.month === month) {
+          const cat = row.category ?? "inne";
+          entry[cat] = (entry[cat] as number ?? 0) + row.totalSpend;
+        }
+      }
+      return entry;
+    });
+  }, [data]);
+
+  const toggleCategory = (id: string) => {
+    const base = selected ?? new Set(allCategories.slice(0, 5));
+    const next = new Set(base);
+    if (next.has(id)) {
+      if (next.size > 1) next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelected(next);
+  };
+
+  if (isLoading) {
+    return <Skeleton className="h-72 rounded-xl mb-6 md:mb-8" />;
+  }
+  if (!data || data.length === 0 || allCategories.length === 0) return null;
+
+  const visibleCategories = allCategories.filter((id) => activeSelected.has(id));
+
+  return (
+    <div className="mb-6 md:mb-8">
+      <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+        <Package className="w-4 h-4 text-primary" />
+        Trend wydatków według kategorii
+      </p>
+
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        {/* Category selector pills */}
+        <div className="px-4 pt-4 pb-3 md:px-6 flex flex-wrap gap-2 border-b border-border">
+          {allCategories.map((id, i) => {
+            const catDef = CATEGORIES.find((c) => c.id === id);
+            const label = catDef?.label ?? "Inne";
+            const emoji = catDef?.emoji ?? "📦";
+            const isActive = activeSelected.has(id);
+            const color = COLORS[i % COLORS.length];
+            return (
+              <button
+                key={id}
+                onClick={() => toggleCategory(id)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border",
+                  isActive
+                    ? "text-white border-transparent"
+                    : "bg-transparent text-muted-foreground border-border hover:border-foreground/30",
+                )}
+                style={isActive ? { background: color, borderColor: color } : {}}
+              >
+                <span>{emoji}</span>
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Line chart */}
+        <div className="px-2 pt-4 pb-2 md:px-4">
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={chartData} margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: number) =>
+                  v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(Math.round(v))
+                }
+                width={48}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
+                formatter={(value: number, name: string) => {
+                  const catDef = CATEGORIES.find((c) => c.id === name);
+                  const label = catDef ? `${catDef.emoji} ${catDef.label}` : name;
+                  return [new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(value), label];
+                }}
+              />
+              {visibleCategories.map((id, i) => {
+                const colorIdx = allCategories.indexOf(id);
+                return (
+                  <Line
+                    key={id}
+                    type="monotone"
+                    dataKey={id}
+                    stroke={COLORS[colorIdx % COLORS.length]}
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: COLORS[colorIdx % COLORS.length] }}
+                    activeDot={{ r: 5 }}
+                    connectNulls
+                  />
+                );
+              })}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function Reports() {
@@ -615,6 +776,11 @@ export default function Reports() {
         {/* Category spend — only in month mode */}
         {viewMode === "month" && !isLoading && data && data.topProducts.length > 0 && (
           <CategorySpendSection month={month} />
+        )}
+
+        {/* Category spend trend — only in month mode */}
+        {viewMode === "month" && !isLoading && data && data.topProducts.length > 0 && (
+          <CategorySpendTrendSection />
         )}
 
         {/* Per-supplier reports */}

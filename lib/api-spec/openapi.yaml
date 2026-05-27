@@ -930,6 +930,30 @@ paths:
                 items:
                   $ref: "#/components/schemas/CategorySpendItem"
 
+  /reports/category-spend-trend:
+    get:
+      operationId: getCategorySpendTrend
+      tags: [reports]
+      summary: Get monthly spend per category for the last N months
+      parameters:
+        - name: months
+          in: query
+          required: false
+          description: "Number of months to include (default 6, max 12)"
+          schema:
+            type: integer
+            minimum: 2
+            maximum: 12
+      responses:
+        "200":
+          description: Monthly category spend trend
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategorySpendTrendRow"
+
   /reports/predictive:
     get:
       operationId: getPredictiveReport
@@ -1967,6 +1991,22 @@ components:
           type: number
       required:
         - productName
+        - totalSpend
+
+    CategorySpendTrendRow:
+      type: object
+      properties:
+        month:
+          type: string
+          description: "Month in YYYY-MM format"
+        category:
+          type: string
+          nullable: true
+          description: "Category id (null means uncategorized)"
+        totalSpend:
+          type: number
+      required:
+        - month
         - totalSpend
 
     PredictiveReport:

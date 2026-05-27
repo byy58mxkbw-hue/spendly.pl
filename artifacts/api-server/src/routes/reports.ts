@@ -427,4 +427,54 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
   })));
 });
 
+router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const monthsRaw = parseInt(String(req.query.months ?? ""), 10);
+  const monthCount = Number.isFinite(monthsRaw) && monthsRaw >= 2 && monthsRaw <= 12 ? monthsRaw : 6;
+
+  // Build list of YYYY-MM month strings going back monthCount months from current
+  const now = new Date();
+  const monthList: string[] = [];
+  for (let i = monthCount - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthList.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  const earliest = monthList[0];
+  const latest = monthList[monthList.length - 1];
+
+  // Compute date range: from start of earliest month to end of latest month
+  const [ey, em] = earliest.split("-").map(Number);
+  const [ly, lm] = latest.split("-").map(Number);
+  const rangeStart = new Date(ey, em - 1, 1).toISOString().split("T")[0];
+  const rangeEnd = new Date(ly, lm, 1).toISOString().split("T")[0]; // exclusive
+
+  const result = await db.execute(sql`
+    SELECT
+      substring(i.invoice_date, 1, 7) AS month,
+      p.category,
+      SUM(ii.total_price::numeric)::float AS total_spend
+    FROM invoice_items ii
+    INNER JOIN invoices i ON ii.invoice_id = i.id
+    LEFT JOIN products p ON ii.product_id = p.id
+    WHERE i.user_id = ${userId}
+      AND i.invoice_date >= ${rangeStart}
+      AND i.invoice_date < ${rangeEnd}
+    GROUP BY 1, 2
+    ORDER BY 1, total_spend DESC
+  `);
+
+  const rows = result.rows as Array<{
+    month: string;
+    category: string | null;
+    total_spend: number;
+  }>;
+
+  res.json(rows.map((r) => ({
+    month: r.month,
+    category: r.category ?? null,
+    totalSpend: toNum(r.total_spend),
+  })));
+});
+
 export default router;

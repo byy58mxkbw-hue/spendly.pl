@@ -807,6 +807,33 @@ export const GetCategorySpendResponseItem = zod.object({
 export const GetCategorySpendResponse = zod.array(GetCategorySpendResponseItem);
 
 /**
+ * @summary Get monthly spend per category for the last N months
+ */
+export const getCategorySpendTrendQueryMonthsMin = 2;
+export const getCategorySpendTrendQueryMonthsMax = 12;
+
+export const GetCategorySpendTrendQueryParams = zod.object({
+  months: zod.coerce
+    .number()
+    .min(getCategorySpendTrendQueryMonthsMin)
+    .max(getCategorySpendTrendQueryMonthsMax)
+    .optional()
+    .describe("Number of months to include (default 6, max 12)"),
+});
+
+export const GetCategorySpendTrendResponseItem = zod.object({
+  month: zod.string().describe("Month in YYYY-MM format"),
+  category: zod
+    .string()
+    .nullish()
+    .describe("Category id (null means uncategorized)"),
+  totalSpend: zod.number(),
+});
+export const GetCategorySpendTrendResponse = zod.array(
+  GetCategorySpendTrendResponseItem,
+);
+
+/**
  * @summary Predict next-month spend and per-product price changes based on historical trend
  */
 export const getPredictiveReportQueryHorizonDaysMin = 7;
