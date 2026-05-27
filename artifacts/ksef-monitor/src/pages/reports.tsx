@@ -138,7 +138,7 @@ function QuantityChangeMini({
 
 // ─── Supplier card ────────────────────────────────────────────────────────────
 
-function SupplierCard({ supplier, rank }: {
+function SupplierCard({ supplier, rank, totalAllSpend }: {
   supplier: {
     supplierId: number;
     supplierName: string;
@@ -156,104 +156,132 @@ function SupplierCard({ supplier, rank }: {
     }>;
   };
   rank: number;
+  totalAllSpend: number;
 }) {
-  const [expanded, setExpanded] = useState(rank === 0);
-  const topProducts = supplier.topProducts.slice(0, expanded ? 15 : 5);
+  const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  const pct = totalAllSpend > 0 ? (supplier.totalSpend / totalAllSpend) * 100 : 0;
+  const color = COLORS[rank % COLORS.length];
+  const visibleProducts = supplier.topProducts.slice(0, showAll ? 15 : 5);
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
-      {/* Header row */}
-      <div className="px-4 md:px-6 py-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
-            style={{ background: COLORS[rank % COLORS.length] }}
-          >
-            {rank + 1}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{supplier.supplierName}</p>
-            <p className="text-xs text-muted-foreground">
-              {supplier.invoiceCount} {supplier.invoiceCount === 1 ? "faktura" : supplier.invoiceCount < 5 ? "faktury" : "faktur"} · {supplier.productCount} produktów
-            </p>
-          </div>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-lg font-bold text-foreground">{formatPrice(supplier.totalSpend)}</p>
-        </div>
-      </div>
-
-      {/* Mobile product list */}
-      <div className="md:hidden border-t border-border">
-        <div className="divide-y divide-border">
-          {topProducts.map((p, i) => (
-            <div key={i} className="px-4 py-3 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground truncate">{p.productName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-sm font-semibold text-foreground">{formatPrice(p.totalCost)}</p>
-                <div className="flex items-center justify-end gap-1 mt-0.5">
-                  <span className="text-[11px] text-muted-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
-                  <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
-                  <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
-                </div>
-              </div>
+      {/* Clickable header */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left px-4 md:px-6 pt-4 pb-3 hover:bg-secondary/20 transition-colors"
+      >
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+              style={{ background: color }}
+            >
+              {rank + 1}
             </div>
-          ))}
-        </div>
-        {supplier.topProducts.length > 5 && (
-          <button
-            className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 border-t border-border bg-secondary/20 active:bg-secondary/40 transition-colors"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded
-              ? <><ChevronUp className="w-3.5 h-3.5" />Zwiń</>
-              : <><ChevronDown className="w-3.5 h-3.5" />Pokaż wszystkie ({supplier.topProducts.length})</>}
-          </button>
-        )}
-      </div>
-
-      {/* Desktop product table */}
-      <div className="hidden md:block border-t border-border overflow-x-auto">
-        <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-6 min-w-[560px] py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
-          <div>Produkt</div>
-          <div className="text-right w-20">Ilość</div>
-          <div className="text-right w-36">Śr. cena</div>
-          <div className="text-right w-28">Łącznie</div>
-        </div>
-        <div className="divide-y divide-border">
-          {topProducts.map((p, i) => (
-            <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-6 min-w-[560px] py-2.5 items-center">
-              <p className="text-sm text-foreground truncate pr-2">{p.productName}</p>
-              <p className="text-sm text-muted-foreground text-right w-20">
-                {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">{supplier.supplierName}</p>
+              <p className="text-xs text-muted-foreground">
+                {supplier.invoiceCount} {supplier.invoiceCount === 1 ? "faktura" : supplier.invoiceCount < 5 ? "faktury" : "faktur"} · {supplier.productCount} produktów
               </p>
-              <div className="text-right w-36 flex flex-col items-end gap-0.5">
-                <span className="text-sm text-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
-                <div className="flex items-center gap-1">
-                  <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
-                  <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
-                </div>
-              </div>
-              <p className="text-sm font-semibold text-foreground text-right w-28">{formatPrice(p.totalCost)}</p>
             </div>
-          ))}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="text-right">
+              <p className="text-base font-bold text-foreground">{formatPrice(supplier.totalSpend)}</p>
+              <p className="text-xs text-muted-foreground">{pct.toFixed(1)}% budżetu</p>
+            </div>
+            {open
+              ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </div>
         </div>
-        {supplier.topProducts.length > 5 && (
-          <button
-            className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 border-t border-border hover:bg-secondary/30 transition-colors"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded
-              ? <><ChevronUp className="w-3.5 h-3.5" />Zwiń</>
-              : <><ChevronDown className="w-3.5 h-3.5" />Pokaż wszystkie ({supplier.topProducts.length})</>}
-          </button>
-        )}
-      </div>
+        {/* Progress bar */}
+        <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${pct}%`, background: color }}
+          />
+        </div>
+      </button>
+
+      {/* Product list — shown when open */}
+      {open && (
+        <>
+          {/* Mobile list */}
+          <div className="md:hidden border-t border-border">
+            <div className="divide-y divide-border">
+              {visibleProducts.map((p, i) => (
+                <div key={i} className="px-4 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground truncate">{p.productName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-foreground">{formatPrice(p.totalCost)}</p>
+                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                      <span className="text-[11px] text-muted-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
+                      <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                      <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {supplier.topProducts.length > 5 && (
+              <button
+                className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 border-t border-border bg-secondary/20 active:bg-secondary/40 transition-colors"
+                onClick={(e) => { e.stopPropagation(); setShowAll((v) => !v); }}
+              >
+                {showAll
+                  ? <><ChevronUp className="w-3.5 h-3.5" />Zwiń</>
+                  : <><ChevronDown className="w-3.5 h-3.5" />Pokaż wszystkie ({supplier.topProducts.length})</>}
+              </button>
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block border-t border-border overflow-x-auto">
+            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-6 min-w-[560px] py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
+              <div>Produkt</div>
+              <div className="text-right w-20">Ilość</div>
+              <div className="text-right w-36">Śr. cena</div>
+              <div className="text-right w-28">Łącznie</div>
+            </div>
+            <div className="divide-y divide-border">
+              {visibleProducts.map((p, i) => (
+                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-6 min-w-[560px] py-2.5 items-center">
+                  <p className="text-sm text-foreground truncate pr-2">{p.productName}</p>
+                  <p className="text-sm text-muted-foreground text-right w-20">
+                    {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
+                  </p>
+                  <div className="text-right w-36 flex flex-col items-end gap-0.5">
+                    <span className="text-sm text-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
+                    <div className="flex items-center gap-1">
+                      <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                      <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground text-right w-28">{formatPrice(p.totalCost)}</p>
+                </div>
+              ))}
+            </div>
+            {supplier.topProducts.length > 5 && (
+              <button
+                className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 border-t border-border hover:bg-secondary/30 transition-colors"
+                onClick={(e) => { e.stopPropagation(); setShowAll((v) => !v); }}
+              >
+                {showAll
+                  ? <><ChevronUp className="w-3.5 h-3.5" />Zwiń</>
+                  : <><ChevronDown className="w-3.5 h-3.5" />Pokaż wszystkie ({supplier.topProducts.length})</>}
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -872,7 +900,7 @@ export default function Reports() {
           <div className="space-y-4">
             <p className="text-sm font-semibold text-foreground">Raport per dostawca</p>
             {data.suppliers.map((supplier, i) => (
-              <SupplierCard key={supplier.supplierId} supplier={supplier} rank={i} />
+              <SupplierCard key={supplier.supplierId} supplier={supplier} rank={i} totalAllSpend={data.totalSpend} />
             ))}
           </div>
         ) : !isLoading ? (
