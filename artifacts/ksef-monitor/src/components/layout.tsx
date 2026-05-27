@@ -62,8 +62,7 @@ function SidebarContent({
     <>
       <div className="px-5 py-5 border-b border-border">
         <div className="flex items-center gap-2.5">
-          <img src="/logo.svg" alt="CheckIT" className="w-8 h-8 rounded-lg" />
-          <span className="text-foreground text-lg tracking-tight font-extrabold">CheckIT</span>
+          <span className="text-foreground text-xl tracking-tighter font-black text-primary">SPENDLY</span>
         </div>
       </div>
 

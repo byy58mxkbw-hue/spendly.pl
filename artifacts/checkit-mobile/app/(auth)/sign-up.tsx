@@ -61,7 +61,7 @@ export default function SignUpPage() {
       >
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           <View style={s.header}>
-            <Text style={s.logo}>CheckIT</Text>
+            <Text style={s.logo}>SPENDLY</Text>
             <Text style={s.subtitle}>Zweryfikuj adres e-mail</Text>
           </View>
           <View style={s.form}>
@@ -116,7 +116,7 @@ export default function SignUpPage() {
     >
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <View style={s.header}>
-          <Text style={s.logo}>CheckIT</Text>
+          <Text style={s.logo}>SPENDLY</Text>
           <Text style={s.subtitle}>Utwórz konto</Text>
         </View>
 

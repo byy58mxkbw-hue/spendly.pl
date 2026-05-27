@@ -1,4 +1,4 @@
-# CheckIT
+# SPENDLY
 
 Aplikacja SaaS dla restauracji do monitorowania cen surowców z faktur KSeF. Właściciel restauracji importuje faktury od swoich dostawców, śledzi zmiany cen składników i reaguje na podwyżki zanim uderzą w food cost.
 

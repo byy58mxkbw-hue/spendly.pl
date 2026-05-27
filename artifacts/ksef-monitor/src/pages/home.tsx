@@ -56,8 +56,7 @@ function AppMockup() {
         {/* Card header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-secondary/30">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.svg" alt="CheckIT" className="w-6 h-6 rounded-md" />
-            <span className="text-sm font-semibold text-foreground">CheckIT</span>
+            <span className="text-sm font-black tracking-tighter text-primary">SPENDLY</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
@@ -140,10 +139,7 @@ export default function Home() {
       {/* ─── Nav ─────────────────────────────────────────────────────────── */}
       <header className="border-b border-border bg-background/90 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.svg" alt="CheckIT" className="w-8 h-8 rounded-lg" />
-            <span className="font-extrabold text-foreground text-lg tracking-tight">CheckIT</span>
-          </div>
+          <span className="font-black text-xl tracking-tighter text-primary">SPENDLY</span>
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
             <a href="#jak-to-dziala" className="hover:text-foreground transition-colors">Jak to działa</a>
             <a href="#funkcje" className="hover:text-foreground transition-colors">Funkcje</a>
@@ -154,15 +150,16 @@ export default function Home() {
               <Button variant="ghost" size="sm" data-testid="btn-signin">Zaloguj</Button>
             </Link>
             <Link href="/sign-up">
-              <Button size="sm" className="gap-1.5 text-right" data-testid="btn-signup">
+              <Button size="sm" className="gap-1.5" data-testid="btn-signup">
                 Zacznij za darmo
               </Button>
             </Link>
           </div>
         </div>
       </header>
+
       {/* ─── Hero ────────────────────────────────────────────────────────── */}
-      <section className="max-w-6xl mx-auto px-6 pt-12 pb-10 md:pt-20 md:pb-28">
+      <section className="max-w-6xl mx-auto px-6 pt-14 pb-10 md:pt-24 md:pb-28">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left */}
           <div>
@@ -181,19 +178,19 @@ export default function Home() {
               initial="hidden"
               animate="visible"
               transition={{ duration: 0.4, ease, delay: 0.07 }}
-              className="text-4xl md:text-5xl font-extrabold text-foreground tracking-tight leading-[1.08] mb-5 text-center"
+              className="text-5xl md:text-6xl font-black text-foreground tracking-tight leading-[1.05] mb-5"
             >
               Przestań tracić<br />
-              na <span className="text-primary text-[38px]">PODWYŻKACH </span>
+              na <span className="text-primary">podwyżkach</span>
             </motion.h1>
             <motion.p
               variants={fadeUp}
               initial="hidden"
               animate="visible"
               transition={{ duration: 0.4, ease, delay: 0.14 }}
-              className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg text-center"
+              className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-lg"
             >
-              CheckIT automatycznie pobiera faktury od dostawców z KSeF, śledzi zmiany cen każdego surowca i alarmuje zanim podwyżka uderzy w twój wynik.
+              SPENDLY automatycznie pobiera faktury od dostawców z KSeF, śledzi zmiany cen każdego surowca i alarmuje zanim podwyżka uderzy w twój wynik.
             </motion.p>
             <motion.div
               variants={fadeUp}
@@ -241,6 +238,7 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
+
       {/* ─── Trust bar ───────────────────────────────────────────────────── */}
       <motion.section
         variants={fadeIn}
@@ -265,6 +263,7 @@ export default function Home() {
           </div>
         </div>
       </motion.section>
+
       {/* ─── How it works ────────────────────────────────────────────────── */}
       <section id="jak-to-dziala" className="max-w-6xl mx-auto px-6 py-12 md:py-24">
         <motion.div
@@ -275,7 +274,7 @@ export default function Home() {
           className="text-center mb-8 md:mb-14"
         >
           <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Jak to działa</p>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
+          <h2 className="text-3xl md:text-5xl font-black text-foreground tracking-tight">
             Od faktury do alertu<br className="hidden md:block" /> w trzech krokach
           </h2>
         </motion.div>
@@ -289,7 +288,7 @@ export default function Home() {
               num: "1",
               icon: RefreshCw,
               title: "Synchronizuj z KSeF",
-              desc: "Podajesz NIP i token KSeF. CheckIT automatycznie pobiera faktury zakupowe od wszystkich twoich dostawców — bez ręcznego wgrywania plików.",
+              desc: "Podajesz NIP i token KSeF. SPENDLY automatycznie pobiera faktury zakupowe od wszystkich twoich dostawców — bez ręcznego wgrywania plików.",
               delay: 0,
             },
             {
@@ -303,7 +302,7 @@ export default function Home() {
               num: "3",
               icon: Bell,
               title: "Reaguj na podwyżki",
-              desc: "Ustawiasz progi cenowe dla kluczowych składników. CheckIT alarmuje cię zanim podwyżka wpłynie na marżę i food cost.",
+              desc: "Ustawiasz progi cenowe dla kluczowych składników. SPENDLY alarmuje cię zanim podwyżka wpłynie na marżę i food cost.",
               delay: 0.2,
             },
           ].map(({ num, icon: Icon, title, desc, delay }) => (
@@ -330,6 +329,7 @@ export default function Home() {
           ))}
         </div>
       </section>
+
       {/* ─── Problem / Solution ──────────────────────────────────────────── */}
       <section className="bg-secondary/30 border-y border-border">
         <div className="max-w-6xl mx-auto px-6 py-12 md:py-24">
@@ -341,7 +341,7 @@ export default function Home() {
             className="text-center mb-8 md:mb-14"
           >
             <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Dla kogo</p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
+            <h2 className="text-3xl md:text-5xl font-black text-foreground tracking-tight">
               Znasz te problemy?
             </h2>
           </motion.div>
@@ -350,7 +350,7 @@ export default function Home() {
             {[
               {
                 problem: "Dowiadujesz się o podwyżce dopiero gdy liczy się food cost na koniec miesiąca.",
-                solution: "CheckIT monitoruje ceny na bieżąco i alarmuje tuż po dostawie — masz czas zareagować.",
+                solution: "SPENDLY monitoruje ceny na bieżąco i alarmuje tuż po dostawie — masz czas zareagować.",
                 delay: 0,
               },
               {
@@ -390,6 +390,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+
       {/* ─── Features ────────────────────────────────────────────────────── */}
       <section id="funkcje" className="max-w-6xl mx-auto px-6 py-12 md:py-24">
         <motion.div
@@ -400,7 +401,7 @@ export default function Home() {
           className="text-center mb-8 md:mb-14"
         >
           <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Funkcje</p>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">
+          <h2 className="text-3xl md:text-5xl font-black text-foreground tracking-tight">
             Wszystko czego potrzebujesz<br className="hidden md:block" /> do kontroli kosztów
           </h2>
         </motion.div>
@@ -462,6 +463,7 @@ export default function Home() {
           ))}
         </div>
       </section>
+
       {/* ─── Pricing ─────────────────────────────────────────────────────── */}
       <section id="cennik" className="bg-secondary/30 border-y border-border">
         <div className="max-w-6xl mx-auto px-6 py-12 md:py-24">
@@ -473,7 +475,7 @@ export default function Home() {
             className="text-center mb-8 md:mb-14"
           >
             <p className="text-primary text-sm font-semibold uppercase tracking-widest mb-3">Cennik</p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight mb-3">
+            <h2 className="text-3xl md:text-5xl font-black text-foreground tracking-tight mb-3">
               Prosty, przejrzysty cennik
             </h2>
             <p className="text-muted-foreground text-base">Zacznij za darmo, rozwijaj się kiedy chcesz.</p>
@@ -490,9 +492,9 @@ export default function Home() {
               className="bg-card border border-border rounded-2xl p-7 flex flex-col"
             >
               <div className="mb-6">
-                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-1">Starter</p>
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-1">Free</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-foreground">0 zł</span>
+                  <span className="text-4xl font-black text-foreground">0 zł</span>
                   <span className="text-muted-foreground text-sm">/ mies.</span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-2">Idealne na start — bez karty kredytowej.</p>
@@ -539,7 +541,7 @@ export default function Home() {
               <div className="mb-6">
                 <p className="text-sm font-semibold text-primary-foreground/70 uppercase tracking-wide mb-1">Pro</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-primary-foreground">99 zł</span>
+                  <span className="text-4xl font-black text-primary-foreground">99 zł</span>
                   <span className="text-primary-foreground/70 text-sm">/ mies.</span>
                 </div>
                 <p className="text-sm text-primary-foreground/70 mt-2">Pełna kontrola kosztów bez ograniczeń.</p>
@@ -581,12 +583,13 @@ export default function Home() {
             className="text-center text-sm text-muted-foreground mt-6"
           >
             Potrzebujesz więcej lokali lub niestandardowej integracji?{" "}
-            <a href="mailto:kontakt@checkit.pl" className="text-primary hover:underline font-medium">
+            <a href="mailto:kontakt@spendly.pl" className="text-primary hover:underline font-medium">
               Napisz do nas
             </a>
           </motion.p>
         </div>
       </section>
+
       {/* ─── Final CTA ───────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-6 py-12 md:py-24">
         <motion.div
@@ -604,7 +607,7 @@ export default function Home() {
             <p className="text-primary-foreground/70 text-sm font-semibold uppercase tracking-widest mb-4">
               Zacznij kontrolować koszty już dziś
             </p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-primary-foreground tracking-tight mb-5">
+            <h2 className="text-3xl md:text-5xl font-black text-primary-foreground tracking-tight mb-5">
               Twój food cost pod kontrolą.<br className="hidden md:block" /> Rejestracja zajmuje 2 minuty.
             </h2>
             <p className="text-primary-foreground/75 text-base mb-8 max-w-xl mx-auto leading-relaxed">
@@ -642,26 +645,24 @@ export default function Home() {
           </div>
         </motion.div>
       </section>
+
       {/* ─── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-border bg-secondary/20">
         <div className="max-w-6xl mx-auto px-6 py-10">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 text-right">
-            {/* Brand */}
-            <div className="flex items-center gap-2.5">
-              <img src="/logo.svg" alt="CheckIT" className="w-7 h-7 rounded-lg" />
-              <span className="font-extrabold text-foreground tracking-tight">CheckIT</span>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <span className="font-black text-lg tracking-tighter text-primary">SPENDLY</span>
               <span className="text-muted-foreground text-xs hidden md:inline">— monitoring cen surowców dla restauracji</span>
             </div>
 
-            {/* Links */}
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground text-center flex-row">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <Link href="/sign-in" className="hover:text-foreground transition-colors">
                 Logowanie
               </Link>
               <Link href="/sign-up" className="hover:text-foreground transition-colors">
                 Rejestracja
               </Link>
-              <a href="mailto:kontakt@checkit.pl" className="hover:text-foreground transition-colors flex items-center gap-1">
+              <a href="mailto:kontakt@spendly.pl" className="hover:text-foreground transition-colors flex items-center gap-1">
                 Kontakt <ArrowUpRight className="w-3 h-3" />
               </a>
               <span className="text-border">|</span>
@@ -669,7 +670,7 @@ export default function Home() {
             </div>
           </div>
           <div className="mt-6 pt-6 border-t border-border text-center text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} CheckIT. Wszelkie prawa zastrzeżone.
+            &copy; {new Date().getFullYear()} SPENDLY. Wszelkie prawa zastrzeżone.
           </div>
         </div>
       </footer>

@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "KSeF Monitor Cen"
+title = "Spendly"
 version = "1.0.0"
 id = "artifacts/ksef-monitor"
 router = "path"
