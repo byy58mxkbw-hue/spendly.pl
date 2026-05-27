@@ -479,30 +479,80 @@ function CategorySpendSection({ month }: { month: string }) {
                       <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide text-right w-24">Łączny koszt</p>
                     </div>
                     <div className="divide-y divide-border">
-                      {cat.products.map((p, pi) => (
-                        <div
-                          key={pi}
-                          className="px-6 md:px-8 py-2 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm text-foreground truncate">{p.productName}</p>
-                            {p.supplierName && (
-                              <p className="text-xs text-muted-foreground truncate">{p.supplierName}</p>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground text-right w-20 shrink-0">
-                            {p.totalQuantity != null
-                              ? `${new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(p.totalQuantity)}${p.unit ? ` ${p.unit}` : ""}`
-                              : "—"}
-                          </p>
-                          <p className="text-sm text-muted-foreground text-right w-24 shrink-0">
-                            {p.avgUnitPrice != null ? formatPrice(p.avgUnitPrice) : "—"}
-                          </p>
-                          <p className="text-sm font-semibold text-foreground text-right w-24 shrink-0">
-                            {formatPrice(p.totalSpend)}
-                          </p>
-                        </div>
-                      ))}
+                      {(() => {
+                        // Group rows by product name
+                        const grouped = new Map<string, CategorySpendItem[]>();
+                        for (const p of cat.products) {
+                          const key = p.productName;
+                          if (!grouped.has(key)) grouped.set(key, []);
+                          grouped.get(key)!.push(p);
+                        }
+                        return Array.from(grouped.entries()).map(([name, rows]) => {
+                          const multi = rows.length > 1;
+                          const combinedSpend = rows.reduce((s, r) => s + r.totalSpend, 0);
+                          return (
+                            <div key={name} className="divide-y divide-border">
+                              {multi ? (
+                                <>
+                                  {/* Product header row — combined total */}
+                                  <div className="px-6 md:px-8 py-2 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center bg-secondary/20">
+                                    <p className="text-sm font-semibold text-foreground truncate">{name}</p>
+                                    <p className="text-sm text-muted-foreground text-right w-20 shrink-0">—</p>
+                                    <p className="text-sm text-muted-foreground text-right w-24 shrink-0">—</p>
+                                    <p className="text-sm font-semibold text-foreground text-right w-24 shrink-0">
+                                      {formatPrice(combinedSpend)}
+                                    </p>
+                                  </div>
+                                  {/* Per-supplier sub-rows */}
+                                  {rows.map((p, ri) => (
+                                    <div
+                                      key={ri}
+                                      className="pl-10 pr-6 md:pl-14 md:pr-8 py-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center"
+                                    >
+                                      <div className="min-w-0 flex items-center gap-1.5">
+                                        <span className="text-muted-foreground/40 text-xs shrink-0">└</span>
+                                        <p className="text-sm text-muted-foreground truncate">{p.supplierName ?? "—"}</p>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground text-right w-20 shrink-0">
+                                        {p.totalQuantity != null
+                                          ? `${new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(p.totalQuantity)}${p.unit ? ` ${p.unit}` : ""}`
+                                          : "—"}
+                                      </p>
+                                      <p className="text-sm text-muted-foreground text-right w-24 shrink-0">
+                                        {p.avgUnitPrice != null ? formatPrice(p.avgUnitPrice) : "—"}
+                                      </p>
+                                      <p className="text-sm text-foreground text-right w-24 shrink-0">
+                                        {formatPrice(p.totalSpend)}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </>
+                              ) : (
+                                /* Single-supplier row — unchanged appearance */
+                                <div className="px-6 md:px-8 py-2 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
+                                  <div className="min-w-0">
+                                    <p className="text-sm text-foreground truncate">{rows[0].productName}</p>
+                                    {rows[0].supplierName && (
+                                      <p className="text-xs text-muted-foreground truncate">{rows[0].supplierName}</p>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground text-right w-20 shrink-0">
+                                    {rows[0].totalQuantity != null
+                                      ? `${new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(rows[0].totalQuantity)}${rows[0].unit ? ` ${rows[0].unit}` : ""}`
+                                      : "—"}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground text-right w-24 shrink-0">
+                                    {rows[0].avgUnitPrice != null ? formatPrice(rows[0].avgUnitPrice) : "—"}
+                                  </p>
+                                  <p className="text-sm font-semibold text-foreground text-right w-24 shrink-0">
+                                    {formatPrice(rows[0].totalSpend)}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                 )}
