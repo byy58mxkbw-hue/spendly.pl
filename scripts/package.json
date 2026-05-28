@@ -18,6 +18,7 @@
   "dependencies": {
     "@types/pg": "^8.18.0",
     "@workspace/db": "workspace:*",
+    "@workspace/integrations-openai-ai-server": "workspace:*",
     "drizzle-orm": "catalog:",
     "pg": "^8.20.0"
   }

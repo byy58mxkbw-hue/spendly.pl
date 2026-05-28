@@ -1,140 +1,187 @@
+/**
+ * Backfill AI categorization for all products missing subcategory/confidence.
+ *
+ * For each product:
+ *   - Computes canonicalName (normalized product name)
+ *   - Calls GPT-4o-mini to assign subcategory + confirm/improve category + confidence
+ *   - Updates subcategory, classificationConfidence, canonicalName, needsReview in DB
+ *
+ * Usage:
+ *   pnpm --filter @workspace/scripts run backfill-categories
+ *
+ * Options (env vars):
+ *   BATCH_SIZE=15       concurrent requests (default 15)
+ *   DRY_RUN=1           print results without updating DB
+ */
+
 import { db, productsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
+import { openai } from "@workspace/integrations-openai-ai-server";
 
-const CATEGORY_RULES: { id: string; keywords: string[] }[] = [
-  {
-    id: "miesa",
-    keywords: [
-      "kurczak", "kurczaka", "wieprzow", "wołow", "wołowina", "wołowe",
-      "cielę", "cielęc", "boczek", "kiełbas", "szynka", "szynki", "filet",
-      "pierś", "piersi", "udziec", "karkówk", "karczek", "schab", "żebra",
-      "żeberek", "żeberka", "łopatk", "mielon", "wędlin", "kabanos", "parówk",
-      "salami", "golonk", "pasztet", "kotlet", "polędwiczk", "polędwica",
-      "antrykot", "ligawa", "kaczk", "kacze", "indyk", "indycz", "gęś",
-      "gęsi", "rosołow", "porcje rosołowe", "podudzie", "rostbef", "befsztyk",
-      "gulasz", "drobiu", "drobiow", "mięs", "mięso", "mięsa", "jamon",
-      "chorizo", "podgardle", "salceson", "baleron", "stek ",
-    ],
-  },
-  {
-    id: "warzywa",
-    keywords: [
-      "pomidor", "ogórek", "ogórk", "sałat", "pietruszk", "marchew", "marchewk",
-      "ziemniak", "cebul", "por ", "por(", "poru", "papryka", "papryki",
-      "brokuł", "brokułów", "kalafior", "kapust", "szpinak", "szparagi", "szparag",
-      "batat", "burak", "buraczk", "dyni", "dynia", "awokado", "avocado",
-      "kukurydz", "groszek", "groszku", "fasolka", "fasola", "cieciorka",
-      "seler", "rzodkiew", "rzodkiewk", "daterino", "rukola", "roszponka",
-      "endywia", "jarmuż", "radicchio", "bakłażan", "cukini", "kabaczek",
-      "patison", "pasternak", "topinambur", "salsefi", "cykoria", "czosnek",
-      "szczypior", "koper ", "kolendra", "bazylia", "mięta ", "lubczyk",
-      "tymianek", "rozmaryn", "kiełki", "włoszczyzna", "imbir ", "guacamole",
-      "banan", "jabłk", "gruszk", "pomarańcz", "mandarynk", "cytryn",
-      "winogron", "malina", "malin", "truskawk", "borówk", "mango", "ananas",
-      "kiwi", "arbuz", "limonk", "granat", "grejpfrut", "melon", "papaja",
-      "śliwk", "wiśni", "czereśni", "morela", "brzoskwini", "nektaryn",
-      "agrest", "porzeczk", "rabarbar", "physalis", "pitahaya", "karambola",
-      "kumkwat", "fisalis", "smoczy owoc", "miechunka", "żurawina", "marakuj",
-      "grzyb", "pieczark", "borowik", "boczniak", "kurka ", "kurki ", "kurkami",
-      "podgrzybek", "shiitake", "portobello", "chanterelle", "maślak", "opieniek",
-      "mieszanka warzyw", "bukiet warzyw", "mieszanka chińsk", "sombrero",
-      "mieszanka meksyk", "mieszanka euro", "mieszanka kompot", "kompotowa",
-      "warzywa", "owoce", "owoc", "warzywo",
-    ],
-  },
-  {
-    id: "napoje",
-    keywords: [
-      "woda ", "wody ", "sok ", "soku ", "sokow", "napój", "napoje",
-      "piwo", "wino ", "wina ", "win ", "kawa", "kawow", "herbata", "herbat",
-      "lemoniada", "shake", "syrop", "syropu", "energetyk", "isotonic",
-      "mineraln", "gazowany", "niegazowany",
-      "coca-cola", "coca cola", "fanta", "sprite", "sprit", "cappy",
-      "kinley", "tymb ", "tymbark", "schweppes", "pepsi", "7up", "mirinda",
-      "lipton", "nestea", "red bull", "monster ", "powerade", "gatorade",
-      "rgb x24", "0,25 rgb", "butelka szk", "but szk", "drs ", "nektar ",
-      "igrist", "szampan", "prosecco", "nalewka",
-    ],
-  },
-  {
-    id: "nabiał",
-    keywords: [
-      "mleko", "mleka", "ser ", "sery", "serow", "jogurt", "jogurtu",
-      "śmietan", "masło", "masła", "twaróg", "twarogu", "jajk", "jaja ",
-      "jaj ", "kefir", "maślank", "śmietank", "ricotta", "mozzarella",
-      "burrata", "feta", "camembert", "brie", "gouda", "edam", "parmezan",
-      "grana padano", "halloumi", "cottage", "fromage", "nabiał",
-    ],
-  },
-  {
-    id: "ryby",
-    keywords: [
-      "łosoś", "łososia", "dorsz", "dorsza", "tuńczyk", "tuńczyka",
-      "krewetk", "kalmar", "pstrąg", "pstrąga", "halibut", "mintaj",
-      "ryba", "ryby", "rybna", "śledź", "śledzia", "makrela", "makreli",
-      "krab", "homara", "ośmiornic", "małż", "ostryg", "anchois", "sardynk",
-      "tilapia", "pangasius", "morszczuk", "flądra", "sandacz", "sum ",
-      "karp", "lin ", "węgorz", "okoń", "szczupak",
-    ],
-  },
-  {
-    id: "pieczywo",
-    keywords: [
-      "chleb", "chleba", "bułk", "mąka", "mąki", "drożdż", "baguette",
-      "croissant", "tortilla", "makaron", "makaronu", "ryż ", "ryżu",
-      "kasza", "kaszy", "płatki", "biszkopt", "wafel", "wafle", "wafli",
-      "suchar", "grissini", "ciabatta", "focaccia", "brioche", "pumpernikiel",
-      "orkisz", "quinoa", "gryka", "bulgur", "kuskus", "semolinę", "amarant",
-      "naleśnik", "pancake", "gnocchi", "vol-au-vent", "panierka", "frytki",
-      "talarki ziemniacz", "dollar chips", "ciasto kataifi", "spód do quiche",
-      "korpusy kruche", "soczewica", "nachos",
-    ],
-  },
-  {
-    id: "przyprawy",
-    keywords: [
-      "sól ", "soli ", "pieprz", "pieprzu", "przyprawa", "przyprawy",
-      "sos ", "sosu ", "sosów", "musztarda", "majonez", "ketchup", "keczup",
-      "ocet", "oliwa", "olej", "oleju", "olejów", "tłuszcz", "smalec", "ghee",
-      "curry", "kurkuma", "chilli", "chili", "kminek", "cynamon", "gałka",
-      "anyż", "wanilia", "ziele", "piment", "liść laurow", "zioła prowans",
-      "zioła doniczk", "chrzan", "wasabi", "kapary", "esencja", "peperonata",
-      "kucharek", "vegeta", "chia", "miód", "żelatyna", "ocet balsamicz",
-      "barszcz", "żur ", "primerba",
-    ],
-  },
-];
+const BATCH_SIZE = Number(process.env.BATCH_SIZE ?? 15);
+const DRY_RUN = process.env.DRY_RUN === "1";
 
-function categorize(name: string): string {
-  const n = name.toLowerCase().replace(/^#/, "").trim();
-  for (const rule of CATEGORY_RULES) {
-    if (rule.keywords.some((kw) => n.includes(kw.toLowerCase()))) {
-      return rule.id;
-    }
+// Canonical built-in categories (matches BUILTIN_CATEGORY_DEFS in categorize.ts)
+const CATEGORIES = `alkohole: Alkohole
+miesa: Mięso i drób
+ryby: Ryby i owoce morza
+nabiał: Nabiał i jaja
+warzywa: Warzywa i owoce
+pieczywo: Pieczywo i makarony
+przyprawy: Przyprawy, oleje i sosy
+napoje: Napoje bezalkoholowe
+slodycze: Słodycze i desery
+mrozoniki: Mrożonki
+mrozonki: Mrożonki
+srodki_czystosci: Środki czystości
+opakowania: Opakowania i jednorazówki
+inne: Inne`;
+
+function normalizeProductName(name: string): string {
+  return name
+    .replace(/\[.*?\]/g, "")
+    .replace(/\(.*?\)/g, "")
+    .replace(/^\s*\d+\s*[xX]\s*/g, "")
+    .replace(/\b\d+[,.]?\d*\s*(kg|dkg|g|l|ml|szt|op|opak|pcs|litr|butel|zest|kpl)\b/gi, "")
+    .replace(/[-–—/\\|]+$/, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .trim();
+}
+
+async function classifyProduct(
+  name: string,
+  existingCategory: string | null,
+): Promise<{ category: string; subcategory: string | null; confidence: number }> {
+  const canonicalName = normalizeProductName(name) || name.toLowerCase().trim();
+  const categoryHint = existingCategory && existingCategory !== "inne"
+    ? `\nObecna kategoria (może być poprawna): ${existingCategory}`
+    : "";
+
+  const prompt = `Jesteś asystentem restauracji. Klasyfikuj produkt gastronomiczny.
+
+Zwróć WYŁĄCZNIE obiekt JSON (bez markdown):
+{"category":"<id>","subcategory":"<podkategoria po polsku lub null>","confidence":<0.0-1.0>}
+
+Zasady:
+- category: dokładne ID z listy poniżej
+- subcategory: szczegółowa podkategoria (np. "pierś z kurczaka", "łosoś atlantycki", "ser gouda") lub null
+- confidence: pewność od 0.0 do 1.0
+
+Dostępne kategorie:
+${CATEGORIES}${categoryHint}
+
+Produkt: ${name}
+Znormalizowana nazwa: ${canonicalName}`;
+
+  try {
+    const resp = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 80,
+      temperature: 0,
+      response_format: { type: "json_object" },
+    });
+
+    const raw = resp.choices[0]?.message?.content?.trim() ?? "{}";
+    const parsed = JSON.parse(raw) as {
+      category?: string;
+      subcategory?: string | null;
+      confidence?: number;
+    };
+
+    const category = (parsed.category?.trim() ?? existingCategory ?? "inne").replace(/^NEW:/i, "inne");
+    const subcategory = typeof parsed.subcategory === "string" ? parsed.subcategory.trim() || null : null;
+    const confidence = typeof parsed.confidence === "number"
+      ? Math.min(1, Math.max(0, parsed.confidence))
+      : 0.6;
+
+    return { category, subcategory, confidence };
+  } catch {
+    return { category: existingCategory ?? "inne", subcategory: null, confidence: 0.5 };
   }
-  return "inne";
+}
+
+async function processBatch(
+  products: Array<{ id: number; name: string; category: string | null }>,
+  done: number,
+  total: number,
+): Promise<void> {
+  await Promise.all(
+    products.map(async (product) => {
+      const canonicalName = normalizeProductName(product.name) || product.name.toLowerCase().trim();
+      const { category, subcategory, confidence } = await classifyProduct(product.name, product.category);
+      const needsReview = confidence < 0.75;
+
+      if (DRY_RUN) {
+        console.log(`[DRY] ${product.name} → ${category} / ${subcategory ?? "—"} (${(confidence * 100).toFixed(0)}%)`);
+        return;
+      }
+
+      await db
+        .update(productsTable)
+        .set({
+          category,
+          subcategory,
+          classificationConfidence: confidence,
+          canonicalName,
+          needsReview,
+        })
+        .where(eq(productsTable.id, product.id));
+    }),
+  );
+
+  const pct = (((done + products.length) / total) * 100).toFixed(0);
+  console.log(`  [${pct}%] ${done + products.length}/${total} done`);
 }
 
 async function main() {
-  console.log("Fetching all products...");
-  const products = await db.select({ id: productsTable.id, name: productsTable.name }).from(productsTable);
-  console.log(`Found ${products.length} products. Categorizing...`);
+  console.log(`Backfill AI categories — BATCH_SIZE=${BATCH_SIZE}${DRY_RUN ? " DRY_RUN" : ""}`);
 
-  const stats: Record<string, number> = {};
-  let updated = 0;
+  const products = await db
+    .select({
+      id: productsTable.id,
+      name: productsTable.name,
+      category: productsTable.category,
+    })
+    .from(productsTable)
+    .where(isNull(productsTable.classificationConfidence))
+    .orderBy(productsTable.id);
 
-  for (const product of products) {
-    const category = categorize(product.name);
-    await db.update(productsTable).set({ category }).where(eq(productsTable.id, product.id));
-    stats[category] = (stats[category] ?? 0) + 1;
-    updated++;
+  console.log(`Found ${products.length} products to process.\n`);
+
+  if (products.length === 0) {
+    console.log("Nothing to do.");
+    process.exit(0);
   }
 
-  console.log(`\nDone! Updated ${updated} products.`);
-  console.log("\nCategory breakdown:");
-  Object.entries(stats)
-    .sort((a, b) => b[1] - a[1])
-    .forEach(([cat, count]) => console.log(`  ${cat}: ${count}`));
+  let done = 0;
+  for (let i = 0; i < products.length; i += BATCH_SIZE) {
+    const batch = products.slice(i, i + BATCH_SIZE);
+    await processBatch(batch, done, products.length);
+    done += batch.length;
+
+    // Small delay between batches to stay within rate limits
+    if (i + BATCH_SIZE < products.length) {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+
+  // Print summary
+  const updated = await db
+    .select({
+      id: productsTable.id,
+      subcategory: productsTable.subcategory,
+      classificationConfidence: productsTable.classificationConfidence,
+      needsReview: productsTable.needsReview,
+    })
+    .from(productsTable)
+    .where(isNull(productsTable.classificationConfidence));
+
+  console.log(`\nDone! ${DRY_RUN ? "(dry run — no changes made)" : `${done} products updated.`}`);
+  if (!DRY_RUN) {
+    console.log(`Remaining without confidence: ${updated.length}`);
+  }
 
   process.exit(0);
 }
