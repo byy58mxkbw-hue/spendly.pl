@@ -492,14 +492,36 @@ export default function Invoices() {
     reader.readAsDataURL(file);
   }
 
+  function compressImage(dataUrl: string, maxPx = 1800, quality = 0.82): Promise<{ base64: string; mimeType: string }> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / img.width, maxPx / img.height);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL("image/jpeg", quality);
+        const idx = compressed.indexOf(",");
+        resolve({ base64: compressed.slice(idx + 1), mimeType: "image/jpeg" });
+      };
+      img.onerror = () => {
+        const idx = dataUrl.indexOf(",");
+        const header = dataUrl.slice(0, idx);
+        resolve({
+          base64: dataUrl.slice(idx + 1),
+          mimeType: header.match(/:(.*?);/)?.[1] ?? "image/jpeg",
+        });
+      };
+      img.src = dataUrl;
+    });
+  }
+
   function handleScanReceipt() {
     if (!receiptPreviewUrl) return;
-    const commaIdx = receiptPreviewUrl.indexOf(",");
-    if (commaIdx === -1) return;
-    const header = receiptPreviewUrl.slice(0, commaIdx);
-    const base64 = receiptPreviewUrl.slice(commaIdx + 1);
-    const mimeType = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
 
+    compressImage(receiptPreviewUrl).then(({ base64, mimeType }) => {
     scanReceipt.mutate(
       { data: { imageBase64: base64, mimeType } },
       {
@@ -530,6 +552,7 @@ export default function Invoices() {
         },
       }
     );
+    });
   }
 
   function resetPhotoState() {
