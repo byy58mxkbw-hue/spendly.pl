@@ -25,13 +25,14 @@ async function cleanupInvalidCategories(): Promise<void> {
   try {
     const builtinIds = Object.keys(BUILTIN_CATEGORY_DEFS);
 
+    // Reset invalid categories AND mark them needs_review so user can verify the re-classification
     const result = await db.execute(
-      sql.raw(`UPDATE products SET classification_confidence = NULL WHERE category IS NOT NULL AND category NOT IN (${builtinIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(", ")}) AND category NOT IN (SELECT category_id FROM user_categories WHERE user_id = products.user_id)`)
+      sql.raw(`UPDATE products SET classification_confidence = NULL, needs_review = true WHERE category IS NOT NULL AND category NOT IN (${builtinIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(", ")}) AND category NOT IN (SELECT category_id FROM user_categories WHERE user_id = products.user_id)`)
     );
 
     const affected = (result as unknown as { rowCount?: number }).rowCount ?? 0;
     if (affected > 0) {
-      logger.info({ affected }, "backfill-categories: reset invalid AI-generated categories for re-classification");
+      logger.info({ affected }, "backfill-categories: reset invalid AI-generated categories for re-classification (marked needs_review)");
     } else {
       logger.info("backfill-categories: no invalid categories found, cleanup not needed");
     }
@@ -44,13 +45,16 @@ const BATCH_SIZE = 10;
 const BATCH_DELAY_MS = 300;
 
 async function processBatch(
-  products: Array<{ id: number; name: string; category: string | null; userId: string }>,
+  products: Array<{ id: number; name: string; category: string | null; userId: string; needsReview: boolean | null }>,
 ): Promise<void> {
   await Promise.all(
     products.map(async (product) => {
       try {
         const classification = await categorizeProductWithAI(product.name, product.userId);
         const canonicalName = normalizeProductName(product.name) || product.name.toLowerCase().trim();
+
+        // Preserve needs_review=true set by cleanup (invalid category reset) even when AI has high confidence
+        const needsReview = product.needsReview === true || classification.confidence < 0.75;
 
         await db
           .update(productsTable)
@@ -59,7 +63,7 @@ async function processBatch(
             subcategory: classification.subcategory,
             classificationConfidence: classification.confidence,
             canonicalName,
-            needsReview: classification.confidence < 0.75,
+            needsReview,
           })
           .where(eq(productsTable.id, product.id));
       } catch (err) {
@@ -80,6 +84,7 @@ export async function runCategoryBackfill(): Promise<void> {
         name: productsTable.name,
         category: productsTable.category,
         userId: productsTable.userId,
+        needsReview: productsTable.needsReview,
       })
       .from(productsTable)
       .where(isNull(productsTable.classificationConfidence))

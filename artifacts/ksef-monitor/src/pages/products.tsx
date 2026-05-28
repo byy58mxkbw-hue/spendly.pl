@@ -1003,13 +1003,14 @@ function CategoryBadge({
 export default function Products() {
   const queryClient = useQueryClient();
   const [month, setMonth] = useState(() => currentMonth());
-  const { data: products, isLoading, isError } = useListProducts({ month });
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
+  const supplierId = supplierFilter !== "all" ? Number(supplierFilter) : undefined;
+  const { data: products, isLoading, isError } = useListProducts({ month, supplierId });
   const { data: suppliers } = useListSuppliers();
   const { data: spendItems } = useGetCategorySpend({ month });
   const { data: categories } = useListCategories();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");
-  const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>("history");
@@ -1022,11 +1023,10 @@ export default function Products() {
   const filtered = sortProducts(
     products?.filter((p) => {
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-      const matchesSupplier = supplierFilter === "all" || p.supplierName === supplierFilter;
       const effectiveCategory = p.category ?? categorizeProduct(p.name);
       const matchesCategory = categoryFilter === "all" || effectiveCategory === categoryFilter;
       const matchesReview = !showNeedsReview || p.needsReview === true;
-      return matchesSearch && matchesSupplier && matchesCategory && matchesReview;
+      return matchesSearch && matchesCategory && matchesReview;
     }) ?? [],
     sort
   );
@@ -1034,8 +1034,7 @@ export default function Products() {
   // Compute which categories actually have products (before category filter, after other filters)
   const productsBeforeCategoryFilter = products?.filter((p) => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    const matchesSupplier = supplierFilter === "all" || p.supplierName === supplierFilter;
-    return matchesSearch && matchesSupplier;
+    return matchesSearch;
   }) ?? [];
 
   const categoryCountMap = productsBeforeCategoryFilter.reduce<Record<string, number>>((acc, p) => {
@@ -1217,7 +1216,7 @@ export default function Products() {
               <SelectContent>
                 <SelectItem value="all">Wszyscy dostawcy</SelectItem>
                 {suppliers?.map((s) => (
-                  <SelectItem key={s.id} value={s.name}>
+                  <SelectItem key={s.id} value={String(s.id)}>
                     {s.name}
                   </SelectItem>
                 ))}
