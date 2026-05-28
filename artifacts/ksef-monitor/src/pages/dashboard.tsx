@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, Component, type ReactNode } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useGetDashboardSummary,
@@ -58,7 +58,8 @@ import { MonthNavigator } from "@/components/month-navigator";
 
 // ─── Mini sparkline ────────────────────────────────────────────────────────────
 function Sparkline({ data, positive }: { data: number[]; positive: boolean }) {
-  const pts = data.slice(-8);
+  const pts = data.slice(-8).filter((v) => isFinite(v));
+  if (pts.length < 2) return null;
   const min = Math.min(...pts);
   const max = Math.max(...pts);
   const range = max - min || 1;
@@ -74,6 +75,36 @@ function Sparkline({ data, positive }: { data: number[]; positive: boolean }) {
       <path d={path} stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
+}
+
+// ─── Error Boundary ────────────────────────────────────────────────────────────
+class DashboardErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-4">
+          <p className="text-lg font-semibold text-foreground">Nie można załadować dashboardu</p>
+          <p className="text-sm text-muted-foreground max-w-sm">
+            Wystąpił nieoczekiwany błąd. Odśwież stronę, aby spróbować ponownie.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+          >
+            Odśwież stronę
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -178,7 +209,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 // ─── Main Dashboard ────────────────────────────────────────────────────────────
-export default function Dashboard() {
+function DashboardPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -549,7 +580,7 @@ export default function Dashboard() {
                           <p className="text-[10px] text-muted-foreground">{item.supplierName}</p>
                         </div>
                         <span className="text-xs font-bold text-destructive shrink-0">
-                          +{item.changePercent.toFixed(1)}%
+                          +{(item.changePercent ?? 0).toFixed(1)}%
                         </span>
                       </div>
                     ))}
@@ -695,7 +726,7 @@ export default function Dashboard() {
                         "text-[11px] font-bold px-1.5 py-0.5 rounded-full",
                         item.changeDirection === "up" ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-600"
                       )}>
-                        {item.changeDirection === "up" ? "+" : "-"}{item.changePercent.toFixed(1)}%
+                        {item.changeDirection === "up" ? "+" : "-"}{(item.changePercent ?? 0).toFixed(1)}%
                       </span>
                     </div>
                   </div>
@@ -718,5 +749,13 @@ export default function Dashboard() {
         />
       )}
     </Layout>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <DashboardErrorBoundary>
+      <DashboardPage />
+    </DashboardErrorBoundary>
   );
 }
