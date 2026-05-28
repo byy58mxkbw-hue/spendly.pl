@@ -13,20 +13,6 @@ export interface ClassificationResult {
 }
 
 /**
- * Slugify a label into a safe category ID.
- * e.g. "Dania gotowe" → "dania_gotowe"
- */
-function slugify(label: string): string {
-  return label
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 40);
-}
-
-/**
  * Normalize a raw product name from an invoice into a cleaner canonical form.
  * Removes brand prefixes in brackets, units, leading quantities, etc.
  */
@@ -169,9 +155,10 @@ export async function categorizeProductWithAI(
   }
 
   // Step 3: AI classification — returns JSON with subcategory + confidence
-  const allCategories = await getUserCategories(userId);
-  const existingIds = allCategories.map((c) => c.id);
-  const categoryList = allCategories.map((c) => `${c.id}: ${c.label}`).join("\n");
+  const builtinIds = Object.keys(BUILTIN_CATEGORY_DEFS);
+  const categoryList = Object.entries(BUILTIN_CATEGORY_DEFS)
+    .map(([id, def]) => `${id}: ${def.label}`)
+    .join("\n");
 
   const prompt = `Jesteś asystentem restauracji. Klasyfikuj produkt spożywczy lub gastronomiczny.
 
@@ -179,11 +166,11 @@ Zwróć WYŁĄCZNIE obiekt JSON (bez markdown, bez komentarzy):
 {"category":"<id kategorii>","subcategory":"<podkategoria po polsku lub null>","confidence":<0.0-1.0>}
 
 Zasady:
-- category: dokładne ID z listy poniżej, lub "NEW:<polska_nazwa>" jeśli żadna nie pasuje
+- category: DOKŁADNIE jedno ID z listy poniżej — nic innego. Jeśli żadna kategoria nie pasuje, użyj "inne"
 - subcategory: szczegółowa podkategoria (np. "mozzarella", "filet z łososia", "kurczak pierś") lub null
 - confidence: pewność klasyfikacji od 0.0 do 1.0
 
-Dostępne kategorie:
+Dostępne kategorie (jedyne dopuszczalne wartości dla "category"):
 ${categoryList}
 
 Produkt: ${productName}
@@ -222,28 +209,13 @@ Znormalizowana nazwa: ${canonicalName}`;
       ? parsed.subcategory.trim().slice(0, 60)
       : null;
 
-    // Handle NEW:<label> response
-    const newMatch = finalCategory.match(/^NEW:(.+)$/i);
-    if (newMatch) {
-      const newLabel = newMatch[1].trim().slice(0, 60);
-      if (newLabel.length >= 2) {
-        let slug = slugify(newLabel);
-        if (existingIds.includes(slug)) slug = `${slug}_2`;
-        await ensureCustomCategory(userId, slug, newLabel);
-        logger?.info({ productName, slug, newLabel }, "categorize-ai: created new category");
-        finalCategory = slug;
-      } else {
-        finalCategory = "inne";
-      }
+    // Validate against built-in category IDs only — reject everything else
+    const normalized = finalCategory.toLowerCase().replace(/[^a-z0-9_ąćęłńóśźż]/g, "");
+    if (!builtinIds.includes(normalized)) {
+      logger?.warn({ productName, finalCategory }, "categorize-ai: unknown category ID, using 'inne'");
+      finalCategory = "inne";
     } else {
-      // Validate against known category IDs
-      const normalized = finalCategory.toLowerCase().replace(/[^a-z0-9_ąćęłńóśźż]/g, "");
-      if (!existingIds.includes(normalized)) {
-        logger?.warn({ productName, finalCategory }, "categorize-ai: unknown category ID, using 'inne'");
-        finalCategory = "inne";
-      } else {
-        finalCategory = normalized;
-      }
+      finalCategory = normalized;
     }
 
     return {
