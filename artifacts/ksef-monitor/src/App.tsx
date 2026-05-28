@@ -62,41 +62,41 @@ const clerkAppearance = {
     logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
   },
   variables: {
-    colorPrimary: "hsl(173, 80%, 40%)",
-    colorForeground: "hsl(220, 39%, 11%)",
-    colorMutedForeground: "hsl(220, 8%, 46%)",
+    colorPrimary: "#4ADEB3",
+    colorForeground: "#F5F7FA",
+    colorMutedForeground: "#9AA4B2",
     colorDanger: "hsl(0, 84%, 60%)",
-    colorBackground: "hsl(0, 0%, 100%)",
-    colorInput: "hsl(220, 13%, 91%)",
-    colorInputForeground: "hsl(220, 39%, 11%)",
-    colorNeutral: "hsl(220, 13%, 91%)",
+    colorBackground: "#0B0F14",
+    colorInput: "#1D2A37",
+    colorInputForeground: "#F5F7FA",
+    colorNeutral: "#1D2A37",
     fontFamily: "Inter, system-ui, sans-serif",
     borderRadius: "0.75rem",
   },
   elements: {
     rootBox: "w-full flex justify-center",
-    cardBox: "bg-white rounded-2xl w-[440px] max-w-full overflow-hidden shadow-lg",
+    cardBox: "bg-[#131A22] border border-white/[0.06] rounded-2xl w-[440px] max-w-full overflow-hidden shadow-2xl",
     card: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    headerTitle: "text-foreground font-semibold",
-    headerSubtitle: "text-muted-foreground",
-    socialButtonsBlockButtonText: "text-foreground",
-    formFieldLabel: "text-foreground text-sm font-medium",
-    footerActionLink: "text-primary font-medium",
-    footerActionText: "text-muted-foreground",
-    dividerText: "text-muted-foreground",
-    identityPreviewEditButton: "text-primary",
-    formFieldSuccessText: "text-emerald-600",
-    alertText: "text-foreground",
+    footer: "!shadow-none !border-0 !bg-[#0F1720] !rounded-none",
+    headerTitle: "!text-[#F5F7FA] font-bold !tracking-tight",
+    headerSubtitle: "!text-[#9AA4B2]",
+    socialButtonsBlockButtonText: "!text-[#F5F7FA]",
+    formFieldLabel: "!text-[#9AA4B2] text-sm font-medium",
+    footerActionLink: "!text-[#4ADEB3] font-medium",
+    footerActionText: "!text-[#9AA4B2]",
+    dividerText: "!text-[#9AA4B2]",
+    identityPreviewEditButton: "!text-[#4ADEB3]",
+    formFieldSuccessText: "text-emerald-400",
+    alertText: "!text-[#F5F7FA]",
     logoBox: "mx-auto",
     logoImage: "w-10 h-10 rounded-xl",
-    socialButtonsBlockButton: "border border-border bg-card hover:bg-secondary transition-colors",
-    formButtonPrimary: "bg-primary hover:bg-primary/90 text-primary-foreground transition-colors",
-    formFieldInput: "border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-ring",
-    footerAction: "border-t border-border",
-    dividerLine: "bg-border",
-    alert: "border border-border rounded-lg",
-    otpCodeFieldInput: "border border-input rounded-lg",
+    socialButtonsBlockButton: "!border !border-white/[0.08] !bg-white/[0.04] hover:!bg-white/[0.08] transition-colors",
+    formButtonPrimary: "!bg-[#4ADEB3] hover:!bg-[#3dcba3] !text-[#0B0F14] font-semibold transition-colors",
+    formFieldInput: "!border !border-white/[0.08] !bg-[#1D2A37] !text-[#F5F7FA] rounded-lg focus:!ring-2 focus:!ring-[#4ADEB3]/40",
+    footerAction: "border-t border-white/[0.06]",
+    dividerLine: "!bg-white/[0.06]",
+    alert: "!border !border-white/[0.08] !rounded-lg !bg-white/[0.04]",
+    otpCodeFieldInput: "!border !border-white/[0.08] !bg-[#1D2A37] !rounded-lg",
     formFieldRow: "gap-3",
     main: "gap-4",
   },
@@ -104,7 +104,10 @@ const clerkAppearance = {
 
 function SignInPage() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+    <div
+      className="flex min-h-[100dvh] items-center justify-center px-4"
+      style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(74,222,179,0.08) 0%, transparent 60%), #0B0F14" }}
+    >
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
     </div>
   );
@@ -112,7 +115,10 @@ function SignInPage() {
 
 function SignUpPage() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+    <div
+      className="flex min-h-[100dvh] items-center justify-center px-4"
+      style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(74,222,179,0.08) 0%, transparent 60%), #0B0F14" }}
+    >
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
     </div>
   );

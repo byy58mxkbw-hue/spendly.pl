@@ -7,7 +7,6 @@ import {
   FileText,
   Bell,
   LogOut,
-  ChevronRight,
   BarChart2,
   Inbox,
   Settings,
@@ -15,7 +14,6 @@ import {
   Menu,
   X,
   ShieldCheck,
-  TrendingUp,
 } from "lucide-react";
 import { useUser, useClerk, useAuth } from "@clerk/react";
 import { useQuery } from "@tanstack/react-query";
@@ -64,34 +62,34 @@ function NavLink({
       onClick={onNavigate}
       data-testid={`nav-${path.replace("/", "").replace("/", "-")}`}
       className={cn(
-        "flex items-center gap-3 px-3 py-3.5 md:py-2.5 rounded-lg text-base md:text-sm font-medium transition-colors",
+        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150",
         active
-          ? "bg-primary text-primary-foreground"
-          : "text-foreground/80 hover:bg-secondary hover:text-foreground active:bg-secondary",
+          ? "bg-primary/[0.10] text-primary"
+          : "text-sidebar-foreground/60 hover:bg-white/[0.04] hover:text-sidebar-foreground",
       )}
+      style={active ? { boxShadow: "0 0 16px rgba(74,222,179,0.06)" } : undefined}
     >
-      <Icon className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
-      {label}
+      <Icon className="w-4 h-4 shrink-0" />
+      <span className="flex-1">{label}</span>
       {showBadge && (
         <span
           className={cn(
-            "ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none min-w-[18px] text-center",
+            "text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none min-w-[18px] text-center",
             active
-              ? "bg-primary-foreground/20 text-primary-foreground"
-              : "bg-destructive text-destructive-foreground",
+              ? "bg-primary/20 text-primary"
+              : "bg-destructive/90 text-destructive-foreground",
           )}
         >
           {(badgeCount ?? 0) > 99 ? "99+" : (badgeCount ?? 0) > 9 ? "9+" : badgeCount}
         </span>
       )}
-      {active && !showBadge && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
     </Link>
   );
 }
 
 function SectionLabel({ label }: { label: string }) {
   return (
-    <p className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 select-none">
+    <p className="px-3 pt-5 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/30 select-none">
       {label}
     </p>
   );
@@ -116,11 +114,15 @@ function SidebarContent({
 }) {
   return (
     <>
-      <div className="px-5 py-5 border-b border-border">
-        <span className="text-foreground text-xl tracking-tighter font-black text-primary">SPENDLY<span className="text-foreground">.</span></span>
+      {/* Logo */}
+      <div className="px-5 pt-6 pb-5">
+        <span className="text-xl tracking-tighter font-black text-primary">
+          SPENDLY<span className="text-sidebar-foreground/40">.</span>
+        </span>
       </div>
 
-      <nav className="flex-1 px-3 py-3 overflow-y-auto">
+      {/* Nav */}
+      <nav className="flex-1 px-3 overflow-y-auto">
         {coreNavItems.map((item) => (
           <NavLink
             key={item.path}
@@ -157,7 +159,8 @@ function SidebarContent({
         )}
       </nav>
 
-      <div className="px-3 pb-2 border-t border-border pt-3">
+      {/* Settings */}
+      <div className="px-3 pb-2 pt-2">
         <NavLink
           path="/settings/ksef"
           label="Ustawienia KSeF"
@@ -167,23 +170,24 @@ function SidebarContent({
         />
       </div>
 
+      {/* User */}
       <div
-        className="px-3 py-4 border-t border-border"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        className="mx-3 mb-4 mt-1 rounded-xl bg-white/[0.03] border border-white/[0.05] p-3"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
-        <div className="flex items-center gap-3 px-3 py-2 mb-1">
-          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">
+        <div className="flex items-center gap-3 mb-2.5">
+          <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-sm font-bold ring-1 ring-primary/20">
             {user?.firstName?.[0] ??
               user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ??
               "U"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
               {user?.firstName ??
                 user?.emailAddresses?.[0]?.emailAddress ??
                 "Użytkownik"}
             </p>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-sidebar-foreground/40 truncate">
               {user?.emailAddresses?.[0]?.emailAddress}
             </p>
           </div>
@@ -191,10 +195,10 @@ function SidebarContent({
         <button
           data-testid="btn-logout"
           onClick={onSignOut}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          className="flex items-center gap-2.5 px-2.5 py-2 w-full rounded-lg text-xs text-sidebar-foreground/50 hover:bg-white/[0.05] hover:text-sidebar-foreground/80 transition-colors"
         >
-          <LogOut className="w-4 h-4" />
-          Wyloguj
+          <LogOut className="w-3.5 h-3.5 shrink-0" />
+          Wyloguj się
         </button>
       </div>
     </>
@@ -245,7 +249,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-background">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-64 shrink-0 bg-card border-r border-border flex-col">
+      <aside
+        className="hidden md:flex w-[260px] shrink-0 flex-col border-r"
+        style={{
+          background: "hsl(var(--sidebar))",
+          borderColor: "rgba(255,255,255,0.05)",
+        }}
+      >
         <SidebarContent
           location={location}
           user={user}
@@ -258,25 +268,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile top bar */}
       <header
-        className="md:hidden fixed top-0 inset-x-0 z-40 bg-card/95 backdrop-blur border-b border-border"
-        style={{ paddingTop: "env(safe-area-inset-top)" }}
+        className="md:hidden fixed top-0 inset-x-0 z-40 backdrop-blur-xl border-b"
+        style={{
+          background: "rgba(11,15,20,0.92)",
+          borderColor: "rgba(255,255,255,0.06)",
+          paddingTop: "env(safe-area-inset-top)",
+        }}
       >
         <div className="h-14 px-3 flex items-center gap-2">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
             aria-label="Otwórz menu"
-            className="p-2.5 -ml-1 rounded-lg text-foreground hover:bg-secondary active:bg-secondary"
+            className="p-2.5 -ml-1 rounded-xl text-foreground hover:bg-white/[0.06] active:bg-white/[0.08] transition-colors"
             data-testid="btn-mobile-menu"
           >
-            <Menu className="w-6 h-6" />
+            <Menu className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="font-black tracking-tighter text-primary text-sm shrink-0">SPENDLY<span className="text-foreground">.</span></span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-black tracking-tighter text-primary text-sm shrink-0">
+              SPENDLY<span className="text-foreground/30">.</span>
+            </span>
             {activeItem && (
               <>
-                <span className="text-border text-sm shrink-0">/</span>
-                <span className="text-sm font-semibold text-foreground truncate">
+                <span className="text-foreground/20 text-sm shrink-0">/</span>
+                <span className="text-sm font-semibold text-foreground/80 truncate">
                   {activeItem.label}
                 </span>
               </>
@@ -289,22 +305,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-50">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 backdrop-blur-sm"
+            style={{ background: "rgba(0,0,0,0.7)" }}
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
           <aside
-            className="absolute left-0 top-0 bottom-0 w-[82%] max-w-[320px] bg-card border-r border-border flex flex-col shadow-xl animate-in slide-in-from-left duration-200"
-            style={{ paddingTop: "env(safe-area-inset-top)" }}
+            className="absolute left-0 top-0 bottom-0 w-[82%] max-w-[300px] flex flex-col shadow-2xl animate-in slide-in-from-left duration-200"
+            style={{
+              background: "hsl(var(--sidebar))",
+              borderRight: "1px solid rgba(255,255,255,0.05)",
+              paddingTop: "env(safe-area-inset-top)",
+            }}
           >
             <button
               type="button"
               onClick={() => setMobileOpen(false)}
               aria-label="Zamknij menu"
-              className="absolute top-2 right-2 p-2 rounded-lg text-muted-foreground hover:bg-secondary z-10"
+              className="absolute top-4 right-3 p-1.5 rounded-lg text-foreground/40 hover:bg-white/[0.06] z-10 transition-colors"
               style={{ marginTop: "env(safe-area-inset-top)" }}
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
             <SidebarContent
               location={location}
@@ -324,7 +345,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main
-        className="flex-1 min-w-0 overflow-y-auto pt-14 md:pt-0 pb-16 md:pb-0"
+        className="flex-1 min-w-0 overflow-y-auto pt-14 md:pt-0"
         style={{ paddingBottom: "calc(4rem + env(safe-area-inset-bottom))" }}
       >
         {children}
@@ -332,8 +353,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile bottom navigation */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur border-t border-border"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 backdrop-blur-xl border-t"
+        style={{
+          background: "rgba(11,15,20,0.94)",
+          borderColor: "rgba(255,255,255,0.06)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
       >
         <div className="flex">
           {bottomNavItems.map(({ path, label, icon: Icon }) => {
@@ -344,8 +369,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 key={path}
                 href={path}
                 className={cn(
-                  "flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-medium transition-colors relative",
-                  active ? "text-primary" : "text-muted-foreground",
+                  "flex-1 flex flex-col items-center justify-center gap-1 py-2.5 text-[10px] font-semibold transition-colors relative",
+                  active ? "text-primary" : "text-foreground/35",
                 )}
                 aria-label={label}
               >
@@ -357,7 +382,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </span>
                   )}
                 </div>
-                <span className="truncate max-w-[56px] text-center leading-tight font-extrabold">
+                <span className="truncate max-w-[56px] text-center leading-tight">
                   {label === "Do przeglądu" ? "Przegląd" : label}
                 </span>
               </Link>
@@ -379,12 +404,14 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4 mb-6 md:mb-8">
+    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-6 mb-8 md:mb-10">
       <div className="min-w-0">
-        <h1 className="text-xl md:text-2xl font-semibold text-foreground tracking-tight">
+        <h1 className="text-2xl md:text-[2rem] font-bold text-foreground tracking-[-0.03em] leading-tight">
           {title}
         </h1>
-        {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+        {subtitle && (
+          <p className="text-sm text-muted-foreground mt-1.5">{subtitle}</p>
+        )}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
