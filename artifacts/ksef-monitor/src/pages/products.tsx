@@ -1191,10 +1191,10 @@ export default function Products() {
           </div>
         )}
 
-        {/* Filter bar — mobile: stacked rows; desktop: single flex row */}
-        <div className="mb-4 space-y-2 md:space-y-0 md:flex md:gap-2 md:items-center md:flex-wrap">
-          {/* Row 1 (mobile) / always visible: search */}
-          <div className="relative flex-1 min-w-0 md:min-w-44">
+        {/* Filter bar */}
+        <div className="mb-4 space-y-2">
+          {/* Row 1: search */}
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="search"
@@ -1206,23 +1206,39 @@ export default function Products() {
             />
           </div>
 
-          {/* Row 2 (mobile): dropdowns + compare button */}
-          <div className="flex gap-2 items-center">
-            <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-              <SelectTrigger className="flex-1 min-w-0 md:w-44 md:flex-none" data-testid="select-filter-supplier">
-                <Building2 className="w-3.5 h-3.5 text-muted-foreground shrink-0 mr-1" />
-                <SelectValue placeholder="Dostawca" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Wszyscy dostawcy</SelectItem>
-                {suppliers?.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Row 2: supplier chips — horizontal scroll */}
+          {suppliers && suppliers.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none -mx-4 px-4" data-testid="supplier-chips">
+              <button
+                onClick={() => setSupplierFilter("all")}
+                className={cn(
+                  "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors whitespace-nowrap",
+                  supplierFilter === "all"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+                )}
+              >
+                Wszyscy
+              </button>
+              {suppliers.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setSupplierFilter(supplierFilter === String(s.id) ? "all" : String(s.id))}
+                  className={cn(
+                    "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors whitespace-nowrap",
+                    supplierFilter === String(s.id)
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+                  )}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          )}
 
+          {/* Row 3: sort + review + compare */}
+          <div className="flex gap-2 items-center">
             <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
               <SelectTrigger className="flex-1 min-w-0 md:w-44 md:flex-none" data-testid="select-sort-products">
                 <SelectValue />
