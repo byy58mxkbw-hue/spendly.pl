@@ -1,0 +1,294 @@
+REPLIT TASK — POPRAWA KATEGORYZACJI PRODUKTÓW (CORE SYSTEM)
+
+CEL
+
+Przebudować system produktów tak, aby:
+
+* poprawnie rozpoznawał produkty z faktur,
+* normalizował nazwy,
+* przypisywał rzetelne kategorie,
+* uczył się na poprawkach użytkownika,
+* przygotował bazę pod AI CFO i monitoring rynku.
+
+To jest CORE całego produktu.
+
+⸻
+
+PROBLEM OBECNIE
+
+Nazwy produktów są chaotyczne:
+
+* brandy,
+* CAPS LOCK,
+* skróty,
+* różne jednostki,
+* różni dostawcy,
+* literówki.
+
+Przez to:
+
+* kategorie są błędne,
+* AI CFO daje słabe insighty,
+* food cost jest przekłamany,
+* market comparison nie będzie działać.
+
+⸻
+
+ARCHITEKTURA
+
+1. PRODUCT NORMALIZATION PIPELINE
+
+FLOW
+
+STEP 1
+
+Pobierz raw OCR text.
+
+Przykład:
+
+[AGROPOLE] CEBULA PRAŻON...
+
+⸻
+
+STEP 2
+
+Wyczyść nazwę:
+
+* lowercase,
+* remove brands,
+* remove symbols,
+* remove units,
+* remove invoice garbage,
+* trim spaces.
+
+⸻
+
+STEP 3
+
+Stwórz:
+
+canonical product name
+
+Przykład:
+
+{
+  "canonical_name": "cebula prażona"
+}
+
+⸻
+
+STEP 4
+
+AI classification.
+
+LLM ma zwracać:
+
+{
+  "main_category": "warzywa",
+  "subcategory": "cebula",
+  "confidence": 0.96
+}
+
+⸻
+
+2. CATEGORY SYSTEM
+
+MAIN CATEGORIES
+
+Maksymalnie 15–20 kategorii:
+
+* Mięso
+* Nabiał
+* Warzywa
+* Owoce
+* Napoje
+* Alkohole
+* Oleje
+* Sosy
+* Mrożonki
+* Seafood
+* Pieczywo
+* Przyprawy
+* Chemia
+* Opakowania
+
+⸻
+
+SUBCATEGORIES
+
+Przykład:
+
+{
+  "main_category": "nabiał",
+  "subcategory": "mozzarella"
+}
+
+⸻
+
+3. CONFIDENCE SCORE
+
+Każda klasyfikacja musi mieć:
+
+{
+  "confidence": 0.82
+}
+
+⸻
+
+Jeśli confidence < 0.8
+
+Produkt trafia do:
+
+„Do weryfikacji”.
+
+User wybiera poprawną kategorię.
+
+⸻
+
+4. SELF LEARNING
+
+Jeśli user poprawi kategorię:
+
+* zapisz correction,
+* użyj w przyszłych klasyfikacjach,
+* buduj product memory.
+
+System ma się uczyć.
+
+⸻
+
+5. PRODUCT MEMORY
+
+Każdy produkt powinien mieć:
+
+* canonical_name,
+* aliases,
+* suppliers,
+* categories,
+* embeddings.
+
+⸻
+
+PRZYKŁAD
+
+{
+  "canonical_name": "mozzarella",
+  "aliases": [
+    "mozz",
+    "ser mozz",
+    "mozzarella galbani"
+  ]
+}
+
+⸻
+
+6. MATCHING ENGINE
+
+Nie używać:
+
+name.includes()
+
+⸻
+
+Użyć:
+
+* semantic embeddings,
+* fuzzy matching,
+* similarity search.
+
+⸻
+
+STACK
+
+Backend
+
+Python
+
+⸻
+
+Embeddings
+
+OpenAI embeddings
+
+⸻
+
+Similarity
+
+pgvector
+
+lub:
+Pinecone
+
+⸻
+
+Classification
+
+GPT-4.1 mini
+
+⸻
+
+7. UI CHANGES
+
+Produkty
+
+Zmniejszyć:
+
+* border density,
+* clutter,
+* separator lines.
+
+⸻
+
+Dodać:
+
+* lepszą hierarchy,
+* sticky category headers,
+* lepsze spacing,
+* AI tags,
+* confidence labels.
+
+⸻
+
+8. PRODUCT DETAIL PAGE
+
+Po kliknięciu produktu:
+
+Pokazać:
+
+* historię cen,
+* wykres trendów,
+* dostawców,
+* zmiany cen,
+* AI insights,
+* market comparison.
+
+⸻
+
+AI insight example:
+
+„Cena wzrosła 18% w ciągu 30 dni.”
+
+⸻
+
+Savings example:
+
+„Możesz zaoszczędzić 420 zł/mies. zmieniając dostawcę.”
+
+⸻
+
+9. FINAL GOAL
+
+System ma rozumieć:
+
+co restauracja naprawdę kupuje.
+
+Nie tylko:
+co jest napisane na fakturze.
+
+AI CFO ma działać na:
+
+* produktach,
+* trendach,
+* zachowaniach zakupowych,
+* analizie kosztów,
+* market intelligence.
