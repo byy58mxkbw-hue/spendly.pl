@@ -7,3 +7,4 @@ export * from "./ksef-config";
 export * from "./ksef-pending-invoices";
 export * from "./ai-insights";
 export * from "./user-categories";
+export * from "./product-corrections";

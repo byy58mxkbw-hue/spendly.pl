@@ -261,6 +261,10 @@ export const ListProductsQueryParams = zod.object({
     .string()
     .optional()
     .describe("Month in YYYY-MM format (takes priority over days)"),
+  needsReview: zod.coerce
+    .boolean()
+    .optional()
+    .describe("If true, return only products that need category review"),
 });
 
 export const ListProductsResponseItem = zod.object({
@@ -268,6 +272,10 @@ export const ListProductsResponseItem = zod.object({
   name: zod.string(),
   unit: zod.string(),
   category: zod.string().nullish(),
+  subcategory: zod.string().nullish(),
+  classificationConfidence: zod.number().nullish(),
+  canonicalName: zod.string().nullish(),
+  needsReview: zod.boolean(),
   latestPrice: zod.number().nullish(),
   previousPrice: zod.number().nullish(),
   priceChangePercent: zod.number().nullish(),
@@ -295,6 +303,25 @@ export const UpdateProductParams = zod.object({
 });
 
 export const UpdateProductBody = zod.object({
+  category: zod.string().nullish(),
+});
+
+/**
+ * @summary Correct a product's category (user feedback, enables self-learning)
+ */
+export const CorrectProductCategoryParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CorrectProductCategoryBody = zod.object({
+  category: zod.string(),
+  subcategory: zod.string().nullish(),
+});
+
+export const CorrectProductCategoryResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  unit: zod.string(),
   category: zod.string().nullish(),
 });
 

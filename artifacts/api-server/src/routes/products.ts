@@ -14,8 +14,10 @@ import {
   CreateProductBody,
   CreateCategoryBody,
   UpdateCategoryBody,
+  CorrectProductCategoryParams,
+  CorrectProductCategoryBody,
 } from "@workspace/api-zod";
-import { getUserCategories, ensureCustomCategory } from "../lib/categorize-ai.js";
+import { getUserCategories, ensureCustomCategory, saveProductCorrection } from "../lib/categorize-ai.js";
 import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
 
 const router: IRouter = Router();
@@ -38,7 +40,7 @@ router.get("/products", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, category, days, month } = queryParams.data;
+  const { supplierId, category, days, month, needsReview } = queryParams.data;
 
   const products = await db
     .select({
@@ -46,6 +48,10 @@ router.get("/products", async (req, res): Promise<void> => {
       name: productsTable.name,
       unit: productsTable.unit,
       category: productsTable.category,
+      subcategory: productsTable.subcategory,
+      classificationConfidence: productsTable.classificationConfidence,
+      canonicalName: productsTable.canonicalName,
+      needsReview: productsTable.needsReview,
     })
     .from(productsTable)
     .where(eq(productsTable.userId, userId))
@@ -126,7 +132,11 @@ router.get("/products", async (req, res): Promise<void> => {
   );
 
   res.json(
-    enriched.filter((p) => p.supplierName != null && (!category || p.category === category))
+    enriched.filter((p) =>
+      p.supplierName != null &&
+      (!category || p.category === category) &&
+      (!needsReview || p.needsReview === true)
+    )
   );
 });
 
@@ -450,6 +460,48 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   }
 
   res.status(204).end();
+});
+
+router.patch("/products/:id/correct-category", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const params = CorrectProductCategoryParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = CorrectProductCategoryBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const { category, subcategory } = body.data;
+
+  const [product] = await db
+    .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit })
+    .from(productsTable)
+    .where(and(eq(productsTable.id, params.data.id), eq(productsTable.userId, userId)))
+    .limit(1);
+
+  if (!product) {
+    res.status(404).json({ error: "Produkt nie znaleziony" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(productsTable)
+    .set({
+      category,
+      subcategory: subcategory ?? null,
+      classificationConfidence: 1.0,
+      needsReview: false,
+    })
+    .where(eq(productsTable.id, params.data.id))
+    .returning();
+
+  await saveProductCorrection(userId, params.data.id, product.name, category, subcategory ?? null);
+
+  res.json(updated);
 });
 
 router.get("/categories", async (req, res): Promise<void> => {

@@ -1,9 +1,16 @@
 import { db } from "@workspace/db";
-import { userCategoriesTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { userCategoriesTable, productCorrectionsTable } from "@workspace/db/schema";
+import { eq, and } from "drizzle-orm";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import type { Logger } from "pino";
 import { categorizeProduct, BUILTIN_CATEGORY_DEFS } from "./categorize.js";
+
+export interface ClassificationResult {
+  category: string;
+  subcategory: string | null;
+  confidence: number;
+  canonicalName: string;
+}
 
 /**
  * Slugify a label into a safe category ID.
@@ -17,6 +24,22 @@ function slugify(label: string): string {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 40);
+}
+
+/**
+ * Normalize a raw product name from an invoice into a cleaner canonical form.
+ * Removes brand prefixes in brackets, units, leading quantities, etc.
+ */
+export function normalizeProductName(name: string): string {
+  return name
+    .replace(/\[.*?\]/g, "")                                     // Remove [BRAND] prefixes
+    .replace(/\(.*?\)/g, "")                                     // Remove (info in parens)
+    .replace(/^\s*\d+\s*[xX]\s*/g, "")                          // Remove "2x " quantity prefix
+    .replace(/\b\d+[,.]?\d*\s*(kg|dkg|g|l|ml|szt|op|opak|pcs|litr|butel|zest|kpl)\b/gi, "")
+    .replace(/[-–—/\\|]+$/, "")                                  // Remove trailing separators
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .trim();
 }
 
 /**
@@ -55,7 +78,6 @@ export async function getUserCategories(userId: string): Promise<
 /**
  * Ensure a custom category exists for a user (upsert).
  * Silently does nothing if the ID already exists (built-in or custom).
- * Returns the final categoryId (may differ from input if de-duped).
  */
 export async function ensureCustomCategory(
   userId: string,
@@ -76,86 +98,190 @@ export async function ensureCustomCategory(
 }
 
 /**
+ * Look up the most recent user correction for a normalized product name.
+ * Returns null if no correction exists.
+ */
+async function getLatestCorrection(
+  userId: string,
+  normalizedName: string,
+): Promise<{ correctedCategory: string; correctedSubcategory: string | null } | null> {
+  try {
+    const [row] = await db
+      .select({
+        correctedCategory: productCorrectionsTable.correctedCategory,
+        correctedSubcategory: productCorrectionsTable.correctedSubcategory,
+      })
+      .from(productCorrectionsTable)
+      .where(
+        and(
+          eq(productCorrectionsTable.userId, userId),
+          eq(productCorrectionsTable.normalizedName, normalizedName),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Categorize a product name using:
- * 1. Fast keyword matching (synchronous, zero cost)
- * 2. If "inne" — ask GPT-4o-mini with full category list
- *    (built-in + user custom categories)
- *    AI may pick an existing category OR propose a new label (prefixed "NEW:")
- *    New labels are slugified, persisted, and returned.
- * 3. On any error or timeout — returns "inne"
+ * 1. Check user corrections (self-learning) — highest priority
+ * 2. Fast keyword matching (synchronous, zero cost, confidence 0.90)
+ * 3. GPT-4o-mini with full category list → returns JSON with subcategory + confidence
+ *
+ * Always returns a ClassificationResult with category, subcategory, confidence, canonicalName.
  */
 export async function categorizeProductWithAI(
   productName: string,
   userId: string,
   logger?: Logger,
-): Promise<string> {
-  // Step 1: Fast keyword matching
-  const keywordResult = categorizeProduct(productName);
-  if (keywordResult !== "inne") {
-    return keywordResult;
+): Promise<ClassificationResult> {
+  const normalizedName = normalizeProductName(productName);
+  const canonicalName = normalizedName || productName.toLowerCase().trim();
+
+  // Step 1: Check user corrections (self-learning)
+  const correction = await getLatestCorrection(userId, canonicalName);
+  if (correction) {
+    logger?.info({ productName, canonicalName, category: correction.correctedCategory }, "categorize: using user correction");
+    return {
+      category: correction.correctedCategory,
+      subcategory: correction.correctedSubcategory ?? null,
+      confidence: 1.0,
+      canonicalName,
+    };
   }
 
-  // Step 2: Build complete category list (built-in + user custom)
+  // Step 2: Fast keyword matching on normalized + original
+  const keywordResult =
+    categorizeProduct(canonicalName) !== "inne"
+      ? categorizeProduct(canonicalName)
+      : categorizeProduct(productName.toLowerCase());
+
+  if (keywordResult !== "inne") {
+    return {
+      category: keywordResult,
+      subcategory: null,
+      confidence: 0.9,
+      canonicalName,
+    };
+  }
+
+  // Step 3: AI classification — returns JSON with subcategory + confidence
   const allCategories = await getUserCategories(userId);
   const existingIds = allCategories.map((c) => c.id);
-  const categoryList = allCategories
-    .map((c) => `${c.id}: ${c.label}`)
-    .join("\n");
+  const categoryList = allCategories.map((c) => `${c.id}: ${c.label}`).join("\n");
 
-  const prompt = `Jesteś asystentem restauracji. Klasyfikuj produkt do najlepiej pasującej kategorii.
+  const prompt = `Jesteś asystentem restauracji. Klasyfikuj produkt spożywczy lub gastronomiczny.
 
-Możliwe odpowiedzi:
-1. Podaj dokładne ID istniejącej kategorii (bez cudzysłowów, bez spacji)
-2. Jeśli żadna nie pasuje, zaproponuj nową kategorię: NEW:<polska_nazwa> np. NEW:Dania gotowe
+Zwróć WYŁĄCZNIE obiekt JSON (bez markdown, bez komentarzy):
+{"category":"<id kategorii>","subcategory":"<podkategoria po polsku lub null>","confidence":<0.0-1.0>}
 
-Istniejące kategorie:
+Zasady:
+- category: dokładne ID z listy poniżej, lub "NEW:<polska_nazwa>" jeśli żadna nie pasuje
+- subcategory: szczegółowa podkategoria (np. "mozzarella", "filet z łososia", "kurczak pierś") lub null
+- confidence: pewność klasyfikacji od 0.0 do 1.0
+
+Dostępne kategorie:
 ${categoryList}
 
-Produkt: ${productName}`;
+Produkt: ${productName}
+Znormalizowana nazwa: ${canonicalName}`;
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => controller.abort(), 6000);
 
     const resp = await openai.chat.completions.create(
       {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 30,
+        max_tokens: 80,
         temperature: 0,
+        response_format: { type: "json_object" },
       },
       { signal: controller.signal },
     );
     clearTimeout(timeout);
 
-    const raw = resp.choices[0]?.message?.content?.trim() ?? "inne";
+    const raw = resp.choices[0]?.message?.content?.trim() ?? "{}";
+    let parsed: { category?: string; subcategory?: string | null; confidence?: number } = {};
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      logger?.warn({ productName, raw }, "categorize-ai: failed to parse JSON response");
+      return { category: "inne", subcategory: null, confidence: 0.4, canonicalName };
+    }
+
+    let finalCategory = parsed.category?.trim() ?? "inne";
+    const finalConfidence = typeof parsed.confidence === "number"
+      ? Math.min(1, Math.max(0, parsed.confidence))
+      : 0.6;
+    const finalSubcategory = parsed.subcategory && parsed.subcategory !== "null"
+      ? parsed.subcategory.trim().slice(0, 60)
+      : null;
 
     // Handle NEW:<label> response
-    const newMatch = raw.match(/^NEW:(.+)$/i);
+    const newMatch = finalCategory.match(/^NEW:(.+)$/i);
     if (newMatch) {
       const newLabel = newMatch[1].trim().slice(0, 60);
       if (newLabel.length >= 2) {
         let slug = slugify(newLabel);
-        // Avoid collisions with existing IDs
-        if (existingIds.includes(slug)) {
-          slug = `${slug}_2`;
-        }
+        if (existingIds.includes(slug)) slug = `${slug}_2`;
         await ensureCustomCategory(userId, slug, newLabel);
         logger?.info({ productName, slug, newLabel }, "categorize-ai: created new category");
-        return slug;
+        finalCategory = slug;
+      } else {
+        finalCategory = "inne";
+      }
+    } else {
+      // Validate against known category IDs
+      const normalized = finalCategory.toLowerCase().replace(/[^a-z0-9_ąćęłńóśźż]/g, "");
+      if (!existingIds.includes(normalized)) {
+        logger?.warn({ productName, finalCategory }, "categorize-ai: unknown category ID, using 'inne'");
+        finalCategory = "inne";
+      } else {
+        finalCategory = normalized;
       }
     }
 
-    // Handle existing category ID response
-    const candidate = raw.toLowerCase().replace(/[^a-z0-9_ąćęłńóśźż]/g, "");
-    if (existingIds.includes(candidate)) {
-      return candidate;
-    }
-
-    logger?.warn({ productName, raw }, "categorize-ai: unexpected AI response, using 'inne'");
-    return "inne";
+    return {
+      category: finalCategory,
+      subcategory: finalSubcategory,
+      confidence: finalConfidence,
+      canonicalName,
+    };
   } catch (err) {
     logger?.warn({ productName, err }, "categorize-ai: AI fallback failed, using 'inne'");
-    return "inne";
+    return { category: "inne", subcategory: null, confidence: 0.3, canonicalName };
+  }
+}
+
+/**
+ * Save a user correction for self-learning.
+ * This is called when a user manually corrects a product's category.
+ */
+export async function saveProductCorrection(
+  userId: string,
+  productId: number,
+  productName: string,
+  correctedCategory: string,
+  correctedSubcategory: string | null,
+): Promise<void> {
+  const normalizedName = normalizeProductName(productName);
+  try {
+    await db
+      .insert(productCorrectionsTable)
+      .values({
+        userId,
+        productId,
+        productName,
+        normalizedName: normalizedName || productName.toLowerCase().trim(),
+        correctedCategory,
+        correctedSubcategory,
+      });
+  } catch (err) {
+    // Non-fatal — log but don't throw
   }
 }

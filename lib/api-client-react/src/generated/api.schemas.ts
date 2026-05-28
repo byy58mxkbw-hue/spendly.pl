@@ -52,6 +52,13 @@ export interface Product {
   /** @nullable */
   category?: string | null;
   /** @nullable */
+  subcategory?: string | null;
+  /** @nullable */
+  classificationConfidence?: number | null;
+  /** @nullable */
+  canonicalName?: string | null;
+  needsReview: boolean;
+  /** @nullable */
   latestPrice?: number | null;
   /** @nullable */
   previousPrice?: number | null;
@@ -84,6 +91,12 @@ export interface CreatedProduct {
 export interface UpdateProductBody {
   /** @nullable */
   category?: string | null;
+}
+
+export interface CorrectProductCategoryBody {
+  category: string;
+  /** @nullable */
+  subcategory?: string | null;
 }
 
 export interface SupplierComparisonPricePoint {
@@ -687,6 +700,10 @@ export type ListProductsParams = {
    * Month in YYYY-MM format (takes priority over days)
    */
   month?: string;
+  /**
+   * If true, return only products that need category review
+   */
+  needsReview?: boolean;
 };
 
 export type GetProductPriceHistoryParams = {

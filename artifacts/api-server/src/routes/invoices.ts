@@ -9,7 +9,7 @@ import {
   GetInvoiceParams,
   DeleteInvoiceParams,
 } from "@workspace/api-zod";
-import { categorizeProductWithAI } from "../lib/categorize-ai.js";
+import { categorizeProductWithAI, type ClassificationResult } from "../lib/categorize-ai.js";
 import { checkAlertsAfterImport } from "../services/alert-checker";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { encryptSecret, decryptSecret } from "../lib/encryption";
@@ -185,7 +185,7 @@ async function findOrCreateProduct(
   userId: string,
   name: string,
   unit: string,
-  category: string | null,
+  classification: ClassificationResult,
 ): Promise<number> {
   const trimmed = name.trim();
   const [existing] = await db
@@ -199,20 +199,36 @@ async function findOrCreateProduct(
     )
     .limit(1);
   if (existing) {
-    // Only update category when it's unset or "inne" — never overwrite a manual assignment
-    const shouldUpdateCategory =
-      category !== null &&
-      category !== "inne" &&
+    const shouldUpdateClassification =
+      classification.category !== "inne" &&
       (existing.category === null || existing.category === "inne");
     await db
       .update(productsTable)
-      .set({ unit, ...(shouldUpdateCategory ? { category } : {}) })
+      .set({
+        unit,
+        ...(shouldUpdateClassification ? {
+          category: classification.category,
+          subcategory: classification.subcategory,
+          classificationConfidence: classification.confidence,
+          canonicalName: classification.canonicalName,
+          needsReview: classification.confidence < 0.75,
+        } : {}),
+      })
       .where(eq(productsTable.id, existing.id));
     return existing.id;
   }
   const [created] = await db
     .insert(productsTable)
-    .values({ userId, name: trimmed, unit, category })
+    .values({
+      userId,
+      name: trimmed,
+      unit,
+      category: classification.category,
+      subcategory: classification.subcategory,
+      classificationConfidence: classification.confidence,
+      canonicalName: classification.canonicalName,
+      needsReview: classification.confidence < 0.75,
+    })
     .returning({ id: productsTable.id });
   return created.id;
 }
@@ -388,8 +404,8 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   }> = [];
 
   for (const item of parsedItems) {
-    const category = await categorizeProductWithAI(item.productName, userId, req.log);
-    const productId = await findOrCreateProduct(userId, item.productName, item.unit, category);
+    const classification = await categorizeProductWithAI(item.productName, userId, req.log);
+    const productId = await findOrCreateProduct(userId, item.productName, item.unit, classification);
 
     const [invoiceItem] = await db
       .insert(invoiceItemsTable)

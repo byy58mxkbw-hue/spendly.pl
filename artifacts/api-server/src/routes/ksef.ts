@@ -256,10 +256,19 @@ async function findOrCreateProductByName(
     )
     .limit(1);
   if (existing) return existing.id;
-  const category = await categorizeProductWithAI(trimmed, userId);
+  const classification = await categorizeProductWithAI(trimmed, userId);
   const [created] = await db
     .insert(productsTable)
-    .values({ userId, name: trimmed, unit: unit?.trim() || "szt", category })
+    .values({
+      userId,
+      name: trimmed,
+      unit: unit?.trim() || "szt",
+      category: classification.category,
+      subcategory: classification.subcategory,
+      classificationConfidence: classification.confidence,
+      canonicalName: classification.canonicalName,
+      needsReview: classification.confidence < 0.75,
+    })
     .returning({ id: productsTable.id });
   return created.id;
 }

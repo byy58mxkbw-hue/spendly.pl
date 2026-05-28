@@ -6,7 +6,7 @@ import {
   useListSuppliers,
   useGetProductPriceHistory,
   useGetProductSupplierComparison,
-  useUpdateProduct,
+  useCorrectProductCategory,
   useGetCategorySpend,
   useListCategories,
   useCreateCategory,
@@ -15,6 +15,7 @@ import {
   getListCategoriesQueryKey,
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
+  getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import { currentMonth } from "@/lib/month";
 import { MonthNavigator } from "@/components/month-navigator";
@@ -73,6 +74,7 @@ import {
   Trash2,
   Pencil,
   Download,
+  AlertTriangle,
 } from "lucide-react";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -83,6 +85,9 @@ type ProductItem = {
   name: string;
   unit: string;
   category?: string | null;
+  subcategory?: string | null;
+  classificationConfidence?: number | null;
+  needsReview?: boolean | null;
   latestPrice?: number | null;
   supplierName?: string | null;
   supplierId?: number | null;
@@ -831,7 +836,7 @@ function CategoryBadge({
   onChanged: () => void;
 }) {
   const queryClient = useQueryClient();
-  const updateMutation = useUpdateProduct();
+  const correctMutation = useCorrectProductCategory();
   const deleteMutation = useDeleteCategory();
   const effectiveId = category ?? categorizeProduct(productName);
   const def = categories?.find((c) => c.id === effectiveId);
@@ -840,9 +845,14 @@ function CategoryBadge({
   const [renameCategory, setRenameCategory] = useState<CategoryItem | null>(null);
 
   const handleSelect = (newCategoryId: string | null) => {
-    updateMutation.mutate(
-      { id: productId, data: { category: newCategoryId } },
-      { onSuccess: () => onChanged() },
+    correctMutation.mutate(
+      { id: productId, data: { category: newCategoryId ?? "inne" } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+          onChanged();
+        },
+      },
     );
   };
 
@@ -1003,6 +1013,9 @@ export default function Products() {
   const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>("history");
   const [showKeywordComparison, setShowKeywordComparison] = useState(false);
+  const [showNeedsReview, setShowNeedsReview] = useState(false);
+
+  const needsReviewCount = products?.filter((p) => p.needsReview === true).length ?? 0;
 
   const filtered = sortProducts(
     products?.filter((p) => {
@@ -1010,7 +1023,8 @@ export default function Products() {
       const matchesSupplier = supplierFilter === "all" || p.supplierName === supplierFilter;
       const effectiveCategory = p.category ?? categorizeProduct(p.name);
       const matchesCategory = categoryFilter === "all" || effectiveCategory === categoryFilter;
-      return matchesSearch && matchesSupplier && matchesCategory;
+      const matchesReview = !showNeedsReview || p.needsReview === true;
+      return matchesSearch && matchesSupplier && matchesCategory && matchesReview;
     }) ?? [],
     sort
   );
@@ -1227,6 +1241,30 @@ export default function Products() {
               </SelectContent>
             </Select>
 
+            {needsReviewCount > 0 && (
+              <Button
+                variant={showNeedsReview ? "default" : "outline"}
+                size="sm"
+                className={cn(
+                  "shrink-0 gap-1.5 text-xs",
+                  showNeedsReview
+                    ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white"
+                    : "border-amber-300 text-amber-600 hover:bg-amber-50"
+                )}
+                onClick={() => setShowNeedsReview((v) => !v)}
+                title="Produkty wymagające weryfikacji kategorii"
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Do weryfikacji
+                <span className={cn(
+                  "inline-flex items-center justify-center rounded-full text-[10px] font-bold w-4 h-4",
+                  showNeedsReview ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"
+                )}>
+                  {needsReviewCount}
+                </span>
+              </Button>
+            )}
+
             <Button
               variant="outline"
               size="icon"
@@ -1239,10 +1277,10 @@ export default function Products() {
           </div>
 
           {/* Desktop only: clear + compare */}
-          {(supplierFilter !== "all" || search || categoryFilter !== "all") && (
+          {(supplierFilter !== "all" || search || categoryFilter !== "all" || showNeedsReview) && (
             <button
               className="hidden md:inline text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-              onClick={() => { setSupplierFilter("all"); setSearch(""); setCategoryFilter("all"); }}
+              onClick={() => { setSupplierFilter("all"); setSearch(""); setCategoryFilter("all"); setShowNeedsReview(false); }}
             >
               Wyczyść filtry
             </button>
@@ -1387,13 +1425,24 @@ export default function Products() {
 
                     {/* Name + meta */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground leading-snug truncate">{product.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-foreground leading-snug truncate">{product.name}</p>
+                        {product.needsReview && (
+                          <span className="inline-flex items-center gap-0.5 shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            Do weryfikacji
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         <p className="text-xs text-muted-foreground truncate max-w-[140px]">
                           {product.supplierName ?? "Brak dostawcy"}
                         </p>
                         <span className="text-xs text-muted-foreground">·</span>
                         <p className="text-xs text-muted-foreground shrink-0">{product.unit}</p>
+                        {product.subcategory && (
+                          <span className="text-[10px] text-muted-foreground/70 truncate max-w-[120px]">· {product.subcategory}</span>
+                        )}
                         {hasMultipleSuppliers && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">
                             <GitCompare className="w-2.5 h-2.5" />
@@ -1507,9 +1556,20 @@ export default function Products() {
                     data-testid={`product-row-${product.id}`}
                   >
                     <div>
-                      <p className="text-sm font-medium text-foreground">{product.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-foreground">{product.name}</p>
+                        {product.needsReview && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            Do weryfikacji
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <p className="text-xs text-muted-foreground">{product.supplierName ?? "Brak dostawcy"} · {product.unit}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {product.supplierName ?? "Brak dostawcy"} · {product.unit}
+                          {product.subcategory ? ` · ${product.subcategory}` : ""}
+                        </p>
                         <CategoryBadge
                           productId={product.id}
                           productName={product.name}

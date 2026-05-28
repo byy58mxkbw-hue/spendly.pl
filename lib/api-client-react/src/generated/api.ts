@@ -25,6 +25,7 @@ import type {
   CategoryItem,
   CategorySpendItem,
   CategorySpendTrendRow,
+  CorrectProductCategoryBody,
   CreateCategoryBody,
   CreatePriceAlertBody,
   CreateProductBody,
@@ -1611,6 +1612,94 @@ export const useUpdateProduct = <
   TContext
 > => {
   return useMutation(getUpdateProductMutationOptions(options));
+};
+
+/**
+ * @summary Correct a product's category (user feedback, enables self-learning)
+ */
+export const getCorrectProductCategoryUrl = (id: number) => {
+  return `/api/products/${id}/correct-category`;
+};
+
+export const correctProductCategory = async (
+  id: number,
+  correctProductCategoryBody: CorrectProductCategoryBody,
+  options?: RequestInit,
+): Promise<CreatedProduct> => {
+  return customFetch<CreatedProduct>(getCorrectProductCategoryUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(correctProductCategoryBody),
+  });
+};
+
+export const getCorrectProductCategoryMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof correctProductCategory>>,
+    TError,
+    { id: number; data: BodyType<CorrectProductCategoryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof correctProductCategory>>,
+  TError,
+  { id: number; data: BodyType<CorrectProductCategoryBody> },
+  TContext
+> => {
+  const mutationKey = ["correctProductCategory"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof correctProductCategory>>,
+    { id: number; data: BodyType<CorrectProductCategoryBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return correctProductCategory(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CorrectProductCategoryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof correctProductCategory>>
+>;
+export type CorrectProductCategoryMutationBody =
+  BodyType<CorrectProductCategoryBody>;
+export type CorrectProductCategoryMutationError = ErrorType<void>;
+
+/**
+ * @summary Correct a product's category (user feedback, enables self-learning)
+ */
+export const useCorrectProductCategory = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof correctProductCategory>>,
+    TError,
+    { id: number; data: BodyType<CorrectProductCategoryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof correctProductCategory>>,
+  TError,
+  { id: number; data: BodyType<CorrectProductCategoryBody> },
+  TContext
+> => {
+  return useMutation(getCorrectProductCategoryMutationOptions(options));
 };
 
 /**

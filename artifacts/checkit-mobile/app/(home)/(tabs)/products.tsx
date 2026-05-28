@@ -25,14 +25,27 @@ function ProductRow({ item }: { item: Product }) {
   const change = Number(item.priceChangePercent ?? 0);
   const isUp = change > 0;
   const hasChange = item.priceChangePercent != null;
+  const sub = (item as Product & { subcategory?: string | null; needsReview?: boolean | null }).subcategory;
+  const needsReview = (item as Product & { subcategory?: string | null; needsReview?: boolean | null }).needsReview;
+
+  const metaParts = [
+    item.category ?? null,
+    sub ?? null,
+    item.supplierName ?? "—",
+  ].filter(Boolean).join(" · ");
 
   return (
     <View style={s.row}>
       <View style={s.left}>
-        <Text style={s.name} numberOfLines={1}>{item.name}</Text>
-        <Text style={s.meta} numberOfLines={1}>
-          {item.category ? `${item.category} · ` : ""}{item.supplierName ?? "—"}
-        </Text>
+        <View style={s.nameRow}>
+          <Text style={s.name} numberOfLines={1}>{item.name}</Text>
+          {needsReview && (
+            <View style={s.reviewBadge}>
+              <Text style={s.reviewBadgeText}>!</Text>
+            </View>
+          )}
+        </View>
+        <Text style={s.meta} numberOfLines={1}>{metaParts}</Text>
       </View>
       <View style={s.right}>
         <Text style={s.price}>{formatPrice(item.latestPrice)}</Text>
@@ -67,10 +80,30 @@ const rowStyles = (colors: ReturnType<typeof useColors>) =>
       alignItems: "flex-end",
       gap: 4,
     },
+    nameRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
     name: {
       fontSize: 14,
       fontFamily: "Inter_500Medium",
       color: colors.foreground,
+      flexShrink: 1,
+    },
+    reviewBadge: {
+      backgroundColor: "#fef3c7",
+      borderRadius: 8,
+      width: 16,
+      height: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    },
+    reviewBadgeText: {
+      fontSize: 10,
+      fontFamily: "Inter_700Bold",
+      color: "#d97706",
     },
     meta: {
       fontSize: 12,
