@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { runCategoryBackfill } from "./services/backfill-categories.js";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,7 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Run in background — never blocks startup, never crashes the process
+  runCategoryBackfill().catch(() => {});
 });
