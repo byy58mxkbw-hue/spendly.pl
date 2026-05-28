@@ -78,6 +78,8 @@ import type {
   Supplier,
   SupplierComparison,
   SyncKsefInvoicesBody,
+  ToggleInvoiceExcluded200,
+  ToggleInvoiceExcludedBody,
   TriggeredAlert,
   UpdateCategoryBody,
   UpdateKsefConfigBody,
@@ -2771,6 +2773,97 @@ export const useDeleteInvoice = <
   TContext
 > => {
   return useMutation(getDeleteInvoiceMutationOptions(options));
+};
+
+/**
+ * @summary Toggle whether an invoice is excluded from statistics
+ */
+export const getToggleInvoiceExcludedUrl = (id: number) => {
+  return `/api/invoices/${id}/exclude`;
+};
+
+export const toggleInvoiceExcluded = async (
+  id: number,
+  toggleInvoiceExcludedBody: ToggleInvoiceExcludedBody,
+  options?: RequestInit,
+): Promise<ToggleInvoiceExcluded200> => {
+  return customFetch<ToggleInvoiceExcluded200>(
+    getToggleInvoiceExcludedUrl(id),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(toggleInvoiceExcludedBody),
+    },
+  );
+};
+
+export const getToggleInvoiceExcludedMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleInvoiceExcluded>>,
+    TError,
+    { id: number; data: BodyType<ToggleInvoiceExcludedBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof toggleInvoiceExcluded>>,
+  TError,
+  { id: number; data: BodyType<ToggleInvoiceExcludedBody> },
+  TContext
+> => {
+  const mutationKey = ["toggleInvoiceExcluded"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof toggleInvoiceExcluded>>,
+    { id: number; data: BodyType<ToggleInvoiceExcludedBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return toggleInvoiceExcluded(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ToggleInvoiceExcludedMutationResult = NonNullable<
+  Awaited<ReturnType<typeof toggleInvoiceExcluded>>
+>;
+export type ToggleInvoiceExcludedMutationBody =
+  BodyType<ToggleInvoiceExcludedBody>;
+export type ToggleInvoiceExcludedMutationError = ErrorType<void>;
+
+/**
+ * @summary Toggle whether an invoice is excluded from statistics
+ */
+export const useToggleInvoiceExcluded = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleInvoiceExcluded>>,
+    TError,
+    { id: number; data: BodyType<ToggleInvoiceExcludedBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof toggleInvoiceExcluded>>,
+  TError,
+  { id: number; data: BodyType<ToggleInvoiceExcludedBody> },
+  TContext
+> => {
+  return useMutation(getToggleInvoiceExcludedMutationOptions(options));
 };
 
 /**

@@ -149,6 +149,7 @@ export interface Invoice {
   totalAmount: number;
   itemCount: number;
   importedAt: string;
+  excluded: boolean;
 }
 
 export interface InvoiceItem {
@@ -173,6 +174,7 @@ export interface InvoiceWithItems {
   invoiceDate: string;
   totalAmount: number;
   importedAt: string;
+  excluded: boolean;
   items: InvoiceItem[];
 }
 
@@ -709,6 +711,15 @@ export type ListInvoicesParams = {
 
 export type DeleteAllInvoices200 = {
   deleted: number;
+};
+
+export type ToggleInvoiceExcludedBody = {
+  excluded: boolean;
+};
+
+export type ToggleInvoiceExcluded200 = {
+  id: number;
+  excluded: boolean;
 };
 
 export type GetDashboardSummaryParams = {

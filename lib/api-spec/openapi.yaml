@@ -687,6 +687,43 @@ paths:
         "204":
           description: Deleted
 
+  /invoices/{id}/exclude:
+    patch:
+      operationId: toggleInvoiceExcluded
+      tags: [invoices]
+      summary: Toggle whether an invoice is excluded from statistics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [excluded]
+              properties:
+                excluded:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated invoice excluded status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, excluded]
+                properties:
+                  id:
+                    type: integer
+                  excluded:
+                    type: boolean
+        "404":
+          description: Not found
+
   /price-alerts:
     get:
       operationId: listPriceAlerts
@@ -1467,6 +1504,8 @@ components:
           type: integer
         importedAt:
           type: string
+        excluded:
+          type: boolean
       required:
         - id
         - supplierId
@@ -1476,6 +1515,7 @@ components:
         - totalAmount
         - itemCount
         - importedAt
+        - excluded
 
     InvoiceItem:
       type: object
@@ -1524,6 +1564,8 @@ components:
           type: number
         importedAt:
           type: string
+        excluded:
+          type: boolean
         items:
           type: array
           items:
@@ -1536,6 +1578,7 @@ components:
         - invoiceDate
         - totalAmount
         - importedAt
+        - excluded
         - items
 
     ScanReceiptBody:

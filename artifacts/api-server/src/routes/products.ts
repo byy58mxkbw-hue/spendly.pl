@@ -67,6 +67,7 @@ router.get("/products", async (req, res): Promise<void> => {
           and(
             eq(invoiceItemsTable.productId, product.id),
             eq(invoicesTable.userId, userId),
+            eq(invoicesTable.excluded, false),
             supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
             month
               ? sql`${invoicesTable.invoiceDate} >= ${month + "-01"} AND ${invoicesTable.invoiceDate} < ${(() => { const [y, m2] = month.split("-").map(Number); return new Date(y, m2, 1).toISOString().split("T")[0]; })()}`
@@ -82,7 +83,7 @@ router.get("/products", async (req, res): Promise<void> => {
         .select({ cnt: sql<number>`count(distinct ${invoicesTable.supplierId})` })
         .from(invoiceItemsTable)
         .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-        .where(and(eq(invoiceItemsTable.productId, product.id), eq(invoicesTable.userId, userId)));
+        .where(and(eq(invoiceItemsTable.productId, product.id), eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false)));
 
       const quantityResult = await db
         .select({ total: sql<string>`sum(${invoiceItemsTable.quantity})` })
@@ -92,6 +93,7 @@ router.get("/products", async (req, res): Promise<void> => {
           and(
             eq(invoiceItemsTable.productId, product.id),
             eq(invoicesTable.userId, userId),
+            eq(invoicesTable.excluded, false),
             month
               ? sql`${invoicesTable.invoiceDate} >= ${month + "-01"} AND ${invoicesTable.invoiceDate} < ${(() => { const [y, m2] = month.split("-").map(Number); return new Date(y, m2, 1).toISOString().split("T")[0]; })()}`
               : days
@@ -152,6 +154,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
       const baseWhere = and(
         eq(invoiceItemsTable.productId, product.id),
         eq(invoicesTable.userId, userId),
+        eq(invoicesTable.excluded, false),
       );
 
       if (mStart && mEnd) {
@@ -287,7 +290,7 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(and(eq(invoiceItemsTable.productId, params.data.id), eq(invoicesTable.userId, userId)))
+    .where(and(eq(invoiceItemsTable.productId, params.data.id), eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false)))
     .groupBy(invoicesTable.supplierId, suppliersTable.name)
     .orderBy(sql`max(${invoicesTable.invoiceDate}) desc`);
 
@@ -305,6 +308,7 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
             eq(invoiceItemsTable.productId, params.data.id),
             eq(invoicesTable.supplierId, s.supplierId),
             eq(invoicesTable.userId, userId),
+            eq(invoicesTable.excluded, false),
           ),
         )
         .orderBy(invoicesTable.invoiceDate);
@@ -378,6 +382,7 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
       and(
         eq(invoiceItemsTable.productId, params.data.id),
         eq(invoicesTable.userId, userId),
+        eq(invoicesTable.excluded, false),
         supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
       ),
     )

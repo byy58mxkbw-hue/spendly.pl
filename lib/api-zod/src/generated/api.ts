@@ -454,6 +454,7 @@ export const ListInvoicesResponseItem = zod.object({
   totalAmount: zod.number(),
   itemCount: zod.number(),
   importedAt: zod.string(),
+  excluded: zod.boolean(),
 });
 export const ListInvoicesResponse = zod.array(ListInvoicesResponseItem);
 
@@ -535,6 +536,7 @@ export const GetInvoiceResponse = zod.object({
   invoiceDate: zod.string(),
   totalAmount: zod.number(),
   importedAt: zod.string(),
+  excluded: zod.boolean(),
   items: zod.array(
     zod.object({
       id: zod.number(),
@@ -555,6 +557,22 @@ export const GetInvoiceResponse = zod.object({
  */
 export const DeleteInvoiceParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Toggle whether an invoice is excluded from statistics
+ */
+export const ToggleInvoiceExcludedParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ToggleInvoiceExcludedBody = zod.object({
+  excluded: zod.boolean(),
+});
+
+export const ToggleInvoiceExcludedResponse = zod.object({
+  id: zod.number(),
+  excluded: zod.boolean(),
 });
 
 /**
@@ -1134,6 +1152,7 @@ export const AcceptKsefPendingResponse = zod.object({
   invoiceDate: zod.string(),
   totalAmount: zod.number(),
   importedAt: zod.string(),
+  excluded: zod.boolean(),
   items: zod.array(
     zod.object({
       id: zod.number(),

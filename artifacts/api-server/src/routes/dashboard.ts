@@ -62,7 +62,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const [invoiceStats] = await db
     .select({ totalInvoices: sql<number>`count(*)::int` })
     .from(invoicesTable)
-    .where(eq(invoicesTable.userId, userId));
+    .where(and(eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false)));
 
   const [thisPeriodSpend] = await db
     .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
@@ -71,6 +71,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .where(
       and(
         eq(invoicesTable.userId, userId),
+        eq(invoicesTable.excluded, false),
         gte(invoicesTable.invoiceDate, periodStart),
         periodEnd ? sql`${invoicesTable.invoiceDate} < ${periodEnd}` : undefined,
       ),
@@ -83,6 +84,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .where(
       and(
         eq(invoicesTable.userId, userId),
+        eq(invoicesTable.excluded, false),
         gte(invoicesTable.invoiceDate, prevPeriodStart),
         sql`${invoicesTable.invoiceDate} < ${prevPeriodEnd}`,
       ),
@@ -108,6 +110,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       WHERE i.user_id = ${userId}
+        AND i.excluded = false
         AND ii.product_id IS NOT NULL
         AND ii.unit_price IS NOT NULL
         AND ii.unit_price::numeric > 0
@@ -120,6 +123,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     JOIN prev_prices p ON l.product_id = p.product_id
     WHERE p.price > 0
   `);
+
   const avgPriceChange =
     avgResult.rows[0]?.avg_change != null
       ? parseFloat(String(avgResult.rows[0].avg_change))
@@ -170,6 +174,7 @@ router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
     FROM invoices i
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
+      AND i.excluded = false
     GROUP BY 1, 2, 3, 4
     ORDER BY 1 DESC
     LIMIT ${sql.raw(String(months))}
@@ -221,7 +226,7 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(and(eq(invoicesTable.userId, userId), dateFilter))
+    .where(and(eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false), dateFilter))
     .orderBy(desc(invoicesTable.invoiceDate))
     .limit(limit * 2);
 
@@ -246,6 +251,7 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
             and(
               eq(invoiceItemsTable.productId, item.productId),
               eq(invoicesTable.userId, userId),
+              eq(invoicesTable.excluded, false),
               sql`${invoicesTable.invoiceDate} < ${item.invoiceDate}`,
             ),
           )

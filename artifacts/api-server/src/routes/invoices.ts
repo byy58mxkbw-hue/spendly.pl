@@ -35,6 +35,7 @@ router.get("/invoices", async (req, res): Promise<void> => {
       invoiceDate: invoicesTable.invoiceDate,
       totalAmount: invoicesTable.totalAmount,
       importedAt: invoicesTable.importedAt,
+      excluded: invoicesTable.excluded,
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
@@ -444,6 +445,7 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
       invoiceDate: invoicesTable.invoiceDate,
       totalAmount: invoicesTable.totalAmount,
       importedAt: invoicesTable.importedAt,
+      excluded: invoicesTable.excluded,
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
@@ -471,6 +473,33 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
       vatRate: toNumOrNull(item.vatRate),
     })),
   });
+});
+
+router.patch("/invoices/:id/exclude", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "Invalid invoice id" });
+    return;
+  }
+  const { excluded } = req.body as { excluded: boolean };
+  if (typeof excluded !== "boolean") {
+    res.status(400).json({ error: "excluded must be a boolean" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(invoicesTable)
+    .set({ excluded })
+    .where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, userId)))
+    .returning({ id: invoicesTable.id, excluded: invoicesTable.excluded });
+
+  if (!updated) {
+    res.status(404).json({ error: "Invoice not found" });
+    return;
+  }
+
+  res.json(updated);
 });
 
 router.delete("/invoices/delete-all", async (req, res): Promise<void> => {

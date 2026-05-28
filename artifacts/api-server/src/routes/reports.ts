@@ -35,6 +35,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     FROM invoices i
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
+      AND i.excluded = false
       ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
   `);
   const summary = summaryResult.rows[0] as {
@@ -60,6 +61,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       LEFT JOIN products p ON ii.product_id = p.id
       INNER JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId}
+        AND i.excluded = false
         AND i.invoice_date LIKE ${prevMonthPrefix + "%"}
       GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
     `);
@@ -82,6 +84,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     INNER JOIN suppliers s ON i.supplier_id = s.id
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
+      AND i.excluded = false
       ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
     GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
     ORDER BY total_cost DESC
@@ -120,6 +123,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     INNER JOIN suppliers s ON i.supplier_id = s.id
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
+      AND i.excluded = false
       ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
     GROUP BY s.id, s.name
     ORDER BY total_spend DESC
@@ -149,6 +153,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     INNER JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
+      AND i.excluded = false
       ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
     GROUP BY i.supplier_id, COALESCE(p.name, ii.product_name), ii.unit
   `);
@@ -231,6 +236,7 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
     INNER JOIN suppliers s ON i.supplier_id = s.id
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
+      AND i.excluded = false
       AND i.invoice_date >= to_char(current_date - interval '365 days', 'YYYY-MM-DD')
     ORDER BY ii.product_id NULLS LAST, p.name, s.name, i.invoice_date
   `);
@@ -414,6 +420,7 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
     LEFT JOIN products p ON ii.product_id = p.id
     LEFT JOIN suppliers s ON i.supplier_id = s.id
     WHERE i.user_id = ${userId}
+      AND i.excluded = false
       ${dateCondition}
     GROUP BY COALESCE(p.name, ii.product_name), p.category, s.name
     ORDER BY total_spend DESC
@@ -471,6 +478,7 @@ router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
     INNER JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
+      AND i.excluded = false
       AND i.invoice_date >= ${rangeStart}
       AND i.invoice_date < ${rangeEnd}
     GROUP BY 1, 2

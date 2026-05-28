@@ -9,7 +9,9 @@ import {
   useDeleteAllInvoices,
   useGetKsefConfig,
   useGetInvoice,
+  useToggleInvoiceExcluded,
   getGetInvoiceQueryKey,
+  getListInvoicesQueryKey,
   type ScannedReceiptData,
 } from "@workspace/api-client-react";
 import { useSyncKsefProgress, syncPhaseProgress, type SyncPhase } from "@/hooks/use-sync-progress";
@@ -51,7 +53,7 @@ import { z } from "zod";
 import {
   Plus, FileText, Trash2, Upload, CheckCircle2, AlertCircle, Package,
   ChevronUp, ChevronDown, ChevronsUpDown, Search, X, RefreshCw, Download,
-  Camera, ScanLine, Loader2,
+  Camera, ScanLine, Loader2, EyeOff, Eye,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatPrice, formatDate } from "@/lib/format";
@@ -430,6 +432,7 @@ export default function Invoices() {
   const scanReceipt = useScanReceipt();
   const deleteInvoice = useDeleteInvoice();
   const deleteAllInvoices = useDeleteAllInvoices();
+  const toggleExcluded = useToggleInvoiceExcluded();
 
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -815,38 +818,70 @@ export default function Invoices() {
                 return (
                   <div
                     key={invoice.id}
-                    className="flex items-center gap-3 px-4 py-3.5 active:bg-secondary/40 cursor-pointer"
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-colors",
+                      invoice.excluded ? "bg-muted/30 active:bg-muted/50" : "active:bg-secondary/40"
+                    )}
                     onClick={() => setViewInvoiceId(invoice.id)}
                     data-testid={`invoice-row-${invoice.id}`}
                   >
                     {/* Date badge */}
-                    <div className="w-10 shrink-0 flex flex-col items-center justify-center rounded-lg bg-secondary py-1.5 gap-0">
-                      <span className="text-[15px] font-bold text-foreground leading-none tabular-nums">{day}</span>
+                    <div className={cn(
+                      "w-10 shrink-0 flex flex-col items-center justify-center rounded-lg py-1.5 gap-0",
+                      invoice.excluded ? "bg-muted" : "bg-secondary"
+                    )}>
+                      <span className={cn("text-[15px] font-bold leading-none tabular-nums", invoice.excluded ? "text-muted-foreground" : "text-foreground")}>{day}</span>
                       <span className="text-[9px] font-semibold text-muted-foreground leading-none mt-0.5 tracking-wide">{mon}</span>
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate leading-snug">{invoice.invoiceNumber}</p>
+                      <p className={cn("text-sm font-semibold truncate leading-snug", invoice.excluded ? "text-muted-foreground" : "text-foreground")}>{invoice.invoiceNumber}</p>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{invoice.supplierName}</p>
                       <div className="flex items-center gap-1.5 mt-1">
                         <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-full">
                           <Package className="w-2.5 h-2.5" />
                           {invoice.itemCount} poz.
                         </span>
+                        {invoice.excluded && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
+                            <EyeOff className="w-2.5 h-2.5" /> wykluczona
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Price + delete */}
+                    {/* Price + actions */}
                     <div className="shrink-0 flex flex-col items-end gap-2">
-                      <p className="text-sm font-bold text-foreground tabular-nums">{formatPrice(invoice.totalAmount)}</p>
-                      <button
-                        className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground/50 active:text-destructive active:bg-destructive/10"
-                        onClick={(e) => { e.stopPropagation(); setDeleteId(invoice.id); }}
-                        data-testid={`btn-delete-invoice-${invoice.id}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <p className={cn("text-sm font-bold tabular-nums", invoice.excluded ? "text-muted-foreground line-through" : "text-foreground")}>
+                        {formatPrice(invoice.totalAmount)}
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          className={cn(
+                            "w-7 h-7 flex items-center justify-center rounded-md transition-colors",
+                            invoice.excluded
+                              ? "text-amber-500 bg-amber-500/10"
+                              : "text-muted-foreground/50 active:text-amber-500 active:bg-amber-500/10"
+                          )}
+                          title={invoice.excluded ? "Przywróć do statystyk" : "Wyklucz ze statystyk"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExcluded.mutate({ id: invoice.id, data: { excluded: !invoice.excluded } }, {
+                              onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() }),
+                            });
+                          }}
+                        >
+                          {invoice.excluded ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
+                          className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground/50 active:text-destructive active:bg-destructive/10"
+                          onClick={(e) => { e.stopPropagation(); setDeleteId(invoice.id); }}
+                          data-testid={`btn-delete-invoice-${invoice.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -912,7 +947,7 @@ export default function Invoices() {
             >
               Kwota <SortIcon field="totalAmount" activeField={sortField} dir={sortDir} />
             </button>
-            <div className="w-8"></div>
+            <div className="w-16"></div>
           </div>
 
           {isLoading ? (
@@ -938,21 +973,38 @@ export default function Invoices() {
               {displayedInvoices.map((invoice) => (
                 <div
                   key={invoice.id}
-                  className="grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[820px] py-4 items-center hover:bg-secondary/40 transition-colors group cursor-pointer"
+                  className={cn(
+                    "grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[820px] py-4 items-center transition-colors group cursor-pointer",
+                    invoice.excluded ? "bg-muted/30 hover:bg-muted/50" : "hover:bg-secondary/40"
+                  )}
                   onClick={() => setViewInvoiceId(invoice.id)}
                   data-testid={`invoice-row-${invoice.id}`}
                 >
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                    invoice.excluded ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+                  )}>
                     <FileText className="w-4 h-4" />
                   </div>
 
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{invoice.invoiceNumber}</p>
+                    <div className="flex items-center gap-2">
+                      <p className={cn("text-sm font-medium truncate", invoice.excluded ? "text-muted-foreground" : "text-foreground")}>
+                        {invoice.invoiceNumber}
+                      </p>
+                      {invoice.excluded && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full shrink-0">
+                          <EyeOff className="w-2.5 h-2.5" /> wykluczona
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">{invoice.itemCount} pozycji</p>
                   </div>
 
                   <div className="text-right w-32">
-                    <p className="text-sm text-foreground truncate max-w-[128px]">{invoice.supplierName}</p>
+                    <p className={cn("text-sm truncate max-w-[128px]", invoice.excluded ? "text-muted-foreground" : "text-foreground")}>
+                      {invoice.supplierName}
+                    </p>
                   </div>
 
                   <div className="text-right w-24">
@@ -969,16 +1021,37 @@ export default function Invoices() {
                   </div>
 
                   <div className="text-right w-28">
-                    <p className="text-sm font-semibold text-foreground">{formatPrice(invoice.totalAmount)}</p>
+                    <p className={cn("text-sm font-semibold", invoice.excluded ? "text-muted-foreground line-through" : "text-foreground")}>
+                      {formatPrice(invoice.totalAmount)}
+                    </p>
                   </div>
 
-                  <button
-                    className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all shrink-0"
-                    onClick={(e) => { e.stopPropagation(); setDeleteId(invoice.id); }}
-                    data-testid={`btn-delete-invoice-${invoice.id}`}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1 w-16 justify-end shrink-0">
+                    <button
+                      className={cn(
+                        "w-8 h-8 flex items-center justify-center rounded-md transition-all shrink-0",
+                        invoice.excluded
+                          ? "text-amber-500 bg-amber-500/10"
+                          : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-amber-500 hover:bg-amber-500/10"
+                      )}
+                      title={invoice.excluded ? "Przywróć do statystyk" : "Wyklucz ze statystyk"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExcluded.mutate({ id: invoice.id, data: { excluded: !invoice.excluded } }, {
+                          onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() }),
+                        });
+                      }}
+                    >
+                      {invoice.excluded ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                      onClick={(e) => { e.stopPropagation(); setDeleteId(invoice.id); }}
+                      data-testid={`btn-delete-invoice-${invoice.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
