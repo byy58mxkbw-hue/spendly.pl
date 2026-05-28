@@ -518,10 +518,9 @@ export default function Invoices() {
     });
   }
 
-  function handleScanReceipt() {
+  async function handleScanReceipt() {
     if (!receiptPreviewUrl) return;
-
-    compressImage(receiptPreviewUrl).then(({ base64, mimeType }) => {
+    const { base64, mimeType } = await compressImage(receiptPreviewUrl);
     scanReceipt.mutate(
       { data: { imageBase64: base64, mimeType } },
       {
@@ -552,7 +551,6 @@ export default function Invoices() {
         },
       }
     );
-    });
   }
 
   function resetPhotoState() {

@@ -14,30 +14,66 @@ import { logger } from "../lib/logger.js";
 import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
 
 /**
- * One-time cleanup: reset classification_confidence to NULL for products whose
- * category is not a known builtin (i.e. AI hallucinations from before validation
- * was added). This allows the backfill to re-classify them with the fixed logic.
+ * Cleanup step A: delete all AI-hallucinated custom categories from user_categories.
+ * These were created by a previous buggy version of the AI that invented category names.
+ * The current code never auto-creates user_categories — only explicit POST /categories does.
  *
- * Safe to run on every startup — idempotent: after the first pass, all products
- * will have valid builtin categories and the UPDATE will touch 0 rows.
+ * Idempotent: once user_categories is empty, the DELETE touches 0 rows on subsequent runs.
+ * Products that had those fake categories are handled in step B.
+ */
+async function cleanupHallucinatedUserCategories(): Promise<void> {
+  try {
+    const builtinIds = Object.keys(BUILTIN_CATEGORY_DEFS);
+
+    // Delete user_categories whose category_id is NOT one of the built-in IDs.
+    // (Built-in IDs should never appear in user_categories, but guard anyway.)
+    const result = await db.execute(
+      sql.raw(
+        `DELETE FROM user_categories WHERE category_id NOT IN (${builtinIds
+          .map((id) => `'${id.replace(/'/g, "''")}'`)
+          .join(", ")})`
+      )
+    );
+
+    const affected = (result as unknown as { rowCount?: number }).rowCount ?? 0;
+    if (affected > 0) {
+      logger.info({ affected }, "backfill-categories: deleted AI-hallucinated user_categories entries");
+    }
+  } catch (err) {
+    logger.warn({ err }, "backfill-categories: cleanupHallucinatedUserCategories failed (non-fatal)");
+  }
+}
+
+/**
+ * Cleanup step B: reset classification_confidence to NULL for products whose
+ * category is not a known builtin.  Also marks them needs_review so the user
+ * can verify the automatic re-classification in "Do przeglądu".
+ *
+ * Idempotent: after all products are re-classified into builtins, this touches 0 rows.
  */
 async function cleanupInvalidCategories(): Promise<void> {
   try {
     const builtinIds = Object.keys(BUILTIN_CATEGORY_DEFS);
 
-    // Reset invalid categories AND mark them needs_review so user can verify the re-classification
     const result = await db.execute(
-      sql.raw(`UPDATE products SET classification_confidence = NULL, needs_review = true WHERE category IS NOT NULL AND category NOT IN (${builtinIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(", ")}) AND category NOT IN (SELECT category_id FROM user_categories WHERE user_id = products.user_id)`)
+      sql.raw(
+        `UPDATE products
+         SET classification_confidence = NULL, needs_review = true
+         WHERE category IS NOT NULL
+           AND category NOT IN (${builtinIds
+             .map((id) => `'${id.replace(/'/g, "''")}'`)
+             .join(", ")})`
+      )
     );
 
     const affected = (result as unknown as { rowCount?: number }).rowCount ?? 0;
     if (affected > 0) {
-      logger.info({ affected }, "backfill-categories: reset invalid AI-generated categories for re-classification (marked needs_review)");
+      logger.info({ affected }, "backfill-categories: reset invalid categories for re-classification (marked needs_review)");
     } else {
       logger.info("backfill-categories: no invalid categories found, cleanup not needed");
     }
   } catch (err) {
-    logger.warn({ err }, "backfill-categories: cleanup step failed (non-fatal)");
+    logger.warn({ err }, "backfill-categories: cleanupInvalidCategories failed (non-fatal)");
   }
 }
 
@@ -53,7 +89,7 @@ async function processBatch(
         const classification = await categorizeProductWithAI(product.name, product.userId);
         const canonicalName = normalizeProductName(product.name) || product.name.toLowerCase().trim();
 
-        // Preserve needs_review=true set by cleanup (invalid category reset) even when AI has high confidence
+        // Preserve needs_review=true set by cleanup even when AI has high confidence
         const needsReview = product.needsReview === true || classification.confidence < 0.75;
 
         await db
@@ -74,7 +110,10 @@ async function processBatch(
 }
 
 export async function runCategoryBackfill(): Promise<void> {
-  // Step 1: Reset invalid (non-builtin, non-custom) categories so they get re-classified
+  // Step 1: Delete AI-hallucinated entries from user_categories
+  await cleanupHallucinatedUserCategories();
+
+  // Step 2: Reset products with non-builtin categories so they get re-classified
   await cleanupInvalidCategories();
 
   try {
