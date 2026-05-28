@@ -6,11 +6,39 @@
  * Fire-and-forget: never blocks server startup, never crashes the process.
  */
 
-import { isNull } from "drizzle-orm";
+import { isNull, sql } from "drizzle-orm";
 import { db, productsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { categorizeProductWithAI, normalizeProductName } from "../lib/categorize-ai.js";
 import { logger } from "../lib/logger.js";
+import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
+
+/**
+ * One-time cleanup: reset classification_confidence to NULL for products whose
+ * category is not a known builtin (i.e. AI hallucinations from before validation
+ * was added). This allows the backfill to re-classify them with the fixed logic.
+ *
+ * Safe to run on every startup — idempotent: after the first pass, all products
+ * will have valid builtin categories and the UPDATE will touch 0 rows.
+ */
+async function cleanupInvalidCategories(): Promise<void> {
+  try {
+    const builtinIds = Object.keys(BUILTIN_CATEGORY_DEFS);
+
+    const result = await db.execute(
+      sql.raw(`UPDATE products SET classification_confidence = NULL WHERE category IS NOT NULL AND category NOT IN (${builtinIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(", ")}) AND category NOT IN (SELECT category_id FROM user_categories WHERE user_id = products.user_id)`)
+    );
+
+    const affected = (result as unknown as { rowCount?: number }).rowCount ?? 0;
+    if (affected > 0) {
+      logger.info({ affected }, "backfill-categories: reset invalid AI-generated categories for re-classification");
+    } else {
+      logger.info("backfill-categories: no invalid categories found, cleanup not needed");
+    }
+  } catch (err) {
+    logger.warn({ err }, "backfill-categories: cleanup step failed (non-fatal)");
+  }
+}
 
 const BATCH_SIZE = 10;
 const BATCH_DELAY_MS = 300;
@@ -42,6 +70,9 @@ async function processBatch(
 }
 
 export async function runCategoryBackfill(): Promise<void> {
+  // Step 1: Reset invalid (non-builtin, non-custom) categories so they get re-classified
+  await cleanupInvalidCategories();
+
   try {
     const products = await db
       .select({
