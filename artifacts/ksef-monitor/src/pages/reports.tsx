@@ -361,6 +361,8 @@ function CategorySpendSection({ month }: { month: string }) {
     [categoryGroups],
   );
 
+  const [sectionOpen, setSectionOpen] = useState(true);
+
   if (isLoading) {
     return <Skeleton className="h-64 rounded-xl mb-6 md:mb-8" />;
   }
@@ -368,56 +370,70 @@ function CategorySpendSection({ month }: { month: string }) {
 
   return (
     <div className="mb-6 md:mb-8">
-      <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-        <Package className="w-4 h-4 text-primary" />
-        Wydatki według kategorii
-      </p>
+      <button
+        onClick={() => setSectionOpen((v) => !v)}
+        className="flex items-center gap-2 mb-3 group w-full text-left"
+      >
+        <Package className="w-4 h-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold text-foreground flex-1">Wydatki według kategorii</span>
+        <span className="text-xs text-muted-foreground tabular-nums mr-1">{formatPrice(totalSpend)}</span>
+        <ChevronDown className={cn(
+          "w-4 h-4 text-muted-foreground/60 transition-transform duration-200 shrink-0",
+          sectionOpen ? "rotate-0" : "-rotate-90"
+        )} />
+      </button>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
-        {/* Donut chart */}
-        <div className="border-b border-border px-4 pt-4 pb-2 md:px-6">
-          <ResponsiveContainer width="100%" height={190}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={52}
-                outerRadius={82}
-                paddingAngle={2}
-                dataKey="value"
-                onClick={(entry) => {
-                  setActiveCategory(
-                    activeCategory === entry.id ? null : entry.id,
-                  );
-                }}
-                style={{ cursor: "pointer" }}
-              >
-                {pieData.map((entry, i) => (
-                  <Cell
-                    key={entry.id}
-                    fill={entry.fill}
-                    opacity={
-                      !activeCategory || activeCategory === entry.id ? 1 : 0.35
-                    }
-                  />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                }}
-                formatter={(v: number) => [formatPrice(v)]}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+        {/* Donut chart — always visible */}
+        <div className={cn("px-4 pt-4 pb-2 md:px-6", sectionOpen && "border-b border-border")}>
+          <div className="relative">
+            <ResponsiveContainer width="100%" height={190}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={52}
+                  outerRadius={82}
+                  paddingAngle={2}
+                  dataKey="value"
+                  onClick={(entry) => {
+                    if (sectionOpen) setActiveCategory(activeCategory === entry.id ? null : entry.id);
+                    else setSectionOpen(true);
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  {pieData.map((entry, i) => (
+                    <Cell
+                      key={entry.id}
+                      fill={entry.fill}
+                      opacity={!activeCategory || activeCategory === entry.id ? 1 : 0.35}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                  }}
+                  formatter={(v: number) => [formatPrice(v)]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            {/* Center label */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center">
+                <p className="text-base font-bold text-foreground tabular-nums leading-tight">{formatPrice(totalSpend)}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">{categoryGroups.length} kategorii</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Category rows */}
-        <div className="divide-y divide-border">
+        {/* Category rows — only when open */}
+        {sectionOpen && <div className="divide-y divide-border">
           {categoryGroups.map((cat, i) => {
             const pct = totalSpend > 0 ? (cat.spend / totalSpend) * 100 : 0;
             const prevSpend = prevCategoryMap.get(cat.id) ?? 0;
@@ -600,6 +616,7 @@ function CategorySpendSection({ month }: { month: string }) {
             );
           })}
         </div>
+        }
       </div>
     </div>
   );
@@ -667,6 +684,8 @@ function CategorySpendTrendSection() {
     setSelected(next);
   };
 
+  const [sectionOpen, setSectionOpen] = useState(true);
+
   if (isLoading) {
     return <Skeleton className="h-72 rounded-xl mb-6 md:mb-8" />;
   }
@@ -676,40 +695,50 @@ function CategorySpendTrendSection() {
 
   return (
     <div className="mb-6 md:mb-8">
-      <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-        <Package className="w-4 h-4 text-primary" />
-        Trend wydatków według kategorii
-      </p>
+      <button
+        onClick={() => setSectionOpen((v) => !v)}
+        className="flex items-center gap-2 mb-3 group w-full text-left"
+      >
+        <Package className="w-4 h-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold text-foreground flex-1">Trend wydatków według kategorii</span>
+        <span className="text-xs text-muted-foreground mr-1">ostatnie 6 mies.</span>
+        <ChevronDown className={cn(
+          "w-4 h-4 text-muted-foreground/60 transition-transform duration-200 shrink-0",
+          sectionOpen ? "rotate-0" : "-rotate-90"
+        )} />
+      </button>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
-        {/* Category selector pills */}
-        <div className="px-4 pt-4 pb-3 md:px-6 flex flex-wrap gap-2 border-b border-border">
-          {allCategories.map((id, i) => {
-            const catDef = CATEGORIES.find((c) => c.id === id);
-            const label = catDef?.label ?? "Inne";
-            const emoji = catDef?.emoji ?? "📦";
-            const isActive = activeSelected.has(id);
-            const color = COLORS[i % COLORS.length];
-            return (
-              <button
-                key={id}
-                onClick={() => toggleCategory(id)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border",
-                  isActive
-                    ? "text-white border-transparent"
-                    : "bg-transparent text-muted-foreground border-border hover:border-foreground/30",
-                )}
-                style={isActive ? { background: color, borderColor: color } : {}}
-              >
-                <span>{emoji}</span>
-                <span>{label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Category selector pills — only when open */}
+        {sectionOpen && (
+          <div className="px-4 pt-4 pb-3 md:px-6 flex flex-wrap gap-2 border-b border-border">
+            {allCategories.map((id, i) => {
+              const catDef = CATEGORIES.find((c) => c.id === id);
+              const label = catDef?.label ?? "Inne";
+              const emoji = catDef?.emoji ?? "📦";
+              const isActive = activeSelected.has(id);
+              const color = COLORS[i % COLORS.length];
+              return (
+                <button
+                  key={id}
+                  onClick={() => toggleCategory(id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border",
+                    isActive
+                      ? "text-white border-transparent"
+                      : "bg-transparent text-muted-foreground border-border hover:border-foreground/30",
+                  )}
+                  style={isActive ? { background: color, borderColor: color } : {}}
+                >
+                  <span>{emoji}</span>
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Line chart */}
+        {/* Line chart — always visible */}
         <div className="px-2 pt-4 pb-2 md:px-4">
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={chartData} margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
@@ -771,6 +800,7 @@ export default function Reports() {
   const [viewMode, setViewMode] = useState<"month" | "all">("month");
   const [month, setMonth] = useState(currentMonth());
   const isCurrentMonth = month === currentMonth();
+  const [suppliersOpen, setSuppliersOpen] = useState(true);
 
   const reportMonth = viewMode === "all" ? "all" : month;
 
@@ -935,8 +965,19 @@ export default function Reports() {
           </div>
         ) : data && data.suppliers.length > 0 ? (
           <div className="space-y-4">
-            <p className="text-sm font-semibold text-foreground">Raport per dostawca</p>
-            {data.suppliers.map((supplier, i) => (
+            <button
+              onClick={() => setSuppliersOpen((v) => !v)}
+              className="flex items-center gap-2 w-full text-left group"
+            >
+              <FileText className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-sm font-semibold text-foreground flex-1">Raport per dostawca</span>
+              <span className="text-xs text-muted-foreground mr-1">{data.suppliers.length} {data.suppliers.length === 1 ? "dostawca" : data.suppliers.length < 5 ? "dostawców" : "dostawców"}</span>
+              <ChevronDown className={cn(
+                "w-4 h-4 text-muted-foreground/60 transition-transform duration-200 shrink-0",
+                suppliersOpen ? "rotate-0" : "-rotate-90"
+              )} />
+            </button>
+            {suppliersOpen && data.suppliers.map((supplier, i) => (
               <SupplierCard key={supplier.supplierId} supplier={supplier} rank={i} totalAllSpend={data.totalSpend} />
             ))}
           </div>
