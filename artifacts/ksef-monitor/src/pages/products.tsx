@@ -75,6 +75,7 @@ import {
   Pencil,
   Download,
   AlertTriangle,
+  ChevronDown,
 } from "lucide-react";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -1014,6 +1015,7 @@ export default function Products() {
   const [modalMode, setModalMode] = useState<ModalMode>("history");
   const [showKeywordComparison, setShowKeywordComparison] = useState(false);
   const [showNeedsReview, setShowNeedsReview] = useState(false);
+  const [categorySpendOpen, setCategorySpendOpen] = useState(true);
 
   const needsReviewCount = products?.filter((p) => p.needsReview === true).length ?? 0;
 
@@ -1093,7 +1095,18 @@ export default function Products() {
         {/* Category spend summary */}
         {categorySpend.length > 0 && (
           <div className="mb-6">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Wydatki według kategorii</p>
+            <button
+              onClick={() => setCategorySpendOpen((v) => !v)}
+              className="flex items-center gap-2 mb-3 group"
+            >
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Wydatki według kategorii</p>
+              <ChevronDown className={cn(
+                "w-3.5 h-3.5 text-muted-foreground/50 transition-transform duration-200",
+                categorySpendOpen ? "rotate-0" : "-rotate-90"
+              )} />
+            </button>
+            {categorySpendOpen && (
+            <div>
             {/* Mobile: horizontal scroll strip */}
             <div className="md:hidden flex gap-3 overflow-x-auto scrollbar-none pb-1 -mx-4 px-4">
               {categorySpend.map((cat) => (
@@ -1174,6 +1187,8 @@ export default function Products() {
                 </button>
               ))}
             </div>
+            </div>
+            )}
           </div>
         )}
 
