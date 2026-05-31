@@ -119,11 +119,133 @@ function Pagination({
   );
 }
 
+interface SupplierGroupData {
+  key: string;
+  sellerName: string;
+  sellerNip: string | null;
+  isKnown: boolean;
+  invoices: {
+    id: number;
+    invoiceNumber?: string | null;
+    ksefNumber: string;
+    invoiceDate?: string | null;
+    totalGross?: number | null;
+    reason?: string | null;
+    createdAt: string;
+  }[];
+  totalGross: number;
+}
+
+function SupplierGroupCard({
+  group,
+  onOpenInvoice,
+}: {
+  group: SupplierGroupData;
+  onOpenInvoice: (id: number) => void;
+}) {
+  const [open, setOpen] = useState(!group.isKnown);
+
+  const initials = group.sellerName
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => (w[0] ?? "").toUpperCase())
+    .join("") || "?";
+
+  const invoiceWord =
+    group.invoices.length === 1
+      ? "faktura"
+      : group.invoices.length < 5
+        ? "faktury"
+        : "faktur";
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="w-full px-5 py-4 flex items-center gap-4 hover:bg-muted/30 transition-colors text-left"
+          >
+            <div className="w-9 h-9 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-semibold shrink-0 select-none">
+              {initials}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-foreground truncate">
+                  {group.sellerName}
+                </span>
+                {group.isKnown ? (
+                  <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                    Znany
+                  </span>
+                ) : (
+                  <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                    Nowy
+                  </span>
+                )}
+              </div>
+              {group.sellerNip && (
+                <p className="text-xs text-muted-foreground mt-0.5">NIP {group.sellerNip}</p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4 shrink-0">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-semibold text-foreground">{formatPrice(group.totalGross)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {group.invoices.length} {invoiceWord}
+                </p>
+              </div>
+              <ChevronDown
+                className={cn(
+                  "w-4 h-4 text-muted-foreground transition-transform duration-200",
+                  open && "rotate-180"
+                )}
+              />
+            </div>
+          </button>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <div className="border-t border-border divide-y divide-border">
+            {group.invoices.map((row) => (
+              <button
+                key={row.id}
+                onClick={() => onOpenInvoice(row.id)}
+                className="w-full px-5 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left"
+                data-testid={`pending-row-${row.id}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-foreground truncate">
+                    {row.invoiceNumber ?? row.ksefNumber}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {row.invoiceDate ? formatDate(row.invoiceDate) : "—"}
+                    {row.reason ? ` · ${row.reason}` : ""}
+                  </p>
+                </div>
+                {row.totalGross != null && (
+                  <p className="text-sm font-medium text-foreground shrink-0">
+                    {formatPrice(row.totalGross)}
+                  </p>
+                )}
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </button>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
 export default function PendingInvoices() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [status, setStatus] = useState<"pending" | "accepted" | "rejected">("pending");
   const { data: pending, isLoading } = useListKsefPending({ status });
+  const { data: suppliers } = useListSuppliers();
   const [openId, setOpenId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [showDeleteAll, setShowDeleteAll] = useState(false);
@@ -152,12 +274,48 @@ export default function PendingInvoices() {
     );
   }
 
+  const knownNips = useMemo(() => {
+    if (!suppliers) return new Set<string>();
+    return new Set(
+      suppliers
+        .filter((s) => s.taxId)
+        .map((s) => s.taxId!.replace(/[\s\-]/g, ""))
+    );
+  }, [suppliers]);
+
+  const groups = useMemo((): SupplierGroupData[] => {
+    if (!pending) return [];
+    const map = new Map<string, SupplierGroupData>();
+    for (const row of pending) {
+      const nip = row.sellerNip?.replace(/[\s\-]/g, "") ?? null;
+      const key = nip ?? row.sellerName ?? "unknown";
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          sellerName: row.sellerName ?? "Nieznany dostawca",
+          sellerNip: nip,
+          isKnown: nip ? knownNips.has(nip) : false,
+          invoices: [],
+          totalGross: 0,
+        });
+      }
+      const g = map.get(key)!;
+      g.invoices.push(row);
+      g.totalGross += row.totalGross ?? 0;
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.isKnown !== b.isKnown) return a.isKnown ? 1 : -1;
+      return a.sellerName.localeCompare(b.sellerName, "pl");
+    });
+  }, [pending, knownNips]);
+
   const totalAmount = useMemo(
-    () => (pending ?? []).reduce((sum, r) => sum + (r.totalGross ?? 0), 0),
-    [pending]
+    () => groups.reduce((sum, g) => sum + g.totalGross, 0),
+    [groups]
   );
-  const totalPages = Math.ceil((pending?.length ?? 0) / PAGE_SIZE);
-  const paginated = (pending ?? []).slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const totalPages = Math.ceil(groups.length / PAGE_SIZE);
+  const paginatedGroups = groups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <Layout>
@@ -193,109 +351,76 @@ export default function PendingInvoices() {
           }
         />
 
-        {/* Summary bar */}
-        {!isLoading && (pending?.length ?? 0) > 0 && (
-          <div className="mb-4 flex items-center gap-4 bg-card border border-border rounded-xl px-5 py-3">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Receipt className="w-4 h-4 shrink-0" />
-              <span className="text-sm">
-                Łącznie{" "}
-                <strong className="text-foreground">{pending!.length}</strong>{" "}
-                {pending!.length === 1
-                  ? "faktura"
-                  : pending!.length < 5
-                    ? "faktury"
-                    : "faktur"}
+        {!isLoading && groups.length > 0 && (
+          <div className="mb-5 flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3.5 py-2">
+              <Receipt className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span className="text-sm text-muted-foreground">
+                <strong className="text-foreground">{formatPrice(totalAmount)}</strong>
               </span>
             </div>
-            <div className="h-4 w-px bg-border" />
-            <div className="text-sm text-muted-foreground">
-              Wartość:{" "}
-              <strong className="text-foreground">{formatPrice(totalAmount)}</strong>
+            <div className="bg-card border border-border rounded-lg px-3.5 py-2">
+              <span className="text-sm text-muted-foreground">
+                <strong className="text-foreground">{groups.length}</strong>{" "}
+                {groups.length === 1 ? "dostawca" : "dostawców"}
+              </span>
             </div>
-            {totalPages > 1 && (
-              <>
-                <div className="h-4 w-px bg-border" />
-                <span className="text-xs text-muted-foreground ml-auto">
-                  Strona {page} z {totalPages}
-                </span>
-              </>
-            )}
+            <div className="bg-card border border-border rounded-lg px-3.5 py-2">
+              <span className="text-sm text-muted-foreground">
+                <strong className="text-foreground">{pending!.length}</strong>{" "}
+                {pending!.length === 1 ? "faktura" : pending!.length < 5 ? "faktury" : "faktur"}
+              </span>
+            </div>
           </div>
         )}
 
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          {isLoading ? (
-            <div className="divide-y divide-border">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="px-6 py-4 flex items-center gap-4">
-                  <Skeleton className="w-8 h-8 rounded-lg" />
-                  <Skeleton className="h-4 w-64" />
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-xl p-5 flex items-center gap-4">
+                <Skeleton className="w-9 h-9 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-28" />
                 </div>
+                <Skeleton className="h-4 w-20 hidden sm:block" />
+              </div>
+            ))}
+          </div>
+        ) : groups.length === 0 ? (
+          <div className="bg-card border border-border rounded-xl py-16 text-center">
+            <Inbox className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-foreground font-medium mb-1">
+              {status === "pending"
+                ? "Brak faktur do przeglądu"
+                : status === "accepted"
+                  ? "Brak zaakceptowanych faktur"
+                  : "Brak odrzuconych faktur"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {status === "pending"
+                ? "Wszystkie faktury z KSeF zostały dopasowane lub jeszcze nie wykonano synchronizacji."
+                : "Faktury pojawią się tu po decyzji."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-3">
+              {paginatedGroups.map((group) => (
+                <SupplierGroupCard
+                  key={group.key}
+                  group={group}
+                  onOpenInvoice={setOpenId}
+                />
               ))}
             </div>
-          ) : (pending?.length ?? 0) === 0 ? (
-            <div className="py-16 text-center">
-              <Inbox className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-foreground font-medium mb-1">
-                {status === "pending"
-                  ? "Brak faktur do przeglądu"
-                  : status === "accepted"
-                    ? "Brak zaakceptowanych faktur"
-                    : "Brak odrzuconych faktur"}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {status === "pending"
-                  ? "Wszystkie faktury z KSeF zostały dopasowane lub jeszcze nie wykonano synchronizacji."
-                  : "Faktury pojawią się tu po decyzji."}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="divide-y divide-border">
-                {paginated.map((row) => (
-                  <button
-                    key={row.id}
-                    onClick={() => setOpenId(row.id)}
-                    className="w-full px-4 md:px-6 py-4 flex items-start gap-4 active:bg-secondary/40 hover:bg-secondary/40 transition-colors text-left"
-                    data-testid={`pending-row-${row.id}`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-                      <AlertTriangle className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {row.invoiceNumber ?? row.ksefNumber}
-                        </p>
-                        <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
-                          KSeF: {row.ksefNumber.slice(-12)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {row.sellerName ?? "Nieznany dostawca"}
-                        {row.sellerNip ? ` · NIP ${row.sellerNip}` : ""}
-                        {row.invoiceDate ? ` · ${formatDate(row.invoiceDate)}` : ""}
-                      </p>
-                      <p className="text-xs text-amber-700 mt-1">{row.reason}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      {row.totalGross != null && (
-                        <p className="text-sm font-semibold text-foreground">
-                          {formatPrice(row.totalGross)}
-                        </p>
-                      )}
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {new Date(row.createdAt).toLocaleDateString("pl-PL")}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+            {totalPages > 1 && (
+              <div className="mt-4 bg-card border border-border rounded-xl overflow-hidden">
+                <Pagination page={page} totalPages={totalPages} onChange={setPage} />
               </div>
-              <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-            </>
-          )}
-        </div>
+            )}
+          </>
+        )}
       </div>
 
       {openId != null && (
