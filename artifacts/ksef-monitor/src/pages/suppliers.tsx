@@ -61,9 +61,18 @@ export default function Suppliers() {
   const { data: suppliers, isLoading, isError } = useListSuppliers();
   const createSupplier = useCreateSupplier();
   const deleteSupplier = useDeleteSupplier();
+  const setDefaultCostCenter = useSetSupplierDefaultCostCenter();
+  const { data: costCenters = [] } = useListCostCenters();
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  function handleSetDefaultCostCenter(supplierId: number, ccId: number | null) {
+    setDefaultCostCenter.mutate(
+      { id: supplierId, data: { defaultCostCenterId: ccId } },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() }) },
+    );
+  }
 
   const form = useForm<SupplierFormValues>({
     resolver: zodResolver(supplierSchema),
@@ -190,6 +199,52 @@ export default function Suppliers() {
                       <p className="text-sm font-semibold text-foreground">{formatDate(supplier.lastInvoiceDate)}</p>
                     </div>
                   </div>
+
+                  {costCenters.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Layers className="w-3 h-3 shrink-0" />
+                            {supplier.defaultCostCenterName ? (
+                              <>
+                                <div
+                                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                                  style={{ background: supplier.defaultCostCenterColor ?? "#14B8A6" }}
+                                />
+                                <span className="truncate max-w-[120px]">{supplier.defaultCostCenterName}</span>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground/50">Brak centrum kosztów</span>
+                            )}
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem
+                            className={cn(!supplier.defaultCostCenterId && "text-primary")}
+                            onClick={() => handleSetDefaultCostCenter(supplier.id, null)}
+                          >
+                            <div className="w-3 h-3 rounded-full bg-muted-foreground/30 mr-2" />
+                            Brak centrum
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {costCenters.map((cc) => (
+                            <DropdownMenuItem
+                              key={cc.id}
+                              className={cn(supplier.defaultCostCenterId === cc.id && "text-primary")}
+                              onClick={() => handleSetDefaultCostCenter(supplier.id, cc.id)}
+                            >
+                              <div className="w-3 h-3 rounded-full mr-2" style={{ background: cc.color }} />
+                              {cc.name}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-1 mt-3 text-xs text-primary font-medium">
                     Zobacz szczegóły <ChevronRight className="w-3 h-3" />

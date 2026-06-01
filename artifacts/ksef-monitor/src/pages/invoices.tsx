@@ -66,9 +66,16 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ChevronLeft, ChevronRight, Plus, FileText, Trash2, Download,
   RefreshCw, Camera, Loader2, CheckCircle2, Package,
-  X, Search, Eye, EyeOff, ScanLine, Check,
+  X, Search, Eye, EyeOff, ScanLine, Check, Layers,
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -870,12 +877,27 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 };
 
 function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () => void; onDeleteAllClick: () => void }) {
-  const { data: invoices, isLoading } = useListInvoices({ limit: 1000 });
+  const { selectedId: costCenterSelectedId } = useCostCenter();
+  const { data: costCenters = [] } = useListCostCenters();
+  const setCostCenter = useSetInvoiceCostCenter();
+
+  const invoiceParams = {
+    limit: 1000,
+    ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}),
+  };
+  const { data: invoices, isLoading } = useListInvoices(invoiceParams);
   const { data: suppliers } = useListSuppliers();
   const deleteInvoice = useDeleteInvoice();
   const toggleExcluded = useToggleInvoiceExcluded();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  function handleSetCostCenter(invoiceId: number, ccId: number | null) {
+    setCostCenter.mutate(
+      { id: invoiceId, data: { costCenterId: ccId } },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() }) },
+    );
+  }
 
   const markPaid = useMarkInvoicePaid();
   const [searchQuery, setSearchQuery] = useState("");
@@ -1099,6 +1121,12 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                       {inv.paymentMethod === "przelew" && inv.paymentDueDate && !inv.isPaid && (
                         <p className="text-xs text-orange-400">termin: {formatDate(inv.paymentDueDate)}</p>
                       )}
+                      {inv.costCenterName && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: inv.costCenterColor ?? "#14B8A6" }} />
+                          <span className="text-[10px] text-white/40 truncate">{inv.costCenterName}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="hidden sm:block text-right w-24">
                       <p className="text-sm text-white/50 tabular-nums">{formatDate(inv.invoiceDate)}</p>
@@ -1129,6 +1157,38 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                       <p className="text-sm font-semibold tabular-nums text-white">{formatPrice(inv.totalAmount)}</p>
                     </div>
                     <div className="flex items-center gap-0.5 w-16 justify-end">
+                      {costCenters.length > 0 && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-white/70 rounded"
+                              title="Przypisz centrum kosztów"
+                            >
+                              <Layers className="w-3.5 h-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className={cn(!inv.costCenterId && "text-primary")}
+                              onClick={() => handleSetCostCenter(inv.id, null)}
+                            >
+                              <div className="w-3 h-3 rounded-full bg-muted-foreground/30 mr-2" />
+                              Brak centrum
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {costCenters.map((cc) => (
+                              <DropdownMenuItem
+                                key={cc.id}
+                                className={cn(inv.costCenterId === cc.id && "text-primary")}
+                                onClick={() => handleSetCostCenter(inv.id, cc.id)}
+                              >
+                                <div className="w-3 h-3 rounded-full mr-2" style={{ background: cc.color }} />
+                                {cc.name}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                       <button
                         onClick={() => handleToggleExcluded(inv.id, inv.excluded)}
                         className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-white/70 rounded"
