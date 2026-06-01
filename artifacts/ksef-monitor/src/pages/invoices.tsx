@@ -16,6 +16,7 @@ import {
   useMarkInvoicePaid,
   useSetInvoiceCostCenter,
   useListCostCenters,
+  useBulkAssignCostCenter,
   getGetInvoiceQueryKey,
   getListInvoicesQueryKey,
   getGetInvoicesTimelineQueryKey,
@@ -899,6 +900,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     );
   }
 
+  const bulkAssign = useBulkAssignCostCenter();
   const markPaid = useMarkInvoicePaid();
   const [searchQuery, setSearchQuery] = useState("");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
@@ -906,6 +908,8 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [bulkAssignCcId, setBulkAssignCcId] = useState<string>("");
 
   const filtered = (invoices ?? []).filter((inv) => {
     if (supplierFilter !== "all" && String(inv.supplierId) !== supplierFilter) return false;
@@ -984,6 +988,24 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
   }
 
+  function handleBulkAssignConfirm() {
+    const ccId = bulkAssignCcId === "" ? null : parseInt(bulkAssignCcId, 10);
+    bulkAssign.mutate(
+      { data: { costCenterId: ccId } },
+      {
+        onSuccess: (data) => {
+          queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+          setShowBulkAssign(false);
+          setBulkAssignCcId("");
+          toast({ title: "Gotowe", description: `Zaktualizowano ${data.updated} ${data.updated === 1 ? "fakturę" : data.updated < 5 ? "faktury" : "faktur"}.` });
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "Błąd", description: "Nie udało się przypisać centrum kosztów." });
+        },
+      }
+    );
+  }
+
   return (
     <>
       {/* Toolbar */}
@@ -1010,6 +1032,12 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
             </SelectContent>
           </Select>
         )}
+        {costCenters.length > 0 && (
+          <Button variant="outline" size="sm" onClick={() => { setBulkAssignCcId(""); setShowBulkAssign(true); }} className="gap-1.5 shrink-0">
+            <Layers className="w-4 h-4" />
+            <span className="hidden sm:inline">Przypisz do centrum</span>
+          </Button>
+        )}
         <Button variant="outline" size="icon" onClick={handleExport} title="Eksportuj CSV">
           <Download className="w-4 h-4" />
         </Button>
@@ -1017,6 +1045,44 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
           <Trash2 className="w-4 h-4" />
         </Button>
       </div>
+
+      <Dialog open={showBulkAssign} onOpenChange={setShowBulkAssign}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Przypisz wszystkie faktury do centrum kosztów</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Wszystkie faktury zostaną przypisane do wybranego centrum. Tej operacji nie można cofnąć automatycznie.
+          </p>
+          <div className="space-y-3 pt-1">
+            <Select value={bulkAssignCcId} onValueChange={setBulkAssignCcId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Wybierz centrum kosztów..." />
+              </SelectTrigger>
+              <SelectContent>
+                {costCenters.map((cc) => (
+                  <SelectItem key={cc.id} value={String(cc.id)}>
+                    <span className="flex items-center gap-2">
+                      {cc.color && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cc.color }} />}
+                      {cc.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowBulkAssign(false)}>Anuluj</Button>
+              <Button
+                disabled={!bulkAssignCcId || bulkAssign.isPending}
+                onClick={handleBulkAssignConfirm}
+              >
+                {bulkAssign.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Przypisz wszystkie
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="space-y-2">

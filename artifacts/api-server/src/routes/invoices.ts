@@ -8,6 +8,7 @@ import {
   ListInvoicesQueryParams,
   GetInvoiceParams,
   DeleteInvoiceParams,
+  SetInvoiceCostCenterBody,
 } from "@workspace/api-zod";
 import { categorizeProductWithAI, type ClassificationResult } from "../lib/categorize-ai.js";
 import { checkAlertsAfterImport } from "../services/alert-checker";
@@ -855,6 +856,22 @@ router.patch("/invoices/:id/exclude", async (req, res): Promise<void> => {
   }
 
   res.json(updated);
+});
+
+router.patch("/invoices/bulk-assign-cost-center", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const body = SetInvoiceCostCenterBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const { costCenterId } = body.data;
+  const result = await db
+    .update(invoicesTable)
+    .set({ costCenterId: costCenterId ?? null })
+    .where(eq(invoicesTable.userId, userId))
+    .returning({ id: invoicesTable.id });
+  res.json({ updated: result.length });
 });
 
 router.delete("/invoices/delete-all", async (req, res): Promise<void> => {

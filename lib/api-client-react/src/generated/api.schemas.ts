@@ -889,6 +889,10 @@ export type ListInvoicesParams = {
   offset?: number;
 };
 
+export type BulkAssignCostCenter200 = {
+  updated: number;
+};
+
 export type DeleteAllInvoices200 = {
   deleted: number;
 };

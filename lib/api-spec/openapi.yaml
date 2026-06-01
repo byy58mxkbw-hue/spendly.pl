@@ -786,6 +786,29 @@ paths:
                 items:
                   $ref: "#/components/schemas/Invoice"
 
+  /invoices/bulk-assign-cost-center:
+    patch:
+      operationId: bulkAssignCostCenter
+      tags: [invoices]
+      summary: Assign a cost center to all invoices for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetInvoiceCostCenterBody"
+      responses:
+        "200":
+          description: Number of updated invoices
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updated]
+                properties:
+                  updated:
+                    type: integer
+
   /invoices/delete-all:
     delete:
       operationId: deleteAllInvoices

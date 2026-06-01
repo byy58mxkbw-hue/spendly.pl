@@ -22,6 +22,7 @@ import type {
   AdminUserDetails,
   AdminUsersResponse,
   AiInsight,
+  BulkAssignCostCenter200,
   CategoryItem,
   CategorySpendItem,
   CategorySpendTrendRow,
@@ -2980,6 +2981,93 @@ export function useListInvoices<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Assign a cost center to all invoices for the current user
+ */
+export const getBulkAssignCostCenterUrl = () => {
+  return `/api/invoices/bulk-assign-cost-center`;
+};
+
+export const bulkAssignCostCenter = async (
+  setInvoiceCostCenterBody: SetInvoiceCostCenterBody,
+  options?: RequestInit,
+): Promise<BulkAssignCostCenter200> => {
+  return customFetch<BulkAssignCostCenter200>(getBulkAssignCostCenterUrl(), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setInvoiceCostCenterBody),
+  });
+};
+
+export const getBulkAssignCostCenterMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkAssignCostCenter>>,
+    TError,
+    { data: BodyType<SetInvoiceCostCenterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkAssignCostCenter>>,
+  TError,
+  { data: BodyType<SetInvoiceCostCenterBody> },
+  TContext
+> => {
+  const mutationKey = ["bulkAssignCostCenter"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkAssignCostCenter>>,
+    { data: BodyType<SetInvoiceCostCenterBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkAssignCostCenter(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkAssignCostCenterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkAssignCostCenter>>
+>;
+export type BulkAssignCostCenterMutationBody =
+  BodyType<SetInvoiceCostCenterBody>;
+export type BulkAssignCostCenterMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Assign a cost center to all invoices for the current user
+ */
+export const useBulkAssignCostCenter = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkAssignCostCenter>>,
+    TError,
+    { data: BodyType<SetInvoiceCostCenterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof bulkAssignCostCenter>>,
+  TError,
+  { data: BodyType<SetInvoiceCostCenterBody> },
+  TContext
+> => {
+  return useMutation(getBulkAssignCostCenterMutationOptions(options));
+};
 
 /**
  * @summary Delete all invoices for the current user

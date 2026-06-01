@@ -627,6 +627,17 @@ export const ListInvoicesResponseItem = zod.object({
 export const ListInvoicesResponse = zod.array(ListInvoicesResponseItem);
 
 /**
+ * @summary Assign a cost center to all invoices for the current user
+ */
+export const BulkAssignCostCenterBody = zod.object({
+  costCenterId: zod.number().nullable(),
+});
+
+export const BulkAssignCostCenterResponse = zod.object({
+  updated: zod.number(),
+});
+
+/**
  * @summary Delete all invoices for the current user
  */
 export const DeleteAllInvoicesResponse = zod.object({
