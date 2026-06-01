@@ -65,7 +65,7 @@ import { z } from "zod";
 import {
   ChevronLeft, ChevronRight, Plus, FileText, Trash2, Download,
   RefreshCw, Camera, Loader2, CheckCircle2, Package,
-  X, Search, Eye, EyeOff, ScanLine,
+  X, Search, Eye, EyeOff, ScanLine, Check,
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -874,10 +874,13 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const markPaid = useMarkInvoicePaid();
   const [searchQuery, setSearchQuery] = useState("");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
 
   const filtered = (invoices ?? []).filter((inv) => {
     if (supplierFilter !== "all" && String(inv.supplierId) !== supplierFilter) return false;
@@ -885,6 +888,45 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     const q = searchQuery.toLowerCase();
     return inv.supplierName.toLowerCase().includes(q) || inv.invoiceNumber.toLowerCase().includes(q);
   });
+
+  const selectableIds = filtered.filter((inv) => !inv.isPaid).map((inv) => inv.id);
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
+
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function handleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(selectableIds));
+    }
+  }
+
+  async function handleBulkMarkPaid() {
+    const ids = [...selectedIds].filter((id) => {
+      const inv = filtered.find((i) => i.id === id);
+      return inv && !inv.isPaid;
+    });
+    if (!ids.length) return;
+    setIsMarkingPaid(true);
+    try {
+      await Promise.all(ids.map((id) => markPaid.mutateAsync({ id, data: { isPaid: true } })));
+      await queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+      await queryClient.invalidateQueries({ queryKey: getGetInvoicesPaymentsQueryKey() });
+      setSelectedIds(new Set());
+      toast({ title: "Zaktualizowano", description: `Oznaczono ${ids.length} ${ids.length === 1 ? "fakturę" : ids.length < 5 ? "faktury" : "faktur"} jako zapłacone.` });
+    } catch {
+      toast({ title: "Błąd", description: "Nie udało się zaktualizować statusu.", variant: "destructive" });
+    } finally {
+      setIsMarkingPaid(false);
+    }
+  }
 
   function handleExport() {
     if (!invoices?.length) return;
@@ -967,85 +1009,143 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
           )}
         </div>
       ) : (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-2.5 text-xs font-medium text-white/40" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            <div>Dostawca / Numer</div>
-            <div className="hidden sm:block text-right w-24">Data</div>
-            <div className="hidden sm:block text-center w-20">Metoda</div>
-            <div className="hidden sm:block text-center w-20">Status</div>
-            <div className="text-right w-24">Wartość</div>
-            <div className="w-16" />
-          </div>
-          <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
-            {filtered.map((inv) => (
-              <div
-                key={inv.id}
-                className={cn(
-                  "grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-3 items-center transition-colors",
-                  inv.excluded && "opacity-50",
-                )}
-                style={{ borderBottomColor: "rgba(255,255,255,0.04)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "")}
-              >
-                <div className="min-w-0 cursor-pointer" onClick={() => setViewInvoiceId(inv.id)}>
-                  <p className="text-sm font-medium truncate text-white">{inv.supplierName}</p>
-                  <p className="text-xs text-white/50 truncate">{inv.invoiceNumber}</p>
-                  {inv.paymentMethod === "przelew" && inv.paymentDueDate && (
-                    <p className="text-xs text-orange-400">termin: {formatDate(inv.paymentDueDate)}</p>
-                  )}
-                </div>
-                <div className="hidden sm:block text-right w-24">
-                  <p className="text-sm text-white/50 tabular-nums">{formatDate(inv.invoiceDate)}</p>
-                </div>
-                <div className="hidden sm:flex justify-center w-20">
-                  {inv.paymentMethod ? (
-                    <span className="text-xs px-2 py-0.5 rounded-full text-white/60" style={{ background: "rgba(255,255,255,0.08)" }}>
-                      {PAYMENT_METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod}
-                    </span>
-                  ) : (
-                    <span className="text-white/20">—</span>
-                  )}
-                </div>
-                <div className="hidden sm:flex justify-center w-20">
-                  {inv.paymentMethod === "przelew" ? (
-                    <span className={cn(
-                      "text-xs px-2 py-0.5 rounded-full font-medium",
-                      inv.isPaid ? "text-emerald-400" : "text-orange-400",
-                    )}
-                      style={inv.isPaid ? { background: "rgba(52,211,153,0.12)" } : { background: "rgba(251,146,60,0.12)" }}>
-                      {inv.isPaid ? "Opłacone" : "Oczekuje"}
-                    </span>
-                  ) : inv.paymentMethod ? (
-                    <span className="text-xs text-emerald-400 px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(52,211,153,0.12)" }}>
-                      Opłacone
-                    </span>
-                  ) : (
-                    <span className="text-white/20 text-xs">—</span>
-                  )}
-                </div>
-                <div className="text-right w-24">
-                  <p className="text-sm font-semibold tabular-nums text-white">{formatPrice(inv.totalAmount)}</p>
-                </div>
-                <div className="flex items-center gap-0.5 w-16 justify-end">
-                  <button
-                    onClick={() => handleToggleExcluded(inv.id, inv.excluded)}
-                    className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-white/70 rounded"
-                    title={inv.excluded ? "Uwzględnij w statystykach" : "Wyklucz ze statystyk"}
-                  >
-                    {inv.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => setDeleteId(inv.id)}
-                    className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-red-400 rounded"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+        <>
+          {/* Bulk action bar */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center justify-between px-4 py-2.5 rounded-xl mb-2" style={{ background: "rgba(20,184,166,0.08)", border: "1px solid rgba(20,184,166,0.25)" }}>
+              <span className="text-sm text-teal-300 font-medium">{selectedIds.size} zaznaczone</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-xs text-white/40 hover:text-white/70 transition-colors px-2"
+                >
+                  Odznacz
+                </button>
+                <button
+                  onClick={handleBulkMarkPaid}
+                  disabled={isMarkingPaid}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-colors disabled:opacity-50"
+                  style={{ background: "rgba(20,184,166,0.25)", color: "#5eead4", border: "1px solid rgba(20,184,166,0.35)" }}
+                >
+                  {isMarkingPaid ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                  Oznacz jako zapłacone
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+            {/* Header */}
+            <div className="grid grid-cols-[28px_1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-2.5 text-xs font-medium text-white/40" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              {/* Select-all checkbox */}
+              <div className="flex items-center justify-center cursor-pointer" onClick={handleSelectAll}>
+                <div className="w-4 h-4 rounded flex items-center justify-center transition-colors"
+                  style={allSelected
+                    ? { background: "rgba(20,184,166,0.3)", border: "1px solid rgba(20,184,166,0.6)" }
+                    : { border: "1px solid rgba(255,255,255,0.2)" }}>
+                  {allSelected && <Check className="w-2.5 h-2.5 text-teal-300" />}
                 </div>
               </div>
-            ))}
+              <div>Dostawca / Numer</div>
+              <div className="hidden sm:block text-right w-24">Data</div>
+              <div className="hidden sm:block text-center w-20">Metoda</div>
+              <div className="hidden sm:block text-center w-20">Status</div>
+              <div className="text-right w-24">Wartość</div>
+              <div className="w-16" />
+            </div>
+
+            {/* Rows */}
+            <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+              {filtered.map((inv) => {
+                const isSelected = selectedIds.has(inv.id);
+                return (
+                  <div
+                    key={inv.id}
+                    className={cn(
+                      "grid grid-cols-[28px_1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-3 items-center transition-colors",
+                      inv.excluded && "opacity-50",
+                    )}
+                    style={{
+                      borderBottomColor: "rgba(255,255,255,0.04)",
+                      background: isSelected ? "rgba(20,184,166,0.06)" : undefined,
+                    }}
+                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = isSelected ? "rgba(20,184,166,0.06)" : ""; }}
+                  >
+                    {/* Checkbox */}
+                    <div
+                      className="flex items-center justify-center cursor-pointer"
+                      onClick={() => { if (!inv.isPaid) toggleSelect(inv.id); }}
+                    >
+                      {inv.isPaid ? (
+                        <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: "rgba(52,211,153,0.15)", border: "1px solid rgba(52,211,153,0.35)" }}>
+                          <Check className="w-2.5 h-2.5 text-emerald-400" />
+                        </div>
+                      ) : isSelected ? (
+                        <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: "rgba(20,184,166,0.3)", border: "1px solid rgba(20,184,166,0.6)" }}>
+                          <Check className="w-2.5 h-2.5 text-teal-300" />
+                        </div>
+                      ) : (
+                        <div className="w-4 h-4 rounded transition-colors hover:border-white/40" style={{ border: "1px solid rgba(255,255,255,0.18)" }} />
+                      )}
+                    </div>
+
+                    <div className="min-w-0 cursor-pointer" onClick={() => setViewInvoiceId(inv.id)}>
+                      <p className="text-sm font-medium truncate text-white">{inv.supplierName}</p>
+                      <p className="text-xs text-white/50 truncate">{inv.invoiceNumber}</p>
+                      {inv.paymentMethod === "przelew" && inv.paymentDueDate && !inv.isPaid && (
+                        <p className="text-xs text-orange-400">termin: {formatDate(inv.paymentDueDate)}</p>
+                      )}
+                    </div>
+                    <div className="hidden sm:block text-right w-24">
+                      <p className="text-sm text-white/50 tabular-nums">{formatDate(inv.invoiceDate)}</p>
+                    </div>
+                    <div className="hidden sm:flex justify-center w-20">
+                      {inv.paymentMethod ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full text-white/60" style={{ background: "rgba(255,255,255,0.08)" }}>
+                          {PAYMENT_METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod}
+                        </span>
+                      ) : (
+                        <span className="text-white/20">—</span>
+                      )}
+                    </div>
+                    <div className="hidden sm:flex justify-center w-20">
+                      {inv.isPaid ? (
+                        <span className="text-xs text-emerald-400 px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(52,211,153,0.12)" }}>
+                          Opłacone
+                        </span>
+                      ) : inv.paymentMethod === "przelew" ? (
+                        <span className="text-xs text-orange-400 px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(251,146,60,0.12)" }}>
+                          Oczekuje
+                        </span>
+                      ) : (
+                        <span className="text-white/20 text-xs">—</span>
+                      )}
+                    </div>
+                    <div className="text-right w-24">
+                      <p className="text-sm font-semibold tabular-nums text-white">{formatPrice(inv.totalAmount)}</p>
+                    </div>
+                    <div className="flex items-center gap-0.5 w-16 justify-end">
+                      <button
+                        onClick={() => handleToggleExcluded(inv.id, inv.excluded)}
+                        className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-white/70 rounded"
+                        title={inv.excluded ? "Uwzględnij w statystykach" : "Wyklucz ze statystyk"}
+                      >
+                        {inv.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(inv.id)}
+                        className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-red-400 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {viewInvoiceId && <InvoiceDetailModal invoiceId={viewInvoiceId} onClose={() => setViewInvoiceId(null)} />}
