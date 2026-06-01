@@ -2040,9 +2040,15 @@ components:
               type: string
             totalAmount:
               type: number
+            invoiceCount:
+              type: integer
+            supplierCount:
+              type: integer
           required:
             - date
             - totalAmount
+            - invoiceCount
+            - supplierCount
         avgDailyAmount:
           type: number
         prevMonthTotalAmount:

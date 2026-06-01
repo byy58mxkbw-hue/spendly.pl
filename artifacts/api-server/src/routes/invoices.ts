@@ -229,7 +229,12 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
     totalAmount,
     invoiceCount,
     supplierCount: allSupplierIds.size,
-    biggestDay: biggestDay ? { date: biggestDay.date, totalAmount: biggestDay.totalAmount } : null,
+    biggestDay: biggestDay ? {
+      date: biggestDay.date,
+      totalAmount: biggestDay.totalAmount,
+      invoiceCount: biggestDay.invoiceCount,
+      supplierCount: biggestDay.supplierCount,
+    } : null,
     avgDailyAmount,
     prevMonthTotalAmount,
   });

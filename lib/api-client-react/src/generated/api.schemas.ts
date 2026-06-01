@@ -324,6 +324,8 @@ export interface PaymentsDashboard {
 export type InvoiceTimelineResponseBiggestDay = {
   date: string;
   totalAmount: number;
+  invoiceCount: number;
+  supplierCount: number;
 } | null;
 
 export interface InvoiceTimelineResponse {

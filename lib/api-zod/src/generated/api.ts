@@ -660,6 +660,8 @@ export const GetInvoicesTimelineResponse = zod.object({
     .object({
       date: zod.string(),
       totalAmount: zod.number(),
+      invoiceCount: zod.number(),
+      supplierCount: zod.number(),
     })
     .nullish(),
   avgDailyAmount: zod.number(),

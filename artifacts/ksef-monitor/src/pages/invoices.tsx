@@ -122,17 +122,18 @@ const TABS: { id: Tab; label: string }[] = [
 
 function SegmentControl({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
   return (
-    <div className="inline-flex bg-muted rounded-xl p-1 gap-0.5">
+    <div className="inline-flex p-1 gap-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)" }}>
       {TABS.map((t) => (
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
           className={cn(
-            "px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200",
+            "px-4 h-8 rounded-full text-sm font-medium transition-all duration-200",
             active === t.id
-              ? "bg-white text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
+              ? "bg-white text-[#08111f] shadow-md"
+              : "text-white/50 hover:text-white/80",
           )}
+          style={active === t.id ? { boxShadow: "0 0 12px rgba(20,184,166,0.35)" } : undefined}
         >
           {t.label}
         </button>
@@ -162,10 +163,16 @@ interface HeroProps {
   invoiceCount: number;
   supplierCount: number;
   prevMonthTotalAmount: number;
-  biggestDay?: { date: string; totalAmount: number } | null;
+  biggestDay?: { date: string; totalAmount: number; invoiceCount?: number; supplierCount?: number } | null;
   avgDailyAmount: number;
   loading: boolean;
 }
+
+const CARD_STYLE = {
+  background: "#0f1b33",
+  border: "1px solid rgba(255,255,255,0.06)",
+  borderRadius: "20px",
+} as const;
 
 function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierCount, prevMonthTotalAmount, biggestDay, avgDailyAmount, loading }: HeroProps) {
   const changePercent = prevMonthTotalAmount > 0
@@ -173,66 +180,95 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
     : null;
   const isUp = changePercent !== null && changePercent >= 0;
 
-  return (
-    <div className="bg-gradient-to-br from-teal-600 to-teal-700 text-white rounded-2xl p-6 md:p-8">
-      <div className="flex items-center gap-3 mb-5">
-        <button onClick={onPrev} className="p-1.5 rounded-full hover:bg-white/20 transition-colors">
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <h2 className="text-lg font-semibold capitalize flex-1">{monthLabel(month)}</h2>
-        <button
-          onClick={onNext}
-          disabled={month >= todayMonth()}
-          className="p-1.5 rounded-full hover:bg-white/20 transition-colors disabled:opacity-30"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
+  const activeDaysInMonth = loading ? null : (avgDailyAmount > 0 && totalAmount > 0
+    ? Math.round(totalAmount / avgDailyAmount) : null);
 
-      {loading ? (
-        <div className="space-y-3 animate-pulse">
-          <div className="h-12 w-56 bg-white/20 rounded-xl" />
-          <div className="h-4 w-72 bg-white/15 rounded-lg" />
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            <div className="h-16 bg-white/10 rounded-xl" />
-            <div className="h-16 bg-white/10 rounded-xl" />
-          </div>
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Card 1: Month summary */}
+      <div className="sm:col-span-1 p-5" style={CARD_STYLE}>
+        <div className="flex items-center gap-2 mb-3">
+          <button onClick={onPrev} className="p-1 rounded-full transition-colors" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <ChevronLeft className="w-3.5 h-3.5 text-white/70" />
+          </button>
+          <span className="text-white/60 text-xs font-medium flex-1 capitalize">{monthLabel(month)}</span>
+          <button
+            onClick={onNext}
+            disabled={month >= todayMonth()}
+            className="p-1 rounded-full transition-colors disabled:opacity-30"
+            style={{ background: "rgba(255,255,255,0.06)" }}
+          >
+            <ChevronRight className="w-3.5 h-3.5 text-white/70" />
+          </button>
         </div>
-      ) : (
-        <>
-          <div className="mb-5">
-            <div className="text-4xl md:text-5xl font-bold tracking-tight tabular-nums mb-2">
-              {formatPrice(totalAmount)}
-            </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-teal-100 text-sm">
-              <span>{invoiceCount} {invoiceCount === 1 ? "zakup" : "zakupów"}</span>
-              <span>{supplierCount} {supplierCount === 1 ? "dostawca" : "dostawców"}</span>
+        {loading ? (
+          <div className="space-y-2 animate-pulse">
+            <div className="h-8 w-36 rounded-lg" style={{ background: "rgba(255,255,255,0.08)" }} />
+            <div className="h-3 w-28 rounded" style={{ background: "rgba(255,255,255,0.05)" }} />
+          </div>
+        ) : (
+          <>
+            <p className="text-2xl font-bold tabular-nums text-white mb-1">{formatPrice(totalAmount)}</p>
+            <p className="text-white/50 text-xs">Łączne wydatki</p>
+            <div className="mt-3 space-y-1">
+              <p className="text-white/70 text-xs">{invoiceCount} {invoiceCount === 1 ? "zakup" : "zakupów"} · {supplierCount} {supplierCount === 1 ? "dostawca" : "dostawców"}</p>
               {changePercent !== null && (
-                <span className={cn("font-semibold", isUp ? "text-orange-200" : "text-emerald-200")}>
+                <p className={cn("text-xs font-semibold", isUp ? "text-orange-400" : "text-emerald-400")}>
                   {isUp ? "+" : ""}{changePercent}% vs poprzedni miesiąc
-                </span>
+                </p>
               )}
             </div>
-          </div>
+          </>
+        )}
+      </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {biggestDay && (
-              <div className="bg-white/10 rounded-xl px-4 py-3">
-                <p className="text-teal-200 text-xs font-medium mb-1">Największe zakupy</p>
-                <p className="font-semibold text-sm capitalize">{dayLabel(biggestDay.date)}</p>
-                <p className="text-teal-100 text-xs tabular-nums mt-0.5">{formatPrice(biggestDay.totalAmount)}</p>
-              </div>
-            )}
-            {avgDailyAmount > 0 && (
-              <div className="bg-white/10 rounded-xl px-4 py-3">
-                <p className="text-teal-200 text-xs font-medium mb-1">Średnio dziennie</p>
-                <p className="font-semibold text-sm tabular-nums">{formatPrice(avgDailyAmount)}</p>
-                <p className="text-teal-100 text-xs mt-0.5">w dni zakupowe</p>
-              </div>
-            )}
+      {/* Card 2: Biggest day */}
+      <div className="p-5" style={CARD_STYLE}>
+        <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-3">Największy dzień</p>
+        {loading ? (
+          <div className="space-y-2 animate-pulse">
+            <div className="h-5 w-24 rounded" style={{ background: "rgba(255,255,255,0.08)" }} />
+            <div className="h-7 w-32 rounded-lg" style={{ background: "rgba(255,255,255,0.06)" }} />
           </div>
-        </>
-      )}
+        ) : biggestDay ? (
+          <>
+            <p className="text-white/80 text-sm font-semibold capitalize mb-1">{dayLabel(biggestDay.date)}</p>
+            <p className="text-white text-xl font-bold tabular-nums mb-2">{formatPrice(biggestDay.totalAmount)}</p>
+            {(biggestDay.invoiceCount != null || biggestDay.supplierCount != null) && (
+              <p className="text-white/50 text-xs">
+                {biggestDay.invoiceCount != null && `${biggestDay.invoiceCount} ${biggestDay.invoiceCount === 1 ? "faktura" : "faktur"}`}
+                {biggestDay.invoiceCount != null && biggestDay.supplierCount != null && " · "}
+                {biggestDay.supplierCount != null && `${biggestDay.supplierCount} ${biggestDay.supplierCount === 1 ? "dostawca" : "dostawców"}`}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-white/30 text-sm">Brak danych</p>
+        )}
+      </div>
+
+      {/* Card 3: Daily average */}
+      <div className="p-5" style={CARD_STYLE}>
+        <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-3">Średnio dziennie</p>
+        {loading ? (
+          <div className="space-y-2 animate-pulse">
+            <div className="h-7 w-32 rounded-lg" style={{ background: "rgba(255,255,255,0.08)" }} />
+            <div className="h-3 w-20 rounded" style={{ background: "rgba(255,255,255,0.05)" }} />
+          </div>
+        ) : avgDailyAmount > 0 ? (
+          <>
+            <p className="text-white text-xl font-bold tabular-nums mb-2">{formatPrice(avgDailyAmount)}</p>
+            {activeDaysInMonth != null && (
+              <p className="text-white/50 text-xs">{activeDaysInMonth} {activeDaysInMonth === 1 ? "aktywny dzień" : "aktywne dni"}</p>
+            )}
+            {invoiceCount > 0 && activeDaysInMonth != null && activeDaysInMonth > 0 && (
+              <p className="text-white/50 text-xs mt-1">{Math.round(invoiceCount / activeDaysInMonth)} zakupów dziennie</p>
+            )}
+          </>
+        ) : (
+          <p className="text-white/30 text-sm">Brak zakupów</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -395,7 +431,9 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
   if (isLoading) {
     return (
       <div className="space-y-3">
-        {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)}
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-28 w-full rounded-2xl animate-pulse" style={{ background: "rgba(255,255,255,0.04)" }} />
+        ))}
       </div>
     );
   }
@@ -403,9 +441,9 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
   if (!data || data.days.length === 0) {
     return (
       <div className="py-20 text-center">
-        <Package className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
-        <p className="text-muted-foreground font-medium">Brak zakupów w tym miesiącu</p>
-        <p className="text-sm text-muted-foreground mt-1">Zaimportuj faktury lub zsynchronizuj z KSeF</p>
+        <Package className="w-12 h-12 mx-auto mb-3 text-white/20" />
+        <p className="text-white/60 font-medium">Brak zakupów w tym miesiącu</p>
+        <p className="text-sm text-white/40 mt-1">Zaimportuj faktury lub zsynchronizuj z KSeF</p>
       </div>
     );
   }
@@ -420,26 +458,29 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
           <button
             key={day.date}
             onClick={() => onDayClick(day.date)}
-            className="w-full text-left bg-card border border-border rounded-2xl p-5 hover:shadow-md hover:border-teal-200 transition-all duration-200"
+            className="w-full text-left rounded-2xl p-5 transition-all duration-200 hover:brightness-110"
+            style={{ ...CARD_STYLE, cursor: "pointer" }}
           >
             <div className="flex items-start justify-between mb-3">
               <div>
-                <p className="font-semibold text-foreground capitalize">{dayLabel(day.date)}</p>
-                <p className="text-xs text-muted-foreground capitalize mt-0.5">{dayOfWeek(day.date)}</p>
+                <p className="font-semibold text-white capitalize">{dayLabel(day.date)}</p>
+                <p className="text-xs text-white/50 capitalize mt-0.5">{dayOfWeek(day.date)}</p>
                 {comment && (
                   <span className={cn(
                     "inline-block text-[11px] font-medium mt-1.5 px-2 py-0.5 rounded-full",
                     comment.positive
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-orange-50 text-orange-700",
-                  )}>
+                      ? "text-emerald-400"
+                      : "text-orange-400",
+                  )}
+                    style={comment.positive ? { background: "rgba(52,211,153,0.12)" } : { background: "rgba(251,146,60,0.12)" }}
+                  >
                     {comment.text}
                   </span>
                 )}
               </div>
               <div className="text-right shrink-0 ml-3">
-                <p className="font-bold text-lg tabular-nums text-foreground">{formatPrice(day.totalAmount)}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="font-bold text-lg tabular-nums text-white">{formatPrice(day.totalAmount)}</p>
+                <p className="text-xs text-white/40 mt-0.5">
                   {day.invoiceCount} {day.invoiceCount === 1 ? "zakup" : "zakupów"} · {day.supplierCount} {day.supplierCount === 1 ? "dostawca" : "dostawców"}
                 </p>
               </div>
@@ -447,21 +488,21 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
 
             {day.categories.length > 0 && (
               <div className="space-y-1.5">
-                <div className="flex h-1.5 rounded-full overflow-hidden gap-0.5">
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1.5">
+                  {day.categories.slice(0, 4).map((cat, i) => (
+                    <span key={cat.category} className="text-xs text-white/60 flex items-center gap-1">
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", CAT_COLORS[i % CAT_COLORS.length])} />
+                      {catLabel(cat.category)} {cat.percent}%
+                    </span>
+                  ))}
+                </div>
+                <div className="flex h-1 rounded-full overflow-hidden gap-0.5">
                   {day.categories.slice(0, 5).map((cat, i) => (
                     <div
                       key={cat.category}
                       className={cn("h-full", CAT_COLORS[i % CAT_COLORS.length])}
                       style={{ width: `${cat.percent}%` }}
                     />
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  {day.categories.slice(0, 4).map((cat, i) => (
-                    <span key={cat.category} className="text-xs text-muted-foreground flex items-center gap-1">
-                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", CAT_COLORS[i % CAT_COLORS.length])} />
-                      {catLabel(cat.category)} {cat.percent}%
-                    </span>
                   ))}
                 </div>
               </div>
@@ -475,7 +516,13 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
 
 // ─── Kalendarz (heatmap) view ──────────────────────────────────────────────────
 
-const HEAT_CLASSES = ["bg-muted", "bg-teal-100", "bg-teal-200", "bg-teal-400", "bg-teal-600"];
+const HEAT_CLASSES = [
+  "bg-white/[0.04]",
+  "bg-teal-900/70",
+  "bg-teal-700/80",
+  "bg-teal-500/90",
+  "bg-teal-400",
+];
 const DOW_LABELS = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
 
 function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date: string) => void }) {
@@ -487,7 +534,7 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
   if (isLoading) {
     return (
       <div className="h-64 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <Loader2 className="w-6 h-6 animate-spin text-white/40" />
       </div>
     );
   }
@@ -518,7 +565,7 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
     <div>
       <div className="grid grid-cols-7 gap-1 mb-1">
         {DOW_LABELS.map((d) => (
-          <div key={d} className="text-center text-xs text-muted-foreground font-medium py-1">{d}</div>
+          <div key={d} className="text-center text-xs text-white/40 font-medium py-1">{d}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -538,7 +585,7 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
                 info ? "hover:scale-105 hover:shadow-md cursor-pointer" : "cursor-default",
               )}
             >
-              <span className={cn("text-xs font-semibold leading-tight", level >= 3 ? "text-white" : "text-foreground/70")}>
+              <span className={cn("text-xs font-semibold leading-tight", level >= 3 ? "text-white" : "text-white/50")}>
                 {cell.dayNum}
               </span>
               {info && info.invoiceCount > 0 && (
@@ -546,7 +593,7 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
                   <span className={cn("text-[9px] font-bold leading-tight", level >= 3 ? "text-white/80" : "text-teal-600")}>
                     {info.invoiceCount} zak.
                   </span>
-                  <span className={cn("text-[9px] leading-tight tabular-nums", level >= 3 ? "text-white/70" : "text-muted-foreground")}>
+                  <span className={cn("text-[9px] leading-tight tabular-nums", level >= 2 ? "text-white/70" : "text-white/40")}>
                     {formatAmountShort(info.totalAmount)}
                   </span>
                 </>
@@ -557,11 +604,11 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
       </div>
 
       <div className="flex items-center gap-1.5 mt-5 justify-end">
-        <span className="text-xs text-muted-foreground">Mniej</span>
+        <span className="text-xs text-white/30">Mniej</span>
         {HEAT_CLASSES.map((cls, i) => (
-          <div key={i} className={cn("w-4 h-4 rounded", cls, i === 0 && "border border-border")} />
+          <div key={i} className={cn("w-4 h-4 rounded", cls, i === 0 && "border border-white/10")} />
         ))}
-        <span className="text-xs text-muted-foreground">Więcej</span>
+        <span className="text-xs text-white/30">Więcej</span>
       </div>
     </div>
   );
@@ -577,7 +624,14 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)}
+        <div className="grid grid-cols-3 gap-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ background: "rgba(255,255,255,0.04)" }} />
+          ))}
+        </div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.04)" }} />
+        ))}
       </div>
     );
   }
@@ -588,114 +642,129 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
   if (total === 0) {
     return (
       <div className="py-24 text-center">
-        <CheckCircle2 className="w-14 h-14 mx-auto mb-3 text-emerald-500" />
-        <p className="text-foreground font-semibold text-lg">Wszystkie płatności uregulowane</p>
-        <p className="text-sm text-muted-foreground mt-1">Brak zaległych przelewów bankowych</p>
+        <CheckCircle2 className="w-14 h-14 mx-auto mb-3 text-emerald-400" />
+        <p className="text-white font-semibold text-lg">Wszystkie płatności uregulowane</p>
+        <p className="text-sm text-white/40 mt-1">Brak zaległych przelewów bankowych</p>
       </div>
     );
   }
 
-  const sections = [
+  const tiles = [
     {
-      key: "overdue",
+      label: "Dzisiaj",
+      amount: data?.dueTodayAmount ?? 0,
+      count: data?.dueTodayCount ?? 0,
+      color: "#f97316",
+      bg: "rgba(249,115,22,0.1)",
+      border: "rgba(249,115,22,0.22)",
+    },
+    {
+      label: "W ciągu 7 dni",
+      amount: data?.dueIn7DaysAmount ?? 0,
+      count: data?.dueIn7DaysCount ?? 0,
+      color: "#14b8a6",
+      bg: "rgba(20,184,166,0.1)",
+      border: "rgba(20,184,166,0.22)",
+    },
+    {
       label: "Po terminie",
       amount: data?.overdueAmount ?? 0,
       count: data?.overdueCount ?? 0,
-      invoices: data?.overdue ?? [],
-      amountColor: "text-destructive",
-      cardClass: "border-destructive/20 bg-destructive/[0.03]",
-      badgeClass: "bg-destructive/10 text-destructive",
-      btnClass: "bg-destructive text-white hover:bg-destructive/90",
+      color: "#ef4444",
+      bg: "rgba(239,68,68,0.1)",
+      border: "rgba(239,68,68,0.22)",
     },
-    {
-      key: "today",
-      label: "Do zapłaty dzisiaj",
-      amount: data?.dueTodayAmount ?? 0,
-      count: data?.dueTodayCount ?? 0,
-      invoices: data?.dueToday ?? [],
-      amountColor: "text-orange-600",
-      cardClass: "border-orange-100 bg-orange-50/50",
-      badgeClass: "bg-orange-100 text-orange-700",
-      btnClass: "bg-orange-500 text-white hover:bg-orange-600",
-    },
-    {
-      key: "week",
-      label: "Najbliższe 7 dni",
-      amount: data?.dueIn7DaysAmount ?? 0,
-      count: data?.dueIn7DaysCount ?? 0,
-      invoices: data?.dueIn7Days ?? [],
-      amountColor: "text-foreground",
-      cardClass: "border-border bg-card",
-      badgeClass: "bg-muted text-muted-foreground",
-      btnClass: "bg-teal-600 text-white hover:bg-teal-700",
-    },
-    {
-      key: "upcoming",
-      label: "Nadchodzące (po 7 dniach)",
-      amount: data?.upcomingAmount ?? 0,
-      count: data?.upcomingCount ?? 0,
-      invoices: data?.upcoming ?? [],
-      amountColor: "text-foreground",
-      cardClass: "border-border bg-card",
-      badgeClass: "bg-muted text-muted-foreground",
-      btnClass: "bg-teal-600 text-white hover:bg-teal-700",
-    },
-    {
-      key: "noDueDate",
-      label: "Bez terminu płatności",
-      amount: data?.noDueDateAmount ?? 0,
-      count: data?.noDueDateCount ?? 0,
-      invoices: data?.noDueDate ?? [],
-      amountColor: "text-muted-foreground",
-      cardClass: "border-border bg-muted/30",
-      badgeClass: "bg-muted text-muted-foreground",
-      btnClass: "bg-muted-foreground text-white hover:bg-muted-foreground/90",
-    },
-  ].filter((s) => s.count > 0);
+  ];
+
+  const timeline = [
+    ...(data?.overdue ?? []).map((inv) => ({ ...inv, urgency: 0 })),
+    ...(data?.dueToday ?? []).map((inv) => ({ ...inv, urgency: 1 })),
+    ...(data?.dueIn7Days ?? []).map((inv) => ({ ...inv, urgency: 2 })),
+    ...(data?.upcoming ?? []).map((inv) => ({ ...inv, urgency: 3 })),
+  ];
+
+  function timelineLabel(inv: { urgency: number; daysOverdue?: number | null; paymentDueDate?: string | null }): string {
+    if (inv.urgency === 0) {
+      return inv.daysOverdue != null && inv.daysOverdue > 0 ? `${inv.daysOverdue} dni po terminie` : "Po terminie";
+    }
+    if (inv.urgency === 1) return "Dzisiaj";
+    if (!inv.paymentDueDate) return "Wkrótce";
+    const days = Math.round((new Date(inv.paymentDueDate).getTime() - Date.now()) / 86400000);
+    if (days === 1) return "Jutro";
+    if (days <= 7) return `Za ${days} dni`;
+    return formatDate(inv.paymentDueDate);
+  }
+
+  function labelColor(urgency: number): string {
+
+    if (urgency === 0) return "#ef4444";
+    if (urgency === 1) return "#f97316";
+    return "#14b8a6";
+  }
 
   return (
-    <div className="space-y-4">
-      {sections.map((s) => (
-        <div key={s.key} className={cn("border rounded-2xl overflow-hidden", s.cardClass)}>
-          <div className="px-5 py-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{s.label}</p>
-              <p className={cn("text-3xl font-bold tabular-nums", s.amountColor)}>{formatPrice(s.amount)}</p>
-            </div>
-            <span className={cn("text-xs font-semibold px-3 py-1.5 rounded-full", s.badgeClass)}>
-              {s.count} {s.count === 1 ? "faktura" : "faktur"}
-            </span>
+    <div className="space-y-5">
+      <div className="grid grid-cols-3 gap-3">
+        {tiles.map((tile) => (
+          <div key={tile.label} className="p-4 rounded-2xl" style={{ background: tile.bg, border: `1px solid ${tile.border}` }}>
+            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: tile.color }}>{tile.label}</p>
+            <p className="text-xl font-bold text-white tabular-nums leading-tight">{formatPrice(tile.amount)}</p>
+            {tile.count > 0 && (
+              <p className="text-xs mt-1.5" style={{ color: tile.color + "99" }}>
+                {tile.count} {tile.count === 1 ? "faktura" : "faktur"}
+              </p>
+            )}
           </div>
+        ))}
+      </div>
 
-          {s.invoices.length > 0 && (
-            <div className="border-t border-border/60 divide-y divide-border/40">
-              {s.invoices.map((inv) => (
-                <div key={inv.id} className="px-5 py-3 flex items-center gap-3 bg-white/50">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{inv.supplierName}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {inv.invoiceNumber}
-                      {inv.paymentDueDate && ` · termin: ${formatDate(inv.paymentDueDate)}`}
-                      {inv.daysOverdue != null && inv.daysOverdue > 0 && (
-                        <span className="text-destructive font-medium"> ({inv.daysOverdue} dni po terminie)</span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <p className="text-sm font-semibold tabular-nums">{formatPrice(inv.totalAmount)}</p>
-                    <button
-                      onClick={() => onMarkPaid(inv.id, true)}
-                      className={cn("text-xs px-3 py-1.5 rounded-full font-medium transition-colors", s.btnClass)}
-                    >
-                      Zapłacono
-                    </button>
-                  </div>
-                </div>
-              ))}
+      {timeline.length > 0 && (
+        <div className="space-y-2">
+          {timeline.map((inv) => (
+            <div key={inv.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={CARD_STYLE}>
+              <div className="w-28 shrink-0">
+                <p className="text-xs font-semibold" style={{ color: labelColor(inv.urgency) }}>
+                  {timelineLabel(inv)}
+                </p>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">{inv.supplierName}</p>
+                <p className="text-xs text-white/40 truncate">{inv.invoiceNumber}</p>
+              </div>
+              <p className="text-sm font-semibold text-white tabular-nums shrink-0">{formatPrice(inv.totalAmount)}</p>
+              <button
+                onClick={() => onMarkPaid(inv.id, true)}
+                className="shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors text-white"
+                style={{ background: "rgba(20,184,166,0.18)", border: "1px solid rgba(20,184,166,0.3)" }}
+              >
+                Zapłacono
+              </button>
             </div>
-          )}
+          ))}
         </div>
-      ))}
+      )}
+
+      {(data?.noDueDateCount ?? 0) > 0 && (
+        <div className="px-4 py-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+          <p className="text-xs text-white/40">Bez terminu ({data?.noDueDateCount})</p>
+          {(data?.noDueDate ?? []).map((inv) => (
+            <div key={inv.id} className="flex items-center gap-3 py-1.5">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white/70 truncate">{inv.supplierName}</p>
+                <p className="text-xs text-white/30 truncate">{inv.invoiceNumber}</p>
+              </div>
+              <p className="text-sm font-semibold text-white/60 tabular-nums shrink-0">{formatPrice(inv.totalAmount)}</p>
+              <button
+                onClick={() => onMarkPaid(inv.id, true)}
+                className="text-xs px-3 py-1.5 rounded-full font-medium text-white/50"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                Zapłacono
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -887,8 +956,8 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
           {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="py-16 text-center text-muted-foreground">
-          <FileText className="w-10 h-10 mx-auto mb-2 text-muted-foreground/30" />
+        <div className="py-16 text-center text-white/50">
+          <FileText className="w-10 h-10 mx-auto mb-2 text-white/20" />
           <p className="font-medium">Brak faktur w archiwum</p>
           {!invoices?.length && (
             <Button className="mt-4" onClick={onImportClick}>
@@ -898,8 +967,8 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
           )}
         </div>
       ) : (
-        <div className="border border-border rounded-xl overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-2.5 text-xs font-medium text-muted-foreground bg-muted/30 border-b border-border">
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-2.5 text-xs font-medium text-white/40" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <div>Dostawca / Numer</div>
             <div className="hidden sm:block text-right w-24">Data</div>
             <div className="hidden sm:block text-center w-20">Metoda</div>
@@ -907,61 +976,68 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
             <div className="text-right w-24">Wartość</div>
             <div className="w-16" />
           </div>
-          <div className="divide-y divide-border">
+          <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
             {filtered.map((inv) => (
               <div
                 key={inv.id}
                 className={cn(
-                  "grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-3 items-center hover:bg-muted/20 transition-colors",
+                  "grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-3 items-center transition-colors",
                   inv.excluded && "opacity-50",
                 )}
+                style={{ borderBottomColor: "rgba(255,255,255,0.04)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "")}
               >
                 <div className="min-w-0 cursor-pointer" onClick={() => setViewInvoiceId(inv.id)}>
-                  <p className="text-sm font-medium truncate">{inv.supplierName}</p>
-                  <p className="text-xs text-muted-foreground truncate">{inv.invoiceNumber}</p>
+                  <p className="text-sm font-medium truncate text-white">{inv.supplierName}</p>
+                  <p className="text-xs text-white/50 truncate">{inv.invoiceNumber}</p>
+                  {inv.paymentMethod === "przelew" && inv.paymentDueDate && (
+                    <p className="text-xs text-orange-400">termin: {formatDate(inv.paymentDueDate)}</p>
+                  )}
                 </div>
                 <div className="hidden sm:block text-right w-24">
-                  <p className="text-sm text-muted-foreground tabular-nums">{formatDate(inv.invoiceDate)}</p>
+                  <p className="text-sm text-white/50 tabular-nums">{formatDate(inv.invoiceDate)}</p>
                 </div>
                 <div className="hidden sm:flex justify-center w-20">
                   {inv.paymentMethod ? (
-                    <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                    <span className="text-xs px-2 py-0.5 rounded-full text-white/60" style={{ background: "rgba(255,255,255,0.08)" }}>
                       {PAYMENT_METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground/40">—</span>
+                    <span className="text-white/20">—</span>
                   )}
                 </div>
                 <div className="hidden sm:flex justify-center w-20">
                   {inv.paymentMethod === "przelew" ? (
                     <span className={cn(
                       "text-xs px-2 py-0.5 rounded-full font-medium",
-                      inv.isPaid ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700",
-                    )}>
+                      inv.isPaid ? "text-emerald-400" : "text-orange-400",
+                    )}
+                      style={inv.isPaid ? { background: "rgba(52,211,153,0.12)" } : { background: "rgba(251,146,60,0.12)" }}>
                       {inv.isPaid ? "Opłacone" : "Oczekuje"}
                     </span>
                   ) : inv.paymentMethod ? (
-                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                    <span className="text-xs text-emerald-400 px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(52,211,153,0.12)" }}>
                       Opłacone
                     </span>
                   ) : (
-                    <span className="text-muted-foreground/40 text-xs">—</span>
+                    <span className="text-white/20 text-xs">—</span>
                   )}
                 </div>
                 <div className="text-right w-24">
-                  <p className="text-sm font-semibold tabular-nums">{formatPrice(inv.totalAmount)}</p>
+                  <p className="text-sm font-semibold tabular-nums text-white">{formatPrice(inv.totalAmount)}</p>
                 </div>
                 <div className="flex items-center gap-0.5 w-16 justify-end">
                   <button
                     onClick={() => handleToggleExcluded(inv.id, inv.excluded)}
-                    className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground rounded"
+                    className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-white/70 rounded"
                     title={inv.excluded ? "Uwzględnij w statystykach" : "Wyklucz ze statystyk"}
                   >
                     {inv.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   </button>
                   <button
                     onClick={() => setDeleteId(inv.id)}
-                    className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-destructive rounded"
+                    className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-red-400 rounded"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -1386,37 +1462,52 @@ export default function Invoices() {
 
   return (
     <Layout>
-      <PageHeader
-        title="Zakupy"
-        action={
-          <div className="flex items-center gap-2">
+      <div className="min-h-full bg-[#08111f]">
+        {/* Custom dark header */}
+        <div className="px-4 sm:px-6 pt-6 pb-2 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Zakupy</h1>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             {config ? (
               <div className="flex flex-col items-end gap-0.5">
-                <Button variant="outline" size="sm" onClick={handleSync} disabled={syncPending} className="gap-1.5">
+                <button
+                  onClick={handleSync}
+                  disabled={syncPending}
+                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium text-white/70 transition-colors hover:text-white"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
+                >
                   <RefreshCw className={cn("w-3.5 h-3.5", syncPending && "animate-spin")} />
                   <span className="hidden sm:inline">{syncPhaseLabel(phase)}</span>
-                </Button>
+                </button>
                 {syncPending && <Progress value={syncPhaseProgress(phase) ?? 0} className="h-0.5 w-full" />}
               </div>
             ) : (
               <Link href="/settings/ksef">
-                <Button variant="outline" size="sm" className="gap-1.5">
+                <button
+                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium text-white/70 transition-colors hover:text-white"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
+                >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Skonfiguruj KSeF</span>
-                </Button>
+                </button>
               </Link>
             )}
-            <Button size="sm" onClick={() => setShowImport(true)} className="gap-1.5" data-testid="btn-import-invoice">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium text-white transition-colors"
+              style={{ background: "#14b8a6" }}
+              data-testid="btn-import-invoice"
+            >
               <Plus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Dodaj zakup</span>
               <span className="sm:hidden">Dodaj</span>
-            </Button>
+            </button>
           </div>
-        }
-      />
+        </div>
 
-      <div className="space-y-5">
-        <MonthHero
+        <div className="px-4 sm:px-6 pb-10 space-y-5">
+          <MonthHero
           month={month}
           onPrev={() => setMonth(prevMonth(month))}
           onNext={() => setMonth(nextMonth(month))}
@@ -1483,6 +1574,7 @@ export default function Invoices() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </Layout>
   );
 }
