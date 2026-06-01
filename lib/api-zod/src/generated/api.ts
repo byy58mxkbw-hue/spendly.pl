@@ -697,6 +697,10 @@ export const GetInvoicesPaymentsResponse = zod.object({
   dueTodayCount: zod.number(),
   dueIn7DaysAmount: zod.number(),
   dueIn7DaysCount: zod.number(),
+  upcomingAmount: zod.number(),
+  upcomingCount: zod.number(),
+  noDueDateAmount: zod.number(),
+  noDueDateCount: zod.number(),
   overdue: zod.array(
     zod.object({
       id: zod.number(),
@@ -722,6 +726,30 @@ export const GetInvoicesPaymentsResponse = zod.object({
     }),
   ),
   dueIn7Days: zod.array(
+    zod.object({
+      id: zod.number(),
+      invoiceNumber: zod.string(),
+      supplierName: zod.string(),
+      totalAmount: zod.number(),
+      paymentDueDate: zod.string().nullish(),
+      paymentMethod: zod.string().nullish(),
+      isPaid: zod.boolean(),
+      daysOverdue: zod.number().nullish(),
+    }),
+  ),
+  upcoming: zod.array(
+    zod.object({
+      id: zod.number(),
+      invoiceNumber: zod.string(),
+      supplierName: zod.string(),
+      totalAmount: zod.number(),
+      paymentDueDate: zod.string().nullish(),
+      paymentMethod: zod.string().nullish(),
+      isPaid: zod.boolean(),
+      daysOverdue: zod.number().nullish(),
+    }),
+  ),
+  noDueDate: zod.array(
     zod.object({
       id: zod.number(),
       invoiceNumber: zod.string(),

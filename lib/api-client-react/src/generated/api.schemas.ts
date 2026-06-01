@@ -310,9 +310,15 @@ export interface PaymentsDashboard {
   dueTodayCount: number;
   dueIn7DaysAmount: number;
   dueIn7DaysCount: number;
+  upcomingAmount: number;
+  upcomingCount: number;
+  noDueDateAmount: number;
+  noDueDateCount: number;
   overdue: PaymentDueInvoice[];
   dueToday: PaymentDueInvoice[];
   dueIn7Days: PaymentDueInvoice[];
+  upcoming: PaymentDueInvoice[];
+  noDueDate: PaymentDueInvoice[];
 }
 
 export type InvoiceTimelineResponseBiggestDay = {

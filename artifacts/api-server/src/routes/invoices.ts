@@ -300,18 +300,21 @@ router.get("/invoices/payments", async (req, res): Promise<void> => {
   const overdue: typeof unpaidTransfers = [];
   const dueToday: typeof unpaidTransfers = [];
   const dueIn7Days: typeof unpaidTransfers = [];
+  const upcoming: typeof unpaidTransfers = [];
+  const noDueDate: typeof unpaidTransfers = [];
 
   for (const inv of unpaidTransfers) {
     const due = inv.paymentDueDate;
-    if (!due) continue;
+    if (!due) { noDueDate.push(inv); continue; }
     if (due < today) overdue.push(inv);
     else if (due === today) dueToday.push(inv);
     else if (due <= in7Days) dueIn7Days.push(inv);
+    else upcoming.push(inv);
   }
 
   const sum = (arr: typeof unpaidTransfers) => arr.reduce((s, i) => s + toNum(i.totalAmount), 0);
 
-  const mapInv = (inv: (typeof unpaidTransfers)[0], ) => ({
+  const mapInv = (inv: (typeof unpaidTransfers)[0]) => ({
     id: inv.id,
     invoiceNumber: inv.invoiceNumber,
     supplierName: inv.supplierName,
@@ -331,9 +334,15 @@ router.get("/invoices/payments", async (req, res): Promise<void> => {
     dueTodayCount: dueToday.length,
     dueIn7DaysAmount: sum(dueIn7Days),
     dueIn7DaysCount: dueIn7Days.length,
+    upcomingAmount: sum(upcoming),
+    upcomingCount: upcoming.length,
+    noDueDateAmount: sum(noDueDate),
+    noDueDateCount: noDueDate.length,
     overdue: overdue.map(mapInv),
     dueToday: dueToday.map(mapInv),
     dueIn7Days: dueIn7Days.map(mapInv),
+    upcoming: upcoming.map(mapInv),
+    noDueDate: noDueDate.map(mapInv),
   });
 });
 

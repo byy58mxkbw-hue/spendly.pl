@@ -582,7 +582,8 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
     );
   }
 
-  const total = (data?.overdueCount ?? 0) + (data?.dueTodayCount ?? 0) + (data?.dueIn7DaysCount ?? 0);
+  const total = (data?.overdueCount ?? 0) + (data?.dueTodayCount ?? 0) + (data?.dueIn7DaysCount ?? 0)
+    + (data?.upcomingCount ?? 0) + (data?.noDueDateCount ?? 0);
 
   if (total === 0) {
     return (
@@ -628,7 +629,29 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
       badgeClass: "bg-muted text-muted-foreground",
       btnClass: "bg-teal-600 text-white hover:bg-teal-700",
     },
-  ];
+    {
+      key: "upcoming",
+      label: "Nadchodzące (po 7 dniach)",
+      amount: data?.upcomingAmount ?? 0,
+      count: data?.upcomingCount ?? 0,
+      invoices: data?.upcoming ?? [],
+      amountColor: "text-foreground",
+      cardClass: "border-border bg-card",
+      badgeClass: "bg-muted text-muted-foreground",
+      btnClass: "bg-teal-600 text-white hover:bg-teal-700",
+    },
+    {
+      key: "noDueDate",
+      label: "Bez terminu płatności",
+      amount: data?.noDueDateAmount ?? 0,
+      count: data?.noDueDateCount ?? 0,
+      invoices: data?.noDueDate ?? [],
+      amountColor: "text-muted-foreground",
+      cardClass: "border-border bg-muted/30",
+      badgeClass: "bg-muted text-muted-foreground",
+      btnClass: "bg-muted-foreground text-white hover:bg-muted-foreground/90",
+    },
+  ].filter((s) => s.count > 0);
 
   return (
     <div className="space-y-4">
@@ -1393,20 +1416,18 @@ export default function Invoices() {
       />
 
       <div className="space-y-5">
-        {(activeTab === "zakupy" || activeTab === "kalendarz") && (
-          <MonthHero
-            month={month}
-            onPrev={() => setMonth(prevMonth(month))}
-            onNext={() => setMonth(nextMonth(month))}
-            totalAmount={timelineData?.totalAmount ?? 0}
-            invoiceCount={timelineData?.invoiceCount ?? 0}
-            supplierCount={timelineData?.supplierCount ?? 0}
-            prevMonthTotalAmount={timelineData?.prevMonthTotalAmount ?? 0}
-            biggestDay={timelineData?.biggestDay}
-            avgDailyAmount={timelineData?.avgDailyAmount ?? 0}
-            loading={timelineLoading}
-          />
-        )}
+        <MonthHero
+          month={month}
+          onPrev={() => setMonth(prevMonth(month))}
+          onNext={() => setMonth(nextMonth(month))}
+          totalAmount={timelineData?.totalAmount ?? 0}
+          invoiceCount={timelineData?.invoiceCount ?? 0}
+          supplierCount={timelineData?.supplierCount ?? 0}
+          prevMonthTotalAmount={timelineData?.prevMonthTotalAmount ?? 0}
+          biggestDay={timelineData?.biggestDay}
+          avgDailyAmount={timelineData?.avgDailyAmount ?? 0}
+          loading={timelineLoading}
+        />
 
         <div className="flex justify-center">
           <SegmentControl active={activeTab} onChange={setActiveTab} />

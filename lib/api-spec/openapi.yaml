@@ -1974,6 +1974,14 @@ components:
           type: number
         dueIn7DaysCount:
           type: integer
+        upcomingAmount:
+          type: number
+        upcomingCount:
+          type: integer
+        noDueDateAmount:
+          type: number
+        noDueDateCount:
+          type: integer
         overdue:
           type: array
           items:
@@ -1986,6 +1994,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PaymentDueInvoice"
+        upcoming:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentDueInvoice"
+        noDueDate:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentDueInvoice"
       required:
         - overdueAmount
         - overdueCount
@@ -1993,9 +2009,15 @@ components:
         - dueTodayCount
         - dueIn7DaysAmount
         - dueIn7DaysCount
+        - upcomingAmount
+        - upcomingCount
+        - noDueDateAmount
+        - noDueDateCount
         - overdue
         - dueToday
         - dueIn7Days
+        - upcoming
+        - noDueDate
 
     InvoiceTimelineResponse:
       type: object
