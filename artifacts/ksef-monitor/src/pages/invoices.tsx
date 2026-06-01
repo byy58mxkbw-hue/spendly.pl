@@ -378,6 +378,14 @@ function DayDrawer({
 
 // ─── Zakupy (timeline) view ────────────────────────────────────────────────────
 
+function dayComparisonComment(dayAmount: number, avgDailyAmount: number): { text: string; positive: boolean } | null {
+  if (avgDailyAmount <= 0 || dayAmount <= 0) return null;
+  const pct = Math.round(((dayAmount - avgDailyAmount) / avgDailyAmount) * 100);
+  if (Math.abs(pct) < 5) return { text: "Zbliżone do średniej", positive: true };
+  if (pct > 0) return { text: `${pct}% wyższe od średniej`, positive: false };
+  return { text: `${Math.abs(pct)}% niższe od średniej`, positive: true };
+}
+
 function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: string) => void }) {
   const { data, isLoading } = useGetInvoicesTimeline(
     { month },
@@ -402,50 +410,65 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
     );
   }
 
+  const avgDailyAmount = data.avgDailyAmount;
+
   return (
     <div className="space-y-3">
-      {data.days.map((day) => (
-        <button
-          key={day.date}
-          onClick={() => onDayClick(day.date)}
-          className="w-full text-left bg-card border border-border rounded-2xl p-5 hover:shadow-md hover:border-teal-200 transition-all duration-200"
-        >
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="font-semibold text-foreground capitalize">{dayLabel(day.date)}</p>
-              <p className="text-xs text-muted-foreground capitalize mt-0.5">{dayOfWeek(day.date)}</p>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-lg tabular-nums text-foreground">{formatPrice(day.totalAmount)}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {day.invoiceCount} {day.invoiceCount === 1 ? "zakup" : "zakupów"} · {day.supplierCount} {day.supplierCount === 1 ? "dostawca" : "dostawców"}
-              </p>
-            </div>
-          </div>
-
-          {day.categories.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex h-1.5 rounded-full overflow-hidden gap-0.5">
-                {day.categories.slice(0, 5).map((cat, i) => (
-                  <div
-                    key={cat.category}
-                    className={cn("h-full", CAT_COLORS[i % CAT_COLORS.length])}
-                    style={{ width: `${cat.percent}%` }}
-                  />
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-1">
-                {day.categories.slice(0, 4).map((cat, i) => (
-                  <span key={cat.category} className="text-xs text-muted-foreground flex items-center gap-1">
-                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", CAT_COLORS[i % CAT_COLORS.length])} />
-                    {catLabel(cat.category)} {cat.percent}%
+      {data.days.map((day) => {
+        const comment = dayComparisonComment(day.totalAmount, avgDailyAmount);
+        return (
+          <button
+            key={day.date}
+            onClick={() => onDayClick(day.date)}
+            className="w-full text-left bg-card border border-border rounded-2xl p-5 hover:shadow-md hover:border-teal-200 transition-all duration-200"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="font-semibold text-foreground capitalize">{dayLabel(day.date)}</p>
+                <p className="text-xs text-muted-foreground capitalize mt-0.5">{dayOfWeek(day.date)}</p>
+                {comment && (
+                  <span className={cn(
+                    "inline-block text-[11px] font-medium mt-1.5 px-2 py-0.5 rounded-full",
+                    comment.positive
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-orange-50 text-orange-700",
+                  )}>
+                    {comment.text}
                   </span>
-                ))}
+                )}
+              </div>
+              <div className="text-right shrink-0 ml-3">
+                <p className="font-bold text-lg tabular-nums text-foreground">{formatPrice(day.totalAmount)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {day.invoiceCount} {day.invoiceCount === 1 ? "zakup" : "zakupów"} · {day.supplierCount} {day.supplierCount === 1 ? "dostawca" : "dostawców"}
+                </p>
               </div>
             </div>
-          )}
-        </button>
-      ))}
+
+            {day.categories.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex h-1.5 rounded-full overflow-hidden gap-0.5">
+                  {day.categories.slice(0, 5).map((cat, i) => (
+                    <div
+                      key={cat.category}
+                      className={cn("h-full", CAT_COLORS[i % CAT_COLORS.length])}
+                      style={{ width: `${cat.percent}%` }}
+                    />
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  {day.categories.slice(0, 4).map((cat, i) => (
+                    <span key={cat.category} className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", CAT_COLORS[i % CAT_COLORS.length])} />
+                      {catLabel(cat.category)} {cat.percent}%
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -486,6 +509,11 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
     }),
   ];
 
+  function formatAmountShort(n: number): string {
+    if (n >= 1000) return `${(n / 1000).toFixed(1).replace(".", ",")}k`;
+    return `${Math.round(n)}`;
+  }
+
   return (
     <div>
       <div className="grid grid-cols-7 gap-1 mb-1">
@@ -495,7 +523,7 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
       </div>
       <div className="grid grid-cols-7 gap-1">
         {cells.map((cell, i) => {
-          if (!cell.date) return <div key={`pad-${i}`} className="aspect-square" />;
+          if (!cell.date) return <div key={`pad-${i}`} className="h-14 sm:h-16" />;
           const info = dayMap.get(cell.date);
           const amount = info?.totalAmount ?? 0;
           const level = amount === 0 ? 0 : Math.min(4, Math.ceil((amount / maxAmount) * 4));
@@ -505,19 +533,23 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
               key={cell.date}
               onClick={() => info ? onDayClick(cell.date!) : undefined}
               className={cn(
-                "aspect-square rounded-lg flex flex-col items-center justify-center transition-all duration-150",
+                "h-14 sm:h-16 rounded-lg flex flex-col items-center justify-center gap-0 transition-all duration-150 px-0.5",
                 HEAT_CLASSES[level],
-                info ? "hover:scale-110 hover:shadow-md cursor-pointer" : "cursor-default",
+                info ? "hover:scale-105 hover:shadow-md cursor-pointer" : "cursor-default",
               )}
-              title={info ? `${dayLabel(cell.date)}: ${formatPrice(info.totalAmount)}` : undefined}
             >
-              <span className={cn("text-xs font-medium", level >= 3 ? "text-white" : "text-muted-foreground")}>
+              <span className={cn("text-xs font-semibold leading-tight", level >= 3 ? "text-white" : "text-foreground/70")}>
                 {cell.dayNum}
               </span>
               {info && info.invoiceCount > 0 && (
-                <span className={cn("text-[9px] font-bold mt-0.5", level >= 3 ? "text-white/80" : "text-teal-600")}>
-                  {info.invoiceCount}
-                </span>
+                <>
+                  <span className={cn("text-[9px] font-bold leading-tight", level >= 3 ? "text-white/80" : "text-teal-600")}>
+                    {info.invoiceCount} zak.
+                  </span>
+                  <span className={cn("text-[9px] leading-tight tabular-nums", level >= 3 ? "text-white/70" : "text-muted-foreground")}>
+                    {formatAmountShort(info.totalAmount)}
+                  </span>
+                </>
               )}
             </button>
           );
@@ -736,18 +768,27 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
 
 // ─── Faktury archive view ──────────────────────────────────────────────────────
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  gotowka: "Gotówka",
+  karta: "Karta",
+  przelew: "Przelew",
+};
+
 function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () => void; onDeleteAllClick: () => void }) {
   const { data: invoices, isLoading } = useListInvoices({ limit: 1000 });
+  const { data: suppliers } = useListSuppliers();
   const deleteInvoice = useDeleteInvoice();
   const toggleExcluded = useToggleInvoiceExcluded();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const filtered = (invoices ?? []).filter((inv) => {
+    if (supplierFilter !== "all" && String(inv.supplierId) !== supplierFilter) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return inv.supplierName.toLowerCase().includes(q) || inv.invoiceNumber.toLowerCase().includes(q);
@@ -757,8 +798,16 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     if (!invoices?.length) return;
     exportToCsv(
       [
-        ["Dostawca", "Numer", "Data", "Wartość", "Pozycji"],
-        ...invoices.map((inv) => [inv.supplierName, inv.invoiceNumber, inv.invoiceDate, inv.totalAmount, inv.itemCount]),
+        ["Dostawca", "Numer", "Data", "Wartość", "Pozycji", "Metoda płatności", "Status"],
+        ...invoices.map((inv) => [
+          inv.supplierName,
+          inv.invoiceNumber,
+          inv.invoiceDate,
+          inv.totalAmount,
+          inv.itemCount,
+          inv.paymentMethod ? PAYMENT_METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod : "",
+          inv.isPaid ? "Opłacone" : "Nieopłacone",
+        ]),
       ],
       `faktury-${todaySlug()}.csv`,
     );
@@ -778,7 +827,8 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-4">
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -788,6 +838,19 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        {(suppliers ?? []).length > 1 && (
+          <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue placeholder="Wszyscy dostawcy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Wszyscy dostawcy</SelectItem>
+              {(suppliers ?? []).map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Button variant="outline" size="icon" onClick={handleExport} title="Eksportuj CSV">
           <Download className="w-4 h-4" />
         </Button>
@@ -804,26 +867,29 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
         <div className="py-16 text-center text-muted-foreground">
           <FileText className="w-10 h-10 mx-auto mb-2 text-muted-foreground/30" />
           <p className="font-medium">Brak faktur w archiwum</p>
-          <Button className="mt-4" onClick={onImportClick}>
-            <Plus className="w-4 h-4 mr-2" />
-            Importuj pierwszą fakturę
-          </Button>
+          {!invoices?.length && (
+            <Button className="mt-4" onClick={onImportClick}>
+              <Plus className="w-4 h-4 mr-2" />
+              Importuj pierwszą fakturę
+            </Button>
+          )}
         </div>
       ) : (
         <div className="border border-border rounded-xl overflow-hidden">
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-2.5 text-xs font-medium text-muted-foreground bg-muted/30 border-b border-border">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-2.5 text-xs font-medium text-muted-foreground bg-muted/30 border-b border-border">
             <div>Dostawca / Numer</div>
             <div className="hidden sm:block text-right w-24">Data</div>
+            <div className="hidden sm:block text-center w-20">Metoda</div>
+            <div className="hidden sm:block text-center w-20">Status</div>
             <div className="text-right w-24">Wartość</div>
-            <div className="w-8" />
-            <div className="w-8" />
+            <div className="w-16" />
           </div>
           <div className="divide-y divide-border">
             {filtered.map((inv) => (
               <div
                 key={inv.id}
                 className={cn(
-                  "grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-3 items-center hover:bg-muted/20 transition-colors",
+                  "grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-3 items-center hover:bg-muted/20 transition-colors",
                   inv.excluded && "opacity-50",
                 )}
               >
@@ -834,22 +900,49 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                 <div className="hidden sm:block text-right w-24">
                   <p className="text-sm text-muted-foreground tabular-nums">{formatDate(inv.invoiceDate)}</p>
                 </div>
+                <div className="hidden sm:flex justify-center w-20">
+                  {inv.paymentMethod ? (
+                    <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                      {PAYMENT_METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground/40">—</span>
+                  )}
+                </div>
+                <div className="hidden sm:flex justify-center w-20">
+                  {inv.paymentMethod === "przelew" ? (
+                    <span className={cn(
+                      "text-xs px-2 py-0.5 rounded-full font-medium",
+                      inv.isPaid ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700",
+                    )}>
+                      {inv.isPaid ? "Opłacone" : "Oczekuje"}
+                    </span>
+                  ) : inv.paymentMethod ? (
+                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                      Opłacone
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground/40 text-xs">—</span>
+                  )}
+                </div>
                 <div className="text-right w-24">
                   <p className="text-sm font-semibold tabular-nums">{formatPrice(inv.totalAmount)}</p>
                 </div>
-                <button
-                  onClick={() => handleToggleExcluded(inv.id, inv.excluded)}
-                  className="w-8 flex items-center justify-center text-muted-foreground hover:text-foreground"
-                  title={inv.excluded ? "Uwzględnij" : "Wyklucz ze statystyk"}
-                >
-                  {inv.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={() => setDeleteId(inv.id)}
-                  className="w-8 flex items-center justify-center text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-0.5 w-16 justify-end">
+                  <button
+                    onClick={() => handleToggleExcluded(inv.id, inv.excluded)}
+                    className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground rounded"
+                    title={inv.excluded ? "Uwzględnij w statystykach" : "Wyklucz ze statystyk"}
+                  >
+                    {inv.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
+                  <button
+                    onClick={() => setDeleteId(inv.id)}
+                    className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-destructive rounded"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
