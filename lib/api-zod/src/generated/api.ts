@@ -272,6 +272,13 @@ export const SetSupplierDefaultCostCenterResponse = zod.object({
 /**
  * @summary List all suppliers
  */
+export const ListSuppliersQueryParams = zod.object({
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter to suppliers that have invoices in this cost center"),
+});
+
 export const ListSuppliersResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
@@ -380,6 +387,10 @@ export const ListProductsQueryParams = zod.object({
     .boolean()
     .optional()
     .describe("If true, return only products that need category review"),
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter to products purchased via invoices in this cost center"),
 });
 
 export const ListProductsResponseItem = zod.object({

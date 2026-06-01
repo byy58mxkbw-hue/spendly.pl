@@ -833,6 +833,13 @@ export type DeleteCostCenter200 = {
   deleted: boolean;
 };
 
+export type ListSuppliersParams = {
+  /**
+   * Filter to suppliers that have invoices in this cost center
+   */
+  costCenterId?: number;
+};
+
 export type ListProductsParams = {
   supplierId?: number;
   category?: string;
@@ -848,6 +855,10 @@ export type ListProductsParams = {
    * If true, return only products that need category review
    */
   needsReview?: boolean;
+  /**
+   * Filter to products purchased via invoices in this cost center
+   */
+  costCenterId?: number;
 };
 
 export type GetProductPriceHistoryParams = {

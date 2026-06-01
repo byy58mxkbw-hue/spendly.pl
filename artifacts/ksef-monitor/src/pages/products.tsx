@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Layout, PageHeader } from "@/components/layout";
+import { useCostCenter } from "@/contexts/cost-center-context";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListProducts,
@@ -1002,10 +1003,15 @@ function CategoryBadge({
 
 export default function Products() {
   const queryClient = useQueryClient();
+  const { selectedId: costCenterSelectedId } = useCostCenter();
   const [month, setMonth] = useState(() => currentMonth());
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const supplierId = supplierFilter !== "all" ? Number(supplierFilter) : undefined;
-  const { data: products, isLoading, isError } = useListProducts({ month, supplierId });
+  const { data: products, isLoading, isError } = useListProducts({
+    month,
+    supplierId,
+    ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}),
+  });
   const { data: suppliers } = useListSuppliers();
   const { data: spendItems } = useGetCategorySpend({ month });
   const { data: categories } = useListCategories();

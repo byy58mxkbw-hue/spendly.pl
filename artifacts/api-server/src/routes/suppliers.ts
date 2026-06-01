@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, isNull } from "drizzle-orm";
 import { db, suppliersTable, invoicesTable, invoiceItemsTable, costCentersTable } from "@workspace/db";
 import {
   CreateSupplierBody,
@@ -7,12 +7,34 @@ import {
   GetSupplierParams,
   UpdateSupplierParams,
   DeleteSupplierParams,
+  ListSuppliersQueryParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
 router.get("/suppliers", async (req, res): Promise<void> => {
   const userId = req.userId!;
+  const queryParams = ListSuppliersQueryParams.safeParse(req.query);
+  if (!queryParams.success) {
+    res.status(400).json({ error: queryParams.error.message });
+    return;
+  }
+  const { costCenterId } = queryParams.data;
+
+  const ccJoinCond =
+    costCenterId != null
+      ? costCenterId === 0
+        ? and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId), isNull(invoicesTable.costCenterId))
+        : and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId), eq(invoicesTable.costCenterId, costCenterId))
+      : and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId));
+
+  const ccSpendSql =
+    costCenterId != null
+      ? costCenterId === 0
+        ? sql` AND i2.cost_center_id IS NULL`
+        : sql` AND i2.cost_center_id = ${costCenterId}`
+      : sql``;
+
   const suppliers = await db
     .select({
       id: suppliersTable.id,
@@ -28,23 +50,20 @@ router.get("/suppliers", async (req, res): Promise<void> => {
       invoiceCount: sql<number>`count(${invoicesTable.id})::int`,
       lastInvoiceDate: sql<string | null>`max(${invoicesTable.invoiceDate})`,
       totalSpend: sql<number | null>`(
-        SELECT sum(${invoiceItemsTable.totalPrice}::numeric)
-        FROM ${invoiceItemsTable}
-        INNER JOIN ${invoicesTable} AS i2 ON i2.id = ${invoiceItemsTable.invoiceId}
-        WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId}
+        SELECT sum(ii2.total_price::numeric)
+        FROM invoice_items ii2
+        INNER JOIN invoices i2 ON i2.id = ii2.invoice_id
+        WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId}${ccSpendSql}
       )`,
     })
     .from(suppliersTable)
-    .leftJoin(
-      invoicesTable,
-      and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId)),
-    )
+    .leftJoin(invoicesTable, ccJoinCond)
     .leftJoin(costCentersTable, eq(suppliersTable.defaultCostCenterId, costCentersTable.id))
     .where(eq(suppliersTable.userId, userId))
     .groupBy(suppliersTable.id, costCentersTable.name, costCentersTable.color)
     .orderBy(suppliersTable.name);
 
-  res.json(suppliers);
+  res.json(costCenterId != null ? suppliers.filter((s) => s.invoiceCount > 0) : suppliers);
 });
 
 router.post("/suppliers", async (req, res): Promise<void> => {

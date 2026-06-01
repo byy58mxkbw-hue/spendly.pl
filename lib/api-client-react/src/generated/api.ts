@@ -65,6 +65,7 @@ import type {
   ListInvoicesParams,
   ListKsefPendingParams,
   ListProductsParams,
+  ListSuppliersParams,
   MarkInvoicePaid200,
   MarkInvoicePaidBody,
   MonthlyFoodCost,
@@ -1452,41 +1453,57 @@ export const useSetSupplierDefaultCostCenter = <
 /**
  * @summary List all suppliers
  */
-export const getListSuppliersUrl = () => {
-  return `/api/suppliers`;
+export const getListSuppliersUrl = (params?: ListSuppliersParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/suppliers?${stringifiedParams}`
+    : `/api/suppliers`;
 };
 
 export const listSuppliers = async (
+  params?: ListSuppliersParams,
   options?: RequestInit,
 ): Promise<Supplier[]> => {
-  return customFetch<Supplier[]>(getListSuppliersUrl(), {
+  return customFetch<Supplier[]>(getListSuppliersUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListSuppliersQueryKey = () => {
-  return [`/api/suppliers`] as const;
+export const getListSuppliersQueryKey = (params?: ListSuppliersParams) => {
+  return [`/api/suppliers`, ...(params ? [params] : [])] as const;
 };
 
 export const getListSuppliersQueryOptions = <
   TData = Awaited<ReturnType<typeof listSuppliers>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listSuppliers>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: ListSuppliersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSuppliers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListSuppliersQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListSuppliersQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof listSuppliers>>> = ({
     signal,
-  }) => listSuppliers({ signal, ...requestOptions });
+  }) => listSuppliers(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof listSuppliers>>,
@@ -1507,15 +1524,18 @@ export type ListSuppliersQueryError = ErrorType<unknown>;
 export function useListSuppliers<
   TData = Awaited<ReturnType<typeof listSuppliers>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listSuppliers>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListSuppliersQueryOptions(options);
+>(
+  params?: ListSuppliersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSuppliers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSuppliersQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

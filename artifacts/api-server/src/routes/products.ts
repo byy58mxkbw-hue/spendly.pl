@@ -40,7 +40,12 @@ router.get("/products", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, category, days, month, needsReview } = queryParams.data;
+  const { supplierId, category, days, month, needsReview, costCenterId } = queryParams.data;
+  const ccFilter = costCenterId != null
+    ? costCenterId === 0
+      ? sql`${invoicesTable.costCenterId} IS NULL`
+      : eq(invoicesTable.costCenterId, costCenterId)
+    : undefined;
 
   const products = await db
     .select({
@@ -74,6 +79,7 @@ router.get("/products", async (req, res): Promise<void> => {
             eq(invoiceItemsTable.productId, product.id),
             eq(invoicesTable.userId, userId),
             eq(invoicesTable.excluded, false),
+            ccFilter,
             supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
             month
               ? sql`${invoicesTable.invoiceDate} >= ${month + "-01"} AND ${invoicesTable.invoiceDate} < ${(() => { const [y, m2] = month.split("-").map(Number); return new Date(y, m2, 1).toISOString().split("T")[0]; })()}`
@@ -89,7 +95,7 @@ router.get("/products", async (req, res): Promise<void> => {
         .select({ cnt: sql<number>`count(distinct ${invoicesTable.supplierId})` })
         .from(invoiceItemsTable)
         .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-        .where(and(eq(invoiceItemsTable.productId, product.id), eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false)));
+        .where(and(eq(invoiceItemsTable.productId, product.id), eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false), ccFilter));
 
       const quantityResult = await db
         .select({ total: sql<string>`sum(${invoiceItemsTable.quantity})` })
@@ -100,6 +106,7 @@ router.get("/products", async (req, res): Promise<void> => {
             eq(invoiceItemsTable.productId, product.id),
             eq(invoicesTable.userId, userId),
             eq(invoicesTable.excluded, false),
+            ccFilter,
             month
               ? sql`${invoicesTable.invoiceDate} >= ${month + "-01"} AND ${invoicesTable.invoiceDate} < ${(() => { const [y, m2] = month.split("-").map(Number); return new Date(y, m2, 1).toISOString().split("T")[0]; })()}`
               : days

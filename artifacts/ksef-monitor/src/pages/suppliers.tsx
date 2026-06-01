@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Layout, PageHeader } from "@/components/layout";
+import { useCostCenter } from "@/contexts/cost-center-context";
 import {
   useListSuppliers,
   useCreateSupplier,
@@ -58,7 +59,10 @@ type SupplierFormValues = z.infer<typeof supplierSchema>;
 export default function Suppliers() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const { data: suppliers, isLoading, isError } = useListSuppliers();
+  const { selectedId: costCenterSelectedId } = useCostCenter();
+  const { data: suppliers, isLoading, isError } = useListSuppliers(
+    costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}
+  );
   const createSupplier = useCreateSupplier();
   const deleteSupplier = useDeleteSupplier();
   const setDefaultCostCenter = useSetSupplierDefaultCostCenter();

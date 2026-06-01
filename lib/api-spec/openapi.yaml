@@ -367,6 +367,13 @@ paths:
       operationId: listSuppliers
       tags: [suppliers]
       summary: List all suppliers
+      parameters:
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter to suppliers that have invoices in this cost center"
       responses:
         "200":
           description: List of suppliers
@@ -487,6 +494,12 @@ paths:
           schema:
             type: boolean
           description: "If true, return only products that need category review"
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter to products purchased via invoices in this cost center"
       responses:
         "200":
           description: List of products
