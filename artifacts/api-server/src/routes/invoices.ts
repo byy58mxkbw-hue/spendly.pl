@@ -866,6 +866,17 @@ router.patch("/invoices/bulk-assign-cost-center", async (req, res): Promise<void
     return;
   }
   const { costCenterId } = body.data;
+  if (costCenterId !== null) {
+    const owned = await db
+      .select({ id: costCentersTable.id })
+      .from(costCentersTable)
+      .where(and(eq(costCentersTable.id, costCenterId), eq(costCentersTable.userId, userId)))
+      .limit(1);
+    if (!owned.length) {
+      res.status(403).json({ error: "Cost center not found" });
+      return;
+    }
+  }
   const result = await db
     .update(invoicesTable)
     .set({ costCenterId: costCenterId ?? null })
