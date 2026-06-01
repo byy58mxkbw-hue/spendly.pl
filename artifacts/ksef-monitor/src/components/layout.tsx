@@ -14,11 +14,16 @@ import {
   Menu,
   X,
   ShieldCheck,
+  Layers,
+  ChevronDown,
+  Check,
+  Plus,
 } from "lucide-react";
 import { useUser, useClerk, useAuth } from "@clerk/react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useListKsefPending, useGetDashboardActiveAlerts } from "@workspace/api-client-react";
+import { useCostCenter } from "@/contexts/cost-center-context";
 
 type NavItem = { path: string; label: string; icon: React.ElementType };
 
@@ -95,6 +100,86 @@ function SectionLabel({ label }: { label: string }) {
   );
 }
 
+// ─── Cost Center Selector ──────────────────────────────────────────────────────
+function CostCenterSelector() {
+  const { selectedId, setSelectedId, costCenters, selectedCenter } = useCostCenter();
+  const [open, setOpen] = useState(false);
+
+  if (costCenters.length === 0) return null;
+
+  return (
+    <div className="px-3 mb-1 relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150",
+          "text-sidebar-foreground/70 hover:bg-white/[0.05] hover:text-sidebar-foreground",
+          open && "bg-white/[0.05]",
+        )}
+      >
+        <div
+          className="w-3 h-3 rounded-full shrink-0"
+          style={{ background: selectedCenter?.color ?? "rgba(255,255,255,0.2)" }}
+        />
+        <span className="flex-1 text-left truncate text-xs">
+          {selectedCenter ? selectedCenter.name : "Wszystkie centra"}
+        </span>
+        <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-3 right-3 top-full mt-1 rounded-xl overflow-hidden shadow-2xl z-50"
+          style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          {/* All centers option */}
+          <button
+            onClick={() => { setSelectedId(null); setOpen(false); }}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors",
+              selectedId === null
+                ? "text-primary bg-primary/[0.08]"
+                : "text-sidebar-foreground/70 hover:bg-white/[0.04] hover:text-sidebar-foreground",
+            )}
+          >
+            <div className="w-3 h-3 rounded-full shrink-0" style={{ background: "rgba(255,255,255,0.2)" }} />
+            <span className="flex-1 text-left">Wszystkie centra</span>
+            {selectedId === null && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+          </button>
+          {/* Individual centers */}
+          {costCenters.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => { setSelectedId(c.id); setOpen(false); }}
+              className={cn(
+                "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors",
+                selectedId === c.id
+                  ? "text-primary bg-primary/[0.08]"
+                  : "text-sidebar-foreground/70 hover:bg-white/[0.04] hover:text-sidebar-foreground",
+              )}
+            >
+              <div className="w-3 h-3 rounded-full shrink-0" style={{ background: c.color }} />
+              <span className="flex-1 text-left truncate">{c.name}</span>
+              {selectedId === c.id && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+            </button>
+          ))}
+          {/* Link to manage */}
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+            <Link
+              href="/settings/cost-centers"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 px-3 py-2.5 text-xs text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Zarządzaj centrami
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SidebarContent({
   location,
   onNavigate,
@@ -115,11 +200,14 @@ function SidebarContent({
   return (
     <>
       {/* Logo */}
-      <div className="px-5 pt-6 pb-5">
+      <div className="px-5 pt-6 pb-3">
         <span className="text-xl tracking-tighter font-black text-primary">
           SPENDLY<span className="text-sidebar-foreground/40">.</span>
         </span>
       </div>
+
+      {/* Cost Center Selector */}
+      <CostCenterSelector />
 
       {/* Nav */}
       <nav className="flex-1 px-3 overflow-y-auto">
@@ -160,7 +248,14 @@ function SidebarContent({
       </nav>
 
       {/* Settings */}
-      <div className="px-3 pb-2 pt-2">
+      <div className="px-3 pb-1 pt-2">
+        <NavLink
+          path="/settings/cost-centers"
+          label="Centra kosztów"
+          icon={Layers}
+          location={location}
+          onNavigate={onNavigate}
+        />
         <NavLink
           path="/settings/ksef"
           label="Ustawienia KSeF"

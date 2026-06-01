@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { toNum, toNumOrNull } from "../lib/parse";
-import { eq, desc, and, sql, gte, lte, lt } from "drizzle-orm";
-import { db, invoicesTable, invoiceItemsTable, suppliersTable, productsTable } from "@workspace/db";
+import { eq, desc, and, isNull, sql, gte, lte, lt } from "drizzle-orm";
+import { db, invoicesTable, invoiceItemsTable, suppliersTable, productsTable, costCentersTable } from "@workspace/db";
 import {
   ImportInvoiceBody,
   ScanReceiptBody,
@@ -24,7 +24,7 @@ router.get("/invoices", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, limit = 50, offset = 0 } = queryParams.data;
+  const { supplierId, costCenterId, limit = 50, offset = 0 } = queryParams.data;
 
   const invoices = await db
     .select({
@@ -40,13 +40,22 @@ router.get("/invoices", async (req, res): Promise<void> => {
       paymentDueDate: invoicesTable.paymentDueDate,
       isPaid: invoicesTable.isPaid,
       paidAt: invoicesTable.paidAt,
+      costCenterId: invoicesTable.costCenterId,
+      costCenterName: costCentersTable.name,
+      costCenterColor: costCentersTable.color,
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+    .leftJoin(costCentersTable, eq(invoicesTable.costCenterId, costCentersTable.id))
     .where(
       and(
         eq(invoicesTable.userId, userId),
         supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
+        costCenterId != null
+          ? costCenterId === 0
+            ? isNull(invoicesTable.costCenterId)
+            : eq(invoicesTable.costCenterId, costCenterId)
+          : undefined,
       ),
     )
     .orderBy(desc(invoicesTable.invoiceDate))
@@ -66,6 +75,9 @@ router.get("/invoices", async (req, res): Promise<void> => {
         itemCount: items.length,
         importedAt: inv.importedAt.toISOString(),
         paidAt: inv.paidAt ? inv.paidAt.toISOString() : null,
+        costCenterId: inv.costCenterId ?? null,
+        costCenterName: inv.costCenterName ?? null,
+        costCenterColor: inv.costCenterColor ?? null,
       };
     }),
   );

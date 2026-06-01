@@ -5,6 +5,8 @@ import {
   useListSuppliers,
   useCreateSupplier,
   useDeleteSupplier,
+  useSetSupplierDefaultCostCenter,
+  useListCostCenters,
   getListSuppliersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,13 +30,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Building2, Phone, Mail, ChevronRight, Trash2 } from "lucide-react";
+import { Plus, Building2, Phone, Mail, ChevronRight, Trash2, Layers } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { cn } from "@/lib/utils";
 
 const supplierSchema = z.object({
   name: z.string().min(1, "Nazwa jest wymagana"),

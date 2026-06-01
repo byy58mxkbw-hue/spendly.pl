@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, eq, sql } from "drizzle-orm";
-import { db, suppliersTable, invoicesTable, invoiceItemsTable } from "@workspace/db";
+import { db, suppliersTable, invoicesTable, invoiceItemsTable, costCentersTable } from "@workspace/db";
 import {
   CreateSupplierBody,
   UpdateSupplierBody,
@@ -21,6 +21,9 @@ router.get("/suppliers", async (req, res): Promise<void> => {
       email: suppliersTable.email,
       phone: suppliersTable.phone,
       isActive: suppliersTable.isActive,
+      defaultCostCenterId: suppliersTable.defaultCostCenterId,
+      defaultCostCenterName: costCentersTable.name,
+      defaultCostCenterColor: costCentersTable.color,
       createdAt: suppliersTable.createdAt,
       invoiceCount: sql<number>`count(${invoicesTable.id})::int`,
       lastInvoiceDate: sql<string | null>`max(${invoicesTable.invoiceDate})`,
@@ -36,8 +39,9 @@ router.get("/suppliers", async (req, res): Promise<void> => {
       invoicesTable,
       and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId)),
     )
+    .leftJoin(costCentersTable, eq(suppliersTable.defaultCostCenterId, costCentersTable.id))
     .where(eq(suppliersTable.userId, userId))
-    .groupBy(suppliersTable.id)
+    .groupBy(suppliersTable.id, costCentersTable.name, costCentersTable.color)
     .orderBy(suppliersTable.name);
 
   res.json(suppliers);

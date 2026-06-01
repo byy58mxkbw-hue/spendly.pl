@@ -26,7 +26,9 @@ import type {
   CategorySpendItem,
   CategorySpendTrendRow,
   CorrectProductCategoryBody,
+  CostCenter,
   CreateCategoryBody,
+  CreateCostCenterBody,
   CreatePriceAlertBody,
   CreateProductBody,
   CreateSupplierBody,
@@ -35,6 +37,7 @@ import type {
   DeleteAllInvoices200,
   DeleteAllKsefPending200,
   DeleteAllKsefPendingParams,
+  DeleteCostCenter200,
   DismissPriceAlertBody,
   DismissedAlert,
   GenerateInsightsResponse,
@@ -83,6 +86,8 @@ import type {
   RetryKsefPendingResult,
   ScanReceiptBody,
   ScannedReceiptData,
+  SetInvoiceCostCenterBody,
+  SetSupplierDefaultCostCenterBody,
   Supplier,
   SupplierComparison,
   SyncKsefInvoicesBody,
@@ -90,6 +95,7 @@ import type {
   ToggleInvoiceExcludedBody,
   TriggeredAlert,
   UpdateCategoryBody,
+  UpdateCostCenterBody,
   UpdateKsefConfigBody,
   UpdateKsefSyncFromDateBody,
   UpdatePriceAlertBody,
@@ -934,6 +940,514 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List all cost centers for the current user
+ */
+export const getListCostCentersUrl = () => {
+  return `/api/cost-centers`;
+};
+
+export const listCostCenters = async (
+  options?: RequestInit,
+): Promise<CostCenter[]> => {
+  return customFetch<CostCenter[]>(getListCostCentersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCostCentersQueryKey = () => {
+  return [`/api/cost-centers`] as const;
+};
+
+export const getListCostCentersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCostCenters>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCostCenters>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCostCentersQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCostCenters>>> = ({
+    signal,
+  }) => listCostCenters({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCostCenters>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCostCentersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCostCenters>>
+>;
+export type ListCostCentersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all cost centers for the current user
+ */
+
+export function useListCostCenters<
+  TData = Awaited<ReturnType<typeof listCostCenters>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCostCenters>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCostCentersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new cost center
+ */
+export const getCreateCostCenterUrl = () => {
+  return `/api/cost-centers`;
+};
+
+export const createCostCenter = async (
+  createCostCenterBody: CreateCostCenterBody,
+  options?: RequestInit,
+): Promise<CostCenter> => {
+  return customFetch<CostCenter>(getCreateCostCenterUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createCostCenterBody),
+  });
+};
+
+export const getCreateCostCenterMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCostCenter>>,
+    TError,
+    { data: BodyType<CreateCostCenterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createCostCenter>>,
+  TError,
+  { data: BodyType<CreateCostCenterBody> },
+  TContext
+> => {
+  const mutationKey = ["createCostCenter"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createCostCenter>>,
+    { data: BodyType<CreateCostCenterBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createCostCenter(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateCostCenterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createCostCenter>>
+>;
+export type CreateCostCenterMutationBody = BodyType<CreateCostCenterBody>;
+export type CreateCostCenterMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new cost center
+ */
+export const useCreateCostCenter = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCostCenter>>,
+    TError,
+    { data: BodyType<CreateCostCenterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createCostCenter>>,
+  TError,
+  { data: BodyType<CreateCostCenterBody> },
+  TContext
+> => {
+  return useMutation(getCreateCostCenterMutationOptions(options));
+};
+
+/**
+ * @summary Update a cost center
+ */
+export const getUpdateCostCenterUrl = (id: number) => {
+  return `/api/cost-centers/${id}`;
+};
+
+export const updateCostCenter = async (
+  id: number,
+  updateCostCenterBody: UpdateCostCenterBody,
+  options?: RequestInit,
+): Promise<CostCenter> => {
+  return customFetch<CostCenter>(getUpdateCostCenterUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateCostCenterBody),
+  });
+};
+
+export const getUpdateCostCenterMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCostCenter>>,
+    TError,
+    { id: number; data: BodyType<UpdateCostCenterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCostCenter>>,
+  TError,
+  { id: number; data: BodyType<UpdateCostCenterBody> },
+  TContext
+> => {
+  const mutationKey = ["updateCostCenter"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCostCenter>>,
+    { id: number; data: BodyType<UpdateCostCenterBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateCostCenter(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCostCenterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCostCenter>>
+>;
+export type UpdateCostCenterMutationBody = BodyType<UpdateCostCenterBody>;
+export type UpdateCostCenterMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a cost center
+ */
+export const useUpdateCostCenter = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCostCenter>>,
+    TError,
+    { id: number; data: BodyType<UpdateCostCenterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateCostCenter>>,
+  TError,
+  { id: number; data: BodyType<UpdateCostCenterBody> },
+  TContext
+> => {
+  return useMutation(getUpdateCostCenterMutationOptions(options));
+};
+
+/**
+ * @summary Delete a cost center
+ */
+export const getDeleteCostCenterUrl = (id: number) => {
+  return `/api/cost-centers/${id}`;
+};
+
+export const deleteCostCenter = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DeleteCostCenter200> => {
+  return customFetch<DeleteCostCenter200>(getDeleteCostCenterUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteCostCenterMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCostCenter>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteCostCenter>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteCostCenter"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteCostCenter>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteCostCenter(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteCostCenterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteCostCenter>>
+>;
+
+export type DeleteCostCenterMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a cost center
+ */
+export const useDeleteCostCenter = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCostCenter>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteCostCenter>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteCostCenterMutationOptions(options));
+};
+
+/**
+ * @summary Assign a cost center to an invoice
+ */
+export const getSetInvoiceCostCenterUrl = (id: number) => {
+  return `/api/invoices/${id}/cost-center`;
+};
+
+export const setInvoiceCostCenter = async (
+  id: number,
+  setInvoiceCostCenterBody: SetInvoiceCostCenterBody,
+  options?: RequestInit,
+): Promise<Invoice> => {
+  return customFetch<Invoice>(getSetInvoiceCostCenterUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setInvoiceCostCenterBody),
+  });
+};
+
+export const getSetInvoiceCostCenterMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setInvoiceCostCenter>>,
+    TError,
+    { id: number; data: BodyType<SetInvoiceCostCenterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setInvoiceCostCenter>>,
+  TError,
+  { id: number; data: BodyType<SetInvoiceCostCenterBody> },
+  TContext
+> => {
+  const mutationKey = ["setInvoiceCostCenter"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setInvoiceCostCenter>>,
+    { id: number; data: BodyType<SetInvoiceCostCenterBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return setInvoiceCostCenter(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetInvoiceCostCenterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setInvoiceCostCenter>>
+>;
+export type SetInvoiceCostCenterMutationBody =
+  BodyType<SetInvoiceCostCenterBody>;
+export type SetInvoiceCostCenterMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Assign a cost center to an invoice
+ */
+export const useSetInvoiceCostCenter = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setInvoiceCostCenter>>,
+    TError,
+    { id: number; data: BodyType<SetInvoiceCostCenterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setInvoiceCostCenter>>,
+  TError,
+  { id: number; data: BodyType<SetInvoiceCostCenterBody> },
+  TContext
+> => {
+  return useMutation(getSetInvoiceCostCenterMutationOptions(options));
+};
+
+/**
+ * @summary Set the default cost center for a supplier
+ */
+export const getSetSupplierDefaultCostCenterUrl = (id: number) => {
+  return `/api/suppliers/${id}/default-cost-center`;
+};
+
+export const setSupplierDefaultCostCenter = async (
+  id: number,
+  setSupplierDefaultCostCenterBody: SetSupplierDefaultCostCenterBody,
+  options?: RequestInit,
+): Promise<Supplier> => {
+  return customFetch<Supplier>(getSetSupplierDefaultCostCenterUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setSupplierDefaultCostCenterBody),
+  });
+};
+
+export const getSetSupplierDefaultCostCenterMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setSupplierDefaultCostCenter>>,
+    TError,
+    { id: number; data: BodyType<SetSupplierDefaultCostCenterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setSupplierDefaultCostCenter>>,
+  TError,
+  { id: number; data: BodyType<SetSupplierDefaultCostCenterBody> },
+  TContext
+> => {
+  const mutationKey = ["setSupplierDefaultCostCenter"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setSupplierDefaultCostCenter>>,
+    { id: number; data: BodyType<SetSupplierDefaultCostCenterBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return setSupplierDefaultCostCenter(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetSupplierDefaultCostCenterMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setSupplierDefaultCostCenter>>
+>;
+export type SetSupplierDefaultCostCenterMutationBody =
+  BodyType<SetSupplierDefaultCostCenterBody>;
+export type SetSupplierDefaultCostCenterMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Set the default cost center for a supplier
+ */
+export const useSetSupplierDefaultCostCenter = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setSupplierDefaultCostCenter>>,
+    TError,
+    { id: number; data: BodyType<SetSupplierDefaultCostCenterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setSupplierDefaultCostCenter>>,
+  TError,
+  { id: number; data: BodyType<SetSupplierDefaultCostCenterBody> },
+  TContext
+> => {
+  return useMutation(getSetSupplierDefaultCostCenterMutationOptions(options));
+};
 
 /**
  * @summary List all suppliers

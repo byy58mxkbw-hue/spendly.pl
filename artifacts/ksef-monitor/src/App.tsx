@@ -21,6 +21,8 @@ import PendingInvoices from "@/pages/pending-invoices";
 import SettingsKsef from "@/pages/settings-ksef";
 import { AiCfoPage } from "@/pages/ai-cfo";
 import AdminUsers from "@/pages/admin-users";
+import SettingsCostCenters from "@/pages/settings-cost-centers";
+import { CostCenterProvider } from "@/contexts/cost-center-context";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -207,6 +209,7 @@ function AppRouter() {
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
       <QueryClientProvider client={queryClient}>
+        <CostCenterProvider>
         <TooltipProvider>
           <ClerkQueryClientCacheInvalidator />
           <Switch>
@@ -246,6 +249,9 @@ function AppRouter() {
             <Route path="/settings/ksef">
               <ProtectedRoute><SettingsKsef /></ProtectedRoute>
             </Route>
+            <Route path="/settings/cost-centers">
+              <ProtectedRoute><SettingsCostCenters /></ProtectedRoute>
+            </Route>
             <Route path="/admin/users">
               <ProtectedRoute><AdminUsers /></ProtectedRoute>
             </Route>
@@ -253,6 +259,7 @@ function AppRouter() {
           </Switch>
           <Toaster />
         </TooltipProvider>
+        </CostCenterProvider>
       </QueryClientProvider>
     </ClerkProvider>
   );

@@ -9,6 +9,33 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface CostCenter {
+  id: number;
+  userId: string;
+  name: string;
+  color: string;
+}
+
+export interface CreateCostCenterBody {
+  name: string;
+  color?: string;
+}
+
+export interface UpdateCostCenterBody {
+  name?: string;
+  color?: string;
+}
+
+export interface SetInvoiceCostCenterBody {
+  /** @nullable */
+  costCenterId: number | null;
+}
+
+export interface SetSupplierDefaultCostCenterBody {
+  /** @nullable */
+  defaultCostCenterId: number | null;
+}
+
 export interface Supplier {
   id: number;
   name: string;
@@ -18,6 +45,12 @@ export interface Supplier {
   /** @nullable */
   phone?: string | null;
   isActive: boolean;
+  /** @nullable */
+  defaultCostCenterId?: number | null;
+  /** @nullable */
+  defaultCostCenterName?: string | null;
+  /** @nullable */
+  defaultCostCenterColor?: string | null;
   invoiceCount: number;
   /** @nullable */
   lastInvoiceDate?: string | null;
@@ -170,6 +203,12 @@ export interface Invoice {
   isPaid: boolean;
   /** @nullable */
   paidAt?: string | null;
+  /** @nullable */
+  costCenterId?: number | null;
+  /** @nullable */
+  costCenterName?: string | null;
+  /** @nullable */
+  costCenterColor?: string | null;
 }
 
 export interface InvoiceItem {
@@ -790,6 +829,10 @@ export type PostInsightsIdDismiss200 = {
   ok?: boolean;
 };
 
+export type DeleteCostCenter200 = {
+  deleted: boolean;
+};
+
 export type ListProductsParams = {
   supplierId?: number;
   category?: string;
@@ -823,6 +866,10 @@ export type GetTopPriceChangesParams = {
 
 export type ListInvoicesParams = {
   supplierId?: number;
+  /**
+   * Filter by cost center id; use 0 to get unassigned invoices
+   */
+  costCenterId?: number;
   limit?: number;
   offset?: number;
 };

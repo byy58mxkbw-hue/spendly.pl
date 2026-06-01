@@ -26,6 +26,8 @@ tags:
     description: KSeF 2.0 integration (sync, config, pending review)
   - name: insights
     description: AI CFO — automated price insights
+  - name: cost-centers
+    description: Cost center management
   - name: admin
     description: Admin panel — users, stats, account management
 
@@ -231,6 +233,134 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /cost-centers:
+    get:
+      operationId: listCostCenters
+      tags: [cost-centers]
+      summary: List all cost centers for the current user
+      responses:
+        "200":
+          description: List of cost centers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CostCenter"
+    post:
+      operationId: createCostCenter
+      tags: [cost-centers]
+      summary: Create a new cost center
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCostCenterBody"
+      responses:
+        "201":
+          description: Created cost center
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostCenter"
+
+  /cost-centers/{id}:
+    patch:
+      operationId: updateCostCenter
+      tags: [cost-centers]
+      summary: Update a cost center
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCostCenterBody"
+      responses:
+        "200":
+          description: Updated cost center
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostCenter"
+    delete:
+      operationId: deleteCostCenter
+      tags: [cost-centers]
+      summary: Delete a cost center
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: boolean
+
+  /invoices/{id}/cost-center:
+    patch:
+      operationId: setInvoiceCostCenter
+      tags: [cost-centers]
+      summary: Assign a cost center to an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetInvoiceCostCenterBody"
+      responses:
+        "200":
+          description: Updated invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /suppliers/{id}/default-cost-center:
+    patch:
+      operationId: setSupplierDefaultCostCenter
+      tags: [cost-centers]
+      summary: Set the default cost center for a supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetSupplierDefaultCostCenterBody"
+      responses:
+        "200":
+          description: Updated supplier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
 
   /suppliers:
     get:
@@ -609,6 +739,12 @@ paths:
         - name: supplierId
           in: query
           required: false
+          schema:
+            type: integer
+        - name: costCenterId
+          in: query
+          required: false
+          description: Filter by cost center id; use 0 to get unassigned invoices
           schema:
             type: integer
         - name: limit
@@ -1363,6 +1499,57 @@ components:
       required:
         - status
 
+    CostCenter:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        name:
+          type: string
+        color:
+          type: string
+      required:
+        - id
+        - userId
+        - name
+        - color
+
+    CreateCostCenterBody:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+      required:
+        - name
+
+    UpdateCostCenterBody:
+      type: object
+      properties:
+        name:
+          type: string
+        color:
+          type: string
+
+    SetInvoiceCostCenterBody:
+      type: object
+      properties:
+        costCenterId:
+          type: ["integer", "null"]
+      required:
+        - costCenterId
+
+    SetSupplierDefaultCostCenterBody:
+      type: object
+      properties:
+        defaultCostCenterId:
+          type: ["integer", "null"]
+      required:
+        - defaultCostCenterId
+
     Supplier:
       type: object
       properties:
@@ -1378,6 +1565,12 @@ components:
           type: ["string", "null"]
         isActive:
           type: boolean
+        defaultCostCenterId:
+          type: ["integer", "null"]
+        defaultCostCenterName:
+          type: ["string", "null"]
+        defaultCostCenterColor:
+          type: ["string", "null"]
         invoiceCount:
           type: integer
         lastInvoiceDate:
@@ -1657,6 +1850,12 @@ components:
         isPaid:
           type: boolean
         paidAt:
+          type: ["string", "null"]
+        costCenterId:
+          type: ["integer", "null"]
+        costCenterName:
+          type: ["string", "null"]
+        costCenterColor:
           type: ["string", "null"]
       required:
         - id

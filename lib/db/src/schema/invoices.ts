@@ -2,6 +2,7 @@ import { pgTable, serial, integer, text, numeric, timestamp, boolean, index, uni
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { suppliersTable } from "./suppliers";
+import { costCentersTable } from "./cost-centers";
 
 export const invoicesTable = pgTable("invoices", {
   id: serial("id").primaryKey(),
@@ -18,6 +19,7 @@ export const invoicesTable = pgTable("invoices", {
   paymentDueDate: text("payment_due_date"),
   isPaid: boolean("is_paid").notNull().default(false),
   paidAt: timestamp("paid_at", { withTimezone: true }),
+  costCenterId: integer("cost_center_id").references(() => costCentersTable.id, { onDelete: "set null" }),
 }, (t) => [
   index("invoices_user_id_idx").on(t.userId),
   uniqueIndex("invoices_user_ksef_number_uniq").on(t.userId, t.ksefNumber),
