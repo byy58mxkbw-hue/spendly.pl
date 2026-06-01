@@ -21,7 +21,8 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     res.status(400).json({ error: queryParams.error.message });
     return;
   }
-  const { days, month } = queryParams.data;
+  const { days, month, costCenterId } = queryParams.data;
+  const ccFilter = costCenterId != null ? eq(invoicesTable.costCenterId, costCenterId) : undefined;
 
   const now = new Date();
 
@@ -74,6 +75,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
         eq(invoicesTable.excluded, false),
         gte(invoicesTable.invoiceDate, periodStart),
         periodEnd ? sql`${invoicesTable.invoiceDate} < ${periodEnd}` : undefined,
+        ccFilter,
       ),
     );
 
@@ -87,6 +89,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
         eq(invoicesTable.excluded, false),
         gte(invoicesTable.invoiceDate, prevPeriodStart),
         sql`${invoicesTable.invoiceDate} < ${prevPeriodEnd}`,
+        ccFilter,
       ),
     );
 
@@ -99,6 +102,10 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .select({ count: sql<number>`count(*) filter (where ${priceAlertsTable.isActive})::int` })
     .from(priceAlertsTable)
     .where(eq(priceAlertsTable.userId, userId));
+
+  const ccAvgSql = costCenterId != null
+    ? sql`AND i.cost_center_id = ${costCenterId}`
+    : sql.raw("");
 
   const avgResult = await db.execute<{ avg_change: string | null }>(sql`
     WITH ranked_prices AS (
@@ -114,6 +121,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
         AND ii.product_id IS NOT NULL
         AND ii.unit_price IS NOT NULL
         AND ii.unit_price::numeric > 0
+        ${ccAvgSql}
     ),
     latest_prices AS (SELECT product_id, price FROM ranked_prices WHERE rn = 1),
     prev_prices   AS (SELECT product_id, price FROM ranked_prices WHERE rn = 2)
@@ -155,6 +163,10 @@ router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
   }
 
   const months = queryParams.data.months ?? 12;
+  const costCenterId = queryParams.data.costCenterId;
+  const ccSql = costCenterId != null
+    ? sql`AND i.cost_center_id = ${costCenterId}`
+    : sql.raw("");
 
   const rows = await db.execute<{
     month_key: string;
@@ -175,6 +187,7 @@ router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
+      ${ccSql}
     GROUP BY 1, 2, 3, 4
     ORDER BY 1 DESC
     LIMIT ${sql.raw(String(months))}
@@ -200,7 +213,8 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
   }
 
   const limit = Math.min(queryParams.data.limit ?? 10, 100);
-  const { days, month } = queryParams.data;
+  const { days, month, costCenterId } = queryParams.data;
+  const ccFilter = costCenterId != null ? eq(invoicesTable.costCenterId, costCenterId) : undefined;
 
   let dateFilter;
   if (month) {
@@ -226,7 +240,7 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(and(eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false), dateFilter))
+    .where(and(eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false), dateFilter, ccFilter))
     .orderBy(desc(invoicesTable.invoiceDate))
     .limit(limit * 2);
 
@@ -253,6 +267,7 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
               eq(invoicesTable.userId, userId),
               eq(invoicesTable.excluded, false),
               sql`${invoicesTable.invoiceDate} < ${item.invoiceDate}`,
+              ccFilter,
             ),
           )
           .orderBy(desc(invoicesTable.invoiceDate))

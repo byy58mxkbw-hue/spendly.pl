@@ -561,6 +561,10 @@ export const GetTopPriceChangesQueryParams = zod.object({
     .string()
     .optional()
     .describe("Month in YYYY-MM format (takes priority over days)"),
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter results to a specific cost center."),
 });
 
 export const GetTopPriceChangesResponseItem = zod.object({
@@ -1028,6 +1032,12 @@ export const GetDashboardSummaryQueryParams = zod.object({
     .describe(
       "Month in YYYY-MM format. If set, summarizes spend for that specific calendar month (takes priority over days).",
     ),
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe(
+      "Filter results to a specific cost center. Omit to aggregate across all cost centers.",
+    ),
 });
 
 export const GetDashboardSummaryResponse = zod.object({
@@ -1047,6 +1057,10 @@ export const GetDashboardSummaryResponse = zod.object({
  */
 export const GetFoodCostMonthlyQueryParams = zod.object({
   months: zod.coerce.number().optional(),
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter results to a specific cost center."),
 });
 
 export const GetFoodCostMonthlyResponseItem = zod.object({
@@ -1079,6 +1093,10 @@ export const GetRecentPurchasesQueryParams = zod.object({
     .string()
     .optional()
     .describe("Month in YYYY-MM format (takes priority over days)"),
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter results to a specific cost center."),
 });
 
 export const GetRecentPurchasesResponseItem = zod.object({
@@ -1105,6 +1123,10 @@ export const GetMonthlyReportQueryParams = zod.object({
     .describe(
       "Month in YYYY-MM format (defaults to current month), or 'all' for all-time data",
     ),
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter results to a specific cost center."),
 });
 
 export const GetMonthlyReportResponse = zod.object({
@@ -1163,6 +1185,10 @@ export const GetCategorySpendQueryParams = zod.object({
     .string()
     .optional()
     .describe("Month in YYYY-MM format (takes priority over days)"),
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter results to a specific cost center."),
 });
 
 export const GetCategorySpendResponseItem = zod.object({

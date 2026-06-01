@@ -150,6 +150,8 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
 
   const limit = queryParams.data.limit ?? 10;
   const topMonth = queryParams.data.month;
+  const costCenterId = queryParams.data.costCenterId;
+  const ccFilter = costCenterId != null ? eq(invoicesTable.costCenterId, costCenterId) : undefined;
 
   const products = await db
     .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit })
@@ -165,6 +167,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
         eq(invoiceItemsTable.productId, product.id),
         eq(invoicesTable.userId, userId),
         eq(invoicesTable.excluded, false),
+        ccFilter,
       );
 
       if (mStart && mEnd) {

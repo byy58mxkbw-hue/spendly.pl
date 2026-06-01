@@ -720,6 +720,12 @@ paths:
           schema:
             type: string
           description: "Month in YYYY-MM format (takes priority over days)"
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter results to a specific cost center."
       responses:
         "200":
           description: Top price change products
@@ -1115,6 +1121,12 @@ paths:
           schema:
             type: string
           description: "Month in YYYY-MM format. If set, summarizes spend for that specific calendar month (takes priority over days)."
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter results to a specific cost center. Omit to aggregate across all cost centers."
       responses:
         "200":
           description: Dashboard summary
@@ -1134,6 +1146,12 @@ paths:
           required: false
           schema:
             type: integer
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter results to a specific cost center."
       responses:
         "200":
           description: Monthly food cost data
@@ -1169,6 +1187,12 @@ paths:
           schema:
             type: string
           description: "Month in YYYY-MM format (takes priority over days)"
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter results to a specific cost center."
       responses:
         "200":
           description: Recent purchases
@@ -1191,6 +1215,12 @@ paths:
           description: "Month in YYYY-MM format (defaults to current month), or 'all' for all-time data"
           schema:
             type: string
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter results to a specific cost center."
       responses:
         "200":
           description: Monthly report
@@ -1218,6 +1248,12 @@ paths:
           schema:
             type: string
           description: "Month in YYYY-MM format (takes priority over days)"
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter results to a specific cost center."
       responses:
         "200":
           description: Category spend breakdown

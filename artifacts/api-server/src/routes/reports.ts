@@ -14,6 +14,11 @@ function calcPrevMonthPrefix(month: string): string {
 router.get("/reports/monthly", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const monthParam = req.query.month as string | undefined;
+  const costCenterIdRaw = req.query.costCenterId;
+  const costCenterId = costCenterIdRaw != null && costCenterIdRaw !== "" ? parseInt(String(costCenterIdRaw), 10) : null;
+  const ccSql = costCenterId != null && !isNaN(costCenterId)
+    ? sql`AND i.cost_center_id = ${costCenterId}`
+    : sql.raw("");
 
   const now = new Date();
   const isAllTime = monthParam === "all";
@@ -37,6 +42,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     WHERE i.user_id = ${userId}
       AND i.excluded = false
       ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
+      ${ccSql}
   `);
   const summary = summaryResult.rows[0] as {
     invoice_count: number;
@@ -63,6 +69,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       WHERE i.user_id = ${userId}
         AND i.excluded = false
         AND i.invoice_date LIKE ${prevMonthPrefix + "%"}
+        ${ccSql}
       GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
     `);
     for (const r of prevResult.rows as PrevRow[]) {
@@ -86,6 +93,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     WHERE i.user_id = ${userId}
       AND i.excluded = false
       ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
+      ${ccSql}
     GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
     ORDER BY total_cost DESC
     LIMIT 20
@@ -125,6 +133,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     WHERE i.user_id = ${userId}
       AND i.excluded = false
       ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
+      ${ccSql}
     GROUP BY s.id, s.name
     ORDER BY total_spend DESC
   `);
@@ -155,6 +164,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     WHERE i.user_id = ${userId}
       AND i.excluded = false
       ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
+      ${ccSql}
     GROUP BY i.supplier_id, COALESCE(p.name, ii.product_name), ii.unit
   `);
 
@@ -393,6 +403,11 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
   const daysRaw = parseInt(String(req.query.days ?? ""), 10);
   const days = Number.isFinite(daysRaw) && daysRaw > 0 ? daysRaw : null;
   const month = typeof req.query.month === "string" && /^\d{4}-\d{2}$/.test(req.query.month) ? req.query.month : null;
+  const costCenterIdRaw = req.query.costCenterId;
+  const costCenterId = costCenterIdRaw != null && costCenterIdRaw !== "" ? parseInt(String(costCenterIdRaw), 10) : null;
+  const ccCondition = costCenterId != null && !isNaN(costCenterId)
+    ? sql`AND i.cost_center_id = ${costCenterId}`
+    : sql.raw("");
 
   let dateCondition;
   if (month) {
@@ -422,6 +437,7 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
     WHERE i.user_id = ${userId}
       AND i.excluded = false
       ${dateCondition}
+      ${ccCondition}
     GROUP BY COALESCE(p.name, ii.product_name), p.category, s.name
     ORDER BY total_spend DESC
   `);

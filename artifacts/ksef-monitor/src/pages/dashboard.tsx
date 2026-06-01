@@ -55,6 +55,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { currentMonth } from "@/lib/month";
 import { MonthNavigator } from "@/components/month-navigator";
+import { useCostCenter } from "@/contexts/cost-center-context";
 
 // ─── Mini sparkline ────────────────────────────────────────────────────────────
 function Sparkline({ data, positive }: { data: number[]; positive: boolean }) {
@@ -214,12 +215,15 @@ function DashboardPage() {
   const { toast } = useToast();
 
   const [month, setMonth] = useState(() => currentMonth());
+  const { selectedId: costCenterId } = useCostCenter();
 
-  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useGetDashboardSummary({ month });
-  const { data: monthly, isLoading: monthlyLoading, isError: monthlyError } = useGetFoodCostMonthly({ months: 12 });
-  const { data: recent, isLoading: recentLoading, isError: recentError } = useGetRecentPurchases({ limit: 8, month });
+  const ccParam = costCenterId != null ? { costCenterId } : {};
+
+  const { data: summary, isLoading: summaryLoading, isError: summaryError } = useGetDashboardSummary({ month, ...ccParam });
+  const { data: monthly, isLoading: monthlyLoading, isError: monthlyError } = useGetFoodCostMonthly({ months: 12, ...ccParam });
+  const { data: recent, isLoading: recentLoading, isError: recentError } = useGetRecentPurchases({ limit: 8, month, ...ccParam });
   const { data: activeAlerts } = useGetDashboardActiveAlerts();
-  const { data: topChanges } = useGetTopPriceChanges({ limit: 100, month });
+  const { data: topChanges } = useGetTopPriceChanges({ limit: 100, month, ...ccParam });
   const { data: config } = useGetKsefConfig();
   const { data: pendingList } = useListKsefPending({ status: "pending" });
   const { data: suppliers } = useListSuppliers();

@@ -862,6 +862,10 @@ export type GetTopPriceChangesParams = {
    * Month in YYYY-MM format (takes priority over days)
    */
   month?: string;
+  /**
+   * Filter results to a specific cost center.
+   */
+  costCenterId?: number;
 };
 
 export type ListInvoicesParams = {
@@ -921,10 +925,18 @@ export type GetDashboardSummaryParams = {
    * Month in YYYY-MM format. If set, summarizes spend for that specific calendar month (takes priority over days).
    */
   month?: string;
+  /**
+   * Filter results to a specific cost center. Omit to aggregate across all cost centers.
+   */
+  costCenterId?: number;
 };
 
 export type GetFoodCostMonthlyParams = {
   months?: number;
+  /**
+   * Filter results to a specific cost center.
+   */
+  costCenterId?: number;
 };
 
 export type GetRecentPurchasesParams = {
@@ -941,6 +953,10 @@ export type GetRecentPurchasesParams = {
    * Month in YYYY-MM format (takes priority over days)
    */
   month?: string;
+  /**
+   * Filter results to a specific cost center.
+   */
+  costCenterId?: number;
 };
 
 export type GetMonthlyReportParams = {
@@ -948,6 +964,10 @@ export type GetMonthlyReportParams = {
    * Month in YYYY-MM format (defaults to current month), or 'all' for all-time data
    */
   month?: string;
+  /**
+   * Filter results to a specific cost center.
+   */
+  costCenterId?: number;
 };
 
 export type GetCategorySpendParams = {
@@ -960,6 +980,10 @@ export type GetCategorySpendParams = {
    * Month in YYYY-MM format (takes priority over days)
    */
   month?: string;
+  /**
+   * Filter results to a specific cost center.
+   */
+  costCenterId?: number;
 };
 
 export type GetCategorySpendTrendParams = {

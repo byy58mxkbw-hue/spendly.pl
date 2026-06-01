@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import { useGetMonthlyReport, useGetCategorySpend, useGetCategorySpendTrend } from "@workspace/api-client-react";
 import type { CategorySpendItem } from "@workspace/api-client-react";
+import { useCostCenter } from "@/contexts/cost-center-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
@@ -296,19 +297,20 @@ type CategoryGroup = {
   products: CategorySpendItem[];
 };
 
-function CategorySpendSection({ month }: { month: string }) {
+function CategorySpendSection({ month, costCenterId }: { month: string; costCenterId?: number | null }) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const prevMonthStr = prevMonth(month);
+  const ccParam = costCenterId != null ? { costCenterId } : {};
 
   const { data: currentData, isLoading } = useGetCategorySpend(
-    { month },
-    { query: { queryKey: ["category-spend", month] } },
+    { month, ...ccParam },
+    { query: { queryKey: ["category-spend", month, costCenterId] } },
   );
 
   const { data: prevData } = useGetCategorySpend(
-    { month: prevMonthStr },
-    { query: { queryKey: ["category-spend", prevMonthStr] } },
+    { month: prevMonthStr, ...ccParam },
+    { query: { queryKey: ["category-spend", prevMonthStr, costCenterId] } },
   );
 
   const categoryGroups: CategoryGroup[] = useMemo(() => {
@@ -803,10 +805,12 @@ export default function Reports() {
   const [suppliersOpen, setSuppliersOpen] = useState(true);
 
   const reportMonth = viewMode === "all" ? "all" : month;
+  const { selectedId: costCenterId } = useCostCenter();
+  const ccParam = costCenterId != null ? { costCenterId } : {};
 
   const { data, isLoading, isError } = useGetMonthlyReport(
-    { month: reportMonth },
-    { query: { queryKey: ["reports-monthly", reportMonth] } }
+    { month: reportMonth, ...ccParam },
+    { query: { queryKey: ["reports-monthly", reportMonth, costCenterId] } }
   );
 
   return (
@@ -950,7 +954,7 @@ export default function Reports() {
 
         {/* Category spend — only in month mode */}
         {viewMode === "month" && !isLoading && data && data.topProducts.length > 0 && (
-          <CategorySpendSection month={month} />
+          <CategorySpendSection month={month} costCenterId={costCenterId} />
         )}
 
         {/* Category spend trend — only in month mode */}
