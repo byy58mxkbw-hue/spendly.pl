@@ -75,7 +75,7 @@ import {
 import {
   ChevronLeft, ChevronRight, Plus, FileText, Trash2, Download,
   RefreshCw, Camera, Loader2, CheckCircle2, Package,
-  X, Search, Eye, EyeOff, ScanLine, Check, Layers,
+  X, Search, Eye, EyeOff, ScanLine, Check, Layers, ArrowUpDown,
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";

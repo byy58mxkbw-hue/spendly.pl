@@ -48,7 +48,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertTriangle, CheckCircle2, X, Inbox, ChevronDown, FileCode, Loader2, Plus, ChevronLeft, ChevronRight, Receipt, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, X, Inbox, ChevronDown, FileCode, Loader2, Plus, ChevronLeft, ChevronRight, Receipt, Trash2, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
@@ -244,6 +244,7 @@ export default function PendingInvoices() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [status, setStatus] = useState<"pending" | "accepted" | "rejected">("pending");
+  const [sortBy, setSortBy] = useState<"default" | "date-desc" | "date-asc" | "count-desc">("default");
   const { data: pending, isLoading } = useListKsefPending({ status });
   const { data: suppliers } = useListSuppliers();
   const [openId, setOpenId] = useState<number | null>(null);
@@ -251,7 +252,7 @@ export default function PendingInvoices() {
   const [showDeleteAll, setShowDeleteAll] = useState(false);
   const deleteAll = useDeleteAllKsefPending();
 
-  useEffect(() => { setPage(1); }, [status]);
+  useEffect(() => { setPage(1); }, [status, sortBy]);
 
   function handleDeleteAll() {
     deleteAll.mutate(
@@ -303,11 +304,23 @@ export default function PendingInvoices() {
       g.invoices.push(row);
       g.totalGross += row.totalGross ?? 0;
     }
-    return Array.from(map.values()).sort((a, b) => {
+    const arr = Array.from(map.values());
+    if (sortBy === "count-desc") {
+      return arr.sort((a, b) => b.invoices.length - a.invoices.length);
+    }
+    if (sortBy === "date-desc" || sortBy === "date-asc") {
+      const latestDate = (g: SupplierGroupData) =>
+        g.invoices.reduce((max, inv) => (inv.invoiceDate && inv.invoiceDate > max ? inv.invoiceDate : max), "");
+      return arr.sort((a, b) => {
+        const diff = latestDate(b).localeCompare(latestDate(a));
+        return sortBy === "date-desc" ? diff : -diff;
+      });
+    }
+    return arr.sort((a, b) => {
       if (a.isKnown !== b.isKnown) return a.isKnown ? 1 : -1;
       return a.sellerName.localeCompare(b.sellerName, "pl");
     });
-  }, [pending, knownNips]);
+  }, [pending, knownNips, sortBy]);
 
   const totalAmount = useMemo(
     () => groups.reduce((sum, g) => sum + g.totalGross, 0),
@@ -325,6 +338,18 @@ export default function PendingInvoices() {
           subtitle="Faktury pobrane z KSeF, dla których brakuje dopasowania dostawcy lub produktów"
           action={
             <div className="flex items-center gap-2">
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+                <SelectTrigger className="w-48">
+                  <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Domyślna kolejność</SelectItem>
+                  <SelectItem value="date-desc">Od najnowszych</SelectItem>
+                  <SelectItem value="date-asc">Od najstarszych</SelectItem>
+                  <SelectItem value="count-desc">Najwięcej faktur</SelectItem>
+                </SelectContent>
+              </Select>
               <span className="text-xs text-muted-foreground">Status:</span>
               <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
                 <SelectTrigger className="w-40" data-testid="select-pending-status">
