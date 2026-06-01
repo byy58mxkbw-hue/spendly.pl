@@ -163,6 +163,13 @@ export interface Invoice {
   itemCount: number;
   importedAt: string;
   excluded: boolean;
+  /** @nullable */
+  paymentMethod?: string | null;
+  /** @nullable */
+  paymentDueDate?: string | null;
+  isPaid: boolean;
+  /** @nullable */
+  paidAt?: string | null;
 }
 
 export interface InvoiceItem {
@@ -188,6 +195,13 @@ export interface InvoiceWithItems {
   totalAmount: number;
   importedAt: string;
   excluded: boolean;
+  /** @nullable */
+  paymentMethod?: string | null;
+  /** @nullable */
+  paymentDueDate?: string | null;
+  isPaid: boolean;
+  /** @nullable */
+  paidAt?: string | null;
   items: InvoiceItem[];
 }
 
@@ -235,6 +249,85 @@ export interface ImportInvoiceBody {
   force?: boolean;
   /** Manual item list from OCR scan. Used instead of xmlContent when provided. */
   items?: ManualInvoiceItem[];
+  /** Payment method: gotowka, karta, przelew */
+  paymentMethod?: string;
+  /** Payment due date in YYYY-MM-DD format (for bank transfers) */
+  paymentDueDate?: string;
+}
+
+export interface InvoiceTimelineDayCategory {
+  category: string;
+  totalAmount: number;
+  percent: number;
+}
+
+export interface InvoiceTimelineDaySupplier {
+  supplierId: number;
+  supplierName: string;
+  totalAmount: number;
+  invoiceCount: number;
+}
+
+export interface InvoiceTimelineDay {
+  date: string;
+  totalAmount: number;
+  invoiceCount: number;
+  supplierCount: number;
+  categories: InvoiceTimelineDayCategory[];
+  suppliers: InvoiceTimelineDaySupplier[];
+  invoices: Invoice[];
+}
+
+export interface InvoiceCalendarDay {
+  date: string;
+  totalAmount: number;
+  invoiceCount: number;
+}
+
+export interface InvoiceCalendarResponse {
+  days: InvoiceCalendarDay[];
+  maxAmount: number;
+}
+
+export interface PaymentDueInvoice {
+  id: number;
+  invoiceNumber: string;
+  supplierName: string;
+  totalAmount: number;
+  /** @nullable */
+  paymentDueDate?: string | null;
+  /** @nullable */
+  paymentMethod?: string | null;
+  isPaid: boolean;
+  /** @nullable */
+  daysOverdue?: number | null;
+}
+
+export interface PaymentsDashboard {
+  overdueAmount: number;
+  overdueCount: number;
+  dueTodayAmount: number;
+  dueTodayCount: number;
+  dueIn7DaysAmount: number;
+  dueIn7DaysCount: number;
+  overdue: PaymentDueInvoice[];
+  dueToday: PaymentDueInvoice[];
+  dueIn7Days: PaymentDueInvoice[];
+}
+
+export type InvoiceTimelineResponseBiggestDay = {
+  date: string;
+  totalAmount: number;
+} | null;
+
+export interface InvoiceTimelineResponse {
+  days: InvoiceTimelineDay[];
+  totalAmount: number;
+  invoiceCount: number;
+  supplierCount: number;
+  biggestDay?: InvoiceTimelineResponseBiggestDay;
+  avgDailyAmount: number;
+  prevMonthTotalAmount: number;
 }
 
 export interface PriceAlert {
@@ -728,6 +821,31 @@ export type ListInvoicesParams = {
 
 export type DeleteAllInvoices200 = {
   deleted: number;
+};
+
+export type GetInvoicesTimelineParams = {
+  /**
+   * Month in YYYY-MM format (defaults to current month)
+   */
+  month?: string;
+};
+
+export type GetInvoicesCalendarParams = {
+  /**
+   * Month in YYYY-MM format (defaults to current month)
+   */
+  month?: string;
+};
+
+export type MarkInvoicePaidBody = {
+  isPaid: boolean;
+};
+
+export type MarkInvoicePaid200 = {
+  id: number;
+  isPaid: boolean;
+  /** @nullable */
+  paidAt?: string | null;
 };
 
 export type ToggleInvoiceExcludedBody = {

@@ -42,6 +42,8 @@ import type {
   GetCategorySpendTrendParams,
   GetDashboardSummaryParams,
   GetFoodCostMonthlyParams,
+  GetInvoicesCalendarParams,
+  GetInvoicesTimelineParams,
   GetMonthlyReportParams,
   GetPredictiveReportParams,
   GetProductPriceHistoryParams,
@@ -50,6 +52,8 @@ import type {
   HealthStatus,
   ImportInvoiceBody,
   Invoice,
+  InvoiceCalendarResponse,
+  InvoiceTimelineResponse,
   InvoiceWithItems,
   KsefConfigView,
   KsefPendingInvoiceDetail,
@@ -58,10 +62,13 @@ import type {
   ListInvoicesParams,
   ListKsefPendingParams,
   ListProductsParams,
+  MarkInvoicePaid200,
+  MarkInvoicePaidBody,
   MonthlyFoodCost,
   MonthlyReport,
   PatchAdminUserBlock200,
   PatchAdminUserBlockBody,
+  PaymentsDashboard,
   PostInsightsGenerateBody,
   PostInsightsIdDismiss200,
   PostInsightsIdDismissBody,
@@ -2862,6 +2869,374 @@ export const useDeleteInvoice = <
   TContext
 > => {
   return useMutation(getDeleteInvoiceMutationOptions(options));
+};
+
+/**
+ * @summary Get purchase timeline grouped by day for a given month
+ */
+export const getGetInvoicesTimelineUrl = (
+  params?: GetInvoicesTimelineParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/invoices/timeline?${stringifiedParams}`
+    : `/api/invoices/timeline`;
+};
+
+export const getInvoicesTimeline = async (
+  params?: GetInvoicesTimelineParams,
+  options?: RequestInit,
+): Promise<InvoiceTimelineResponse> => {
+  return customFetch<InvoiceTimelineResponse>(
+    getGetInvoicesTimelineUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetInvoicesTimelineQueryKey = (
+  params?: GetInvoicesTimelineParams,
+) => {
+  return [`/api/invoices/timeline`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetInvoicesTimelineQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInvoicesTimeline>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetInvoicesTimelineParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInvoicesTimeline>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetInvoicesTimelineQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getInvoicesTimeline>>
+  > = ({ signal }) =>
+    getInvoicesTimeline(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInvoicesTimeline>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetInvoicesTimelineQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInvoicesTimeline>>
+>;
+export type GetInvoicesTimelineQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get purchase timeline grouped by day for a given month
+ */
+
+export function useGetInvoicesTimeline<
+  TData = Awaited<ReturnType<typeof getInvoicesTimeline>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetInvoicesTimelineParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInvoicesTimeline>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetInvoicesTimelineQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get calendar heatmap data for a given month
+ */
+export const getGetInvoicesCalendarUrl = (
+  params?: GetInvoicesCalendarParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/invoices/calendar?${stringifiedParams}`
+    : `/api/invoices/calendar`;
+};
+
+export const getInvoicesCalendar = async (
+  params?: GetInvoicesCalendarParams,
+  options?: RequestInit,
+): Promise<InvoiceCalendarResponse> => {
+  return customFetch<InvoiceCalendarResponse>(
+    getGetInvoicesCalendarUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetInvoicesCalendarQueryKey = (
+  params?: GetInvoicesCalendarParams,
+) => {
+  return [`/api/invoices/calendar`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetInvoicesCalendarQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInvoicesCalendar>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetInvoicesCalendarParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInvoicesCalendar>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetInvoicesCalendarQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getInvoicesCalendar>>
+  > = ({ signal }) =>
+    getInvoicesCalendar(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInvoicesCalendar>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetInvoicesCalendarQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInvoicesCalendar>>
+>;
+export type GetInvoicesCalendarQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get calendar heatmap data for a given month
+ */
+
+export function useGetInvoicesCalendar<
+  TData = Awaited<ReturnType<typeof getInvoicesCalendar>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetInvoicesCalendarParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInvoicesCalendar>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetInvoicesCalendarQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get payments dashboard (overdue, due today, due in 7 days)
+ */
+export const getGetInvoicesPaymentsUrl = () => {
+  return `/api/invoices/payments`;
+};
+
+export const getInvoicesPayments = async (
+  options?: RequestInit,
+): Promise<PaymentsDashboard> => {
+  return customFetch<PaymentsDashboard>(getGetInvoicesPaymentsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetInvoicesPaymentsQueryKey = () => {
+  return [`/api/invoices/payments`] as const;
+};
+
+export const getGetInvoicesPaymentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInvoicesPayments>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getInvoicesPayments>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetInvoicesPaymentsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getInvoicesPayments>>
+  > = ({ signal }) => getInvoicesPayments({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInvoicesPayments>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetInvoicesPaymentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInvoicesPayments>>
+>;
+export type GetInvoicesPaymentsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get payments dashboard (overdue, due today, due in 7 days)
+ */
+
+export function useGetInvoicesPayments<
+  TData = Awaited<ReturnType<typeof getInvoicesPayments>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getInvoicesPayments>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetInvoicesPaymentsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Mark an invoice as paid or unpaid
+ */
+export const getMarkInvoicePaidUrl = (id: number) => {
+  return `/api/invoices/${id}/mark-paid`;
+};
+
+export const markInvoicePaid = async (
+  id: number,
+  markInvoicePaidBody: MarkInvoicePaidBody,
+  options?: RequestInit,
+): Promise<MarkInvoicePaid200> => {
+  return customFetch<MarkInvoicePaid200>(getMarkInvoicePaidUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(markInvoicePaidBody),
+  });
+};
+
+export const getMarkInvoicePaidMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markInvoicePaid>>,
+    TError,
+    { id: number; data: BodyType<MarkInvoicePaidBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markInvoicePaid>>,
+  TError,
+  { id: number; data: BodyType<MarkInvoicePaidBody> },
+  TContext
+> => {
+  const mutationKey = ["markInvoicePaid"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markInvoicePaid>>,
+    { id: number; data: BodyType<MarkInvoicePaidBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return markInvoicePaid(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkInvoicePaidMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markInvoicePaid>>
+>;
+export type MarkInvoicePaidMutationBody = BodyType<MarkInvoicePaidBody>;
+export type MarkInvoicePaidMutationError = ErrorType<void>;
+
+/**
+ * @summary Mark an invoice as paid or unpaid
+ */
+export const useMarkInvoicePaid = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markInvoicePaid>>,
+    TError,
+    { id: number; data: BodyType<MarkInvoicePaidBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof markInvoicePaid>>,
+  TError,
+  { id: number; data: BodyType<MarkInvoicePaidBody> },
+  TContext
+> => {
+  return useMutation(getMarkInvoicePaidMutationOptions(options));
 };
 
 /**

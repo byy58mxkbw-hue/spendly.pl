@@ -720,6 +720,98 @@ paths:
         "204":
           description: Deleted
 
+  /invoices/timeline:
+    get:
+      operationId: getInvoicesTimeline
+      tags: [invoices]
+      summary: Get purchase timeline grouped by day for a given month
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Month in YYYY-MM format (defaults to current month)"
+      responses:
+        "200":
+          description: Timeline data grouped by day
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceTimelineResponse"
+
+  /invoices/calendar:
+    get:
+      operationId: getInvoicesCalendar
+      tags: [invoices]
+      summary: Get calendar heatmap data for a given month
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Month in YYYY-MM format (defaults to current month)"
+      responses:
+        "200":
+          description: Calendar heatmap data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceCalendarResponse"
+
+  /invoices/payments:
+    get:
+      operationId: getInvoicesPayments
+      tags: [invoices]
+      summary: Get payments dashboard (overdue, due today, due in 7 days)
+      responses:
+        "200":
+          description: Payments dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentsDashboard"
+
+  /invoices/{id}/mark-paid:
+    patch:
+      operationId: markInvoicePaid
+      tags: [invoices]
+      summary: Mark an invoice as paid or unpaid
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isPaid]
+              properties:
+                isPaid:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated payment status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, isPaid]
+                properties:
+                  id:
+                    type: integer
+                  isPaid:
+                    type: boolean
+                  paidAt:
+                    type: ["string", "null"]
+        "404":
+          description: Not found
+
   /invoices/{id}/exclude:
     patch:
       operationId: toggleInvoiceExcluded
@@ -1558,6 +1650,14 @@ components:
           type: string
         excluded:
           type: boolean
+        paymentMethod:
+          type: ["string", "null"]
+        paymentDueDate:
+          type: ["string", "null"]
+        isPaid:
+          type: boolean
+        paidAt:
+          type: ["string", "null"]
       required:
         - id
         - supplierId
@@ -1568,6 +1668,7 @@ components:
         - itemCount
         - importedAt
         - excluded
+        - isPaid
 
     InvoiceItem:
       type: object
@@ -1618,6 +1719,14 @@ components:
           type: string
         excluded:
           type: boolean
+        paymentMethod:
+          type: ["string", "null"]
+        paymentDueDate:
+          type: ["string", "null"]
+        isPaid:
+          type: boolean
+        paidAt:
+          type: ["string", "null"]
         items:
           type: array
           items:
@@ -1631,6 +1740,7 @@ components:
         - totalAmount
         - importedAt
         - excluded
+        - isPaid
         - items
 
     ScanReceiptBody:
@@ -1723,9 +1833,205 @@ components:
           description: Manual item list from OCR scan. Used instead of xmlContent when provided.
           items:
             $ref: "#/components/schemas/ManualInvoiceItem"
+        paymentMethod:
+          type: string
+          description: "Payment method: gotowka, karta, przelew"
+        paymentDueDate:
+          type: string
+          description: Payment due date in YYYY-MM-DD format (for bank transfers)
       required:
         - supplierId
         - invoiceDate
+
+    InvoiceTimelineDayCategory:
+      type: object
+      properties:
+        category:
+          type: string
+        totalAmount:
+          type: number
+        percent:
+          type: number
+      required:
+        - category
+        - totalAmount
+        - percent
+
+    InvoiceTimelineDaySupplier:
+      type: object
+      properties:
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+        totalAmount:
+          type: number
+        invoiceCount:
+          type: integer
+      required:
+        - supplierId
+        - supplierName
+        - totalAmount
+        - invoiceCount
+
+    InvoiceTimelineDay:
+      type: object
+      properties:
+        date:
+          type: string
+        totalAmount:
+          type: number
+        invoiceCount:
+          type: integer
+        supplierCount:
+          type: integer
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceTimelineDayCategory"
+        suppliers:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceTimelineDaySupplier"
+        invoices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+      required:
+        - date
+        - totalAmount
+        - invoiceCount
+        - supplierCount
+        - categories
+        - suppliers
+        - invoices
+
+    InvoiceCalendarDay:
+      type: object
+      properties:
+        date:
+          type: string
+        totalAmount:
+          type: number
+        invoiceCount:
+          type: integer
+      required:
+        - date
+        - totalAmount
+        - invoiceCount
+
+    InvoiceCalendarResponse:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceCalendarDay"
+        maxAmount:
+          type: number
+      required:
+        - days
+        - maxAmount
+
+    PaymentDueInvoice:
+      type: object
+      properties:
+        id:
+          type: integer
+        invoiceNumber:
+          type: string
+        supplierName:
+          type: string
+        totalAmount:
+          type: number
+        paymentDueDate:
+          type: ["string", "null"]
+        paymentMethod:
+          type: ["string", "null"]
+        isPaid:
+          type: boolean
+        daysOverdue:
+          type: ["integer", "null"]
+      required:
+        - id
+        - invoiceNumber
+        - supplierName
+        - totalAmount
+        - isPaid
+
+    PaymentsDashboard:
+      type: object
+      properties:
+        overdueAmount:
+          type: number
+        overdueCount:
+          type: integer
+        dueTodayAmount:
+          type: number
+        dueTodayCount:
+          type: integer
+        dueIn7DaysAmount:
+          type: number
+        dueIn7DaysCount:
+          type: integer
+        overdue:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentDueInvoice"
+        dueToday:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentDueInvoice"
+        dueIn7Days:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentDueInvoice"
+      required:
+        - overdueAmount
+        - overdueCount
+        - dueTodayAmount
+        - dueTodayCount
+        - dueIn7DaysAmount
+        - dueIn7DaysCount
+        - overdue
+        - dueToday
+        - dueIn7Days
+
+    InvoiceTimelineResponse:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceTimelineDay"
+        totalAmount:
+          type: number
+        invoiceCount:
+          type: integer
+        supplierCount:
+          type: integer
+        biggestDay:
+          type: object
+          nullable: true
+          properties:
+            date:
+              type: string
+            totalAmount:
+              type: number
+          required:
+            - date
+            - totalAmount
+        avgDailyAmount:
+          type: number
+        prevMonthTotalAmount:
+          type: number
+      required:
+        - days
+        - totalAmount
+        - invoiceCount
+        - supplierCount
+        - avgDailyAmount
+        - prevMonthTotalAmount
 
     PriceAlert:
       type: object

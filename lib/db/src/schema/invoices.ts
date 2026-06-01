@@ -14,6 +14,10 @@ export const invoicesTable = pgTable("invoices", {
   ksefNumber: text("ksef_number"),
   importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
   excluded: boolean("excluded").notNull().default(false),
+  paymentMethod: text("payment_method"),
+  paymentDueDate: text("payment_due_date"),
+  isPaid: boolean("is_paid").notNull().default(false),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
 }, (t) => [
   index("invoices_user_id_idx").on(t.userId),
   uniqueIndex("invoices_user_ksef_number_uniq").on(t.userId, t.ksefNumber),

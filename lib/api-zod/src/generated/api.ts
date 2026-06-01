@@ -482,6 +482,10 @@ export const ListInvoicesResponseItem = zod.object({
   itemCount: zod.number(),
   importedAt: zod.string(),
   excluded: zod.boolean(),
+  paymentMethod: zod.string().nullish(),
+  paymentDueDate: zod.string().nullish(),
+  isPaid: zod.boolean(),
+  paidAt: zod.string().nullish(),
 });
 export const ListInvoicesResponse = zod.array(ListInvoicesResponseItem);
 
@@ -546,6 +550,14 @@ export const ImportInvoiceBody = zod.object({
     .describe(
       "Manual item list from OCR scan. Used instead of xmlContent when provided.",
     ),
+  paymentMethod: zod
+    .string()
+    .optional()
+    .describe("Payment method: gotowka, karta, przelew"),
+  paymentDueDate: zod
+    .string()
+    .optional()
+    .describe("Payment due date in YYYY-MM-DD format (for bank transfers)"),
 });
 
 /**
@@ -564,6 +576,10 @@ export const GetInvoiceResponse = zod.object({
   totalAmount: zod.number(),
   importedAt: zod.string(),
   excluded: zod.boolean(),
+  paymentMethod: zod.string().nullish(),
+  paymentDueDate: zod.string().nullish(),
+  isPaid: zod.boolean(),
+  paidAt: zod.string().nullish(),
   items: zod.array(
     zod.object({
       id: zod.number(),
@@ -584,6 +600,156 @@ export const GetInvoiceResponse = zod.object({
  */
 export const DeleteInvoiceParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Get purchase timeline grouped by day for a given month
+ */
+export const GetInvoicesTimelineQueryParams = zod.object({
+  month: zod.coerce
+    .string()
+    .optional()
+    .describe("Month in YYYY-MM format (defaults to current month)"),
+});
+
+export const GetInvoicesTimelineResponse = zod.object({
+  days: zod.array(
+    zod.object({
+      date: zod.string(),
+      totalAmount: zod.number(),
+      invoiceCount: zod.number(),
+      supplierCount: zod.number(),
+      categories: zod.array(
+        zod.object({
+          category: zod.string(),
+          totalAmount: zod.number(),
+          percent: zod.number(),
+        }),
+      ),
+      suppliers: zod.array(
+        zod.object({
+          supplierId: zod.number(),
+          supplierName: zod.string(),
+          totalAmount: zod.number(),
+          invoiceCount: zod.number(),
+        }),
+      ),
+      invoices: zod.array(
+        zod.object({
+          id: zod.number(),
+          supplierId: zod.number(),
+          supplierName: zod.string(),
+          invoiceNumber: zod.string(),
+          invoiceDate: zod.string(),
+          totalAmount: zod.number(),
+          itemCount: zod.number(),
+          importedAt: zod.string(),
+          excluded: zod.boolean(),
+          paymentMethod: zod.string().nullish(),
+          paymentDueDate: zod.string().nullish(),
+          isPaid: zod.boolean(),
+          paidAt: zod.string().nullish(),
+        }),
+      ),
+    }),
+  ),
+  totalAmount: zod.number(),
+  invoiceCount: zod.number(),
+  supplierCount: zod.number(),
+  biggestDay: zod
+    .object({
+      date: zod.string(),
+      totalAmount: zod.number(),
+    })
+    .nullish(),
+  avgDailyAmount: zod.number(),
+  prevMonthTotalAmount: zod.number(),
+});
+
+/**
+ * @summary Get calendar heatmap data for a given month
+ */
+export const GetInvoicesCalendarQueryParams = zod.object({
+  month: zod.coerce
+    .string()
+    .optional()
+    .describe("Month in YYYY-MM format (defaults to current month)"),
+});
+
+export const GetInvoicesCalendarResponse = zod.object({
+  days: zod.array(
+    zod.object({
+      date: zod.string(),
+      totalAmount: zod.number(),
+      invoiceCount: zod.number(),
+    }),
+  ),
+  maxAmount: zod.number(),
+});
+
+/**
+ * @summary Get payments dashboard (overdue, due today, due in 7 days)
+ */
+export const GetInvoicesPaymentsResponse = zod.object({
+  overdueAmount: zod.number(),
+  overdueCount: zod.number(),
+  dueTodayAmount: zod.number(),
+  dueTodayCount: zod.number(),
+  dueIn7DaysAmount: zod.number(),
+  dueIn7DaysCount: zod.number(),
+  overdue: zod.array(
+    zod.object({
+      id: zod.number(),
+      invoiceNumber: zod.string(),
+      supplierName: zod.string(),
+      totalAmount: zod.number(),
+      paymentDueDate: zod.string().nullish(),
+      paymentMethod: zod.string().nullish(),
+      isPaid: zod.boolean(),
+      daysOverdue: zod.number().nullish(),
+    }),
+  ),
+  dueToday: zod.array(
+    zod.object({
+      id: zod.number(),
+      invoiceNumber: zod.string(),
+      supplierName: zod.string(),
+      totalAmount: zod.number(),
+      paymentDueDate: zod.string().nullish(),
+      paymentMethod: zod.string().nullish(),
+      isPaid: zod.boolean(),
+      daysOverdue: zod.number().nullish(),
+    }),
+  ),
+  dueIn7Days: zod.array(
+    zod.object({
+      id: zod.number(),
+      invoiceNumber: zod.string(),
+      supplierName: zod.string(),
+      totalAmount: zod.number(),
+      paymentDueDate: zod.string().nullish(),
+      paymentMethod: zod.string().nullish(),
+      isPaid: zod.boolean(),
+      daysOverdue: zod.number().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Mark an invoice as paid or unpaid
+ */
+export const MarkInvoicePaidParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const MarkInvoicePaidBody = zod.object({
+  isPaid: zod.boolean(),
+});
+
+export const MarkInvoicePaidResponse = zod.object({
+  id: zod.number(),
+  isPaid: zod.boolean(),
+  paidAt: zod.string().nullish(),
 });
 
 /**
@@ -1180,6 +1346,10 @@ export const AcceptKsefPendingResponse = zod.object({
   totalAmount: zod.number(),
   importedAt: zod.string(),
   excluded: zod.boolean(),
+  paymentMethod: zod.string().nullish(),
+  paymentDueDate: zod.string().nullish(),
+  isPaid: zod.boolean(),
+  paidAt: zod.string().nullish(),
   items: zod.array(
     zod.object({
       id: zod.number(),

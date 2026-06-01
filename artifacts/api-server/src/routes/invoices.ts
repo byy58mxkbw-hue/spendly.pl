@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { toNum, toNumOrNull } from "../lib/parse";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, gte, lte, lt } from "drizzle-orm";
 import { db, invoicesTable, invoiceItemsTable, suppliersTable, productsTable } from "@workspace/db";
 import {
   ImportInvoiceBody,
@@ -36,6 +36,10 @@ router.get("/invoices", async (req, res): Promise<void> => {
       totalAmount: invoicesTable.totalAmount,
       importedAt: invoicesTable.importedAt,
       excluded: invoicesTable.excluded,
+      paymentMethod: invoicesTable.paymentMethod,
+      paymentDueDate: invoicesTable.paymentDueDate,
+      isPaid: invoicesTable.isPaid,
+      paidAt: invoicesTable.paidAt,
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
@@ -61,11 +65,276 @@ router.get("/invoices", async (req, res): Promise<void> => {
         totalAmount: toNum(inv.totalAmount),
         itemCount: items.length,
         importedAt: inv.importedAt.toISOString(),
+        paidAt: inv.paidAt ? inv.paidAt.toISOString() : null,
       };
     }),
   );
 
   res.json(enriched);
+});
+
+// ─── Timeline endpoint ───────────────────────────────────────────────────────
+
+router.get("/invoices/timeline", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const monthParam = (req.query.month as string | undefined) ?? new Date().toISOString().slice(0, 7);
+
+  const [year, month] = monthParam.split("-").map(Number);
+  const firstDay = `${monthParam}-01`;
+  const lastDay = new Date(year, month, 0).toISOString().slice(0, 10);
+
+  // Get all invoices for the month with supplier info
+  const invoicesRaw = await db
+    .select({
+      id: invoicesTable.id,
+      supplierId: invoicesTable.supplierId,
+      supplierName: suppliersTable.name,
+      invoiceNumber: invoicesTable.invoiceNumber,
+      invoiceDate: invoicesTable.invoiceDate,
+      totalAmount: invoicesTable.totalAmount,
+      importedAt: invoicesTable.importedAt,
+      excluded: invoicesTable.excluded,
+      paymentMethod: invoicesTable.paymentMethod,
+      paymentDueDate: invoicesTable.paymentDueDate,
+      isPaid: invoicesTable.isPaid,
+      paidAt: invoicesTable.paidAt,
+    })
+    .from(invoicesTable)
+    .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+    .where(
+      and(
+        eq(invoicesTable.userId, userId),
+        gte(invoicesTable.invoiceDate, firstDay),
+        lte(invoicesTable.invoiceDate, lastDay),
+        eq(invoicesTable.excluded, false),
+      ),
+    )
+    .orderBy(desc(invoicesTable.invoiceDate));
+
+  // Get category breakdown via invoice items + products
+  const itemsRaw = await db.execute(sql`
+    SELECT
+      i.invoice_date,
+      p.category,
+      SUM(ii.total_price::numeric) as cat_total
+    FROM invoice_items ii
+    JOIN invoices i ON i.id = ii.invoice_id
+    LEFT JOIN products p ON p.id = ii.product_id
+    WHERE i.user_id = ${userId}
+      AND i.invoice_date >= ${firstDay}
+      AND i.invoice_date <= ${lastDay}
+      AND i.excluded = false
+    GROUP BY 1, 2
+  `);
+
+  // Get previous month totals for comparison
+  const prevMonth = new Date(year, month - 2, 1);
+  const prevFirstDay = prevMonth.toISOString().slice(0, 10);
+  const prevLastDay = new Date(year, month - 1, 0).toISOString().slice(0, 10);
+
+  const prevTotalRaw = await db.execute(sql`
+    SELECT COALESCE(SUM(total_amount::numeric), 0) as total
+    FROM invoices
+    WHERE user_id = ${userId}
+      AND invoice_date >= ${prevFirstDay}
+      AND invoice_date <= ${prevLastDay}
+      AND excluded = false
+  `);
+
+  const prevMonthTotalAmount = Number((prevTotalRaw.rows[0] as { total: string }).total ?? 0);
+
+  // Group by date
+  type DayMap = Map<string, {
+    invoices: typeof invoicesRaw;
+    supplierMap: Map<number, { supplierId: number; supplierName: string; totalAmount: number; invoiceCount: number }>;
+    catMap: Map<string, number>;
+    totalAmount: number;
+  }>;
+
+  const dayMap: DayMap = new Map();
+
+  for (const inv of invoicesRaw) {
+    const d = inv.invoiceDate;
+    if (!dayMap.has(d)) {
+      dayMap.set(d, { invoices: [], supplierMap: new Map(), catMap: new Map(), totalAmount: 0 });
+    }
+    const day = dayMap.get(d)!;
+    day.invoices.push(inv);
+    day.totalAmount += toNum(inv.totalAmount);
+
+    const existing = day.supplierMap.get(inv.supplierId);
+    if (existing) {
+      existing.totalAmount += toNum(inv.totalAmount);
+      existing.invoiceCount += 1;
+    } else {
+      day.supplierMap.set(inv.supplierId, {
+        supplierId: inv.supplierId,
+        supplierName: inv.supplierName,
+        totalAmount: toNum(inv.totalAmount),
+        invoiceCount: 1,
+      });
+    }
+  }
+
+  for (const row of itemsRaw.rows as Array<{ invoice_date: string; category: string | null; cat_total: string }>) {
+    const d = row.invoice_date;
+    if (!dayMap.has(d)) continue;
+    const day = dayMap.get(d)!;
+    const cat = row.category ?? "inne";
+    day.catMap.set(cat, (day.catMap.get(cat) ?? 0) + Number(row.cat_total));
+  }
+
+  const days = Array.from(dayMap.entries())
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([date, day]) => {
+      const total = day.totalAmount;
+      const categories = Array.from(day.catMap.entries())
+        .sort(([, a], [, b]) => b - a)
+        .map(([category, catTotal]) => ({
+          category,
+          totalAmount: catTotal,
+          percent: total > 0 ? Math.round((catTotal / total) * 100) : 0,
+        }));
+      const suppliers = Array.from(day.supplierMap.values())
+        .sort((a, b) => b.totalAmount - a.totalAmount);
+      const invoices = day.invoices.map((inv) => ({
+        ...inv,
+        totalAmount: toNum(inv.totalAmount),
+        itemCount: 0,
+        importedAt: inv.importedAt.toISOString(),
+        paidAt: inv.paidAt ? inv.paidAt.toISOString() : null,
+      }));
+      return {
+        date,
+        totalAmount: total,
+        invoiceCount: day.invoices.length,
+        supplierCount: day.supplierMap.size,
+        categories,
+        suppliers,
+        invoices,
+      };
+    });
+
+  const totalAmount = days.reduce((s, d) => s + d.totalAmount, 0);
+  const invoiceCount = days.reduce((s, d) => s + d.invoiceCount, 0);
+  const allSupplierIds = new Set(invoicesRaw.map((i) => i.supplierId));
+  const activeDays = days.filter((d) => d.totalAmount > 0);
+  const avgDailyAmount = activeDays.length > 0 ? totalAmount / activeDays.length : 0;
+  const biggestDay = days.length > 0
+    ? days.reduce((max, d) => d.totalAmount > max.totalAmount ? d : max, days[0])
+    : null;
+
+  res.json({
+    days,
+    totalAmount,
+    invoiceCount,
+    supplierCount: allSupplierIds.size,
+    biggestDay: biggestDay ? { date: biggestDay.date, totalAmount: biggestDay.totalAmount } : null,
+    avgDailyAmount,
+    prevMonthTotalAmount,
+  });
+});
+
+// ─── Calendar endpoint ────────────────────────────────────────────────────────
+
+router.get("/invoices/calendar", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const monthParam = (req.query.month as string | undefined) ?? new Date().toISOString().slice(0, 7);
+  const [year, month] = monthParam.split("-").map(Number);
+  const firstDay = `${monthParam}-01`;
+  const lastDay = new Date(year, month, 0).toISOString().slice(0, 10);
+
+  const rows = await db.execute(sql`
+    SELECT
+      invoice_date as date,
+      SUM(total_amount::numeric) as total_amount,
+      COUNT(*) as invoice_count
+    FROM invoices
+    WHERE user_id = ${userId}
+      AND invoice_date >= ${firstDay}
+      AND invoice_date <= ${lastDay}
+      AND excluded = false
+    GROUP BY 1
+    ORDER BY 1
+  `);
+
+  const days = (rows.rows as Array<{ date: string; total_amount: string; invoice_count: string }>).map((r) => ({
+    date: r.date,
+    totalAmount: Number(r.total_amount),
+    invoiceCount: Number(r.invoice_count),
+  }));
+
+  const maxAmount = days.length > 0 ? Math.max(...days.map((d) => d.totalAmount)) : 0;
+
+  res.json({ days, maxAmount });
+});
+
+// ─── Payments endpoint ────────────────────────────────────────────────────────
+
+router.get("/invoices/payments", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const today = new Date().toISOString().slice(0, 10);
+  const in7Days = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+
+  const unpaidTransfers = await db
+    .select({
+      id: invoicesTable.id,
+      invoiceNumber: invoicesTable.invoiceNumber,
+      supplierName: suppliersTable.name,
+      totalAmount: invoicesTable.totalAmount,
+      paymentDueDate: invoicesTable.paymentDueDate,
+      paymentMethod: invoicesTable.paymentMethod,
+      isPaid: invoicesTable.isPaid,
+    })
+    .from(invoicesTable)
+    .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+    .where(
+      and(
+        eq(invoicesTable.userId, userId),
+        eq(invoicesTable.isPaid, false),
+        eq(invoicesTable.paymentMethod, "przelew"),
+      ),
+    )
+    .orderBy(invoicesTable.paymentDueDate);
+
+  const overdue: typeof unpaidTransfers = [];
+  const dueToday: typeof unpaidTransfers = [];
+  const dueIn7Days: typeof unpaidTransfers = [];
+
+  for (const inv of unpaidTransfers) {
+    const due = inv.paymentDueDate;
+    if (!due) continue;
+    if (due < today) overdue.push(inv);
+    else if (due === today) dueToday.push(inv);
+    else if (due <= in7Days) dueIn7Days.push(inv);
+  }
+
+  const sum = (arr: typeof unpaidTransfers) => arr.reduce((s, i) => s + toNum(i.totalAmount), 0);
+
+  const mapInv = (inv: (typeof unpaidTransfers)[0], ) => ({
+    id: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    supplierName: inv.supplierName,
+    totalAmount: toNum(inv.totalAmount),
+    paymentDueDate: inv.paymentDueDate,
+    paymentMethod: inv.paymentMethod,
+    isPaid: inv.isPaid,
+    daysOverdue: inv.paymentDueDate && inv.paymentDueDate < today
+      ? Math.floor((new Date(today).getTime() - new Date(inv.paymentDueDate).getTime()) / 86400000)
+      : null,
+  });
+
+  res.json({
+    overdueAmount: sum(overdue),
+    overdueCount: overdue.length,
+    dueTodayAmount: sum(dueToday),
+    dueTodayCount: dueToday.length,
+    dueIn7DaysAmount: sum(dueIn7Days),
+    dueIn7DaysCount: dueIn7Days.length,
+    overdue: overdue.map(mapInv),
+    dueToday: dueToday.map(mapInv),
+    dueIn7Days: dueIn7Days.map(mapInv),
+  });
 });
 
 function extractTag(xml: string, tag: string): string | null {
@@ -312,7 +581,6 @@ Important:
       extracted = {};
     }
 
-    // Normalise NIP — strip spaces and dashes
     if (extracted.supplierNip) {
       extracted.supplierNip = extracted.supplierNip.replace(/[\s\-]/g, "");
     }
@@ -338,7 +606,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, xmlContent, invoiceNumber, invoiceDate, force, items: manualItems } = parsed.data;
+  const { supplierId, xmlContent, invoiceNumber, invoiceDate, force, items: manualItems, paymentMethod, paymentDueDate } = parsed.data;
 
   const [supplier] = await db
     .select()
@@ -351,7 +619,6 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   }
 
   const parsed2 = xmlContent ? parseKSeFXml(xmlContent) : null;
-  // Manual items (from OCR scan) take precedence over XML-parsed items
   const parsedItems: Array<{ productName: string; quantity: number; unit: string; unitPrice: number; totalPrice: number; vatRate?: number | null }> =
     manualItems && manualItems.length > 0
       ? manualItems
@@ -386,6 +653,9 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   const calculatedTotal = parsedItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const totalAmount = calculatedTotal > 0 ? calculatedTotal : (parsed2?.totalGross ?? 0);
 
+  // Cash/card payments are auto-marked as paid
+  const isImmediatePayment = paymentMethod === "gotowka" || paymentMethod === "karta";
+
   const [invoice] = await db
     .insert(invoicesTable)
     .values({
@@ -395,6 +665,10 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
       invoiceDate: finalInvoiceDate,
       totalAmount: totalAmount.toFixed(2),
       xmlContent: xmlContent ? encryptSecret(xmlContent) : null,
+      paymentMethod: paymentMethod ?? null,
+      paymentDueDate: paymentMethod === "przelew" ? (paymentDueDate ?? null) : null,
+      isPaid: isImmediatePayment,
+      paidAt: isImmediatePayment ? new Date() : null,
     })
     .returning();
 
@@ -435,10 +709,10 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     supplierName: supplier.name,
     totalAmount: toNum(invoice.totalAmount),
     importedAt: invoice.importedAt.toISOString(),
+    paidAt: invoice.paidAt ? invoice.paidAt.toISOString() : null,
     items: insertedItems,
   });
 
-  // Fire-and-forget: recalculate price alert triggers after new invoice data arrives.
   if (parsedItems.length > 0) {
     checkAlertsAfterImport(userId, req.log).catch(() => {});
   }
@@ -462,6 +736,10 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
       totalAmount: invoicesTable.totalAmount,
       importedAt: invoicesTable.importedAt,
       excluded: invoicesTable.excluded,
+      paymentMethod: invoicesTable.paymentMethod,
+      paymentDueDate: invoicesTable.paymentDueDate,
+      isPaid: invoicesTable.isPaid,
+      paidAt: invoicesTable.paidAt,
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
@@ -481,6 +759,7 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
     ...invoice,
     totalAmount: toNum(invoice.totalAmount),
     importedAt: invoice.importedAt.toISOString(),
+    paidAt: invoice.paidAt ? invoice.paidAt.toISOString() : null,
     items: items.map((item) => ({
       ...item,
       quantity: toNum(item.quantity),
@@ -488,6 +767,40 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
       totalPrice: toNum(item.totalPrice),
       vatRate: toNumOrNull(item.vatRate),
     })),
+  });
+});
+
+router.patch("/invoices/:id/mark-paid", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) {
+    res.status(400).json({ error: "Invalid invoice id" });
+    return;
+  }
+  const { isPaid } = req.body as { isPaid: boolean };
+  if (typeof isPaid !== "boolean") {
+    res.status(400).json({ error: "isPaid must be a boolean" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(invoicesTable)
+    .set({
+      isPaid,
+      paidAt: isPaid ? new Date() : null,
+    })
+    .where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, userId)))
+    .returning({ id: invoicesTable.id, isPaid: invoicesTable.isPaid, paidAt: invoicesTable.paidAt });
+
+  if (!updated) {
+    res.status(404).json({ error: "Invoice not found" });
+    return;
+  }
+
+  res.json({
+    id: updated.id,
+    isPaid: updated.isPaid,
+    paidAt: updated.paidAt ? updated.paidAt.toISOString() : null,
   });
 });
 
