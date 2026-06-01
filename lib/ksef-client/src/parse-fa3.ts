@@ -25,6 +25,9 @@ export const ParsedFa3HeaderSchema = z.object({
   // (settlement). Used to flip line-item signs for credit notes so monthly
   // food-cost reports stay correct.
   invoiceType: z.string().nullable(),
+  // Payment info extracted from <Platnosc> block
+  paymentMethod: z.enum(["gotowka", "przelew", "karta"]).nullable(),
+  paymentDueDate: z.string().nullable(),
 });
 
 export const ParsedFa3Schema = z.object({
@@ -93,6 +96,35 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
     const totalGross = totalGrossRaw ? parseNum(totalGrossRaw) : null;
     const invoiceType = extractTag(stripped, "RodzajFaktury")?.trim().toUpperCase() ?? null;
 
+    // Payment info — FA(3) stores this in <Platnosc> block
+    const platnosc = stripped.match(/<Platnosc>([\s\S]*?)<\/Platnosc>/i)?.[1] ?? stripped;
+    const formaRaw =
+      extractTag(platnosc, "FormaPlatnosci") ??
+      extractTag(platnosc, "SposobPlatnosci") ??
+      extractTag(stripped, "FormaPlatnosci") ??
+      extractTag(stripped, "SposobPlatnosci") ??
+      null;
+    const terminRaw =
+      extractTag(platnosc, "TerminPlatnosci") ??
+      extractTag(stripped, "TerminPlatnosci") ??
+      null;
+
+    function mapPaymentMethod(raw: string | null): "gotowka" | "przelew" | "karta" | null {
+      if (!raw) return null;
+      const v = raw.trim().toLowerCase();
+      // Numeric codes per KSeF FA(3) spec: 1=gotówka, 2=karta, 6=przelew
+      if (v === "1") return "gotowka";
+      if (v === "2") return "karta";
+      if (v === "6") return "przelew";
+      if (v.startsWith("got")) return "gotowka";
+      if (v.includes("przelew")) return "przelew";
+      if (v.includes("karta")) return "karta";
+      return null;
+    }
+
+    const paymentMethod = mapPaymentMethod(formaRaw);
+    const paymentDueDate = normalizeDate(terminRaw);
+
     // For credit notes (faktura korygująca / KOR) the line items carry
     // positive magnitudes but represent reductions. We mirror the sign of
     // the header's net total onto each line so downstream aggregations
@@ -147,6 +179,8 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
         totalNet,
         totalGross,
         invoiceType,
+        paymentMethod,
+        paymentDueDate,
       },
       items,
     });

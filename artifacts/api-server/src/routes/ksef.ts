@@ -673,18 +673,22 @@ async function runSync(
             )
             .limit(1);
           if (existing) {
-            await tx
+            const xmlPayMethod = parsed.header.paymentMethod ?? null;
+          const xmlPayDue = xmlPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
+          await tx
               .update(invoicesTable)
               .set({
                 ksefNumber: ref.ksefReferenceNumber,
                 xmlContent: encryptXml(xml),
                 totalAmount: totalAmount.toFixed(2),
                 invoiceDate: invDate,
+                ...(xmlPayMethod != null ? { paymentMethod: xmlPayMethod, paymentDueDate: xmlPayDue } : {}),
               })
               .where(eq(invoicesTable.id, existing.id));
             return false;
           }
 
+          const isImmediate = parsed.header.paymentMethod === "gotowka" || parsed.header.paymentMethod === "karta";
           const inserted = await tx
             .insert(invoicesTable)
             .values({
@@ -695,6 +699,10 @@ async function runSync(
               totalAmount: totalAmount.toFixed(2),
               xmlContent: encryptXml(xml),
               ksefNumber: ref.ksefReferenceNumber,
+              paymentMethod: parsed.header.paymentMethod ?? null,
+              paymentDueDate: parsed.header.paymentMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null,
+              isPaid: isImmediate,
+              paidAt: isImmediate ? now : null,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -804,6 +812,9 @@ async function runSync(
       const invNum = parsed.header.invoiceNumber ?? row.ksefNumber;
       const invDate = parsed.header.invoiceDate ?? isoDate(now);
 
+      const rowPayMethod = (parsed.header.paymentMethod as "gotowka" | "przelew" | "karta" | null | undefined) ?? null;
+      const rowPayDue = rowPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
+      const rowImmediate = rowPayMethod === "gotowka" || rowPayMethod === "karta";
       const wasNewlyImported = await db.transaction(async (tx) => {
         const [existing] = await tx
           .select({ id: invoicesTable.id })
@@ -825,6 +836,7 @@ async function runSync(
               xmlContent: encryptXml(row.rawXml),
               totalAmount: totalAmount.toFixed(2),
               invoiceDate: invDate,
+              ...(rowPayMethod != null ? { paymentMethod: rowPayMethod, paymentDueDate: rowPayDue } : {}),
             })
             .where(eq(invoicesTable.id, existing.id));
         } else {
@@ -838,6 +850,10 @@ async function runSync(
               totalAmount: totalAmount.toFixed(2),
               xmlContent: encryptXml(row.rawXml),
               ksefNumber: row.ksefNumber,
+              paymentMethod: rowPayMethod,
+              paymentDueDate: rowPayDue,
+              isPaid: rowImmediate,
+              paidAt: rowImmediate ? now : null,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -944,6 +960,9 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
       const invNum = parsed.header.invoiceNumber ?? row.ksefNumber;
       const invDate = parsed.header.invoiceDate ?? isoDate(now);
 
+      const rowPayMethod = (parsed.header.paymentMethod as "gotowka" | "przelew" | "karta" | null | undefined) ?? null;
+      const rowPayDue = rowPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
+      const rowImmediate = rowPayMethod === "gotowka" || rowPayMethod === "karta";
       const wasNewlyImported = await db.transaction(async (tx) => {
         const [existing] = await tx
           .select({ id: invoicesTable.id })
@@ -965,6 +984,7 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
               xmlContent: encryptXml(row.rawXml),
               totalAmount: totalAmount.toFixed(2),
               invoiceDate: invDate,
+              ...(rowPayMethod != null ? { paymentMethod: rowPayMethod, paymentDueDate: rowPayDue } : {}),
             })
             .where(eq(invoicesTable.id, existing.id));
         } else {
@@ -978,6 +998,10 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
               totalAmount: totalAmount.toFixed(2),
               xmlContent: encryptXml(row.rawXml),
               ksefNumber: row.ksefNumber,
+              paymentMethod: rowPayMethod,
+              paymentDueDate: rowPayDue,
+              isPaid: rowImmediate,
+              paidAt: rowImmediate ? now : null,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -1195,6 +1219,10 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   }
 
   const totalAmount = parsed.header.totalGross ?? parsed.items.reduce((s, i) => s + i.gross, 0);
+  const acceptPayMethod = (parsed.header.paymentMethod as "gotowka" | "przelew" | "karta" | null | undefined) ?? null;
+  const acceptPayDue = acceptPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
+  const acceptImmediate = acceptPayMethod === "gotowka" || acceptPayMethod === "karta";
+  const acceptNow = new Date();
 
   const created = await db.transaction(async (tx) => {
     const [inv] = await tx
@@ -1207,6 +1235,10 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
         totalAmount: totalAmount.toFixed(2),
         xmlContent: encryptXml(row.rawXml),
         ksefNumber: row.ksefNumber,
+        paymentMethod: acceptPayMethod,
+        paymentDueDate: acceptPayDue,
+        isPaid: acceptImmediate,
+        paidAt: acceptImmediate ? acceptNow : null,
       })
       .returning();
 
