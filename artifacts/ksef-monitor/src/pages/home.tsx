@@ -252,11 +252,12 @@ const FEATURES = [
   { icon: FileBarChart2, title: "Raporty miesięczne", desc: "Zestawienie wydatków per-dostawca i per-kategoria z eksportem do CSV — gotowe do księgowości." },
   { icon: Bell, title: "Alerty kosztowe", desc: "Ustawiasz progi procentowe lub kwotowe dla kluczowych składników. Alert trafia do Ciebie od razu." },
   { icon: ShieldCheck, title: "Bezpieczeństwo danych", desc: "Faktury i tokeny KSeF szyfrowane AES-256 w bazie. Każdy użytkownik widzi wyłącznie swoje dane." },
+  { icon: Check, title: "Zbiorcze zarządzanie płatnościami", desc: "Zaznacz wiele faktur jednocześnie i oznacz je jako zapłacone jednym kliknięciem. Pełna historia płatności w jednym miejscu." },
 ];
 
 const FAQS = [
   { q: "Czy mogę anulować w dowolnym momencie?", a: "Tak. Brak długoterminowych umów — anulujesz subskrypcję kiedy chcesz, bez żadnych opłat za rezygnację." },
-  { q: "Czy jest okres próbny?", a: "Tak. Pierwsze 30 dni jest bezpłatne. Nie wymagamy karty kredytowej na etapie rejestracji." },
+  { q: "Czy jest okres próbny?", a: "Tak. Obecnie Spendly jest bezpłatny dla wszystkich w ramach okresu testowego. Nie wymagamy karty kredytowej na etapie rejestracji." },
   { q: "Jak chronione są moje dane?", a: "Faktury i tokeny KSeF są szyfrowane AES-256-GCM w bazie danych. Każdy użytkownik ma dostęp wyłącznie do swoich danych — bez wyjątków. Komunikacja odbywa się wyłącznie przez szyfrowane połączenie HTTPS." },
   { q: "Czy Spendly integruje się z KSeF?", a: "Tak. Spendly łączy się bezpośrednio z API Krajowego Systemu e-Faktur i automatycznie pobiera faktury zakupowe dla Twojego NIP-u. Wystarczy jednorazowo podać NIP i token — resztą zajmuje się system." },
   { q: "Czy system działa dla wielu lokali?", a: "Tak. System obsługuje wiele lokali i dostawców z jednego panelu. Skontaktuj się z nami, jeśli masz specyficzne wymagania dla sieci restauracji." },
@@ -376,7 +377,7 @@ export default function Home() {
                 <div style={{ width: 7, height: 7, borderRadius: "50%", background: C.accent, flexShrink: 0 }} />
                 KSeF + kontrola kosztów gastronomii
               </div>
-              {/* 30 dni trial badge */}
+              {/* trial badge */}
               <div style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "5px 12px", borderRadius: 999,
@@ -384,7 +385,7 @@ export default function Home() {
                 background: C.accentDim,
                 color: C.accent, fontSize: 12, fontWeight: 600,
               }}>
-                30 dni za darmo
+                Okres testowy — bezpłatnie
               </div>
             </motion.div>
 
@@ -695,7 +696,7 @@ export default function Home() {
             <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, marginBottom: 12 }}>
               Prosta cena. Pełna kontrola kosztów.
             </h2>
-            <p style={{ fontSize: 15, color: C.muted, margin: 0 }}>30 dni bez opłat. Anuluj w dowolnym momencie.</p>
+            <p style={{ fontSize: 15, color: C.muted, margin: 0 }}>Okres testowy — bezpłatnie dla każdego. Anuluj w dowolnym momencie.</p>
           </motion.div>
 
           {/* Single Pro card — centered, max-w-md */}
@@ -713,15 +714,16 @@ export default function Home() {
                 <div style={{
                   fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
                   background: C.accentDim, color: C.accent, padding: "4px 10px", borderRadius: 999,
-                }}>30 dni za darmo</div>
+                }}>Okres testowy</div>
               </div>
 
               <div style={{ marginBottom: 28 }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                  <span style={{ fontSize: 52, fontWeight: 800, color: C.text, letterSpacing: "-0.03em", lineHeight: 1 }}>200</span>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ fontSize: 52, fontWeight: 800, color: C.accent, letterSpacing: "-0.03em", lineHeight: 1 }}>0</span>
                   <span style={{ fontSize: 16, color: C.muted }}>zł / mies.</span>
+                  <span style={{ fontSize: 14, color: C.muted, textDecoration: "line-through", alignSelf: "center", marginLeft: 4, opacity: 0.6 }}>200 zł</span>
                 </div>
-                <p style={{ fontSize: 13, color: C.muted, marginTop: 8 }}>po zakończeniu okresu próbnego</p>
+                <p style={{ fontSize: 13, color: C.muted, marginTop: 8 }}>Bezpłatnie w całym okresie testowym — dla każdego.</p>
               </div>
 
               <ul style={{ listStyle: "none", padding: 0, margin: "0 0 28px", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -734,6 +736,7 @@ export default function Home() {
                   "Dashboard wydatków",
                   "Raporty miesięczne",
                   "Monitoring cen dostawców",
+                  "Zbiorcze zarządzanie płatnościami",
                 ].map(f => (
                   <li key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: C.text }}>
                     <Check size={15} style={{ color: C.accent, flexShrink: 0 }} />{f}
@@ -749,7 +752,7 @@ export default function Home() {
                 }}
                   onMouseEnter={e => (e.currentTarget.style.background = C.accentHover)}
                   onMouseLeave={e => (e.currentTarget.style.background = C.accent)}>
-                  Rozpocznij 30 dni za darmo
+                  Rozpocznij za darmo
                 </button>
               </Link>
               <p style={{ textAlign: "center", fontSize: 12, color: C.muted, margin: 0 }}>
@@ -796,7 +799,7 @@ export default function Home() {
             border: `1px solid ${C.accentDim}`, background: C.accentDim,
             color: C.accent, fontSize: 12, fontWeight: 600,
           }}>
-            30 dni za darmo
+            Okres testowy — bezpłatnie
           </div>
           <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, marginBottom: 16 }}>
             Zobacz ile kosztów możesz odzyskać.
