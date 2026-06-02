@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Layout, PageHeader } from "@/components/layout";
-import { useGetMonthlyReport, useGetCategorySpend, useGetCategorySpendTrend } from "@workspace/api-client-react";
+import { useGetMonthlyReport, useGetCategorySpend, useGetCategorySpendTrend, useGetReportsCostCenters, getGetReportsCostCentersQueryKey } from "@workspace/api-client-react";
 import type { CategorySpendItem } from "@workspace/api-client-react";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import {
   ChevronLeft, ChevronRight, ShoppingCart, FileText, Package,
-  ChevronDown, ChevronUp, ArrowUp, ArrowDown, Download,
+  ChevronDown, ChevronUp, ArrowUp, ArrowDown, Download, Layers,
 } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -632,10 +632,51 @@ function shortMonthLabel(month: string) {
   return `${names[parseInt(m) - 1]} '${year.slice(2)}`;
 }
 
-function CategorySpendTrendSection() {
+function CostCenterReportSection({ month, costCenterId }: { month: string; costCenterId?: number | null }) {
+  const params = { month, ...(costCenterId != null ? { costCenterId } : {}) };
+  const { data, isLoading } = useGetReportsCostCenters(params, {
+    query: { queryKey: getGetReportsCostCentersQueryKey(params) },
+  });
+
+  if (isLoading) return <Skeleton className="h-28 rounded-xl mb-6" />;
+  if (!data || data.length === 0) return null;
+
+  const total = data.reduce((s, c) => s + c.totalAmount, 0);
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 mb-6">
+      <h3 className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
+        <Layers className="w-4 h-4 text-muted-foreground" />
+        Centra kosztów
+      </h3>
+      <div className="space-y-2">
+        {data.map((c) => {
+          const pct = total > 0 ? Math.round((c.totalAmount / total) * 100) : 0;
+          const barWidth = total > 0 ? (c.totalAmount / total) * 100 : 0;
+          return (
+            <div key={c.costCenterId ?? "unassigned"}>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.costCenterColor ?? "#64748b" }} />
+                <span className="flex-1 text-sm text-foreground truncate">{c.costCenterName ?? "Nieprzypisane"}</span>
+                <span className="text-sm tabular-nums text-foreground">{formatPrice(c.totalAmount)}</span>
+                <span className="text-xs text-muted-foreground w-9 text-right tabular-nums">{pct}%</span>
+              </div>
+              <div className="ml-5 h-1 rounded-full overflow-hidden bg-border">
+                <div className="h-full rounded-full transition-all" style={{ width: `${barWidth}%`, background: c.costCenterColor ?? "#64748b" }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CategorySpendTrendSection({ costCenterId }: { costCenterId?: number | null }) {
+  const ccParam = costCenterId != null ? { costCenterId } : {};
   const { data, isLoading } = useGetCategorySpendTrend(
-    { months: 6 },
-    { query: { queryKey: ["category-spend-trend", 6] } },
+    { months: 6, ...ccParam },
+    { query: { queryKey: ["category-spend-trend", 6, costCenterId] } },
   );
 
   // Build sorted list of all categories by total spend across all months
@@ -957,9 +998,14 @@ export default function Reports() {
           <CategorySpendSection month={month} costCenterId={costCenterId} />
         )}
 
+        {/* Cost center breakdown */}
+        {!isLoading && data && (
+          <CostCenterReportSection month={reportMonth} costCenterId={costCenterId} />
+        )}
+
         {/* Category spend trend — only in month mode */}
         {viewMode === "month" && !isLoading && data && data.topProducts.length > 0 && (
-          <CategorySpendTrendSection />
+          <CategorySpendTrendSection costCenterId={costCenterId} />
         )}
 
         {/* Per-supplier reports */}

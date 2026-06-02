@@ -1051,6 +1051,7 @@ export type GetCategorySpendTrendParams = {
    * @maximum 12
    */
   months?: number;
+  costCenterId?: number;
 };
 
 export type GetReportsCostCentersParams = {

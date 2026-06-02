@@ -1281,6 +1281,7 @@ export const GetCategorySpendTrendQueryParams = zod.object({
     .max(getCategorySpendTrendQueryMonthsMax)
     .optional()
     .describe("Number of months to include (default 6, max 12)"),
+  costCenterId: zod.coerce.number().optional(),
 });
 
 export const GetCategorySpendTrendResponseItem = zod.object({

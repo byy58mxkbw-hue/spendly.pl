@@ -502,7 +502,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <span className="font-black tracking-tighter text-primary text-sm shrink-0">
               SPENDLY<span className="text-foreground/30">.</span>
             </span>
@@ -515,6 +515,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </>
             )}
           </div>
+          <CostCenterSelector />
         </div>
       </header>
 

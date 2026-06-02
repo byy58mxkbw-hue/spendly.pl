@@ -1377,6 +1377,11 @@ paths:
             type: integer
             minimum: 2
             maximum: 12
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
       responses:
         "200":
           description: Monthly category spend trend
