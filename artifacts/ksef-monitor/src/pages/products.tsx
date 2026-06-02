@@ -1497,7 +1497,7 @@ export default function Products() {
                   <div
                     key={product.id}
                     className="flex items-center gap-3 px-4 py-4 active:bg-secondary/40 cursor-pointer"
-                    onClick={() => showNeedsReview && product.needsReview ? toggleSelect(product.id, window.event as unknown as React.MouseEvent) : openHistory(product.id, product.name)}
+                    onClick={(e) => showNeedsReview && product.needsReview ? toggleSelect(product.id, e) : openHistory(product.id, product.name)}
                     data-testid={`product-row-${product.id}`}
                   >
                     {/* Checkbox (only in review mode) */}
@@ -1652,7 +1652,7 @@ export default function Products() {
                         ? "grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto]"
                         : "grid-cols-[1fr_auto_auto_auto_auto_auto_auto]",
                     )}
-                    onClick={() => showNeedsReview && product.needsReview ? toggleSelect(product.id, window.event as unknown as React.MouseEvent) : openHistory(product.id, product.name)}
+                    onClick={(e) => showNeedsReview && product.needsReview ? toggleSelect(product.id, e) : openHistory(product.id, product.name)}
                     data-testid={`product-row-${product.id}`}
                   >
                     {showNeedsReview && product.needsReview && (

@@ -538,6 +538,7 @@ router.get("/reports/cost-centers", async (req, res): Promise<void> => {
     FROM invoices i
     LEFT JOIN cost_centers cc ON cc.id = i.cost_center_id
     WHERE i.user_id = ${userId} AND i.invoice_date >= ${startDate} AND i.invoice_date <= ${endDate}
+      AND (i.excluded IS NULL OR i.excluded = false)
     GROUP BY i.cost_center_id, cc.name, cc.color
     ORDER BY total_amount DESC
   `);
@@ -546,6 +547,7 @@ router.get("/reports/cost-centers", async (req, res): Promise<void> => {
     SELECT cost_center_id, SUM(CAST(total_amount AS numeric)) AS total_amount
     FROM invoices
     WHERE user_id = ${userId} AND invoice_date >= ${prevStart} AND invoice_date <= ${prevEnd}
+      AND (excluded IS NULL OR excluded = false)
     GROUP BY cost_center_id
   `);
 

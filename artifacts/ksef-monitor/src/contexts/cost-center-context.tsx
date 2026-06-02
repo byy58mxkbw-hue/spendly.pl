@@ -41,9 +41,9 @@ export function CostCenterProvider({ children }: { children: ReactNode }) {
     } catch {}
   };
 
-  // Validate that stored id still exists — clear if deleted
+  // Validate that stored id still exists — clear if deleted or if list becomes empty
   useEffect(() => {
-    if (!isLoading && costCenters.length > 0 && selectedId !== null) {
+    if (!isLoading && selectedId !== null) {
       const exists = costCenters.some((c) => c.id === selectedId);
       if (!exists) setSelectedId(null);
     }
