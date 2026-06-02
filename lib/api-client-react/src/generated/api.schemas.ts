@@ -902,6 +902,10 @@ export type GetInvoicesTimelineParams = {
    * Month in YYYY-MM format (defaults to current month)
    */
   month?: string;
+  /**
+   * Filter by cost center ID. 0 = unassigned only. Omit = all.
+   */
+  costCenterId?: number;
 };
 
 export type GetInvoicesCalendarParams = {
@@ -909,6 +913,17 @@ export type GetInvoicesCalendarParams = {
    * Month in YYYY-MM format (defaults to current month)
    */
   month?: string;
+  /**
+   * Filter by cost center ID. 0 = unassigned only. Omit = all.
+   */
+  costCenterId?: number;
+};
+
+export type GetInvoicesPaymentsParams = {
+  /**
+   * Filter by cost center ID. 0 = unassigned only. Omit = all.
+   */
+  costCenterId?: number;
 };
 
 export type MarkInvoicePaidBody = {

@@ -297,9 +297,11 @@ function DayDrawer({
   onClose: () => void;
   onMarkPaid: (invoiceId: number, isPaid: boolean) => void;
 }) {
+  const { selectedId: costCenterSelectedId } = useCostCenter();
+  const ccParam = costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {};
   const { data: timeline } = useGetInvoicesTimeline(
-    { month },
-    { query: { queryKey: getGetInvoicesTimelineQueryKey({ month }), enabled: !!date } },
+    { month, ...ccParam },
+    { query: { queryKey: getGetInvoicesTimelineQueryKey({ month, ...ccParam }), enabled: !!date } },
   );
   const day = date ? timeline?.days.find((d) => d.date === date) : null;
   const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null);
@@ -434,9 +436,11 @@ function dayComparisonComment(dayAmount: number, avgDailyAmount: number): { text
 }
 
 function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: string) => void }) {
+  const { selectedId: costCenterSelectedId } = useCostCenter();
+  const ccParam = costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {};
   const { data, isLoading } = useGetInvoicesTimeline(
-    { month },
-    { query: { queryKey: getGetInvoicesTimelineQueryKey({ month }) } },
+    { month, ...ccParam },
+    { query: { queryKey: getGetInvoicesTimelineQueryKey({ month, ...ccParam }) } },
   );
 
   if (isLoading) {
@@ -537,9 +541,11 @@ const HEAT_CLASSES = [
 const DOW_LABELS = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
 
 function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date: string) => void }) {
+  const { selectedId: costCenterSelectedId } = useCostCenter();
+  const ccParam = costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {};
   const { data, isLoading } = useGetInvoicesCalendar(
-    { month },
-    { query: { queryKey: getGetInvoicesCalendarQueryKey({ month }) } },
+    { month, ...ccParam },
+    { query: { queryKey: getGetInvoicesCalendarQueryKey({ month, ...ccParam }) } },
   );
 
   if (isLoading) {
@@ -628,9 +634,12 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
 // ─── Płatności view ────────────────────────────────────────────────────────────
 
 function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolean) => void }) {
-  const { data, isLoading } = useGetInvoicesPayments({
-    query: { queryKey: getGetInvoicesPaymentsQueryKey() },
-  });
+  const { selectedId: costCenterSelectedId } = useCostCenter();
+  const ccParam = costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {};
+  const { data, isLoading } = useGetInvoicesPayments(
+    Object.keys(ccParam).length > 0 ? ccParam : undefined,
+    { query: { queryKey: getGetInvoicesPaymentsQueryKey(ccParam) } },
+  );
 
   if (isLoading) {
     return (
@@ -1643,6 +1652,7 @@ export default function Invoices() {
   const markPaid = useMarkInvoicePaid();
   const { data: config } = useGetKsefConfig();
   const { phase, startSync, isPending: syncPending } = useSyncKsefProgress();
+  const { selectedId: costCenterSelectedId } = useCostCenter();
 
   const [activeTab, setActiveTab] = useState<Tab>("zakupy");
   const [month, setMonth] = useState(todayMonth());
@@ -1650,15 +1660,16 @@ export default function Invoices() {
   const [showDeleteAll, setShowDeleteAll] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
+  const ccParam = costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {};
   const { data: timelineData, isLoading: timelineLoading } = useGetInvoicesTimeline(
-    { month },
-    { query: { queryKey: getGetInvoicesTimelineQueryKey({ month }) } },
+    { month, ...ccParam },
+    { query: { queryKey: getGetInvoicesTimelineQueryKey({ month, ...ccParam }) } },
   );
 
   async function handleMarkPaid(id: number, isPaid: boolean) {
     await markPaid.mutateAsync({ id, data: { isPaid } });
-    queryClient.invalidateQueries({ queryKey: getGetInvoicesTimelineQueryKey({ month }) });
-    queryClient.invalidateQueries({ queryKey: getGetInvoicesPaymentsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetInvoicesTimelineQueryKey({ month, ...ccParam }) });
+    queryClient.invalidateQueries({ queryKey: getGetInvoicesPaymentsQueryKey(Object.keys(ccParam).length > 0 ? ccParam : undefined) });
     toast({ title: isPaid ? "Oznaczono jako opłacone" : "Cofnięto oznaczenie" });
   }
 

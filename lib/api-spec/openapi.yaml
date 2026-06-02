@@ -910,6 +910,12 @@ paths:
           schema:
             type: string
           description: "Month in YYYY-MM format (defaults to current month)"
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter by cost center ID. 0 = unassigned only. Omit = all."
       responses:
         "200":
           description: Timeline data grouped by day
@@ -930,6 +936,12 @@ paths:
           schema:
             type: string
           description: "Month in YYYY-MM format (defaults to current month)"
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter by cost center ID. 0 = unassigned only. Omit = all."
       responses:
         "200":
           description: Calendar heatmap data
@@ -943,6 +955,13 @@ paths:
       operationId: getInvoicesPayments
       tags: [invoices]
       summary: Get payments dashboard (overdue, due today, due in 7 days)
+      parameters:
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: "Filter by cost center ID. 0 = unassigned only. Omit = all."
       responses:
         "200":
           description: Payments dashboard

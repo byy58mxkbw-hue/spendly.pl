@@ -758,6 +758,10 @@ export const GetInvoicesTimelineQueryParams = zod.object({
     .string()
     .optional()
     .describe("Month in YYYY-MM format (defaults to current month)"),
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter by cost center ID. 0 = unassigned only. Omit = all."),
 });
 
 export const GetInvoicesTimelineResponse = zod.object({
@@ -827,6 +831,10 @@ export const GetInvoicesCalendarQueryParams = zod.object({
     .string()
     .optional()
     .describe("Month in YYYY-MM format (defaults to current month)"),
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter by cost center ID. 0 = unassigned only. Omit = all."),
 });
 
 export const GetInvoicesCalendarResponse = zod.object({
@@ -843,6 +851,13 @@ export const GetInvoicesCalendarResponse = zod.object({
 /**
  * @summary Get payments dashboard (overdue, due today, due in 7 days)
  */
+export const GetInvoicesPaymentsQueryParams = zod.object({
+  costCenterId: zod.coerce
+    .number()
+    .optional()
+    .describe("Filter by cost center ID. 0 = unassigned only. Omit = all."),
+});
+
 export const GetInvoicesPaymentsResponse = zod.object({
   overdueAmount: zod.number(),
   overdueCount: zod.number(),

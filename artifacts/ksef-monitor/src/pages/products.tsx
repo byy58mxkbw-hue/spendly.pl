@@ -1013,7 +1013,7 @@ export default function Products() {
     ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}),
   });
   const { data: suppliers } = useListSuppliers();
-  const { data: spendItems } = useGetCategorySpend({ month });
+  const { data: spendItems } = useGetCategorySpend({ month, ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}) });
   const { data: categories } = useListCategories();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name-asc");

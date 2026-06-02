@@ -47,6 +47,7 @@ import type {
   GetDashboardSummaryParams,
   GetFoodCostMonthlyParams,
   GetInvoicesCalendarParams,
+  GetInvoicesPaymentsParams,
   GetInvoicesTimelineParams,
   GetMonthlyReportParams,
   GetPredictiveReportParams,
@@ -3702,41 +3703,63 @@ export function useGetInvoicesCalendar<
 /**
  * @summary Get payments dashboard (overdue, due today, due in 7 days)
  */
-export const getGetInvoicesPaymentsUrl = () => {
-  return `/api/invoices/payments`;
+export const getGetInvoicesPaymentsUrl = (
+  params?: GetInvoicesPaymentsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/invoices/payments?${stringifiedParams}`
+    : `/api/invoices/payments`;
 };
 
 export const getInvoicesPayments = async (
+  params?: GetInvoicesPaymentsParams,
   options?: RequestInit,
 ): Promise<PaymentsDashboard> => {
-  return customFetch<PaymentsDashboard>(getGetInvoicesPaymentsUrl(), {
+  return customFetch<PaymentsDashboard>(getGetInvoicesPaymentsUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetInvoicesPaymentsQueryKey = () => {
-  return [`/api/invoices/payments`] as const;
+export const getGetInvoicesPaymentsQueryKey = (
+  params?: GetInvoicesPaymentsParams,
+) => {
+  return [`/api/invoices/payments`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetInvoicesPaymentsQueryOptions = <
   TData = Awaited<ReturnType<typeof getInvoicesPayments>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getInvoicesPayments>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: GetInvoicesPaymentsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInvoicesPayments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetInvoicesPaymentsQueryKey();
+  const queryKey =
+    queryOptions?.queryKey ?? getGetInvoicesPaymentsQueryKey(params);
 
   const queryFn: QueryFunction<
     Awaited<ReturnType<typeof getInvoicesPayments>>
-  > = ({ signal }) => getInvoicesPayments({ signal, ...requestOptions });
+  > = ({ signal }) =>
+    getInvoicesPayments(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getInvoicesPayments>>,
@@ -3757,15 +3780,18 @@ export type GetInvoicesPaymentsQueryError = ErrorType<unknown>;
 export function useGetInvoicesPayments<
   TData = Awaited<ReturnType<typeof getInvoicesPayments>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getInvoicesPayments>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetInvoicesPaymentsQueryOptions(options);
+>(
+  params?: GetInvoicesPaymentsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getInvoicesPayments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetInvoicesPaymentsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

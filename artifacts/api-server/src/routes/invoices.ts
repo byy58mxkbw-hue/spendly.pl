@@ -91,10 +91,17 @@ router.get("/invoices", async (req, res): Promise<void> => {
 router.get("/invoices/timeline", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const monthParam = (req.query.month as string | undefined) ?? new Date().toISOString().slice(0, 7);
+  const costCenterIdRaw = req.query.costCenterId !== undefined ? Number(req.query.costCenterId) : undefined;
 
   const [year, month] = monthParam.split("-").map(Number);
   const firstDay = `${monthParam}-01`;
   const lastDay = new Date(year, month, 0).toISOString().slice(0, 10);
+
+  const ccFilter = costCenterIdRaw !== undefined
+    ? costCenterIdRaw === 0
+      ? isNull(invoicesTable.costCenterId)
+      : eq(invoicesTable.costCenterId, costCenterIdRaw)
+    : undefined;
 
   // Get all invoices for the month with supplier info
   const invoicesRaw = await db
@@ -120,9 +127,16 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
         gte(invoicesTable.invoiceDate, firstDay),
         lte(invoicesTable.invoiceDate, lastDay),
         eq(invoicesTable.excluded, false),
+        ccFilter,
       ),
     )
     .orderBy(desc(invoicesTable.invoiceDate));
+
+  const ccSqlFilter = costCenterIdRaw !== undefined
+    ? costCenterIdRaw === 0
+      ? sql`AND i.cost_center_id IS NULL`
+      : sql`AND i.cost_center_id = ${costCenterIdRaw}`
+    : sql``;
 
   // Get category breakdown via invoice items + products
   const itemsRaw = await db.execute(sql`
@@ -137,6 +151,7 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
       AND i.invoice_date >= ${firstDay}
       AND i.invoice_date <= ${lastDay}
       AND i.excluded = false
+      ${ccSqlFilter}
     GROUP BY 1, 2
   `);
 
@@ -152,6 +167,7 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
       AND invoice_date >= ${prevFirstDay}
       AND invoice_date <= ${prevLastDay}
       AND excluded = false
+      ${ccSqlFilter}
   `);
 
   const prevMonthTotalAmount = Number((prevTotalRaw.rows[0] as { total: string }).total ?? 0);
@@ -261,6 +277,12 @@ router.get("/invoices/calendar", async (req, res): Promise<void> => {
   const [year, month] = monthParam.split("-").map(Number);
   const firstDay = `${monthParam}-01`;
   const lastDay = new Date(year, month, 0).toISOString().slice(0, 10);
+  const calCcIdRaw = req.query.costCenterId !== undefined ? Number(req.query.costCenterId) : undefined;
+  const calCcFilter = calCcIdRaw !== undefined
+    ? calCcIdRaw === 0
+      ? sql`AND cost_center_id IS NULL`
+      : sql`AND cost_center_id = ${calCcIdRaw}`
+    : sql``;
 
   const rows = await db.execute(sql`
     SELECT
@@ -272,6 +294,7 @@ router.get("/invoices/calendar", async (req, res): Promise<void> => {
       AND invoice_date >= ${firstDay}
       AND invoice_date <= ${lastDay}
       AND excluded = false
+      ${calCcFilter}
     GROUP BY 1
     ORDER BY 1
   `);
@@ -293,6 +316,12 @@ router.get("/invoices/payments", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const today = new Date().toISOString().slice(0, 10);
   const in7Days = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const payCcIdRaw = req.query.costCenterId !== undefined ? Number(req.query.costCenterId) : undefined;
+  const payCcFilter = payCcIdRaw !== undefined
+    ? payCcIdRaw === 0
+      ? isNull(invoicesTable.costCenterId)
+      : eq(invoicesTable.costCenterId, payCcIdRaw)
+    : undefined;
 
   const unpaidTransfers = await db
     .select({
@@ -311,6 +340,7 @@ router.get("/invoices/payments", async (req, res): Promise<void> => {
         eq(invoicesTable.userId, userId),
         eq(invoicesTable.isPaid, false),
         eq(invoicesTable.paymentMethod, "przelew"),
+        payCcFilter,
       ),
     )
     .orderBy(invoicesTable.paymentDueDate);
