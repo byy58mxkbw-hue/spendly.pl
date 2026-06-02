@@ -11,3 +11,15 @@ id = "MIK1ytWi62gtyahCBK89I"
 uri = "file://categories-reports.tar.gz"
 type = "unspecified"
 title = "categories.ts + reports.tsx"
+
+[[outputs]]
+id = "HakfhTDxnJCrU7Zku6WRs"
+uri = "file://categories.txt"
+type = "text"
+title = "categories.ts"
+
+[[outputs]]
+id = "TgB-S-n0hxgDcpIWkjkST"
+uri = "file://reports.txt"
+type = "text"
+title = "reports.tsx"
