@@ -162,11 +162,11 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
 
   const prevTotalRaw = await db.execute(sql`
     SELECT COALESCE(SUM(total_amount::numeric), 0) as total
-    FROM invoices
-    WHERE user_id = ${userId}
-      AND invoice_date >= ${prevFirstDay}
-      AND invoice_date <= ${prevLastDay}
-      AND excluded = false
+    FROM invoices i
+    WHERE i.user_id = ${userId}
+      AND i.invoice_date >= ${prevFirstDay}
+      AND i.invoice_date <= ${prevLastDay}
+      AND i.excluded = false
       ${ccSqlFilter}
   `);
 
