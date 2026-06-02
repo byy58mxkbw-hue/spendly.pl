@@ -563,6 +563,17 @@ export const DeleteCategoryParams = zod.object({
 });
 
 /**
+ * @summary Mark multiple products as verified (needsReview = false)
+ */
+export const BulkVerifyProductsBody = zod.object({
+  ids: zod.array(zod.number()),
+});
+
+export const BulkVerifyProductsResponse = zod.object({
+  verifiedCount: zod.number(),
+});
+
+/**
  * @summary Get products with biggest price changes
  */
 export const GetTopPriceChangesQueryParams = zod.object({

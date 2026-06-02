@@ -23,6 +23,8 @@ import type {
   AdminUsersResponse,
   AiInsight,
   BulkAssignCostCenter200,
+  BulkVerifyProducts200,
+  BulkVerifyProductsBody,
   CategoryItem,
   CategorySpendItem,
   CategorySpendTrendRow,
@@ -2787,6 +2789,92 @@ export const useDeleteCategory = <
   TContext
 > => {
   return useMutation(getDeleteCategoryMutationOptions(options));
+};
+
+/**
+ * @summary Mark multiple products as verified (needsReview = false)
+ */
+export const getBulkVerifyProductsUrl = () => {
+  return `/api/products/bulk-verify`;
+};
+
+export const bulkVerifyProducts = async (
+  bulkVerifyProductsBody: BulkVerifyProductsBody,
+  options?: RequestInit,
+): Promise<BulkVerifyProducts200> => {
+  return customFetch<BulkVerifyProducts200>(getBulkVerifyProductsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(bulkVerifyProductsBody),
+  });
+};
+
+export const getBulkVerifyProductsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkVerifyProducts>>,
+    TError,
+    { data: BodyType<BulkVerifyProductsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkVerifyProducts>>,
+  TError,
+  { data: BodyType<BulkVerifyProductsBody> },
+  TContext
+> => {
+  const mutationKey = ["bulkVerifyProducts"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkVerifyProducts>>,
+    { data: BodyType<BulkVerifyProductsBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkVerifyProducts(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkVerifyProductsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkVerifyProducts>>
+>;
+export type BulkVerifyProductsMutationBody = BodyType<BulkVerifyProductsBody>;
+export type BulkVerifyProductsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark multiple products as verified (needsReview = false)
+ */
+export const useBulkVerifyProducts = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkVerifyProducts>>,
+    TError,
+    { data: BodyType<BulkVerifyProductsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof bulkVerifyProducts>>,
+  TError,
+  { data: BodyType<BulkVerifyProductsBody> },
+  TContext
+> => {
+  return useMutation(getBulkVerifyProductsMutationOptions(options));
 };
 
 /**

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { toNum } from "../lib/parse";
-import { eq, sql, desc, and } from "drizzle-orm";
+import { eq, sql, desc, and, inArray } from "drizzle-orm";
 import { db, productsTable, invoiceItemsTable, invoicesTable, suppliersTable } from "@workspace/db";
 import { userCategoriesTable } from "@workspace/db/schema";
 import {
@@ -443,6 +443,35 @@ router.post("/products", async (req, res): Promise<void> => {
     });
 
   res.status(201).json(created);
+});
+
+router.post("/products/bulk-verify", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const body = req.body as { ids?: unknown };
+  if (!Array.isArray(body?.ids) || body.ids.length === 0) {
+    res.status(400).json({ error: "ids must be a non-empty array" });
+    return;
+  }
+  const ids = (body.ids as unknown[]).map(Number).filter((n) => Number.isFinite(n) && n > 0);
+  if (ids.length === 0) {
+    res.status(400).json({ error: "No valid ids provided" });
+    return;
+  }
+
+  const owned = await db
+    .select({ id: productsTable.id })
+    .from(productsTable)
+    .where(and(eq(productsTable.userId, userId), inArray(productsTable.id, ids)));
+
+  const ownedIds = owned.map((p) => p.id);
+  if (ownedIds.length > 0) {
+    await db
+      .update(productsTable)
+      .set({ needsReview: false })
+      .where(inArray(productsTable.id, ownedIds));
+  }
+
+  res.json({ verifiedCount: ownedIds.length });
 });
 
 router.patch("/products/:id", async (req, res): Promise<void> => {

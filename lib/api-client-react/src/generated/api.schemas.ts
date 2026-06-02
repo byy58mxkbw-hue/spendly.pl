@@ -795,6 +795,10 @@ export interface AdminInvoiceSummary {
   supplierName: string;
 }
 
+export interface BulkVerifyProductsBody {
+  ids: number[];
+}
+
 export interface AdminTopProduct {
   productName: string;
   totalSpend: string;
@@ -864,6 +868,10 @@ export type ListProductsParams = {
 export type GetProductPriceHistoryParams = {
   supplierId?: number;
   months?: number;
+};
+
+export type BulkVerifyProducts200 = {
+  verifiedCount: number;
 };
 
 export type GetTopPriceChangesParams = {

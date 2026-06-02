@@ -13,6 +13,7 @@ import {
   useCreateCategory,
   useDeleteCategory,
   useUpdateCategory,
+  useBulkVerifyProducts,
   getListCategoriesQueryKey,
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
@@ -32,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -77,6 +79,8 @@ import {
   Download,
   AlertTriangle,
   ChevronDown,
+  CheckSquare,
+  CheckCheck,
 } from "lucide-react";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -1023,8 +1027,28 @@ export default function Products() {
   const [showKeywordComparison, setShowKeywordComparison] = useState(false);
   const [showNeedsReview, setShowNeedsReview] = useState(false);
   const [categorySpendOpen, setCategorySpendOpen] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const bulkVerify = useBulkVerifyProducts();
 
   const needsReviewCount = products?.filter((p) => p.needsReview === true).length ?? 0;
+
+  function toggleSelect(id: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAllReviewable() {
+    setSelectedIds(new Set(reviewableIds));
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
 
   const filtered = sortProducts(
     products?.filter((p) => {
@@ -1036,6 +1060,15 @@ export default function Products() {
     }) ?? [],
     sort
   );
+
+  const reviewableIds = filtered.filter((p) => p.needsReview === true).map((p) => p.id);
+
+  async function handleBulkVerify() {
+    const ids = Array.from(selectedIds);
+    await bulkVerify.mutateAsync({ data: { ids } });
+    clearSelection();
+    queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+  }
 
   // Compute which categories actually have products (before category filter, after other filters)
   const productsBeforeCategoryFilter = products?.filter((p) => {
@@ -1278,27 +1311,40 @@ export default function Products() {
             </Select>
 
             {needsReviewCount > 0 && (
-              <Button
-                variant={showNeedsReview ? "default" : "outline"}
-                size="sm"
-                className={cn(
-                  "shrink-0 gap-1.5 text-xs",
-                  showNeedsReview
-                    ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white"
-                    : "border-amber-300 text-amber-600 hover:bg-amber-50"
+              <>
+                <Button
+                  variant={showNeedsReview ? "default" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "shrink-0 gap-1.5 text-xs",
+                    showNeedsReview
+                      ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white"
+                      : "border-amber-300 text-amber-600 hover:bg-amber-50"
+                  )}
+                  onClick={() => { setShowNeedsReview((v) => !v); clearSelection(); }}
+                  title="Produkty wymagające weryfikacji kategorii"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Do weryfikacji
+                  <span className={cn(
+                    "inline-flex items-center justify-center rounded-full text-[10px] font-bold w-4 h-4",
+                    showNeedsReview ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"
+                  )}>
+                    {needsReviewCount}
+                  </span>
+                </Button>
+                {showNeedsReview && reviewableIds.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-1.5 text-xs border-amber-300 text-amber-600 hover:bg-amber-50"
+                    onClick={selectedIds.size === reviewableIds.length ? clearSelection : selectAllReviewable}
+                  >
+                    <CheckSquare className="w-3.5 h-3.5" />
+                    {selectedIds.size === reviewableIds.length ? "Odznacz wszystkie" : "Zaznacz wszystkie"}
+                  </Button>
                 )}
-                onClick={() => setShowNeedsReview((v) => !v)}
-                title="Produkty wymagające weryfikacji kategorii"
-              >
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Do weryfikacji
-                <span className={cn(
-                  "inline-flex items-center justify-center rounded-full text-[10px] font-bold w-4 h-4",
-                  showNeedsReview ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"
-                )}>
-                  {needsReviewCount}
-                </span>
-              </Button>
+              </>
             )}
 
             <Button
@@ -1451,9 +1497,22 @@ export default function Products() {
                   <div
                     key={product.id}
                     className="flex items-center gap-3 px-4 py-4 active:bg-secondary/40 cursor-pointer"
-                    onClick={() => openHistory(product.id, product.name)}
+                    onClick={() => showNeedsReview && product.needsReview ? toggleSelect(product.id, window.event as unknown as React.MouseEvent) : openHistory(product.id, product.name)}
                     data-testid={`product-row-${product.id}`}
                   >
+                    {/* Checkbox (only in review mode) */}
+                    {showNeedsReview && product.needsReview && (
+                      <div
+                        className="shrink-0"
+                        onClick={(e) => toggleSelect(product.id, e)}
+                      >
+                        <Checkbox
+                          checked={selectedIds.has(product.id)}
+                          onCheckedChange={() => {}}
+                          className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                        />
+                      </div>
+                    )}
                     {/* Category icon */}
                     <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-base shrink-0 select-none">
                       {catDef ? catDef.emoji : "📦"}
@@ -1587,10 +1646,24 @@ export default function Products() {
                 return (
                   <div
                     key={product.id}
-                    className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[860px] py-4 hover:bg-secondary/40 transition-colors items-center cursor-pointer"
-                    onClick={() => openHistory(product.id, product.name)}
+                    className={cn(
+                      "grid gap-4 px-6 min-w-[860px] py-4 hover:bg-secondary/40 transition-colors items-center cursor-pointer",
+                      showNeedsReview && product.needsReview
+                        ? "grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto]"
+                        : "grid-cols-[1fr_auto_auto_auto_auto_auto_auto]",
+                    )}
+                    onClick={() => showNeedsReview && product.needsReview ? toggleSelect(product.id, window.event as unknown as React.MouseEvent) : openHistory(product.id, product.name)}
                     data-testid={`product-row-${product.id}`}
                   >
+                    {showNeedsReview && product.needsReview && (
+                      <div onClick={(e) => toggleSelect(product.id, e)}>
+                        <Checkbox
+                          checked={selectedIds.has(product.id)}
+                          onCheckedChange={() => {}}
+                          className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                        />
+                      </div>
+                    )}
                     <div>
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-medium text-foreground">{product.name}</p>
@@ -1682,6 +1755,32 @@ export default function Products() {
             </div>
           )}
         </div>
+
+        {/* Floating bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border border-amber-400/30 bg-background/95 backdrop-blur-sm">
+            <span className="text-sm font-medium text-amber-700">
+              Zaznaczono: {selectedIds.size}
+            </span>
+            <Button
+              size="sm"
+              className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border-0"
+              onClick={handleBulkVerify}
+              disabled={bulkVerify.isPending}
+            >
+              <CheckCheck className="w-4 h-4" />
+              Zweryfikuj zaznaczone
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={clearSelection}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
 
         {selectedProduct && modalMode === "history" && (
           <PriceHistoryModal

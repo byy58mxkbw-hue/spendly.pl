@@ -711,6 +711,29 @@ paths:
         "404":
           description: Category not found
 
+  /products/bulk-verify:
+    post:
+      operationId: bulkVerifyProducts
+      tags: [products]
+      summary: Mark multiple products as verified (needsReview = false)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkVerifyProductsBody"
+      responses:
+        "200":
+          description: Number of verified products
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [verifiedCount]
+                properties:
+                  verifiedCount:
+                    type: integer
+
   /products/top-price-changes:
     get:
       operationId: getTopPriceChanges
@@ -3176,6 +3199,16 @@ components:
         - invoiceDate
         - totalAmount
         - supplierName
+
+    BulkVerifyProductsBody:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+      required:
+        - ids
 
     AdminTopProduct:
       type: object
