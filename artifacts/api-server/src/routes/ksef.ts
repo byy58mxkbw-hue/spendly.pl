@@ -661,6 +661,10 @@ async function runSync(
         const invDate = parsed.header.invoiceDate ?? isoDate(now);
 
         const wasImported = await db.transaction(async (tx) => {
+          const xmlPayMethod = parsed.header.paymentMethod ?? null;
+          const xmlPayDue = xmlPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
+          const isImmediatePayment = xmlPayMethod === "gotowka" || xmlPayMethod === "karta";
+
           const [existing] = await tx
             .select({ id: invoicesTable.id })
             .from(invoicesTable)
@@ -673,9 +677,7 @@ async function runSync(
             )
             .limit(1);
           if (existing) {
-            const xmlPayMethod = parsed.header.paymentMethod ?? null;
-          const xmlPayDue = xmlPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
-          await tx
+            await tx
               .update(invoicesTable)
               .set({
                 ksefNumber: ref.ksefReferenceNumber,
@@ -698,10 +700,10 @@ async function runSync(
               totalAmount: totalAmount.toFixed(2),
               xmlContent: encryptXml(xml),
               ksefNumber: ref.ksefReferenceNumber,
-              paymentMethod: parsed.header.paymentMethod ?? null,
-              paymentDueDate: parsed.header.paymentMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null,
-              isPaid: xmlPayMethod === "gotowka" || xmlPayMethod === "karta",
-              paidAt: (xmlPayMethod === "gotowka" || xmlPayMethod === "karta") ? new Date() : null,
+              paymentMethod: xmlPayMethod,
+              paymentDueDate: xmlPayDue,
+              isPaid: isImmediatePayment,
+              paidAt: isImmediatePayment ? new Date() : null,
               costCenterId: match.supplier!.defaultCostCenterId ?? null,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })

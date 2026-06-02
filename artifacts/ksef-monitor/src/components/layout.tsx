@@ -20,9 +20,11 @@ import {
   Plus,
 } from "lucide-react";
 import { useUser, useClerk, useAuth } from "@clerk/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { useListKsefPending, useGetDashboardActiveAlerts } from "@workspace/api-client-react";
+import { useListKsefPending, useGetDashboardActiveAlerts, useCreateCostCenter, getListCostCentersQueryKey } from "@workspace/api-client-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import { useCostCenter } from "@/contexts/cost-center-context";
 
 type NavItem = { path: string; label: string; icon: React.ElementType };
@@ -97,6 +99,126 @@ function SectionLabel({ label }: { label: string }) {
     <p className="px-3 pt-5 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/30 select-none">
       {label}
     </p>
+  );
+}
+
+// ─── Cost Center Onboarding Modal ─────────────────────────────────────────────
+const CC_ONBOARDING_KEY = "cc-onboarding-v1-dismissed";
+const ONBOARDING_PRESETS = [
+  { name: "Restauracja", color: "#14B8A6" },
+  { name: "Bar", color: "#6366F1" },
+  { name: "Catering", color: "#F59E0B" },
+  { name: "Ogródek", color: "#22C55E" },
+  { name: "Kuchnia", color: "#EF4444" },
+  { name: "Dostawa", color: "#8B5CF6" },
+];
+
+function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) {
+  const { costCenters } = useCostCenter();
+  const create = useCreateCostCenter();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [dismissed, setDismissed] = useState(
+    () => typeof localStorage !== "undefined" && !!localStorage.getItem(CC_ONBOARDING_KEY),
+  );
+  const [step, setStep] = useState<"question" | "pick" | "done">("question");
+  const [creating, setCreating] = useState<string | null>(null);
+
+  const open = userSignedIn && costCenters.length === 0 && !dismissed;
+
+  function dismiss() {
+    localStorage.setItem(CC_ONBOARDING_KEY, "1");
+    setDismissed(true);
+  }
+
+  function handlePreset(name: string, color: string) {
+    setCreating(name);
+    create.mutate(
+      { data: { name, color } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListCostCentersQueryKey() });
+          setStep("done");
+          setCreating(null);
+          toast({ title: `Centrum "${name}" dodane` });
+        },
+        onSettled: () => setCreating(null),
+      },
+    );
+  }
+
+  if (!open) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) dismiss(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Centra kosztów</DialogTitle>
+          <DialogDescription>
+            {step === "question"
+              ? "Czy prowadzisz więcej niż jeden punkt sprzedaży lub rodzaj działalności?"
+              : step === "pick"
+                ? "Wybierz centrum kosztów dla swojej restauracji. Możesz dodać więcej później."
+                : "Gotowe! Centrum kosztów zostało skonfigurowane."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {step === "question" && (
+          <div className="flex flex-col gap-3 pt-2">
+            <button
+              onClick={() => setStep("pick")}
+              className="w-full px-4 py-3 rounded-xl border border-border text-left hover:border-primary/50 hover:bg-primary/5 transition-colors"
+            >
+              <p className="font-medium text-foreground text-sm">Tak, kilka punktów</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Skonfiguruj centra kosztów dla każdego punktu</p>
+            </button>
+            <button
+              onClick={dismiss}
+              className="w-full px-4 py-3 rounded-xl border border-border text-left hover:border-border/70 hover:bg-muted/30 transition-colors"
+            >
+              <p className="font-medium text-foreground text-sm">Nie, jeden punkt</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Pomiń konfigurację centrów kosztów</p>
+            </button>
+          </div>
+        )}
+
+        {step === "pick" && (
+          <div className="pt-2 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {ONBOARDING_PRESETS.map((p) => (
+                <button
+                  key={p.name}
+                  onClick={() => handlePreset(p.name, p.color)}
+                  disabled={creating !== null}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm font-medium hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-50"
+                >
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
+                  {creating === p.name ? "Dodawanie..." : p.name}
+                </button>
+              ))}
+            </div>
+            <button onClick={dismiss} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Pomiń na razie
+            </button>
+          </div>
+        )}
+
+        {step === "done" && (
+          <div className="pt-2 text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Możesz dodać więcej centrów kosztów w Ustawieniach.
+            </p>
+            <button
+              onClick={dismiss}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+              style={{ background: "#14b8a6" }}
+            >
+              Gotowe
+            </button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -445,6 +567,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
+
+      <CostCenterOnboardingModal userSignedIn={!!user} />
 
       {/* Mobile bottom navigation */}
       <nav
