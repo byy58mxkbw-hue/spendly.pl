@@ -514,4 +514,70 @@ router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
   })));
 });
 
+// ─── Cost center spend report ─────────────────────────────────────────────────
+router.get("/reports/cost-centers", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const { month } = req.query as { month?: string };
+  const now = new Date();
+  const currentMonth = month ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [y, m] = currentMonth.split("-").map(Number);
+  const startDate = `${currentMonth}-01`;
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const endDate = `${currentMonth}-${String(daysInMonth).padStart(2, "0")}`;
+
+  const prevDate = new Date(y, m - 2, 1);
+  const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
+  const prevStart = `${prevMonth}-01`;
+  const prevDays = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 0).getDate();
+  const prevEnd = `${prevMonth}-${String(prevDays).padStart(2, "0")}`;
+
+  const current = await db.execute(sql`
+    SELECT i.cost_center_id, cc.name AS cost_center_name, cc.color AS cost_center_color,
+           COUNT(i.id)::int AS invoice_count, COUNT(DISTINCT i.supplier_id)::int AS supplier_count,
+           SUM(CAST(i.total_amount AS numeric)) AS total_amount
+    FROM invoices i
+    LEFT JOIN cost_centers cc ON cc.id = i.cost_center_id
+    WHERE i.user_id = ${userId} AND i.invoice_date >= ${startDate} AND i.invoice_date <= ${endDate}
+    GROUP BY i.cost_center_id, cc.name, cc.color
+    ORDER BY total_amount DESC
+  `);
+
+  const prev = await db.execute(sql`
+    SELECT cost_center_id, SUM(CAST(total_amount AS numeric)) AS total_amount
+    FROM invoices
+    WHERE user_id = ${userId} AND invoice_date >= ${prevStart} AND invoice_date <= ${prevEnd}
+    GROUP BY cost_center_id
+  `);
+
+  const prevMap = new Map(
+    (prev.rows as Array<{ cost_center_id: number | null; total_amount: string }>)
+      .map((r) => [r.cost_center_id ?? null, Number(r.total_amount)])
+  );
+
+  const rows = current.rows as Array<{
+    cost_center_id: number | null;
+    cost_center_name: string | null;
+    cost_center_color: string | null;
+    invoice_count: number;
+    supplier_count: number;
+    total_amount: string;
+  }>;
+
+  res.json(rows.map((r) => {
+    const totalAmount = Number(r.total_amount);
+    const prevAmount = prevMap.get(r.cost_center_id ?? null) ?? 0;
+    const changePercent = prevAmount > 0 ? Math.round(((totalAmount - prevAmount) / prevAmount) * 100) : null;
+    return {
+      costCenterId: r.cost_center_id ?? null,
+      costCenterName: r.cost_center_name ?? null,
+      costCenterColor: r.cost_center_color ?? null,
+      totalAmount,
+      invoiceCount: r.invoice_count,
+      supplierCount: r.supplier_count,
+      prevMonthAmount: prevAmount,
+      changePercent,
+    };
+  }));
+});
+
 export default router;

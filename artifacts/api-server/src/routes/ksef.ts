@@ -275,11 +275,11 @@ async function findOrCreateProductByName(
 
 async function tryMatch(userId: string, parsed: ParsedFa3): Promise<MatchResult> {
   const sellerNip = parsed.header.sellerNip ?? "";
-  let supplier: { id: number; name: string } | null = null;
+  let supplier: { id: number; name: string; defaultCostCenterId: number | null } | null = null;
   if (sellerNip) {
     const cleaned = sellerNip.replace(/\D/g, "");
     const [s] = await db
-      .select({ id: suppliersTable.id, name: suppliersTable.name })
+      .select({ id: suppliersTable.id, name: suppliersTable.name, defaultCostCenterId: suppliersTable.defaultCostCenterId })
       .from(suppliersTable)
       .where(
         and(
@@ -700,8 +700,9 @@ async function runSync(
               ksefNumber: ref.ksefReferenceNumber,
               paymentMethod: parsed.header.paymentMethod ?? null,
               paymentDueDate: parsed.header.paymentMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null,
-              isPaid: false,
-              paidAt: null,
+              isPaid: xmlPayMethod === "gotowka" || xmlPayMethod === "karta",
+              paidAt: (xmlPayMethod === "gotowka" || xmlPayMethod === "karta") ? new Date() : null,
+              costCenterId: match.supplier!.defaultCostCenterId ?? null,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -850,8 +851,9 @@ async function runSync(
               ksefNumber: row.ksefNumber,
               paymentMethod: rowPayMethod,
               paymentDueDate: rowPayDue,
-              isPaid: false,
-              paidAt: null,
+              isPaid: rowPayMethod === "gotowka" || rowPayMethod === "karta",
+              paidAt: rowPayMethod === "gotowka" || rowPayMethod === "karta" ? new Date() : null,
+              costCenterId: match.supplier!.defaultCostCenterId ?? null,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -997,8 +999,9 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
               ksefNumber: row.ksefNumber,
               paymentMethod: rowPayMethod,
               paymentDueDate: rowPayDue,
-              isPaid: false,
-              paidAt: null,
+              isPaid: rowPayMethod === "gotowka" || rowPayMethod === "karta",
+              paidAt: rowPayMethod === "gotowka" || rowPayMethod === "karta" ? new Date() : null,
+              costCenterId: match.supplier!.defaultCostCenterId ?? null,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -1233,8 +1236,9 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
         ksefNumber: row.ksefNumber,
         paymentMethod: acceptPayMethod,
         paymentDueDate: acceptPayDue,
-        isPaid: false,
-        paidAt: null,
+        isPaid: acceptPayMethod === "gotowka" || acceptPayMethod === "karta",
+        paidAt: acceptPayMethod === "gotowka" || acceptPayMethod === "karta" ? new Date() : null,
+        costCenterId: supplier.defaultCostCenterId ?? null,
       })
       .returning();
 

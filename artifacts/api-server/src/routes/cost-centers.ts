@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, costCentersTable, invoicesTable, suppliersTable } from "@workspace/db";
 import {
   CreateCostCenterBody,
@@ -18,11 +18,67 @@ const router: IRouter = Router();
 router.get("/cost-centers", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const rows = await db
-    .select()
+    .select({
+      id: costCentersTable.id,
+      userId: costCentersTable.userId,
+      name: costCentersTable.name,
+      color: costCentersTable.color,
+      invoiceCount: sql<number>`count(${invoicesTable.id})::int`,
+      supplierCount: sql<number>`count(distinct ${invoicesTable.supplierId})::int`,
+    })
     .from(costCentersTable)
+    .leftJoin(
+      invoicesTable,
+      and(eq(invoicesTable.costCenterId, costCentersTable.id), eq(invoicesTable.userId, userId)),
+    )
     .where(eq(costCentersTable.userId, userId))
+    .groupBy(costCentersTable.id, costCentersTable.userId, costCentersTable.name, costCentersTable.color)
     .orderBy(costCentersTable.name);
   res.json(rows);
+});
+
+// ─── Supplier cost center suggestion ─────────────────────────────────────────
+router.get("/suppliers/:id/cost-center-suggestion", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [supplier] = await db
+    .select({ id: suppliersTable.id })
+    .from(suppliersTable)
+    .where(and(eq(suppliersTable.id, id), eq(suppliersTable.userId, userId)));
+  if (!supplier) { res.status(404).json({ error: "Not found" }); return; }
+
+  const topResult = await db.execute(sql`
+    SELECT cost_center_id, COUNT(*)::int AS invoice_count
+    FROM invoices
+    WHERE user_id = ${userId} AND supplier_id = ${id} AND cost_center_id IS NOT NULL
+    GROUP BY cost_center_id ORDER BY invoice_count DESC LIMIT 1
+  `);
+  const totalResult = await db.execute(sql`
+    SELECT COUNT(*)::int AS total FROM invoices WHERE user_id = ${userId} AND supplier_id = ${id}
+  `);
+
+  const total = Number((totalResult.rows[0] as { total: number })?.total ?? 0);
+  const topRow = topResult.rows[0] as { cost_center_id: number; invoice_count: number } | undefined;
+
+  if (!topRow || !topRow.cost_center_id) {
+    res.json({ suggestedCostCenterId: null, suggestedCostCenterName: null, confidence: 0, invoiceCount: total });
+    return;
+  }
+
+  const confidence = total > 0 ? Math.round((Number(topRow.invoice_count) / total) * 100) / 100 : 0;
+  const [cc] = await db
+    .select({ name: costCentersTable.name })
+    .from(costCentersTable)
+    .where(eq(costCentersTable.id, topRow.cost_center_id));
+
+  res.json({
+    suggestedCostCenterId: topRow.cost_center_id,
+    suggestedCostCenterName: cc?.name ?? null,
+    confidence,
+    invoiceCount: total,
+  });
 });
 
 // ─── Create ───────────────────────────────────────────────────────────────────

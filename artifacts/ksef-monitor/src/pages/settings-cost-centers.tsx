@@ -59,7 +59,9 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
   );
 }
 
-type CostCenter = { id: number; name: string; color: string; userId: string };
+const PRESET_NAMES = ["Restauracja Centrum", "Bar", "Catering", "Kuchnia", "Ogródek", "Dostawa"];
+
+type CostCenter = { id: number; name: string; color: string; userId: string; invoiceCount: number; supplierCount: number };
 
 export default function SettingsCostCenters() {
   const queryClient = useQueryClient();
@@ -177,6 +179,10 @@ export default function SettingsCostCenters() {
                   style={{ background: c.color }}
                 />
                 <span className="flex-1 font-medium text-foreground">{c.name}</span>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground mr-2">
+                  {c.invoiceCount > 0 && <span>{c.invoiceCount} {c.invoiceCount === 1 ? "faktura" : c.invoiceCount < 5 ? "faktury" : "faktur"}</span>}
+                  {c.supplierCount > 0 && <span>{c.supplierCount} {c.supplierCount === 1 ? "dostawca" : c.supplierCount < 5 ? "dostawców" : "dostawców"}</span>}
+                </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button
                     size="sm"
@@ -216,6 +222,18 @@ export default function SettingsCostCenters() {
                   onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                   autoFocus
                 />
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {PRESET_NAMES.filter((n) => !centers.some((c) => c.name === n)).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setAddName(n)}
+                      className="px-2.5 py-1 text-xs rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
               </div>
               <ColorPicker value={addColor} onChange={setAddColor} />
             </div>

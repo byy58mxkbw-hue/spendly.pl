@@ -171,6 +171,8 @@ export const ListCostCentersResponseItem = zod.object({
   userId: zod.string(),
   name: zod.string(),
   color: zod.string(),
+  invoiceCount: zod.number(),
+  supplierCount: zod.number(),
 });
 export const ListCostCentersResponse = zod.array(ListCostCentersResponseItem);
 
@@ -199,6 +201,8 @@ export const UpdateCostCenterResponse = zod.object({
   userId: zod.string(),
   name: zod.string(),
   color: zod.string(),
+  invoiceCount: zod.number(),
+  supplierCount: zod.number(),
 });
 
 /**
@@ -240,6 +244,20 @@ export const SetInvoiceCostCenterResponse = zod.object({
   costCenterId: zod.number().nullish(),
   costCenterName: zod.string().nullish(),
   costCenterColor: zod.string().nullish(),
+});
+
+/**
+ * @summary Get the most common cost center for a supplier based on invoice history (90% heuristic)
+ */
+export const GetSupplierCostCenterSuggestionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetSupplierCostCenterSuggestionResponse = zod.object({
+  suggestedCostCenterId: zod.number().nullable(),
+  suggestedCostCenterName: zod.string().nullish(),
+  confidence: zod.number(),
+  invoiceCount: zod.number(),
 });
 
 /**
@@ -1275,6 +1293,27 @@ export const GetCategorySpendTrendResponseItem = zod.object({
 });
 export const GetCategorySpendTrendResponse = zod.array(
   GetCategorySpendTrendResponseItem,
+);
+
+/**
+ * @summary Get spending summary grouped by cost center for a given month
+ */
+export const GetReportsCostCentersQueryParams = zod.object({
+  month: zod.coerce.string().optional().describe("Month in YYYY-MM format"),
+});
+
+export const GetReportsCostCentersResponseItem = zod.object({
+  costCenterId: zod.number().nullish(),
+  costCenterName: zod.string().nullish(),
+  costCenterColor: zod.string().nullish(),
+  totalAmount: zod.number(),
+  invoiceCount: zod.number(),
+  supplierCount: zod.number(),
+  prevMonthAmount: zod.number(),
+  changePercent: zod.number().nullish(),
+});
+export const GetReportsCostCentersResponse = zod.array(
+  GetReportsCostCentersResponseItem,
 );
 
 /**

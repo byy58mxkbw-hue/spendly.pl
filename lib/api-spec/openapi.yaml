@@ -337,6 +337,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/Invoice"
 
+  /suppliers/{id}/cost-center-suggestion:
+    get:
+      operationId: getSupplierCostCenterSuggestion
+      tags: [suppliers]
+      summary: Get the most common cost center for a supplier based on invoice history (90% heuristic)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Suggested cost center
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierCostCenterSuggestion"
+        "404":
+          description: Not found
+
   /suppliers/{id}/default-cost-center:
     patch:
       operationId: setSupplierDefaultCostCenter
@@ -1366,6 +1387,28 @@ paths:
                 items:
                   $ref: "#/components/schemas/CategorySpendTrendRow"
 
+  /reports/cost-centers:
+    get:
+      operationId: getReportsCostCenters
+      tags: [reports]
+      summary: Get spending summary grouped by cost center for a given month
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Month in YYYY-MM format"
+      responses:
+        "200":
+          description: Cost center spending report
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CostCenterReport"
+
   /reports/predictive:
     get:
       operationId: getPredictiveReport
@@ -1624,11 +1667,17 @@ components:
           type: string
         color:
           type: string
+        invoiceCount:
+          type: integer
+        supplierCount:
+          type: integer
       required:
         - id
         - userId
         - name
         - color
+        - invoiceCount
+        - supplierCount
 
     CreateCostCenterBody:
       type: object
@@ -3209,6 +3258,53 @@ components:
             type: integer
       required:
         - ids
+
+    CostCenterReport:
+      type: object
+      properties:
+        costCenterId:
+          type: integer
+          nullable: true
+        costCenterName:
+          type: string
+          nullable: true
+        costCenterColor:
+          type: string
+          nullable: true
+        totalAmount:
+          type: number
+        invoiceCount:
+          type: integer
+        supplierCount:
+          type: integer
+        prevMonthAmount:
+          type: number
+        changePercent:
+          type: number
+          nullable: true
+      required:
+        - totalAmount
+        - invoiceCount
+        - supplierCount
+        - prevMonthAmount
+
+    SupplierCostCenterSuggestion:
+      type: object
+      properties:
+        suggestedCostCenterId:
+          type: integer
+          nullable: true
+        suggestedCostCenterName:
+          type: string
+          nullable: true
+        confidence:
+          type: number
+        invoiceCount:
+          type: integer
+      required:
+        - suggestedCostCenterId
+        - confidence
+        - invoiceCount
 
     AdminTopProduct:
       type: object

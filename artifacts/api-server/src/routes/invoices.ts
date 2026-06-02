@@ -726,6 +726,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
       paymentDueDate: paymentMethod === "przelew" ? (paymentDueDate ?? null) : null,
       isPaid: isImmediatePayment,
       paidAt: isImmediatePayment ? new Date() : null,
+      costCenterId: supplier.defaultCostCenterId ?? null,
     })
     .returning();
 

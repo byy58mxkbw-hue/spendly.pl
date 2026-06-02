@@ -30,6 +30,7 @@ import type {
   CategorySpendTrendRow,
   CorrectProductCategoryBody,
   CostCenter,
+  CostCenterReport,
   CreateCategoryBody,
   CreateCostCenterBody,
   CreatePriceAlertBody,
@@ -55,6 +56,7 @@ import type {
   GetPredictiveReportParams,
   GetProductPriceHistoryParams,
   GetRecentPurchasesParams,
+  GetReportsCostCentersParams,
   GetTopPriceChangesParams,
   HealthStatus,
   ImportInvoiceBody,
@@ -95,6 +97,7 @@ import type {
   SetSupplierDefaultCostCenterBody,
   Supplier,
   SupplierComparison,
+  SupplierCostCenterSuggestion,
   SyncKsefInvoicesBody,
   ToggleInvoiceExcluded200,
   ToggleInvoiceExcludedBody,
@@ -1365,6 +1368,101 @@ export const useSetInvoiceCostCenter = <
 > => {
   return useMutation(getSetInvoiceCostCenterMutationOptions(options));
 };
+
+/**
+ * @summary Get the most common cost center for a supplier based on invoice history (90% heuristic)
+ */
+export const getGetSupplierCostCenterSuggestionUrl = (id: number) => {
+  return `/api/suppliers/${id}/cost-center-suggestion`;
+};
+
+export const getSupplierCostCenterSuggestion = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SupplierCostCenterSuggestion> => {
+  return customFetch<SupplierCostCenterSuggestion>(
+    getGetSupplierCostCenterSuggestionUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetSupplierCostCenterSuggestionQueryKey = (id: number) => {
+  return [`/api/suppliers/${id}/cost-center-suggestion`] as const;
+};
+
+export const getGetSupplierCostCenterSuggestionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSupplierCostCenterSuggestion>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSupplierCostCenterSuggestion>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetSupplierCostCenterSuggestionQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSupplierCostCenterSuggestion>>
+  > = ({ signal }) =>
+    getSupplierCostCenterSuggestion(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSupplierCostCenterSuggestion>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSupplierCostCenterSuggestionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSupplierCostCenterSuggestion>>
+>;
+export type GetSupplierCostCenterSuggestionQueryError = ErrorType<void>;
+
+/**
+ * @summary Get the most common cost center for a supplier based on invoice history (90% heuristic)
+ */
+
+export function useGetSupplierCostCenterSuggestion<
+  TData = Awaited<ReturnType<typeof getSupplierCostCenterSuggestion>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSupplierCostCenterSuggestion>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSupplierCostCenterSuggestionQueryOptions(
+    id,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Set the default cost center for a supplier
@@ -5152,6 +5250,106 @@ export function useGetCategorySpendTrend<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetCategorySpendTrendQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get spending summary grouped by cost center for a given month
+ */
+export const getGetReportsCostCentersUrl = (
+  params?: GetReportsCostCentersParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/cost-centers?${stringifiedParams}`
+    : `/api/reports/cost-centers`;
+};
+
+export const getReportsCostCenters = async (
+  params?: GetReportsCostCentersParams,
+  options?: RequestInit,
+): Promise<CostCenterReport[]> => {
+  return customFetch<CostCenterReport[]>(getGetReportsCostCentersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetReportsCostCentersQueryKey = (
+  params?: GetReportsCostCentersParams,
+) => {
+  return [`/api/reports/cost-centers`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetReportsCostCentersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReportsCostCenters>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetReportsCostCentersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getReportsCostCenters>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetReportsCostCentersQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getReportsCostCenters>>
+  > = ({ signal }) =>
+    getReportsCostCenters(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getReportsCostCenters>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetReportsCostCentersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReportsCostCenters>>
+>;
+export type GetReportsCostCentersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get spending summary grouped by cost center for a given month
+ */
+
+export function useGetReportsCostCenters<
+  TData = Awaited<ReturnType<typeof getReportsCostCenters>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetReportsCostCentersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getReportsCostCenters>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetReportsCostCentersQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

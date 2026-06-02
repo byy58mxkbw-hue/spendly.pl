@@ -14,6 +14,8 @@ export interface CostCenter {
   userId: string;
   name: string;
   color: string;
+  invoiceCount: number;
+  supplierCount: number;
 }
 
 export interface CreateCostCenterBody {
@@ -799,6 +801,24 @@ export interface BulkVerifyProductsBody {
   ids: number[];
 }
 
+export interface CostCenterReport {
+  costCenterId?: number | null;
+  costCenterName?: string | null;
+  costCenterColor?: string | null;
+  totalAmount: number;
+  invoiceCount: number;
+  supplierCount: number;
+  prevMonthAmount: number;
+  changePercent?: number | null;
+}
+
+export interface SupplierCostCenterSuggestion {
+  suggestedCostCenterId: number | null;
+  suggestedCostCenterName?: string | null;
+  confidence: number;
+  invoiceCount: number;
+}
+
 export interface AdminTopProduct {
   productName: string;
   totalSpend: string;
@@ -1031,6 +1051,13 @@ export type GetCategorySpendTrendParams = {
    * @maximum 12
    */
   months?: number;
+};
+
+export type GetReportsCostCentersParams = {
+  /**
+   * Month in YYYY-MM format
+   */
+  month?: string;
 };
 
 export type GetPredictiveReportParams = {

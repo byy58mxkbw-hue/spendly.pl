@@ -890,10 +890,15 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
   const { selectedId: costCenterSelectedId } = useCostCenter();
   const { data: costCenters = [] } = useListCostCenters();
   const setCostCenter = useSetInvoiceCostCenter();
+  const [showUnassigned, setShowUnassigned] = useState(false);
 
   const invoiceParams = {
     limit: 1000,
-    ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}),
+    ...(showUnassigned
+      ? { costCenterId: 0 }
+      : costCenterSelectedId !== null
+        ? { costCenterId: costCenterSelectedId }
+        : {}),
   };
   const { data: invoices, isLoading } = useListInvoices(invoiceParams);
   const { data: suppliers } = useListSuppliers();
@@ -1040,6 +1045,17 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
               ))}
             </SelectContent>
           </Select>
+        )}
+        {costCenters.length > 0 && (
+          <Button
+            variant={showUnassigned ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowUnassigned((v) => !v)}
+            className="gap-1.5 shrink-0"
+          >
+            <Layers className="w-4 h-4" />
+            <span className="hidden sm:inline">Nieprzypisane</span>
+          </Button>
         )}
         {costCenters.length > 0 && (
           <Button variant="outline" size="sm" onClick={() => { setBulkAssignCcId(""); setShowBulkAssign(true); }} className="gap-1.5 shrink-0">

@@ -206,9 +206,6 @@ function SidebarContent({
         </span>
       </div>
 
-      {/* Cost Center Selector */}
-      <CostCenterSelector />
-
       {/* Nav */}
       <nav className="flex-1 px-3 overflow-y-auto">
         {coreNavItems.map((item) => (
@@ -264,6 +261,9 @@ function SidebarContent({
           onNavigate={onNavigate}
         />
       </div>
+
+      {/* Cost Center Selector */}
+      <CostCenterSelector />
 
       {/* User */}
       <div
