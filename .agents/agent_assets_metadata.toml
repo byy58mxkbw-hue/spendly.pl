@@ -23,3 +23,9 @@ id = "TgB-S-n0hxgDcpIWkjkST"
 uri = "file://reports.txt"
 type = "text"
 title = "reports.tsx"
+
+[[outputs]]
+id = "QbIOS88dSmJbQfALMQ3rG"
+uri = "file://kod-do-oceny.md"
+type = "text"
+title = "categories.ts + reports.tsx"

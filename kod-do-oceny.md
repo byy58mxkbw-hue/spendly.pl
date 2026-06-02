@@ -1,0 +1,1559 @@
+# categories.ts
+
+```typescript
+export type Category = {
+  id: string;
+  label: string;
+  emoji: string;
+  keywords: string[];
+};
+
+/**
+ * WAŻNE: kolejność w tablicy ma znaczenie!
+ * categorizeProduct() zwraca pierwszą pasującą kategorię.
+ * Bardziej specyficzne kategorie (z unikalnymi słowami kluczowymi)
+ * muszą być PRZED bardziej ogólnymi (np. mrożonki przed pieczywo,
+ * bo "frytki" powinny trafić do mrożonek, nie pieczywa).
+ */
+export const CATEGORIES: Category[] = [
+  // ── 1. Alkohole ─────────────────────────────────────────────────────────────
+  {
+    id: "alkohole",
+    label: "Alkohole",
+    emoji: "🍷",
+    keywords: [
+      // Piwa
+      "piwo", "piwa", "piwem", "piw ", "lager", "ale ", "ipa ", "porter",
+      "stout", "weizen", "bock", "wheat beer", "craft beer",
+      "litovel", "tyskie", "żywiec", "lech ", "heineken", "carlsberg",
+      "desperados", "corona ", "budweiser", "hoegaarden", "leffe", "pilsner",
+      // Wina
+      "wino ", "vino ", "rouge", "rosé",
+      "primitivo", "sauvignon", "chardonnay", "merlot", "cabernet",
+      "pinot", "shiraz", "riesling", "sangiovese", "tempranillo",
+      "prosecco", "cava ", "szampan", "szampana", "igrist",
+      "igt ", "doc ", "aoc ", "dop ",
+      "czerwone wino", "białe wino", "różowe wino",
+      // Wódki i mocne
+      "wódka", "wódki", "vodka", "wyborowa", "absolut", "belvedere",
+      "żubrówka", "sobieski", "finlandia", "stanislav", "bols ",
+      "whisky", "whiskey", "bourbon", "scotch", "rum ", "rumu ",
+      "tequila", "mezcal", "gin ", "gins", "cognac", "koniak",
+      "brandy", "calvados", "armagnac", "grappa", "schnaps",
+      "spirytus", "bimber", "nalewka", "nalewki",
+      // Likiery i aperitify
+      "likier", "likieru", "liqueur", "triple sec", "creme de",
+      "aperol", "campari", "amaretto", "baileys", "kahlua",
+      "grand marnier", "drambuie", "tatratea", "jagermeister",
+      "becherovka", "fernet", "chartreuse", "cointreau",
+      "sambuca", "limoncello", "wermut", "vermouth", "bitter",
+      "cydr", "cyder", "cider",
+      "alkohol", "alcopop",
+    ],
+  },
+
+  // ── 2. Środki czystości i higiena ───────────────────────────────────────────
+  {
+    id: "srodki_czystosci",
+    label: "Środki czystości",
+    emoji: "🧹",
+    keywords: [
+      // Płyny i środki czyszczące
+      "płyn do naczyń", "płyn do mycia naczyń", "tabletki do zmywarki",
+      "płyn do zmywarki", "sól do zmywarki", "nabłyszczacz do zmywarki",
+      "środek czyszczący", "środek do czyszczenia", "zmywak", "zmywaki",
+      "gąbka do mycia", "gąbki kuchenne",
+      "wybielacz", "odkamieniacz", "odtłuszczacz",
+      // Higiena i dezynfekcja
+      "dezynfekcja", "dezynfekujący", "dezynfekant", "dezynfekant",
+      "płyn dezynfekujący", "żel antybakteryjny", "środek dezynfekujący",
+      "mydło w płynie", "mydło antybakteryjne",
+      // Środki piorące
+      "proszek do prania", "płyn do prania", "kapsułki do prania",
+      // Artykuły sanitarne
+      "papier toaletowy", "papier toalet",
+      "ręczniki papierowe", "ręcznik kuchenny", "ręcznik jednorazowy",
+      "chusteczki higieniczne", "chusteczki nawilżane",
+      "odświeżacz powietrza", "odświeżacz wc", "kostka wc",
+      // Środki do powierzchni
+      "ścierka", "ścierki", "mop ", "mopa", "mopy",
+      "rękawice lateksow", "rękawice gumow", "rękawice jednorazow",
+      "worki na śmieci", "worki na odpad",
+      // Płyn do wc
+      "płyn do wc", "wc net", "domestos",
+    ],
+  },
+
+  // ── 3. Opakowania i jednorazówki ────────────────────────────────────────────
+  {
+    id: "opakowania",
+    label: "Opakowania",
+    emoji: "🛍️",
+    keywords: [
+      // Folie i worki
+      "folia aluminiowa", "folia stretch", "folia spożywcza", "folia do żywności",
+      "folia pe", "folia pvc", "folia termokurczliwa",
+      "torebka foliowa", "torba papierowa", "torebka papierowa",
+      "woreczek strunowy", "woreczek do mrożenia",
+      // Jednorazowe naczynia
+      "kubek jednorazowy", "kubki jednorazowe", "kubek papierowy",
+      "talerz jednorazowy", "talerze jednorazowe",
+      "miska jednorazowa", "miseczka jednorazowa",
+      "sztućce jednorazowe", "łyżeczka jednorazowa", "widelec jednorazowy",
+      // Pojemniki i pudełka
+      "pudełko na wynos", "pojemnik na wynos", "pojemnik do żywności",
+      "pojemnik obiadowy", "lunch box", "pojemnik gastro",
+      "karton do pizzy", "karton pizzy", "pudełko do pizzy",
+      "tackа styropianowa", "taca jednorazowa",
+      // Serwetki i papier
+      "serwetki papierowe", "serwetki", "serwetka",
+      "papier do pieczenia", "papier pergaminowy", "papier śniadaniowy",
+      "papier do pakowania",
+      // Akcesoria do serwowania
+      "słomki", "słomka", "szaszłyki", "szaszłyk", "wykałaczki",
+      "rękaw cukierniczy", "worek cukierniczy",
+      "podstawki pod napoje", "podstawka pod szklankę",
+      // Inne opakowania
+      "etykiety", "naklejki", "tasma klejąca", "taśma do pakowania",
+    ],
+  },
+
+  // ── 4. Mrożonki ─────────────────────────────────────────────────────────────
+  {
+    id: "mrozonki",
+    label: "Mrożonki",
+    emoji: "❄️",
+    keywords: [
+      // Ogólne słowa kluczowe mrożonek
+      "mrożon", "mrozon", "frozen", "deep frozen", "iqf",
+      // Lody i desery mrożone
+      "lody ", "lodu ", "lodów", "lód ", "ice cream", "sorbet", "gelato",
+      "lody kulki", "lody gałki", "wafelek lodowy", "rożek lodowy",
+      // Frytki i ziemniaki mrożone — WAŻNE: tu, a nie w pieczywie
+      "frytki", "frytek", "frytka",
+      "talarki ziemniacz", "kotlety ziemniaczane mroż",
+      "potato fries", "potato wedge", "tater tots",
+      "dollar chips", "hash brown",
+      // Pizze mrożone
+      "pizza mrożona", "pizza zamrożona",
+      // Warzywa i owoce mrożone
+      "warzywa mrożone", "mieszanka mrożona",
+      "szpinak mrożony", "szparagi mrożone", "brokuły mrożone",
+      "groszek mrożony", "kukurydza mrożona", "edamame",
+      "owoce mrożone", "jagody mrożone", "maliny mrożone",
+      "wiśnie mrożone", "truskawki mrożone",
+      // Ryby i mięso mrożone
+      "filet mrożony", "ryba mrożona", "mintaj mroż", "dorsz mroż",
+      "krewetki mrożone", "paluszki rybne",
+      "mięso mrożone", "burgery mrożone",
+      // Wyroby mączne mrożone
+      "pierogi mrożone", "krokiety mrożone", "kopytka mrożone",
+      "bliny mrożone", "naleśniki mrożone",
+      // Inne mrożone
+      "nuggets", "nuggety", "chicken strips mroż",
+      "kotlet mrożony", "filet mroż",
+    ],
+  },
+
+  // ── 5. Konserwy i przetwory ─────────────────────────────────────────────────
+  {
+    id: "konserwy",
+    label: "Konserwy / Przetwory",
+    emoji: "🥫",
+    keywords: [
+      // Wskaźniki konserw i przetworów
+      "w puszce", "puszka ", "puszki ", "puszek",
+      "konserwow", "konserwa ", "konserwy ",
+      "marynow", "marynata",
+      "kiszon", "kwaszon",
+      // Pomidory przetworzone
+      "passata", "pelati", "pomidory krojone", "pomidory całe",
+      "koncentrat pomidorowy", "pulpa pomidorowa",
+      "pomidory w puszcze", "passata pomidorowa",
+      // Oliwki i kapary
+      "oliwki", "oliwka ",
+      // Korniszony i kiszonki
+      "korniszony", "korniszon",
+      "ogórek kiszony", "ogórki kiszone", "ogórki konserwowe",
+      "kapusta kiszona", "kapusta kwaszona", "kimchi",
+      "burak ćwikłowy", "ćwikła",
+      // Ryby i mięso konserwowe
+      "anchois", "sardynki w oleju", "tuńczyk w oleju",
+      "szproty", "szprot", "makrela wędzona",
+      // Dżemy i przetwory owocowe
+      "dżem", "marmolad", "powidła", "konfitura", "mus jabłkowy",
+      // Inne przetwory
+      "pasta truflowa", "tapenad",
+      "grillowane papryki", "papryki konserwowe",
+      "karczochy w oleju", "suszone pomidory",
+    ],
+  },
+
+  // ── 6. Ryby i owoce morza ───────────────────────────────────────────────────
+  {
+    id: "ryby",
+    label: "Ryby / Owoce morza",
+    emoji: "🐟",
+    keywords: [
+      "łosoś", "łososia", "łososiem", "dorsz", "dorsza",
+      "tuńczyk", "tuńczyka", "tuńczykowi",
+      "krewetk", "kalmar", "kalmary",
+      "pstrąg", "pstrąga", "halibut", "mintaj",
+      "ryba", "ryby", "rybna", "rybn",
+      "śledź", "śledzia", "śledzie",
+      "makrela", "makreli",
+      "krab", "kraba", "homara", "homar", "ośmiornic",
+      "małż", "małże", "ostryg",
+      "sardynk", "tilapia", "pangasius", "morszczuk",
+      "flądra", "sandacz", "sum ", "karp", "lin ", "węgorz",
+      "okoń", "szczupak", "amur", "tołpyga",
+      "owoce morza",
+    ],
+  },
+
+  // ── 7. Mięsa i wędliny ──────────────────────────────────────────────────────
+  {
+    id: "miesa",
+    label: "Mięsa / Wędliny",
+    emoji: "🥩",
+    keywords: [
+      // Drób
+      "kurczak", "kurczaka", "kurczakiem",
+      "indyk", "indycz", "kaczk", "kacze",
+      "gęś", "gęsi", "przepiórk", "gołąb",
+      "porcje rosołowe", "rosołow", "podudzie", "udko",
+      "pierś z kurczaka", "piersi", "pierś",
+      "udziec", "udzca",
+      // Wieprzowina
+      "wieprzow", "wieprzow", "karkówk", "karczek",
+      "schab", "żebra", "żeberek", "żeberka", "żeberko",
+      "łopatk", "boczek", "golonk", "golonka",
+      "podgardle", "słonina",
+      // Wołowina i cielęcina
+      "wołow", "wołowina", "wołowe", "cielę", "cielęc",
+      "rostbef", "befsztyk", "antrykot", "ligawa",
+      // Jagnięcina i dziczyzna
+      "jagnięcin", "baranin", "dziczyzn", "sarni", "jeleni",
+      "dzik", "dzika",
+      // Wędliny i wyroby mięsne
+      "mielon", "wędlin", "kabanos", "parówk",
+      "salami", "salceson", "baleron", "pasztet",
+      "kiełbas", "szynka", "szynki", "ham ",
+      "jamon", "chorizo", "mortadela", "cervelat",
+      // Ogólne
+      "filet", "polędwiczk", "polędwica",
+      "kotlet", "schnitzel", "gulasz",
+      "drobiu", "drobiow",
+      "mięs", "mięso", "mięsa",
+    ],
+  },
+
+  // ── 8. Nabiał i jaja ────────────────────────────────────────────────────────
+  {
+    id: "nabiał",
+    label: "Nabiał / Jaja",
+    emoji: "🥛",
+    keywords: [
+      // Mleko i śmietana
+      "mleko", "mleka", "mleku",
+      "śmietan", "śmietank", "kremówka", "double cream",
+      "maślank", "kefir", "zsiadłe mleko",
+      // Masło
+      "masło", "masła", "masłem",
+      // Sery
+      "ser ", "sery", "serow", "serem",
+      "jogurt", "jogurtu",
+      "twaróg", "twarogu",
+      "ricotta", "mozzarella", "burrata", "feta",
+      "camembert", "brie", "gouda", "edam",
+      "parmezan", "grana padano", "pecorino",
+      "halloumi", "cottage", "fromage", "mascarpone",
+      "skyr", "quark",
+      "nabiał",
+      // Jaja
+      "jajk", "jaja ", "jaj ", "jajec",
+      "jajko", "jajka",
+    ],
+  },
+
+  // ── 9. Warzywa, owoce i grzyby ──────────────────────────────────────────────
+  {
+    id: "warzywa",
+    label: "Warzywa / Owoce / Grzyby",
+    emoji: "🥦",
+    keywords: [
+      // Warzywa korzeniowe
+      "marchew", "marchewk", "pietruszk", "seler", "pasternak",
+      "burak", "buraczk", "topinambur",
+      "rzodkiew", "rzodkiewk",
+      // Warzywa psiankowate
+      "pomidor", "papryka", "papryki", "bakłażan",
+      // Warzywa kapustne
+      "kapust", "brokuł", "brokułów", "kalafior",
+      "jarmuż", "brukselka",
+      // Liściaste i sałaty
+      "sałat", "rukola", "roszponka", "endywia", "radicchio",
+      "szpinak", "cykoria",
+      // Cebulowe
+      "cebul", "por ", "por(", "poru", "czosnek", "szalotka",
+      "szczypior",
+      // Strączkowe (świeże)
+      "groszek", "groszku", "fasolka", "fasola", "cieciorka", "soczewica",
+      "bób",
+      // Inne warzywa
+      "ziemniak", "szparagi", "szparag",
+      "cukini", "kabaczek", "dyni", "dynia", "patison",
+      "batat", "kukurydz", "koper ",
+      "awokado", "avocado",
+      "daterino",
+      // Zioła świeże
+      "bazylia", "mięta ", "kolendra", "lubczyk",
+      "tymianek", "rozmaryn", "szałwia ", "estragon",
+      "kiełki", "kiełk",
+      "włoszczyzna",
+      // Grzyby
+      "grzyb", "pieczark", "borowik", "boczniak",
+      "kurka ", "kurki ", "kurkami",
+      "podgrzybek", "shiitake", "portobello", "chanterelle",
+      "maślak", "opieniek", "trufla świeża", "truflowy",
+      // Owoce (świeże)
+      "banan", "jabłk", "gruszk",
+      "pomarańcz", "mandarynk", "cytryn", "limonk",
+      "winogron", "malina", "malin", "truskawk",
+      "borówk", "mango", "ananas", "papaja",
+      "kiwi", "arbuz", "granat", "grejpfrut", "melon",
+      "śliwk", "wiśni", "czereśni", "morela", "brzoskwini", "nektaryn",
+      "agrest", "porzeczk", "rabarbar",
+      "physalis", "pitahaya", "karambola", "kumkwat",
+      "smoczy owoc", "miechunka", "żurawina", "marakuj",
+      "imbir ", "imbiru",
+      // Mieszanki warzywne
+      "mieszanka warzyw", "bukiet warzyw",
+      "mieszanka chińsk", "mieszanka meksyk",
+      "mieszanka euro", "sombrero",
+      "guacamole",
+      // Ogólne
+      "warzywa", "owoce", "owoc", "warzywo",
+      "ogórek", "ogórk",
+    ],
+  },
+
+  // ── 10. Napoje ──────────────────────────────────────────────────────────────
+  {
+    id: "napoje",
+    label: "Napoje",
+    emoji: "🥤",
+    keywords: [
+      // Wody i soki
+      "woda ", "wody ", "sok ", "soku ", "sokow", "napój", "napoje",
+      "nektar ", "nektaru",
+      // Kawa i herbata
+      "kawa", "kawow", "kawi", "espresso", "cappuccino", "latte",
+      "herbata", "herbat", "herbatk",
+      "matcha", "yerba mate", "rooibos",
+      // Lemoniady i syropy
+      "lemoniada", "shake", "syrop napojowy", "syrop do kawy",
+      "energetyk", "isotonic",
+      // Napoje gazowane
+      "mineraln", "gazowany", "niegazowany",
+      "coca-cola", "coca cola", "fanta", "sprite", "sprit", "cappy",
+      "kinley", "tymbark", "schweppes", "pepsi", "7up", "mirinda",
+      // Inne napoje markowe
+      "lipton", "nestea", "red bull", "monster ",
+      "powerade", "gatorade", "tiger ", "burn ",
+      // Napoje mleczne
+      "milk shake", "mleko smakowe",
+      // Opisy opakowań napojowych
+      "rgb x24", "0,25 rgb", "butelka szk", "but szk", "drs ",
+    ],
+  },
+
+  // ── 11. Słodycze i cukiernia ────────────────────────────────────────────────
+  {
+    id: "slodycze",
+    label: "Słodycze / Cukiernia",
+    emoji: "🍰",
+    keywords: [
+      // Czekolada i kakao
+      "czekolada", "czekoladow", "kakao", "kakao w proszku",
+      "callebaut", "valrhona", "couverture", "ganache",
+      "pralinki", "pralina", "truffle", "trufle cukiernicze",
+      // Cukier i słodziki
+      "cukier", "cukru", "cukrem",
+      "cukier puder", "cukier waniliowy", "cukier brązowy",
+      "kandyzowany", "karmel", "karmelu",
+      "syrop cukrowy", "syrop klonowy", "syrop agawe",
+      // Wyroby cukiernicze
+      "tort", "tortu", "torcik",
+      "ciasto", "ciastko", "ciastek", "ciastka",
+      "muffin", "brownie", "cheesecake", "tarta ",
+      "makaronik", "macaron",
+      "beza", "bezowy", "pavlova",
+      "sernik", "sernika",
+      "tiramisu", "panna cotta", "crème brûlée", "creme brulee",
+      // Ciasteczka i herbatniki
+      "biszkopt", "suchar ",
+      "wafel", "wafle", "wafli", "wafelek",
+      "herbatnik", "ciasteczko",
+      "chałwa", "nugat", "marcepan",
+      // Dekoracje cukiernicze
+      "posypka", "dekory cukrowe", "perełki cukrowe",
+      "lukier", "fondant",
+      "barwnik spożywczy",
+      "skrobia", "mąka ryżowa",
+      // Kremy i masy cukiernicze
+      "krem cukierniczy", "krem patissier", "krem budyniowy",
+      "masa kajmakow", "dulce de leche",
+    ],
+  },
+
+  // ── 12. Pieczywo, makarony i zboża ──────────────────────────────────────────
+  {
+    id: "pieczywo",
+    label: "Pieczywo / Makarony / Zboża",
+    emoji: "🍞",
+    keywords: [
+      // Pieczywo
+      "chleb", "chleba", "chlebem",
+      "bułk", "bagietka", "baguette", "ciabatta",
+      "focaccia", "brioche", "pumpernikiel",
+      "grissini", "suchar",
+      // Mąki i produkty zbożowe
+      "mąka", "mąki", "mąką",
+      "orkisz", "żyto", "semolina", "semolinę",
+      "gryka", "kasza", "kaszy",
+      "amarant", "quinoa",
+      // Makarony
+      "makaron", "makaronu", "spaghetti", "penne", "fusilli",
+      "tagliatelle", "lasagna", "gnocchi",
+      // Ryż
+      "ryż ", "ryżu", "ryżem", "risotto",
+      // Płatki i płatki śniadaniowe
+      "płatki owsian", "płatki kukurydz", "musli", "granola",
+      // Drożdże i proszki
+      "drożdż", "proszek do pieczenia",
+      // Wraps i tortille
+      "tortilla", "wrap",
+      // Kuskus i inne
+      "kuskus", "bulgur", "amarant",
+      // Naleśniki i pankcake
+      "naleśnik", "pancake", "crepe",
+      // Ciasta słone i niesłodzone
+      "ciasto kataifi", "spód do quiche", "korpusy kruche",
+      "vol-au-vent", "ciasto filo", "ciasto francuskie",
+      "panierka bułczana", "panierka",
+      // Inne zbożowe
+      "soczewica", "nachos", "tortilla chip",
+      "croissant",
+    ],
+  },
+
+  // ── 13. Przyprawy, sosy, oleje ──────────────────────────────────────────────
+  {
+    id: "przyprawy",
+    label: "Przyprawy / Sosy / Oleje",
+    emoji: "🧂",
+    keywords: [
+      // Podstawowe przyprawy
+      "sól ", "soli ", "sól morska",
+      "pieprz", "pieprzu",
+      "przyprawa", "przyprawy",
+      // Zioła suszone
+      "bazylia sucha", "oregano", "tymianek suchy", "rozmaryn susz",
+      "majeranek", "curry", "kurkuma",
+      "chilli", "chili", "kminek", "cynamon", "gałka muszk",
+      "anyż", "wanilia", "waniliow",
+      "ziele angielskie", "piment",
+      "liść laurow", "liście laurow",
+      "zioła prowansalskie", "zioła doniczk",
+      "kolendra sucha", "koper suchy",
+      "kardamon", "szafran", "sumak", "za'atar",
+      "czarnuszka", "fenugreek",
+      // Sosy i kondymenty
+      "sos ", "sosu ", "sosów",
+      "musztarda", "majonez", "ketchup", "keczup",
+      "ocet", "ocet balsamicz", "ocet winny",
+      "chrzan", "wasabi", "kapary",
+      "tabasco", "sriracha", "worcester",
+      "tahini", "hummus",
+      "tapenad",
+      // Oleje i tłuszcze
+      "oliwa", "olej", "oleju", "olejów",
+      "olej rzepak", "olej słonecznik", "olej kokosow",
+      "tłuszcz", "smalec", "ghee", "klarowane masło",
+      "lard",
+      // Słodziki i inne
+      "miód", "miodu",
+      "syrop", "syropu",
+      "chia", "siemię lniane",
+      "żelatyna", "pektyna", "agar",
+      // Mieszanki i gotowe sosy
+      "esencja", "peperonata", "primerba",
+      "kucharek", "vegeta",
+      "barszcz", "żur ", "barszcz w prosz",
+      "puree marakuj", "puree owocowe",
+      "pasta miso", "pasta curry", "pasta paprykow",
+      "guacamole mieszanka",
+    ],
+  },
+];
+
+export function categorizeProduct(name: string): string {
+  const n = name.toLowerCase().replace(/^#/, "").trim();
+  for (const cat of CATEGORIES) {
+    if (cat.keywords.some((kw) => n.includes(kw.toLowerCase()))) {
+      return cat.id;
+    }
+  }
+  return "inne";
+}
+```
+
+# reports.tsx
+
+```typescript
+import { useState, useMemo } from "react";
+import { Layout, PageHeader } from "@/components/layout";
+import { useGetMonthlyReport, useGetCategorySpend, useGetCategorySpendTrend, useGetReportsCostCenters, getGetReportsCostCentersQueryKey } from "@workspace/api-client-react";
+import type { CategorySpendItem } from "@workspace/api-client-react";
+import { useCostCenter } from "@/contexts/cost-center-context";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+} from "recharts";
+import {
+  ChevronLeft, ChevronRight, ShoppingCart, FileText, Package,
+  ChevronDown, ChevronUp, ArrowUp, ArrowDown, Download, Layers,
+} from "lucide-react";
+import { formatPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { CATEGORIES } from "@/lib/categories";
+import { exportToCsv, todaySlug } from "@/lib/export-csv";
+
+// ─── Month helpers ────────────────────────────────────────────────────────────
+
+function monthLabel(month: string) {
+  const [year, m] = month.split("-");
+  const names = ["Styczeń","Luty","Marzec","Kwiecień","Maj","Czerwiec","Lipiec","Sierpień","Wrzesień","Październik","Listopad","Grudzień"];
+  return `${names[parseInt(m) - 1]} ${year}`;
+}
+function prevMonth(month: string) {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function nextMonth(month: string) {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function currentMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// ─── Colors ──────────────────────────────────────────────────────────────────
+
+const COLORS = [
+  "hsl(173, 80%, 40%)",
+  "hsl(200, 70%, 50%)",
+  "hsl(220, 60%, 55%)",
+  "hsl(250, 60%, 60%)",
+  "hsl(280, 55%, 55%)",
+  "hsl(30,  75%, 50%)",
+  "hsl(50,  80%, 45%)",
+  "hsl(340, 65%, 52%)",
+  "hsl(160, 60%, 42%)",
+  "hsl(10,  70%, 52%)",
+  "hsl(195, 65%, 48%)",
+  "hsl(265, 60%, 58%)",
+  "hsl(95,  55%, 42%)",
+  "hsl(315, 55%, 50%)",
+];
+
+// ─── Stat card ────────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, sub, icon: Icon }: { label: string; value: string; sub?: string; icon: React.ElementType }) {
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 md:p-5 flex items-start gap-3 md:gap-4">
+      <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+        <Icon className="w-4 h-4 md:w-5 md:h-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground mb-0.5 truncate">{label}</p>
+        <p className="text-lg md:text-xl font-bold text-foreground">{value}</p>
+        {sub && <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Price change mini badge ──────────────────────────────────────────────────
+
+function PriceChangeMini({
+  current,
+  prev,
+}: {
+  current: number;
+  prev: number | null | undefined;
+}) {
+  if (prev == null || prev <= 0) return null;
+  const pct = ((current - prev) / prev) * 100;
+  if (Math.abs(pct) < 0.05) return null;
+
+  const up = pct > 0;
+  const Icon = up ? ArrowUp : ArrowDown;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 text-[10px] font-medium leading-none",
+        up ? "text-red-500" : "text-emerald-600",
+      )}
+      title={`Poprzedni miesiąc: ${formatPrice(prev)}`}
+    >
+      <Icon className="w-2.5 h-2.5" />
+      {Math.abs(pct).toFixed(1)}%
+    </span>
+  );
+}
+
+// ─── Quantity change mini badge ───────────────────────────────────────────────
+
+function QuantityChangeMini({
+  current,
+  prev,
+  unit,
+}: {
+  current: number;
+  prev: number | null | undefined;
+  unit: string;
+}) {
+  if (prev == null || prev <= 0) return null;
+  const pct = ((current - prev) / prev) * 100;
+  if (Math.abs(pct) < 0.05) return null;
+
+  const up = pct > 0;
+  const Icon = up ? ArrowUp : ArrowDown;
+  const prevFormatted = prev % 1 === 0 ? prev : prev.toFixed(2);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 text-[10px] font-medium leading-none",
+        up ? "text-blue-500" : "text-orange-500",
+      )}
+      title={`Ilość poprzedni miesiąc: ${prevFormatted} ${unit}`}
+    >
+      <Icon className="w-2.5 h-2.5" />
+      {Math.abs(pct).toFixed(1)}%&nbsp;il.
+    </span>
+  );
+}
+
+// ─── Supplier card ────────────────────────────────────────────────────────────
+
+function SupplierCard({ supplier, rank, totalAllSpend }: {
+  supplier: {
+    supplierId: number;
+    supplierName: string;
+    totalSpend: number;
+    invoiceCount: number;
+    productCount: number;
+    topProducts: Array<{
+      productName: string;
+      unit: string;
+      totalQuantity: number;
+      avgPrice: number;
+      totalCost: number;
+      prevMonthAvgPrice?: number | null;
+      prevMonthTotalQuantity?: number | null;
+    }>;
+  };
+  rank: number;
+  totalAllSpend: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  const pct = totalAllSpend > 0 ? (supplier.totalSpend / totalAllSpend) * 100 : 0;
+  const color = COLORS[rank % COLORS.length];
+  const visibleProducts = supplier.topProducts.slice(0, showAll ? 15 : 5);
+
+  return (
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      {/* Clickable header */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left px-4 md:px-6 pt-4 pb-3 hover:bg-secondary/20 transition-colors"
+      >
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 text-white"
+              style={{ background: color }}
+            >
+              {rank + 1}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">{supplier.supplierName}</p>
+              <p className="text-xs text-muted-foreground">
+                {supplier.invoiceCount} {supplier.invoiceCount === 1 ? "faktura" : supplier.invoiceCount < 5 ? "faktury" : "faktur"} · {supplier.productCount} produktów
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="text-right">
+              <p className="text-base font-bold text-foreground">{formatPrice(supplier.totalSpend)}</p>
+              <p className="text-xs text-muted-foreground">{pct.toFixed(1)}% budżetu</p>
+            </div>
+            {open
+              ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${pct}%`, background: color }}
+          />
+        </div>
+      </button>
+
+      {/* Product list — shown when open */}
+      {open && (
+        <>
+          {/* Mobile list */}
+          <div className="md:hidden border-t border-border">
+            <div className="divide-y divide-border">
+              {visibleProducts.map((p, i) => (
+                <div key={i} className="px-4 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground truncate">{p.productName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-foreground">{formatPrice(p.totalCost)}</p>
+                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                      <span className="text-[11px] text-muted-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
+                      <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                      <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {supplier.topProducts.length > 5 && (
+              <button
+                className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 border-t border-border bg-secondary/20 active:bg-secondary/40 transition-colors"
+                onClick={(e) => { e.stopPropagation(); setShowAll((v) => !v); }}
+              >
+                {showAll
+                  ? <><ChevronUp className="w-3.5 h-3.5" />Zwiń</>
+                  : <><ChevronDown className="w-3.5 h-3.5" />Pokaż wszystkie ({supplier.topProducts.length})</>}
+              </button>
+            )}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block border-t border-border overflow-x-auto">
+            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-6 min-w-[560px] py-2 text-xs font-medium text-muted-foreground bg-secondary/30">
+              <div>Produkt</div>
+              <div className="text-right w-20">Ilość</div>
+              <div className="text-right w-36">Śr. cena</div>
+              <div className="text-right w-28">Łącznie</div>
+            </div>
+            <div className="divide-y divide-border">
+              {visibleProducts.map((p, i) => (
+                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-6 min-w-[560px] py-2.5 items-center">
+                  <p className="text-sm text-foreground truncate pr-2">{p.productName}</p>
+                  <p className="text-sm text-muted-foreground text-right w-20">
+                    {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
+                  </p>
+                  <div className="text-right w-36 flex flex-col items-end gap-0.5">
+                    <span className="text-sm text-foreground">{formatPrice(p.avgPrice)}/{p.unit}</span>
+                    <div className="flex items-center gap-1">
+                      <PriceChangeMini current={p.avgPrice} prev={p.prevMonthAvgPrice} />
+                      <QuantityChangeMini current={p.totalQuantity} prev={p.prevMonthTotalQuantity} unit={p.unit} />
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground text-right w-28">{formatPrice(p.totalCost)}</p>
+                </div>
+              ))}
+            </div>
+            {supplier.topProducts.length > 5 && (
+              <button
+                className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 border-t border-border hover:bg-secondary/30 transition-colors"
+                onClick={(e) => { e.stopPropagation(); setShowAll((v) => !v); }}
+              >
+                {showAll
+                  ? <><ChevronUp className="w-3.5 h-3.5" />Zwiń</>
+                  : <><ChevronDown className="w-3.5 h-3.5" />Pokaż wszystkie ({supplier.topProducts.length})</>}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Category spend section ───────────────────────────────────────────────────
+
+type CategoryGroup = {
+  id: string;
+  label: string;
+  emoji: string;
+  spend: number;
+  products: CategorySpendItem[];
+};
+
+function CategorySpendSection({ month, costCenterId }: { month: string; costCenterId?: number | null }) {
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  const prevMonthStr = prevMonth(month);
+  const ccParam = costCenterId != null ? { costCenterId } : {};
+
+  const { data: currentData, isLoading } = useGetCategorySpend(
+    { month, ...ccParam },
+    { query: { queryKey: ["category-spend", month, costCenterId] } },
+  );
+
+  const { data: prevData } = useGetCategorySpend(
+    { month: prevMonthStr, ...ccParam },
+    { query: { queryKey: ["category-spend", prevMonthStr, costCenterId] } },
+  );
+
+  const categoryGroups: CategoryGroup[] = useMemo(() => {
+    if (!currentData) return [];
+    const map = new Map<string, { spend: number; products: CategorySpendItem[] }>();
+    for (const item of currentData) {
+      const cat = item.category ?? "inne";
+      if (!map.has(cat)) map.set(cat, { spend: 0, products: [] });
+      const g = map.get(cat)!;
+      g.spend += item.totalSpend;
+      g.products.push(item);
+    }
+    return Array.from(map.entries())
+      .map(([id, { spend, products }]) => {
+        const catDef = CATEGORIES.find((c) => c.id === id);
+        return {
+          id,
+          label: catDef?.label ?? "Inne",
+          emoji: catDef?.emoji ?? "📦",
+          spend,
+          products: [...products].sort((a, b) => b.totalSpend - a.totalSpend),
+        };
+      })
+      .sort((a, b) => b.spend - a.spend);
+  }, [currentData]);
+
+  const prevCategoryMap = useMemo(() => {
+    if (!prevData) return new Map<string, number>();
+    const map = new Map<string, number>();
+    for (const item of prevData) {
+      const cat = item.category ?? "inne";
+      map.set(cat, (map.get(cat) ?? 0) + item.totalSpend);
+    }
+    return map;
+  }, [prevData]);
+
+  const totalSpend = useMemo(
+    () => categoryGroups.reduce((s, c) => s + c.spend, 0),
+    [categoryGroups],
+  );
+
+  const pieData = useMemo(
+    () =>
+      categoryGroups.map((c, i) => ({
+        name: `${c.emoji} ${c.label}`,
+        value: c.spend,
+        id: c.id,
+        fill: COLORS[i % COLORS.length],
+      })),
+    [categoryGroups],
+  );
+
+  const [sectionOpen, setSectionOpen] = useState(true);
+
+  if (isLoading) {
+    return <Skeleton className="h-64 rounded-xl mb-6 md:mb-8" />;
+  }
+  if (!currentData || categoryGroups.length === 0) return null;
+
+  return (
+    <div className="mb-6 md:mb-8">
+      <button
+        onClick={() => setSectionOpen((v) => !v)}
+        className="flex items-center gap-2 mb-3 group w-full text-left"
+      >
+        <Package className="w-4 h-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold text-foreground flex-1">Wydatki według kategorii</span>
+        <span className="text-xs text-muted-foreground tabular-nums mr-1">{formatPrice(totalSpend)}</span>
+        <ChevronDown className={cn(
+          "w-4 h-4 text-muted-foreground/60 transition-transform duration-200 shrink-0",
+          sectionOpen ? "rotate-0" : "-rotate-90"
+        )} />
+      </button>
+
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        {/* Donut chart — always visible */}
+        <div className={cn("px-4 pt-4 pb-2 md:px-6", sectionOpen && "border-b border-border")}>
+          <div className="relative">
+            <ResponsiveContainer width="100%" height={190}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={52}
+                  outerRadius={82}
+                  paddingAngle={2}
+                  dataKey="value"
+                  onClick={(entry) => {
+                    if (sectionOpen) setActiveCategory(activeCategory === entry.id ? null : entry.id);
+                    else setSectionOpen(true);
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  {pieData.map((entry, i) => (
+                    <Cell
+                      key={entry.id}
+                      fill={entry.fill}
+                      opacity={!activeCategory || activeCategory === entry.id ? 1 : 0.35}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                  }}
+                  formatter={(v: number) => [formatPrice(v)]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            {/* Center label */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="text-center">
+                <p className="text-base font-bold text-foreground tabular-nums leading-tight">{formatPrice(totalSpend)}</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">{categoryGroups.length} kategorii</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Category rows — only when open */}
+        {sectionOpen && <div className="divide-y divide-border">
+          {categoryGroups.map((cat, i) => {
+            const pct = totalSpend > 0 ? (cat.spend / totalSpend) * 100 : 0;
+            const prevSpend = prevCategoryMap.get(cat.id) ?? 0;
+            const trend =
+              prevSpend > 0
+                ? ((cat.spend - prevSpend) / prevSpend) * 100
+                : null;
+            const isActive = activeCategory === cat.id;
+            const color = COLORS[i % COLORS.length];
+
+            return (
+              <div key={cat.id}>
+                <button
+                  onClick={() =>
+                    setActiveCategory(isActive ? null : cat.id)
+                  }
+                  className={cn(
+                    "w-full px-4 md:px-6 py-3 flex items-center gap-3 text-left transition-colors",
+                    isActive
+                      ? "bg-primary/5"
+                      : "hover:bg-secondary/30",
+                  )}
+                >
+                  {/* Color dot */}
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ background: color }}
+                  />
+
+                  {/* Label + progress bar */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="text-sm leading-none">{cat.emoji}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {cat.label}
+                      </span>
+                      {trend !== null && (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-0.5 text-[10px] font-medium",
+                            trend > 0 ? "text-red-500" : "text-emerald-600",
+                          )}
+                        >
+                          {trend > 0 ? (
+                            <ArrowUp className="w-2.5 h-2.5" />
+                          ) : (
+                            <ArrowDown className="w-2.5 h-2.5" />
+                          )}
+                          {Math.abs(trend).toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                    <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${pct}%`, background: color }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Spend + % */}
+                  <div className="text-right shrink-0 min-w-[80px]">
+                    <p className="text-sm font-bold text-foreground">
+                      {formatPrice(cat.spend)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {pct.toFixed(1)}%
+                    </p>
+                  </div>
+
+                  {/* Chevron */}
+                  {isActive ? (
+                    <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+
+                {/* Drill-down product list */}
+                {isActive && (
+                  <div className="border-t border-border bg-secondary/10">
+                    {/* Header row */}
+                    <div className="px-6 md:px-8 py-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Produkt / Dostawca</p>
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide text-right w-20">Ilość</p>
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide text-right w-24">Śr. cena/jed.</p>
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide text-right w-24">Łączny koszt</p>
+                    </div>
+                    <div className="divide-y divide-border">
+                      {(() => {
+                        // Group rows by product name
+                        const grouped = new Map<string, CategorySpendItem[]>();
+                        for (const p of cat.products) {
+                          const key = p.productName;
+                          if (!grouped.has(key)) grouped.set(key, []);
+                          grouped.get(key)!.push(p);
+                        }
+                        return Array.from(grouped.entries()).map(([name, rows]) => {
+                          const multi = rows.length > 1;
+                          const combinedSpend = rows.reduce((s, r) => s + r.totalSpend, 0);
+                          return (
+                            <div key={name} className="divide-y divide-border">
+                              {multi ? (
+                                <>
+                                  {/* Product header row — combined total */}
+                                  <div className="px-6 md:px-8 py-2 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center bg-secondary/20">
+                                    <p className="text-sm font-semibold text-foreground truncate">{name}</p>
+                                    <p className="text-sm text-muted-foreground text-right w-20 shrink-0">—</p>
+                                    <p className="text-sm text-muted-foreground text-right w-24 shrink-0">—</p>
+                                    <p className="text-sm font-semibold text-foreground text-right w-24 shrink-0">
+                                      {formatPrice(combinedSpend)}
+                                    </p>
+                                  </div>
+                                  {/* Per-supplier sub-rows */}
+                                  {(() => {
+                                    const priced = rows.filter((r) => r.avgUnitPrice != null);
+                                    const minPrice = priced.length >= 2 ? Math.min(...priced.map((r) => r.avgUnitPrice!)) : null;
+                                    return rows.map((p, ri) => {
+                                      const isCheapest = minPrice != null && p.avgUnitPrice != null && p.avgUnitPrice === minPrice;
+                                      return (
+                                        <div
+                                          key={ri}
+                                          className="pl-10 pr-6 md:pl-14 md:pr-8 py-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center"
+                                        >
+                                          <div className="min-w-0 flex items-center gap-1.5">
+                                            <span className="text-muted-foreground/40 text-xs shrink-0">└</span>
+                                            <p className="text-sm text-muted-foreground truncate">{p.supplierName ?? "—"}</p>
+                                            {isCheapest && (
+                                              <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 leading-none">
+                                                Najtaniej
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-sm text-muted-foreground text-right w-20 shrink-0">
+                                            {p.totalQuantity != null
+                                              ? `${new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(p.totalQuantity)}${p.unit ? ` ${p.unit}` : ""}`
+                                              : "—"}
+                                          </p>
+                                          <p className={`text-sm text-right w-24 shrink-0 ${isCheapest ? "text-teal-600 dark:text-teal-400 font-medium" : "text-muted-foreground"}`}>
+                                            {p.avgUnitPrice != null ? formatPrice(p.avgUnitPrice) : "—"}
+                                          </p>
+                                          <p className="text-sm text-foreground text-right w-24 shrink-0">
+                                            {formatPrice(p.totalSpend)}
+                                          </p>
+                                        </div>
+                                      );
+                                    });
+                                  })()}
+                                </>
+                              ) : (
+                                /* Single-supplier row — unchanged appearance */
+                                <div className="px-6 md:px-8 py-2 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
+                                  <div className="min-w-0">
+                                    <p className="text-sm text-foreground truncate">{rows[0].productName}</p>
+                                    {rows[0].supplierName && (
+                                      <p className="text-xs text-muted-foreground truncate">{rows[0].supplierName}</p>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground text-right w-20 shrink-0">
+                                    {rows[0].totalQuantity != null
+                                      ? `${new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(rows[0].totalQuantity)}${rows[0].unit ? ` ${rows[0].unit}` : ""}`
+                                      : "—"}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground text-right w-24 shrink-0">
+                                    {rows[0].avgUnitPrice != null ? formatPrice(rows[0].avgUnitPrice) : "—"}
+                                  </p>
+                                  <p className="text-sm font-semibold text-foreground text-right w-24 shrink-0">
+                                    {formatPrice(rows[0].totalSpend)}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ─── Category spend trend chart ───────────────────────────────────────────────
+
+function shortMonthLabel(month: string) {
+  const [year, m] = month.split("-");
+  const names = ["Sty","Lut","Mar","Kwi","Maj","Cze","Lip","Sie","Wrz","Paź","Lis","Gru"];
+  return `${names[parseInt(m) - 1]} '${year.slice(2)}`;
+}
+
+function CostCenterReportSection({ month, costCenterId }: { month: string; costCenterId?: number | null }) {
+  const params = { month, ...(costCenterId != null ? { costCenterId } : {}) };
+  const { data, isLoading } = useGetReportsCostCenters(params, {
+    query: { queryKey: getGetReportsCostCentersQueryKey(params) },
+  });
+
+  if (isLoading) return <Skeleton className="h-28 rounded-xl mb-6" />;
+  if (!data || data.length === 0) return null;
+
+  const total = data.reduce((s, c) => s + c.totalAmount, 0);
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 mb-6">
+      <h3 className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
+        <Layers className="w-4 h-4 text-muted-foreground" />
+        Centra kosztów
+      </h3>
+      <div className="space-y-2">
+        {data.map((c) => {
+          const pct = total > 0 ? Math.round((c.totalAmount / total) * 100) : 0;
+          const barWidth = total > 0 ? (c.totalAmount / total) * 100 : 0;
+          return (
+            <div key={c.costCenterId ?? "unassigned"}>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.costCenterColor ?? "#64748b" }} />
+                <span className="flex-1 text-sm text-foreground truncate">{c.costCenterName ?? "Nieprzypisane"}</span>
+                <span className="text-sm tabular-nums text-foreground">{formatPrice(c.totalAmount)}</span>
+                <span className="text-xs text-muted-foreground w-9 text-right tabular-nums">{pct}%</span>
+              </div>
+              <div className="ml-5 h-1 rounded-full overflow-hidden bg-border">
+                <div className="h-full rounded-full transition-all" style={{ width: `${barWidth}%`, background: c.costCenterColor ?? "#64748b" }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CategorySpendTrendSection({ costCenterId }: { costCenterId?: number | null }) {
+  const ccParam = costCenterId != null ? { costCenterId } : {};
+  const { data, isLoading } = useGetCategorySpendTrend(
+    { months: 6, ...ccParam },
+    { query: { queryKey: ["category-spend-trend", 6, costCenterId] } },
+  );
+
+  // Build sorted list of all categories by total spend across all months
+  const allCategories = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const totals = new Map<string, number>();
+    for (const row of data) {
+      const cat = row.category ?? "inne";
+      totals.set(cat, (totals.get(cat) ?? 0) + row.totalSpend);
+    }
+    return Array.from(totals.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([id]) => id);
+  }, [data]);
+
+  // Default selection: top 5 categories
+  const [selected, setSelected] = useState<Set<string> | null>(null);
+  const activeSelected: Set<string> = selected ?? new Set(allCategories.slice(0, 5));
+
+  // Build chart data: one entry per month
+  const chartData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    // Collect all months in order
+    const monthSet = new Set<string>();
+    for (const row of data) monthSet.add(row.month);
+    const months = Array.from(monthSet).sort();
+
+    return months.map((month) => {
+      const entry: Record<string, string | number> = { month, label: shortMonthLabel(month) };
+      for (const row of data) {
+        if (row.month === month) {
+          const cat = row.category ?? "inne";
+          entry[cat] = (entry[cat] as number ?? 0) + row.totalSpend;
+        }
+      }
+      return entry;
+    });
+  }, [data]);
+
+  const toggleCategory = (id: string) => {
+    const base = selected ?? new Set(allCategories.slice(0, 5));
+    const next = new Set(base);
+    if (next.has(id)) {
+      if (next.size > 1) next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelected(next);
+  };
+
+  const [sectionOpen, setSectionOpen] = useState(true);
+
+  if (isLoading) {
+    return <Skeleton className="h-72 rounded-xl mb-6 md:mb-8" />;
+  }
+  if (!data || data.length === 0 || allCategories.length === 0) return null;
+
+  const visibleCategories = allCategories.filter((id) => activeSelected.has(id));
+
+  return (
+    <div className="mb-6 md:mb-8">
+      <button
+        onClick={() => setSectionOpen((v) => !v)}
+        className="flex items-center gap-2 mb-3 group w-full text-left"
+      >
+        <Package className="w-4 h-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold text-foreground flex-1">Trend wydatków według kategorii</span>
+        <span className="text-xs text-muted-foreground mr-1">ostatnie 6 mies.</span>
+        <ChevronDown className={cn(
+          "w-4 h-4 text-muted-foreground/60 transition-transform duration-200 shrink-0",
+          sectionOpen ? "rotate-0" : "-rotate-90"
+        )} />
+      </button>
+
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        {/* Category selector pills — only when open */}
+        {sectionOpen && (
+          <div className="px-4 pt-4 pb-3 md:px-6 flex flex-wrap gap-2 border-b border-border">
+            {allCategories.map((id, i) => {
+              const catDef = CATEGORIES.find((c) => c.id === id);
+              const label = catDef?.label ?? "Inne";
+              const emoji = catDef?.emoji ?? "📦";
+              const isActive = activeSelected.has(id);
+              const color = COLORS[i % COLORS.length];
+              return (
+                <button
+                  key={id}
+                  onClick={() => toggleCategory(id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border",
+                    isActive
+                      ? "text-white border-transparent"
+                      : "bg-transparent text-muted-foreground border-border hover:border-foreground/30",
+                  )}
+                  style={isActive ? { background: color, borderColor: color } : {}}
+                >
+                  <span>{emoji}</span>
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Line chart — always visible */}
+        <div className="px-2 pt-4 pb-2 md:px-4">
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={chartData} margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: number) =>
+                  v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(Math.round(v))
+                }
+                width={48}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
+                formatter={(value: number, name: string) => {
+                  const catDef = CATEGORIES.find((c) => c.id === name);
+                  const label = catDef ? `${catDef.emoji} ${catDef.label}` : name;
+                  return [new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN" }).format(value), label];
+                }}
+              />
+              {visibleCategories.map((id, i) => {
+                const colorIdx = allCategories.indexOf(id);
+                return (
+                  <Line
+                    key={id}
+                    type="monotone"
+                    dataKey={id}
+                    stroke={COLORS[colorIdx % COLORS.length]}
+                    strokeWidth={2}
+                    dot={{ r: 3, fill: COLORS[colorIdx % COLORS.length] }}
+                    activeDot={{ r: 5 }}
+                    connectNulls
+                  />
+                );
+              })}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+export default function Reports() {
+  const [viewMode, setViewMode] = useState<"month" | "all">("month");
+  const [month, setMonth] = useState(currentMonth());
+  const isCurrentMonth = month === currentMonth();
+  const [suppliersOpen, setSuppliersOpen] = useState(true);
+
+  const reportMonth = viewMode === "all" ? "all" : month;
+  const { selectedId: costCenterId } = useCostCenter();
+  const ccParam = costCenterId != null ? { costCenterId } : {};
+
+  const { data, isLoading, isError } = useGetMonthlyReport(
+    { month: reportMonth, ...ccParam },
+    { query: { queryKey: ["reports-monthly", reportMonth, costCenterId] } }
+  );
+
+  return (
+    <Layout>
+      <div className="px-4 py-5 md:px-8 md:py-8">
+        <PageHeader
+          title="Raporty"
+          subtitle={viewMode === "all" ? "Wszystkie okresy — łączne podsumowanie" : "Miesięczne podsumowanie zakupów i analiza dostawców"}
+          action={
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              {data && (data.suppliers.length > 0 || data.topProducts.length > 0) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 self-start sm:self-auto"
+                  onClick={() => {
+                    const label = viewMode === "all" ? "Wszystkie okresy" : monthLabel(reportMonth);
+                    const today = new Date().toLocaleDateString("pl-PL");
+                    const totalSpend = data.totalSpend;
+
+                    const rows: (string | number | null | undefined)[][] = [
+                      // ── Nagłówek ──────────────────────────────────────────
+                      [`RAPORT MIESIĘCZNY — ${label.toUpperCase()}`],
+                      [`Wygenerowano: ${today}`],
+                      [],
+                      // ── Podsumowanie ──────────────────────────────────────
+                      ["PODSUMOWANIE"],
+                      ["Łączne wydatki (PLN)", "Liczba faktur", "Unikalnych produktów", "Liczba dostawców"],
+                      [data.totalSpend, data.invoiceCount, data.productCount, data.suppliers.length],
+                      [],
+                      // ── Dostawcy ──────────────────────────────────────────
+                      ["DOSTAWCY"],
+                      ["#", "Dostawca", "Wydatki (PLN)", "% budżetu", "Faktury", "Produkty"],
+                      ...data.suppliers.map((s, i) => [
+                        i + 1,
+                        s.supplierName,
+                        s.totalSpend,
+                        totalSpend > 0 ? `${((s.totalSpend / totalSpend) * 100).toFixed(1)}%` : "—",
+                        s.invoiceCount,
+                        s.productCount,
+                      ]),
+                      [],
+                      // ── Produkty ──────────────────────────────────────────
+                      ["PRODUKTY (wg kosztu malejąco)"],
+                      ["Produkt", "Dostawca", "Ilość", "Jednostka", "Śr. cena (PLN)", "Łączny koszt (PLN)", "Zmiana ceny"],
+                      ...data.suppliers.flatMap((s) =>
+                        s.topProducts.map((p) => {
+                          const change =
+                            p.prevMonthAvgPrice && p.prevMonthAvgPrice > 0
+                              ? `${(((p.avgPrice - p.prevMonthAvgPrice) / p.prevMonthAvgPrice) * 100).toFixed(1)}%`
+                              : "—";
+                          return [
+                            p.productName,
+                            s.supplierName,
+                            p.totalQuantity % 1 === 0 ? p.totalQuantity : Number(p.totalQuantity.toFixed(3)),
+                            p.unit,
+                            p.avgPrice,
+                            p.totalCost,
+                            change,
+                          ];
+                        })
+                      ).sort((a, b) => Number(b[5]) - Number(a[5])),
+                    ];
+
+                    exportToCsv(rows, `raport-${reportMonth}-${todaySlug()}.csv`);
+                  }}
+                  data-testid="btn-export-csv-reports"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Pobierz raport CSV</span>
+                  <span className="sm:hidden">CSV</span>
+                </Button>
+              )}
+              {/* Mode toggle */}
+              <div className="flex items-center bg-card border border-border rounded-lg p-1 gap-0.5 self-start sm:self-auto">
+                <button
+                  onClick={() => setViewMode("month")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                    viewMode === "month"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  Dany miesiąc
+                </button>
+                <button
+                  onClick={() => setViewMode("all")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                    viewMode === "all"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  Wszystko razem
+                </button>
+              </div>
+              {/* Month navigator */}
+              {viewMode === "month" && (
+                <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-1 py-1 self-start sm:self-auto">
+                  <Button variant="ghost" size="icon" className="w-8 h-8 shrink-0" onClick={() => setMonth(prevMonth(month))}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm font-medium min-w-32 text-center px-1 tabular-nums">{monthLabel(month)}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8 shrink-0"
+                    onClick={() => setMonth(nextMonth(month))}
+                    disabled={isCurrentMonth}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          }
+        />
+
+        {isError && (
+          <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-3 text-sm text-destructive">
+            Nie udało się załadować raportu. Odśwież stronę lub spróbuj ponownie później.
+          </div>
+        )}
+
+        {/* Summary cards — 2 cols on mobile, 3 on desktop */}
+        {isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+            {[0,1,2].map(i => <Skeleton key={i} className={cn("h-20 md:h-24 rounded-xl", i === 2 && "col-span-2 md:col-span-1")} />)}
+          </div>
+        ) : data ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+            <StatCard label="Łączne wydatki" value={formatPrice(data.totalSpend)} sub={`${data.invoiceCount} faktur`} icon={ShoppingCart} />
+            <StatCard label="Produkty" value={String(data.productCount)} sub="unikalnych pozycji" icon={Package} />
+            <div className="col-span-2 md:col-span-1">
+              <StatCard label="Liczba faktur" value={String(data.invoiceCount)} sub={`od ${data.suppliers.length} dostawców`} icon={FileText} />
+            </div>
+          </div>
+        ) : null}
+
+        {/* Category spend — only in month mode */}
+        {viewMode === "month" && !isLoading && data && data.topProducts.length > 0 && (
+          <CategorySpendSection month={month} costCenterId={costCenterId} />
+        )}
+
+        {/* Cost center breakdown */}
+        {!isLoading && data && (
+          <CostCenterReportSection month={reportMonth} costCenterId={costCenterId} />
+        )}
+
+        {/* Category spend trend — only in month mode */}
+        {viewMode === "month" && !isLoading && data && data.topProducts.length > 0 && (
+          <CategorySpendTrendSection costCenterId={costCenterId} />
+        )}
+
+        {/* Per-supplier reports */}
+        {isLoading ? (
+          <div className="space-y-4">
+            {[0, 1, 2].map(i => <Skeleton key={i} className="h-48 md:h-64 rounded-xl" />)}
+          </div>
+        ) : data && data.suppliers.length > 0 ? (
+          <div className="space-y-4">
+            <button
+              onClick={() => setSuppliersOpen((v) => !v)}
+              className="flex items-center gap-2 w-full text-left group"
+            >
+              <FileText className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-sm font-semibold text-foreground flex-1">Raport per dostawca</span>
+              <span className="text-xs text-muted-foreground mr-1">{data.suppliers.length} {data.suppliers.length === 1 ? "dostawca" : data.suppliers.length < 5 ? "dostawców" : "dostawców"}</span>
+              <ChevronDown className={cn(
+                "w-4 h-4 text-muted-foreground/60 transition-transform duration-200 shrink-0",
+                suppliersOpen ? "rotate-0" : "-rotate-90"
+              )} />
+            </button>
+            {suppliersOpen && data.suppliers.map((supplier, i) => (
+              <SupplierCard key={supplier.supplierId} supplier={supplier} rank={i} totalAllSpend={data.totalSpend} />
+            ))}
+          </div>
+        ) : !isLoading ? (
+          <div className="bg-card border border-border rounded-xl py-16 text-center px-4">
+            <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-foreground font-medium mb-1">Brak danych za {viewMode === "month" ? monthLabel(month) : "żaden okres"}</p>
+            <p className="text-sm text-muted-foreground">Zaimportuj faktury, aby zobaczyć raport.</p>
+          </div>
+        ) : null}
+      </div>
+    </Layout>
+  );
+}
+```
