@@ -688,7 +688,6 @@ async function runSync(
             return false;
           }
 
-          const isImmediate = parsed.header.paymentMethod === "gotowka" || parsed.header.paymentMethod === "karta";
           const inserted = await tx
             .insert(invoicesTable)
             .values({
@@ -701,8 +700,8 @@ async function runSync(
               ksefNumber: ref.ksefReferenceNumber,
               paymentMethod: parsed.header.paymentMethod ?? null,
               paymentDueDate: parsed.header.paymentMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null,
-              isPaid: isImmediate,
-              paidAt: isImmediate ? now : null,
+              isPaid: false,
+              paidAt: null,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -814,7 +813,6 @@ async function runSync(
 
       const rowPayMethod = (parsed.header.paymentMethod as "gotowka" | "przelew" | "karta" | null | undefined) ?? null;
       const rowPayDue = rowPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
-      const rowImmediate = rowPayMethod === "gotowka" || rowPayMethod === "karta";
       const wasNewlyImported = await db.transaction(async (tx) => {
         const [existing] = await tx
           .select({ id: invoicesTable.id })
@@ -852,8 +850,8 @@ async function runSync(
               ksefNumber: row.ksefNumber,
               paymentMethod: rowPayMethod,
               paymentDueDate: rowPayDue,
-              isPaid: rowImmediate,
-              paidAt: rowImmediate ? now : null,
+              isPaid: false,
+              paidAt: null,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -962,7 +960,6 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
 
       const rowPayMethod = (parsed.header.paymentMethod as "gotowka" | "przelew" | "karta" | null | undefined) ?? null;
       const rowPayDue = rowPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
-      const rowImmediate = rowPayMethod === "gotowka" || rowPayMethod === "karta";
       const wasNewlyImported = await db.transaction(async (tx) => {
         const [existing] = await tx
           .select({ id: invoicesTable.id })
@@ -1000,8 +997,8 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
               ksefNumber: row.ksefNumber,
               paymentMethod: rowPayMethod,
               paymentDueDate: rowPayDue,
-              isPaid: rowImmediate,
-              paidAt: rowImmediate ? now : null,
+              isPaid: false,
+              paidAt: null,
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -1221,7 +1218,6 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   const totalAmount = parsed.header.totalGross ?? parsed.items.reduce((s, i) => s + i.gross, 0);
   const acceptPayMethod = (parsed.header.paymentMethod as "gotowka" | "przelew" | "karta" | null | undefined) ?? null;
   const acceptPayDue = acceptPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
-  const acceptImmediate = acceptPayMethod === "gotowka" || acceptPayMethod === "karta";
   const acceptNow = new Date();
 
   const created = await db.transaction(async (tx) => {
@@ -1237,8 +1233,8 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
         ksefNumber: row.ksefNumber,
         paymentMethod: acceptPayMethod,
         paymentDueDate: acceptPayDue,
-        isPaid: acceptImmediate,
-        paidAt: acceptImmediate ? acceptNow : null,
+        isPaid: false,
+        paidAt: null,
       })
       .returning();
 

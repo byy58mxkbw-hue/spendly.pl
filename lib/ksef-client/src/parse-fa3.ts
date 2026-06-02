@@ -104,10 +104,13 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
       extractTag(stripped, "FormaPlatnosci") ??
       extractTag(stripped, "SposobPlatnosci") ??
       null;
-    const terminRaw =
+    const terminBlock =
       extractTag(platnosc, "TerminPlatnosci") ??
       extractTag(stripped, "TerminPlatnosci") ??
       null;
+    // FA(3) wraps the date in <Termin>YYYY-MM-DD</Termin> inside <TerminPlatnosci>
+    // FA(2) may use a plain date string directly
+    const terminRaw = (terminBlock && extractTag(terminBlock, "Termin")) ?? terminBlock;
 
     function mapPaymentMethod(raw: string | null): "gotowka" | "przelew" | "karta" | null {
       if (!raw) return null;
