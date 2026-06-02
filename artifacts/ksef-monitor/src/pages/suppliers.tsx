@@ -9,6 +9,8 @@ import {
   useSetSupplierDefaultCostCenter,
   useListCostCenters,
   getListSuppliersQueryKey,
+  useGetSupplierCostCenterSuggestion,
+  getGetSupplierCostCenterSuggestionQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -55,6 +57,37 @@ const supplierSchema = z.object({
 });
 
 type SupplierFormValues = z.infer<typeof supplierSchema>;
+
+function SupplierSuggestionBanner({
+  supplierId,
+  onApply,
+}: {
+  supplierId: number;
+  onApply: (ccId: number, ccName: string) => void;
+}) {
+  const { data } = useGetSupplierCostCenterSuggestion(supplierId, {
+    query: { queryKey: getGetSupplierCostCenterSuggestionQueryKey(supplierId) },
+  });
+  if (!data || data.confidence < 0.9 || !data.suggestedCostCenterId || !data.suggestedCostCenterName) return null;
+  return (
+    <div
+      className="mt-2 px-3 py-2 rounded-lg flex items-center justify-between gap-2"
+      style={{ background: "rgba(20,184,166,0.07)", border: "1px solid rgba(20,184,166,0.2)" }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="text-xs text-muted-foreground leading-snug">
+        <span className="text-primary font-medium">{Math.round(data.confidence * 100)}%</span>{" "}
+        faktur trafia do <span className="text-foreground font-medium">{data.suggestedCostCenterName}</span>
+      </p>
+      <button
+        onClick={() => onApply(data.suggestedCostCenterId!, data.suggestedCostCenterName!)}
+        className="text-xs font-medium text-primary hover:underline whitespace-nowrap shrink-0"
+      >
+        Ustaw domyślne
+      </button>
+    </div>
+  );
+}
 
 export default function Suppliers() {
   const [, setLocation] = useLocation();
@@ -248,6 +281,13 @@ export default function Suppliers() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
+                  )}
+
+                  {!supplier.defaultCostCenterId && costCenters.length > 0 && (
+                    <SupplierSuggestionBanner
+                      supplierId={supplier.id}
+                      onApply={(ccId) => handleSetDefaultCostCenter(supplier.id, ccId)}
+                    />
                   )}
 
                   <div className="flex items-center gap-1 mt-3 text-xs text-primary font-medium">

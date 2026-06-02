@@ -63,6 +63,92 @@ const PRESET_NAMES = ["Restauracja Centrum", "Bar", "Catering", "Kuchnia", "Ogr�
 
 type CostCenter = { id: number; name: string; color: string; userId: string; invoiceCount: number; supplierCount: number };
 
+function OnboardingWizard({ onCreated, onOpenAdd }: { onCreated: () => void; onOpenAdd: () => void }) {
+  const create = useCreateCostCenter();
+  const { toast } = useToast();
+  const [creating, setCreating] = useState<string | null>(null);
+  const [step, setStep] = useState<"pick" | "done">("pick");
+
+  function handlePreset(name: string, color: string) {
+    setCreating(name);
+    create.mutate(
+      { data: { name, color } },
+      {
+        onSuccess: () => {
+          onCreated();
+          setStep("done");
+          setCreating(null);
+          toast({ title: `Centrum "${name}" dodane` });
+        },
+        onSettled: () => setCreating(null),
+      },
+    );
+  }
+
+  if (step === "done") {
+    return (
+      <div className="bg-card border border-border rounded-xl p-12 text-center">
+        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+          <Layers className="w-6 h-6 text-primary" />
+        </div>
+        <p className="font-semibold text-foreground mb-1">Centrum kosztów gotowe</p>
+        <p className="text-sm text-muted-foreground mb-5">
+          Możesz dodać kolejne centra lub przypisać faktury w sekcji Faktury.
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <Button variant="outline" onClick={onOpenAdd} className="gap-2">
+            <Plus className="w-4 h-4" /> Dodaj kolejne
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-8 md:p-12">
+      <div className="max-w-lg mx-auto">
+        <div className="text-center mb-8">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <Layers className="w-6 h-6 text-primary" />
+          </div>
+          <h3 className="font-semibold text-foreground text-lg mb-2">Skonfiguruj centra kosztów</h3>
+          <p className="text-sm text-muted-foreground">
+            Centra kosztów pozwalają filtrować faktury i raporty według lokalizacji lub funkcji restauracji.
+            Wybierz szablon lub dodaj własne.
+          </p>
+        </div>
+
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Szybki start</p>
+        <div className="flex flex-wrap gap-2 mb-6">
+          {PRESET_NAMES.map((name, i) => (
+            <button
+              key={name}
+              onClick={() => handlePreset(name, PRESET_COLORS[i % PRESET_COLORS.length])}
+              disabled={creating !== null}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm font-medium text-foreground hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-50"
+            >
+              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PRESET_COLORS[i % PRESET_COLORS.length] }} />
+              {creating === name ? "Dodawanie..." : name}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground">lub</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
+        <div className="mt-4 text-center">
+          <Button variant="outline" onClick={onOpenAdd} className="gap-2">
+            <Plus className="w-4 h-4" /> Dodaj własne centrum
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsCostCenters() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -157,16 +243,7 @@ export default function SettingsCostCenters() {
             ))}
           </div>
         ) : centers.length === 0 ? (
-          <div className="bg-card border border-border rounded-xl p-12 text-center">
-            <Layers className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <p className="font-medium text-foreground mb-1">Brak centrów kosztów</p>
-            <p className="text-sm text-muted-foreground mb-4">
-              Centra kosztów pozwalają filtrować faktury, dostawców i raporty według np. lokalizacji restauracji.
-            </p>
-            <Button onClick={() => setShowAdd(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> Dodaj pierwsze centrum
-            </Button>
-          </div>
+          <OnboardingWizard onCreated={invalidate} onOpenAdd={() => setShowAdd(true)} />
         ) : (
           <div className="space-y-2">
             {centers.map((c) => (

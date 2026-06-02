@@ -1219,10 +1219,16 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                       {inv.paymentMethod === "przelew" && inv.paymentDueDate && !inv.isPaid && (
                         <p className="text-xs text-orange-400">termin: {formatDate(inv.paymentDueDate)}</p>
                       )}
-                      {inv.costCenterName && (
+                      {costCenters.length > 0 && (
                         <div className="flex items-center gap-1 mt-0.5">
-                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: inv.costCenterColor ?? "#14B8A6" }} />
-                          <span className="text-[10px] text-white/40 truncate">{inv.costCenterName}</span>
+                          {inv.costCenterName ? (
+                            <>
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: inv.costCenterColor ?? "#14B8A6" }} />
+                              <span className="text-[10px] text-white/40 truncate">{inv.costCenterName}</span>
+                            </>
+                          ) : (
+                            <span className="text-[10px] text-white/20">Nieprzypisane</span>
+                          )}
                         </div>
                       )}
                     </div>
