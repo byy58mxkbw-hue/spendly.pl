@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useListInvoices,
@@ -177,6 +177,7 @@ interface HeroProps {
   biggestDay?: { date: string; totalAmount: number; invoiceCount?: number; supplierCount?: number } | null;
   avgDailyAmount: number;
   loading: boolean;
+  allTime?: boolean;
 }
 
 const CARD_STYLE = {
@@ -185,7 +186,7 @@ const CARD_STYLE = {
   borderRadius: "20px",
 } as const;
 
-function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierCount, prevMonthTotalAmount, biggestDay, avgDailyAmount, loading }: HeroProps) {
+function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierCount, prevMonthTotalAmount, biggestDay, avgDailyAmount, loading, allTime }: HeroProps) {
   const changePercent = prevMonthTotalAmount > 0
     ? Math.round(((totalAmount - prevMonthTotalAmount) / prevMonthTotalAmount) * 100)
     : null;
@@ -199,18 +200,24 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
       {/* Card 1: Month summary */}
       <div className="sm:col-span-1 p-5" style={CARD_STYLE}>
         <div className="flex items-center gap-2 mb-3">
-          <button onClick={onPrev} className="p-1 rounded-full transition-colors" style={{ background: "rgba(255,255,255,0.06)" }}>
-            <ChevronLeft className="w-3.5 h-3.5 text-white/70" />
-          </button>
-          <span className="text-white/60 text-xs font-medium flex-1 capitalize">{monthLabel(month)}</span>
-          <button
-            onClick={onNext}
-            disabled={month >= todayMonth()}
-            className="p-1 rounded-full transition-colors disabled:opacity-30"
-            style={{ background: "rgba(255,255,255,0.06)" }}
-          >
-            <ChevronRight className="w-3.5 h-3.5 text-white/70" />
-          </button>
+          {!allTime && (
+            <button onClick={onPrev} className="p-1 rounded-full transition-colors" style={{ background: "rgba(255,255,255,0.06)" }}>
+              <ChevronLeft className="w-3.5 h-3.5 text-white/70" />
+            </button>
+          )}
+          <span className="text-white/60 text-xs font-medium flex-1 capitalize">
+            {allTime ? "Wszystkie faktury" : monthLabel(month)}
+          </span>
+          {!allTime && (
+            <button
+              onClick={onNext}
+              disabled={month >= todayMonth()}
+              className="p-1 rounded-full transition-colors disabled:opacity-30"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            >
+              <ChevronRight className="w-3.5 h-3.5 text-white/70" />
+            </button>
+          )}
         </div>
         {loading ? (
           <div className="space-y-2 animate-pulse">
@@ -1681,6 +1688,17 @@ export default function Invoices() {
     { month, ...ccParam },
     { query: { queryKey: getGetInvoicesTimelineQueryKey({ month, ...ccParam }) } },
   );
+  const allInvoicesParams = { limit: 5000, ...ccParam };
+  const { data: allInvoicesData } = useListInvoices(
+    allInvoicesParams,
+    { query: { queryKey: getListInvoicesQueryKey(allInvoicesParams), enabled: activeTab === "faktury" } },
+  );
+  const allTimeStats = useMemo(() => {
+    if (!allInvoicesData) return { totalAmount: 0, invoiceCount: 0, supplierCount: 0 };
+    const totalAmount = allInvoicesData.reduce((s, inv) => s + Number(inv.totalAmount ?? 0), 0);
+    const uniqueSuppliers = new Set(allInvoicesData.map((inv) => inv.supplierId)).size;
+    return { totalAmount, invoiceCount: allInvoicesData.length, supplierCount: uniqueSuppliers };
+  }, [allInvoicesData]);
 
   async function handleMarkPaid(id: number, isPaid: boolean) {
     await markPaid.mutateAsync({ id, data: { isPaid } });
@@ -1767,13 +1785,14 @@ export default function Invoices() {
           month={month}
           onPrev={() => setMonth(prevMonth(month))}
           onNext={() => setMonth(nextMonth(month))}
-          totalAmount={timelineData?.totalAmount ?? 0}
-          invoiceCount={timelineData?.invoiceCount ?? 0}
-          supplierCount={timelineData?.supplierCount ?? 0}
-          prevMonthTotalAmount={timelineData?.prevMonthTotalAmount ?? 0}
-          biggestDay={timelineData?.biggestDay}
-          avgDailyAmount={timelineData?.avgDailyAmount ?? 0}
-          loading={timelineLoading}
+          totalAmount={activeTab === "faktury" ? allTimeStats.totalAmount : (timelineData?.totalAmount ?? 0)}
+          invoiceCount={activeTab === "faktury" ? allTimeStats.invoiceCount : (timelineData?.invoiceCount ?? 0)}
+          supplierCount={activeTab === "faktury" ? allTimeStats.supplierCount : (timelineData?.supplierCount ?? 0)}
+          prevMonthTotalAmount={activeTab === "faktury" ? 0 : (timelineData?.prevMonthTotalAmount ?? 0)}
+          biggestDay={activeTab === "faktury" ? null : timelineData?.biggestDay}
+          avgDailyAmount={activeTab === "faktury" ? 0 : (timelineData?.avgDailyAmount ?? 0)}
+          loading={activeTab === "faktury" ? false : timelineLoading}
+          allTime={activeTab === "faktury"}
         />
 
         <div className="flex justify-center">
