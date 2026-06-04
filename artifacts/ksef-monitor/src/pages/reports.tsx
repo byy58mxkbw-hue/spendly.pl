@@ -25,6 +25,10 @@ import {
   CartesianGrid,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
+  LabelList,
+  Legend,
 } from "recharts";
 import {
   ChevronLeft,
@@ -506,9 +510,9 @@ function SpendTrendChart({ months: numMonths = 6 }: { months?: number }) {
   );
 }
 
-// ─── Category donut ────────────────────────────────────────────────────────────
+// ─── Category mini list (for Podsumowanie sidebar card) ───────────────────────
 
-function CategoryDonut({ month }: { month: string }) {
+function CategoryMiniList({ month }: { month: string }) {
   const { selectedId: costCenterId } = useCostCenter();
   const ccParam = costCenterId != null ? { costCenterId } : {};
 
@@ -530,71 +534,39 @@ function CategoryDonut({ month }: { month: string }) {
         return { id, label: catDef?.label ?? "Inne", spend };
       })
       .sort((a, b) => b.spend - a.spend)
-      .slice(0, 8);
+      .slice(0, 7);
   }, [data]);
 
   const total = groups.reduce((s, g) => s + g.spend, 0);
 
-  if (isLoading) return <Skeleton className="h-48 rounded-xl" />;
-  if (!groups.length) return null;
-
-  const pieData = groups.map((g, i) => ({ ...g, fill: CHART_COLORS[i % CHART_COLORS.length] }));
+  if (isLoading) return <Skeleton className="h-40 w-full" />;
+  if (!groups.length) return (
+    <div className="py-6 text-center text-sm text-muted-foreground">Brak danych</div>
+  );
 
   return (
-    <div className="flex gap-4 items-center">
-      <div className="relative shrink-0" style={{ width: 140, height: 140 }}>
-        <ResponsiveContainer width={140} height={140}>
-          <PieChart>
-            <Pie
-              data={pieData}
-              cx="50%"
-              cy="50%"
-              innerRadius={42}
-              outerRadius={62}
-              paddingAngle={2}
-              dataKey="spend"
-            >
-              {pieData.map((entry, i) => (
-                <Cell key={entry.id} fill={entry.fill} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={{
-                background: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-              formatter={(v: number) => [formatPrice(v)]}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center">
-            <p className="text-[10px] text-muted-foreground leading-tight">Łącznie</p>
-            <p className="text-xs font-bold text-foreground tabular-nums">
-              {formatPrice(total)}
-            </p>
+    <div className="space-y-3">
+      {groups.map((g, i) => {
+        const pct = total > 0 ? (g.spend / total) * 100 : 0;
+        const color = CHART_COLORS[i % CHART_COLORS.length];
+        return (
+          <div key={g.id}>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                <span className="text-xs text-foreground truncate">{g.label}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] text-muted-foreground tabular-nums">{pct.toFixed(0)}%</span>
+                <span className="text-xs font-semibold tabular-nums">{formatPrice(g.spend)}</span>
+              </div>
+            </div>
+            <div className="h-1 bg-secondary rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+            </div>
           </div>
-        </div>
-      </div>
-      <div className="flex-1 min-w-0 space-y-1.5">
-        {pieData.slice(0, 6).map((g) => (
-          <div key={g.id} className="flex items-center gap-2">
-            <div
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ background: g.fill }}
-            />
-            <span className="text-xs text-foreground truncate flex-1">{g.label}</span>
-            <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-              {total > 0 ? ((g.spend / total) * 100).toFixed(0) : 0}%
-            </span>
-            <span className="text-xs font-medium tabular-nums shrink-0">
-              {formatPrice(g.spend)}
-            </span>
-          </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -1001,12 +973,11 @@ function ProductsTable({ products }: { products: ProductWithImpact[] }) {
   );
 }
 
-// ─── CategorySpendFull (for Kategorie tab) ─────────────────────────────────────
+// ─── CategoryBarChart (horizontal bar chart for Kategorie tab) ────────────────
 
-function CategorySpendFull({ month }: { month: string }) {
+function CategoryBarChart({ month }: { month: string }) {
   const { selectedId: costCenterId } = useCostCenter();
   const ccParam = costCenterId != null ? { costCenterId } : {};
-
   const prevMonthStr = prevMonth(month);
 
   const { data: currentData, isLoading } = useGetCategorySpend(
@@ -1037,60 +1008,254 @@ function CategorySpendFull({ month }: { month: string }) {
         const catDef = CATEGORIES.find((c) => c.id === id);
         const prevSpend = prevMap.get(id) ?? 0;
         const trend = prevSpend > 0 ? ((spend - prevSpend) / prevSpend) * 100 : null;
-        return { id, label: catDef?.label ?? "Inne", emoji: catDef?.emoji ?? "📦", spend, trend };
+        const shortLabel = (catDef?.label ?? "Inne").split(" / ")[0].substring(0, 16);
+        return {
+          id,
+          label: catDef?.label ?? "Inne",
+          shortLabel,
+          spend,
+          prevSpend,
+          trend,
+        };
       })
       .sort((a, b) => b.spend - a.spend);
   }, [currentData, prevData]);
 
   const total = groups.reduce((s, g) => s + g.spend, 0);
 
-  if (isLoading) return <Skeleton className="h-64 rounded-xl" />;
+  if (isLoading) return <Skeleton className="h-80 rounded-xl" />;
+  if (!groups.length) return (
+    <div className="bg-card border border-border rounded-xl py-16 text-center">
+      <p className="text-sm text-muted-foreground">Brak danych kategorii za {monthLabel(month)}</p>
+    </div>
+  );
+
+  const barData = groups.map((g, i) => ({
+    ...g,
+    fill: CHART_COLORS[i % CHART_COLORS.length],
+    pct: total > 0 ? (g.spend / total) * 100 : 0,
+  }));
+
+  const barHeight = Math.max(260, groups.length * 44);
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
-      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-        <div>Kategoria</div>
-        <div className="text-right w-24">Wydatki</div>
-        <div className="text-right w-12">Udział</div>
-        <div className="text-right w-16">vs poprz.</div>
+      {/* Summary header */}
+      <div className="px-5 py-4 border-b border-border flex flex-wrap items-center gap-x-8 gap-y-2">
+        <div>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Łączne wydatki</p>
+          <p className="text-2xl font-bold tabular-nums text-foreground">{formatPrice(total)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Kategorii</p>
+          <p className="text-2xl font-bold text-foreground">{groups.length}</p>
+        </div>
+        {groups[0] && (
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Największa</p>
+            <p className="text-sm font-semibold text-foreground">
+              {groups[0].label}
+              <span className="text-muted-foreground font-normal ml-1.5">
+                {(total > 0 ? (groups[0].spend / total) * 100 : 0).toFixed(0)}% budżetu
+              </span>
+            </p>
+          </div>
+        )}
       </div>
-      <div className="divide-y divide-border">
-        {groups.map((g, i) => {
-          const pct = total > 0 ? (g.spend / total) * 100 : 0;
-          return (
-            <div key={g.id} className="px-4 md:px-5 py-3">
-              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center mb-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-sm">{g.emoji}</span>
-                  <span className="text-sm font-medium text-foreground truncate">{g.label}</span>
-                </div>
-                <p className="text-sm font-semibold tabular-nums text-right w-24">{formatPrice(g.spend)}</p>
-                <p className="text-xs text-muted-foreground text-right w-12">{pct.toFixed(1)}%</p>
-                {g.trend !== null ? (
-                  <span
-                    className={cn(
-                      "text-xs font-bold text-right w-16 tabular-nums flex items-center justify-end gap-0.5",
-                      g.trend > 0 ? "text-red-500" : "text-emerald-600",
+
+      {/* Horizontal bar chart */}
+      <div className="px-4 pt-5 pb-2">
+        <ResponsiveContainer width="100%" height={barHeight}>
+          <BarChart
+            layout="vertical"
+            data={barData}
+            margin={{ top: 0, right: 130, left: 4, bottom: 0 }}
+            barCategoryGap="28%"
+          >
+            <XAxis
+              type="number"
+              tickFormatter={(v: number) => v === 0 ? "0" : `${(v / 1000).toFixed(0)}k`}
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              type="category"
+              dataKey="shortLabel"
+              width={118}
+              tick={{ fontSize: 11, fill: "hsl(var(--foreground))" }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const d = payload[0]?.payload as typeof barData[0];
+                return (
+                  <div className="bg-card border border-border rounded-lg px-3 py-2 text-xs shadow-sm min-w-[160px]">
+                    <p className="font-semibold mb-1.5 text-foreground">{d.label}</p>
+                    <p className="tabular-nums text-foreground font-bold text-sm">{formatPrice(d.spend)}</p>
+                    <p className="text-muted-foreground mt-0.5">{d.pct.toFixed(1)}% budżetu</p>
+                    {d.trend != null && (
+                      <p className={cn("mt-1 font-semibold", d.trend > 0 ? "text-red-500" : "text-emerald-600")}>
+                        {d.trend > 0 ? "+" : ""}{d.trend.toFixed(1)}% vs poprz. miesiąc
+                      </p>
                     )}
-                  >
-                    {g.trend > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                  </div>
+                );
+              }}
+            />
+            <Bar dataKey="spend" radius={[0, 4, 4, 0]}>
+              {barData.map((entry) => (
+                <Cell key={entry.id} fill={entry.fill} />
+              ))}
+              <LabelList
+                dataKey="spend"
+                position="right"
+                formatter={(v: number) => formatPrice(v)}
+                style={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* MoM comparison strip */}
+      <div className="border-t border-border">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+          <span>Kategoria</span>
+          <span className="text-right">Udział</span>
+          <span className="text-right w-16">vs poprz.</span>
+        </div>
+        <div className="divide-y divide-border/50">
+          {groups.map((g, i) => {
+            const pct = total > 0 ? (g.spend / total) * 100 : 0;
+            return (
+              <div key={g.id} className="flex items-center px-5 py-2 gap-3">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                <span className="text-xs text-foreground flex-1 truncate">{g.label}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">{pct.toFixed(1)}%</span>
+                {g.trend != null ? (
+                  <span className={cn("text-xs font-bold tabular-nums flex items-center gap-0.5 w-16 justify-end", g.trend > 0 ? "text-red-500" : "text-emerald-600")}>
+                    {g.trend > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                     {Math.abs(g.trend).toFixed(1)}%
                   </span>
                 ) : (
-                  <span className="text-xs text-muted-foreground text-right w-16">—</span>
+                  <span className="text-xs text-muted-foreground/40 w-16 text-right">—</span>
                 )}
               </div>
-              <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${pct}%`, background: CHART_COLORS[i % CHART_COLORS.length] }}
-                />
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
+  );
+}
+
+// ─── CategoryTrendChart — stacked bar chart by category over months ────────────
+
+function CategoryTrendChart({ months: numMonths = 6 }: { months?: number }) {
+  const { selectedId: costCenterId } = useCostCenter();
+  const ccParam = costCenterId != null ? { costCenterId } : {};
+
+  const { data: trendData, isLoading } = useGetCategorySpendTrend(
+    { months: numMonths, ...ccParam },
+    { query: { queryKey: ["category-spend-trend", numMonths, costCenterId] } },
+  );
+
+  const { chartData, categories } = useMemo(() => {
+    if (!trendData || !trendData.length) return { chartData: [], categories: [] };
+
+    const catSet = new Set<string>();
+    const monthSet = new Set<string>();
+    for (const row of trendData) {
+      catSet.add(row.category ?? "inne");
+      monthSet.add(row.month);
+    }
+
+    const sortedMonths = Array.from(monthSet).sort();
+
+    const byMonth = new Map<string, Record<string, number>>();
+    for (const m of sortedMonths) byMonth.set(m, {});
+    for (const row of trendData) {
+      const cat = row.category ?? "inne";
+      const obj = byMonth.get(row.month)!;
+      obj[cat] = (obj[cat] ?? 0) + row.totalSpend;
+    }
+
+    const catTotals = Array.from(catSet).map((cat) => ({
+      cat,
+      total: Array.from(byMonth.values()).reduce((s, m) => s + (m[cat] ?? 0), 0),
+    }));
+    catTotals.sort((a, b) => b.total - a.total);
+    const topCats = catTotals.slice(0, 8);
+
+    const chartData = sortedMonths.map((m) => {
+      const obj = byMonth.get(m) ?? {};
+      const row: Record<string, string | number> = { month: shortMonthLabel(m) };
+      for (const { cat } of topCats) row[cat] = obj[cat] ?? 0;
+      return row;
+    });
+
+    const categories = topCats.map(({ cat }, i) => {
+      const catDef = CATEGORIES.find((c) => c.id === cat);
+      return {
+        id: cat,
+        label: (catDef?.label ?? "Inne").split(" / ")[0],
+        color: CHART_COLORS[i % CHART_COLORS.length],
+      };
+    });
+
+    return { chartData, categories };
+  }, [trendData]);
+
+  if (isLoading) return <Skeleton className="h-56 w-full" />;
+  if (!chartData.length) return (
+    <div className="py-10 text-center text-sm text-muted-foreground">Brak danych trendu</div>
+  );
+
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <BarChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="30%">
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis
+          dataKey="month"
+          tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis
+          tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`}
+        />
+        <Tooltip
+          contentStyle={{
+            background: "hsl(var(--card))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: "8px",
+            fontSize: "12px",
+          }}
+          formatter={(v: number, name: string) => {
+            const catDef = CATEGORIES.find((c) => c.id === name);
+            return [formatPrice(v), (catDef?.label ?? name).split(" / ")[0]];
+          }}
+        />
+        <Legend
+          iconSize={8}
+          iconType="circle"
+          wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
+          formatter={(name: string) => {
+            const catDef = CATEGORIES.find((c) => c.id === name);
+            return (catDef?.label ?? name).split(" / ")[0];
+          }}
+        />
+        {categories.map((cat) => (
+          <Bar key={cat.id} dataKey={cat.id} stackId="a" fill={cat.color} name={cat.id} />
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -1407,7 +1572,7 @@ export default function Reports() {
 
               <SectionCard title="Wydatki wg kategorii">
                 <div className="p-4 md:p-5">
-                  <CategoryDonut month={month} />
+                  <CategoryMiniList month={month} />
                 </div>
               </SectionCard>
 
@@ -1496,8 +1661,8 @@ export default function Reports() {
 
           {/* ── KATEGORIE ───────────────────────────────────────────────────── */}
           <TabsContent value="kategorie" className="space-y-5">
-            <CategorySpendFull month={month} />
-            <SectionCard title={`Trend kategorii · ${trendMonths} miesięcy`}>
+            <CategoryBarChart month={month} />
+            <SectionCard title={`Trend wg kategorii · ${trendMonths} miesięcy`}>
               <div className="p-4 md:p-5">
                 <div className="flex justify-end mb-3">
                   <select
@@ -1510,7 +1675,7 @@ export default function Reports() {
                     <option value={12}>12 miesięcy</option>
                   </select>
                 </div>
-                <SpendTrendChart months={trendMonths} />
+                <CategoryTrendChart months={trendMonths} />
               </div>
             </SectionCard>
           </TabsContent>
