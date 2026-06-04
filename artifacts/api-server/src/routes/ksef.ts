@@ -234,7 +234,7 @@ function isoDate(d: Date): string {
 }
 
 interface MatchResult {
-  supplier: { id: number; name: string } | null;
+  supplier: { id: number; name: string; defaultCostCenterId: number | null } | null;
   itemProductIds: Array<number | null>;
   missingProducts: string[];
 }
