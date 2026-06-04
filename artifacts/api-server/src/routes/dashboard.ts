@@ -52,18 +52,30 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     prevPeriodEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split("T")[0];
   }
 
-  const [supplierStats] = await db
-    .select({
-      totalSuppliers: sql<number>`count(*)::int`,
-      activeSuppliers: sql<number>`count(*) filter (where ${suppliersTable.isActive})::int`,
-    })
-    .from(suppliersTable)
-    .where(eq(suppliersTable.userId, userId));
+  // When a cost center is selected, scope supplier/product counts to that center
+  const [supplierStats] = costCenterId != null
+    ? await db.execute<{ total_suppliers: number; active_suppliers: number }>(sql`
+        SELECT
+          COUNT(DISTINCT i.supplier_id)::int AS total_suppliers,
+          COUNT(DISTINCT i.supplier_id) FILTER (WHERE s.is_active = true)::int AS active_suppliers
+        FROM invoices i
+        JOIN suppliers s ON s.id = i.supplier_id
+        WHERE i.user_id = ${userId}
+          AND i.excluded = false
+          AND i.cost_center_id = ${costCenterId}
+      `).then((r) => [{ totalSuppliers: r.rows[0]?.total_suppliers ?? 0, activeSuppliers: r.rows[0]?.active_suppliers ?? 0 }])
+    : await db
+        .select({
+          totalSuppliers: sql<number>`count(*)::int`,
+          activeSuppliers: sql<number>`count(*) filter (where ${suppliersTable.isActive})::int`,
+        })
+        .from(suppliersTable)
+        .where(eq(suppliersTable.userId, userId));
 
   const [invoiceStats] = await db
     .select({ totalInvoices: sql<number>`count(*)::int` })
     .from(invoicesTable)
-    .where(and(eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false)));
+    .where(and(eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false), ccFilter));
 
   const [thisPeriodSpend] = await db
     .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
@@ -93,10 +105,20 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
       ),
     );
 
-  const [productCount] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(productsTable)
-    .where(eq(productsTable.userId, userId));
+  const [productCount] = costCenterId != null
+    ? await db.execute<{ count: number }>(sql`
+        SELECT COUNT(DISTINCT ii.product_id)::int AS count
+        FROM invoice_items ii
+        JOIN invoices i ON ii.invoice_id = i.id
+        WHERE i.user_id = ${userId}
+          AND i.excluded = false
+          AND i.cost_center_id = ${costCenterId}
+          AND ii.product_id IS NOT NULL
+      `).then((r) => [{ count: r.rows[0]?.count ?? 0 }])
+    : await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(productsTable)
+        .where(eq(productsTable.userId, userId));
 
   const [alertCount] = await db
     .select({ count: sql<number>`count(*) filter (where ${priceAlertsTable.isActive})::int` })

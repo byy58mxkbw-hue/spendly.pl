@@ -467,6 +467,11 @@ router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const monthsRaw = parseInt(String(req.query.months ?? ""), 10);
   const monthCount = Number.isFinite(monthsRaw) && monthsRaw >= 2 && monthsRaw <= 12 ? monthsRaw : 6;
+  const costCenterIdRaw = req.query.costCenterId;
+  const costCenterId = costCenterIdRaw != null && costCenterIdRaw !== "" ? parseInt(String(costCenterIdRaw), 10) : null;
+  const ccTrendSql = costCenterId != null && !isNaN(costCenterId)
+    ? sql`AND i.cost_center_id = ${costCenterId}`
+    : sql.raw("");
 
   // Build list of YYYY-MM month strings going back monthCount months from current
   const now = new Date();
@@ -497,6 +502,7 @@ router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
       AND i.excluded = false
       AND i.invoice_date >= ${rangeStart}
       AND i.invoice_date < ${rangeEnd}
+      ${ccTrendSql}
     GROUP BY 1, 2
     ORDER BY 1, total_spend DESC
   `);
