@@ -114,7 +114,7 @@ const ONBOARDING_PRESETS = [
 ];
 
 function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) {
-  const { costCenters } = useCostCenter();
+  const { costCenters, isLoading } = useCostCenter();
   const create = useCreateCostCenter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -124,12 +124,22 @@ function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) 
   const [step, setStep] = useState<"question" | "pick">("question");
   const [creating, setCreating] = useState<string | null>(null);
   const [addedNames, setAddedNames] = useState<string[]>([]);
+  // flowStarted: set once when we confirm 0 centers; keeps modal open
+  // while user adds 2-3 centers even though costCenters.length grows
+  const [flowStarted, setFlowStarted] = useState(false);
 
-  const open = userSignedIn && costCenters.length === 0 && addedNames.length === 0 && !dismissed;
+  useEffect(() => {
+    if (!isLoading && userSignedIn && !dismissed && costCenters.length === 0 && !flowStarted) {
+      setFlowStarted(true);
+    }
+  }, [isLoading, userSignedIn, dismissed, costCenters.length, flowStarted]);
+
+  const open = flowStarted && !dismissed;
 
   function dismiss() {
     localStorage.setItem(CC_ONBOARDING_KEY, "1");
     setDismissed(true);
+    setFlowStarted(false);
   }
 
   function handlePreset(name: string, color: string) {
