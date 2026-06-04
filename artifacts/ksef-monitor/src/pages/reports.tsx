@@ -5,6 +5,7 @@ import {
   useGetCategorySpend,
   useGetCategorySpendTrend,
   useGetDashboardActiveAlerts,
+  useGetReportsCostCenters,
 } from "@workspace/api-client-react";
 import type { ReportProductRow, ReportSupplierRow } from "@workspace/api-client-react";
 import { useCostCenter } from "@/contexts/cost-center-context";
@@ -1093,6 +1094,74 @@ function CategorySpendFull({ month }: { month: string }) {
   );
 }
 
+// ─── Cost center comparison ────────────────────────────────────────────────────
+
+function CostCenterComparisonSection({ month }: { month: string }) {
+  const { data, isLoading } = useGetReportsCostCenters(
+    { month },
+    { query: { queryKey: ["reports-cost-centers", month] } },
+  );
+
+  if (isLoading) return <Skeleton className="h-32 rounded-xl" />;
+  if (!data || data.length <= 1) return null;
+
+  const total = data.reduce((s, r) => s + r.totalAmount, 0);
+
+  return (
+    <SectionCard title="Porównanie centrów kosztów">
+      <div className="p-4 md:p-5 space-y-3">
+        {[...data].sort((a, b) => b.totalAmount - a.totalAmount).map((r, i) => {
+          const pct = total > 0 ? (r.totalAmount / total) * 100 : 0;
+          const color = CHART_COLORS[i % CHART_COLORS.length];
+          const hasChange = r.changePercent != null;
+          const up = (r.changePercent ?? 0) > 0;
+          return (
+            <div key={r.costCenterId ?? "none"}>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ background: r.costCenterColor ?? color }}
+                  />
+                  <span className="text-sm font-medium text-foreground truncate">
+                    {r.costCenterName ?? "Bez centrum"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {r.invoiceCount} {r.invoiceCount === 1 ? "faktura" : "faktur"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {hasChange && (
+                    <span
+                      className={cn(
+                        "text-xs font-bold flex items-center gap-0.5",
+                        up ? "text-red-500" : "text-emerald-600",
+                      )}
+                    >
+                      {up ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                      {Math.abs(r.changePercent!).toFixed(1)}%
+                    </span>
+                  )}
+                  <span className="text-sm font-bold tabular-nums">{formatPrice(r.totalAmount)}</span>
+                  <span className="text-xs text-muted-foreground w-10 text-right tabular-nums">
+                    {pct.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+              <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${pct}%`, background: r.costCenterColor ?? color }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </SectionCard>
+  );
+}
+
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Reports() {
@@ -1272,6 +1341,9 @@ export default function Reports() {
                 />
               </div>
             )}
+
+            {/* Cost center comparison (only when multiple centers configured) */}
+            <CostCenterComparisonSection month={month} />
 
             {/* AI Summary */}
             {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (

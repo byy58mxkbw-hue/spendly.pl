@@ -121,10 +121,11 @@ function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) 
   const [dismissed, setDismissed] = useState(
     () => typeof localStorage !== "undefined" && !!localStorage.getItem(CC_ONBOARDING_KEY),
   );
-  const [step, setStep] = useState<"question" | "pick" | "done">("question");
+  const [step, setStep] = useState<"question" | "pick">("question");
   const [creating, setCreating] = useState<string | null>(null);
+  const [addedNames, setAddedNames] = useState<string[]>([]);
 
-  const open = userSignedIn && costCenters.length === 0 && !dismissed;
+  const open = userSignedIn && costCenters.length === 0 && addedNames.length === 0 && !dismissed;
 
   function dismiss() {
     localStorage.setItem(CC_ONBOARDING_KEY, "1");
@@ -138,7 +139,7 @@ function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) 
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListCostCentersQueryKey() });
-          setStep("done");
+          setAddedNames((prev) => [...prev, name]);
           setCreating(null);
           toast({ title: `Centrum "${name}" dodane` });
         },
@@ -146,6 +147,9 @@ function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) 
       },
     );
   }
+
+  const remainingPresets = ONBOARDING_PRESETS.filter((p) => !addedNames.includes(p.name));
+  const canAddMore = remainingPresets.length > 0 && addedNames.length < 3;
 
   if (!open) return null;
 
@@ -157,9 +161,11 @@ function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) 
           <DialogDescription>
             {step === "question"
               ? "Czy prowadzisz więcej niż jeden punkt sprzedaży lub rodzaj działalności?"
-              : step === "pick"
-                ? "Wybierz centrum kosztów dla swojej restauracji. Możesz dodać więcej później."
-                : "Gotowe! Centrum kosztów zostało skonfigurowane."}
+              : addedNames.length === 0
+                ? "Wybierz 2–3 centra kosztów dla swojej restauracji."
+                : addedNames.length < 2
+                  ? "Dodaj jeszcze jedno lub dwa centra dla pełnej analizy kosztów."
+                  : "Świetnie! Możesz dodać jeszcze jedno lub zakończyć."}
           </DialogDescription>
         </DialogHeader>
 
@@ -183,38 +189,71 @@ function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) 
         )}
 
         {step === "pick" && (
-          <div className="pt-2 space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {ONBOARDING_PRESETS.map((p) => (
-                <button
-                  key={p.name}
-                  onClick={() => handlePreset(p.name, p.color)}
-                  disabled={creating !== null}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm font-medium hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-50"
-                >
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
-                  {creating === p.name ? "Dodawanie..." : p.name}
-                </button>
-              ))}
-            </div>
-            <button onClick={dismiss} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              Pomiń na razie
-            </button>
-          </div>
-        )}
+          <div className="pt-2 space-y-4">
+            {/* Added centers */}
+            {addedNames.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Dodane ({addedNames.length})
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {addedNames.map((name) => {
+                    const preset = ONBOARDING_PRESETS.find((p) => p.name === name);
+                    return (
+                      <span
+                        key={name}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium"
+                      >
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: preset?.color ?? "#14B8A6" }} />
+                        {name}
+                        <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="2,6 5,9 10,3" />
+                        </svg>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-        {step === "done" && (
-          <div className="pt-2 text-center">
-            <p className="text-sm text-muted-foreground mb-4">
-              Możesz dodać więcej centrów kosztów w Ustawieniach.
-            </p>
-            <button
-              onClick={dismiss}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-              style={{ background: "#14b8a6" }}
-            >
-              Gotowe
-            </button>
+            {/* Remaining presets */}
+            {canAddMore && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  {addedNames.length === 0 ? "Wybierz centra" : "Dodaj kolejne"}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {remainingPresets.map((p) => (
+                    <button
+                      key={p.name}
+                      onClick={() => handlePreset(p.name, p.color)}
+                      disabled={creating !== null}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm font-medium hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-50"
+                    >
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
+                      {creating === p.name ? "Dodawanie..." : p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-1 border-t border-border">
+              {addedNames.length > 0 ? (
+                <button
+                  onClick={dismiss}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                  style={{ background: "#14b8a6" }}
+                >
+                  Zakończ konfigurację
+                </button>
+              ) : (
+                <button onClick={dismiss} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  Pomiń na razie
+                </button>
+              )}
+            </div>
           </div>
         )}
       </DialogContent>
