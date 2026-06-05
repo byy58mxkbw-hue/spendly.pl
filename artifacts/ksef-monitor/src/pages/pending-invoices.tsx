@@ -628,6 +628,8 @@ function PendingDetailDialog({
   const [newSupplierNip, setNewSupplierNip] = useState("");
 
   const [creatingProduct, setCreatingProduct] = useState<Set<number>>(new Set());
+  const [showNewProduct, setShowNewProduct] = useState<Record<number, boolean>>({});
+  const [newProductData, setNewProductData] = useState<Record<number, { name: string; unit: string }>>({});
 
   useEffect(() => {
     if (!detail) return;
@@ -732,13 +734,27 @@ function PendingDetailDialog({
     );
   }
 
-  function onCreateProductInline(index: number, name: string, unit: string) {
+  function toggleNewProduct(index: number, itemName: string, itemUnit: string) {
+    const isOpen = showNewProduct[index];
+    if (!isOpen) {
+      setNewProductData((prev) => ({
+        ...prev,
+        [index]: { name: itemName, unit: itemUnit },
+      }));
+    }
+    setShowNewProduct((prev) => ({ ...prev, [index]: !isOpen }));
+  }
+
+  function onCreateProductInline(index: number) {
+    const data = newProductData[index];
+    if (!data?.name?.trim()) return;
     setCreatingProduct((prev) => new Set(prev).add(index));
     createProduct.mutate(
-      { data: { name: name.trim(), unit: unit.trim() || undefined } },
+      { data: { name: data.name.trim(), unit: data.unit.trim() || undefined } },
       {
         onSuccess: (created) => {
           setMapping((m) => ({ ...m, [index]: String(created.id) }));
+          setShowNewProduct((prev) => ({ ...prev, [index]: false }));
           queryClient.invalidateQueries({ queryKey: ["/api/products"] });
           toast({ title: "Produkt dodany", description: created.name });
         },
@@ -916,6 +932,8 @@ function PendingDetailDialog({
                 {detail.items.map((item, i) => {
                   const isMapped = !!mapping[i];
                   const isCreating = creatingProduct.has(i);
+                  const isFormOpen = !!showNewProduct[i];
+                  const productForm = newProductData[i] ?? { name: item.name, unit: item.unit };
                   return (
                     <div key={i} className="px-4 py-3 space-y-2">
                       <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
@@ -932,7 +950,10 @@ function PendingDetailDialog({
                         <div className="flex flex-col gap-1.5 items-end">
                           <Select
                             value={mapping[i] ?? ""}
-                            onValueChange={(v) => setMapping((m) => ({ ...m, [i]: v }))}
+                            onValueChange={(v) => {
+                              setMapping((m) => ({ ...m, [i]: v }));
+                              setShowNewProduct((prev) => ({ ...prev, [i]: false }));
+                            }}
                           >
                             <SelectTrigger
                               className={cn("w-52", !isMapped && "border-amber-300")}
@@ -953,21 +974,74 @@ function PendingDetailDialog({
                           {!isMapped && (
                             <button
                               type="button"
-                              onClick={() => onCreateProductInline(i, item.name, item.unit)}
+                              onClick={() => toggleNewProduct(i, item.name, item.unit)}
                               disabled={isCreating}
                               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                              data-testid={`btn-create-product-${i}`}
+                              data-testid={`btn-toggle-new-product-${i}`}
                             >
-                              {isCreating ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Plus className="w-3 h-3" />
-                              )}
-                              {isCreating ? "Tworzę..." : "Utwórz nowy produkt"}
+                              <Plus className="w-3 h-3" />
+                              {isFormOpen ? "Anuluj dodawanie" : "Nie ma produktu? Dodaj nowy"}
                             </button>
                           )}
                         </div>
                       </div>
+
+                      {isFormOpen && !isMapped && (
+                        <div className="mt-2 rounded-lg border border-border bg-secondary/30 p-3 space-y-3">
+                          <p className="text-xs font-medium text-foreground">Nowy produkt</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label htmlFor={`new-product-name-${i}`} className="text-xs">
+                                Nazwa <span className="text-destructive">*</span>
+                              </Label>
+                              <Input
+                                id={`new-product-name-${i}`}
+                                value={productForm.name}
+                                onChange={(e) =>
+                                  setNewProductData((prev) => ({
+                                    ...prev,
+                                    [i]: { ...productForm, name: e.target.value },
+                                  }))
+                                }
+                                placeholder="Nazwa produktu"
+                                className="h-8 text-sm"
+                                data-testid={`input-new-product-name-${i}`}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor={`new-product-unit-${i}`} className="text-xs">
+                                Jednostka
+                              </Label>
+                              <Input
+                                id={`new-product-unit-${i}`}
+                                value={productForm.unit}
+                                onChange={(e) =>
+                                  setNewProductData((prev) => ({
+                                    ...prev,
+                                    [i]: { ...productForm, unit: e.target.value },
+                                  }))
+                                }
+                                placeholder="np. kg, szt., l"
+                                className="h-8 text-sm"
+                                data-testid={`input-new-product-unit-${i}`}
+                              />
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => onCreateProductInline(i)}
+                            disabled={!productForm.name.trim() || isCreating}
+                            data-testid={`btn-save-new-product-${i}`}
+                          >
+                            {isCreating ? (
+                              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                            ) : (
+                              <Plus className="w-3.5 h-3.5 mr-1.5" />
+                            )}
+                            {isCreating ? "Zapisuję..." : "Zapisz produkt"}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
