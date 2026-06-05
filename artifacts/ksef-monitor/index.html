@@ -50,6 +50,64 @@
     }
     </script>
 
+    <!-- Schema.org: FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Czy mogę anulować w dowolnym momencie?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tak. Brak długoterminowych umów — anulujesz subskrypcję kiedy chcesz, bez żadnych opłat za rezygnację."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy jest okres próbny?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tak. Obecnie Spendly jest bezpłatny dla wszystkich w ramach okresu testowego. Nie wymagamy karty kredytowej na etapie rejestracji."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Jak chronione są moje dane?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Faktury i tokeny KSeF są szyfrowane AES-256-GCM w bazie danych. Każdy użytkownik ma dostęp wyłącznie do swoich danych — bez wyjątków. Komunikacja odbywa się wyłącznie przez szyfrowane połączenie HTTPS."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy Spendly integruje się z KSeF?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tak. Spendly łączy się bezpośrednio z API Krajowego Systemu e-Faktur i automatycznie pobiera faktury zakupowe dla Twojego NIP-u. Wystarczy jednorazowo podać NIP i token — resztą zajmuje się system."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy system działa dla wielu lokali?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tak. System obsługuje wiele lokali i dostawców z jednego panelu. Skontaktuj się z nami, jeśli masz specyficzne wymagania dla sieci restauracji."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Jak działa OCR faktur?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "System automatycznie odczytuje dane z faktur kosztowych — ze zdjęcia telefonu lub pliku PDF. Rozpoznaje dostawcę, produkty, ceny i daty bez ręcznego przepisywania."
+          }
+        }
+      ]
+    }
+    </script>
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -57,36 +115,298 @@
   </head>
   <body>
     <div id="root">
-      <!-- Static prerender for crawlers — replaced by React on hydration -->
-      <div style="background:#0B0F14;min-height:100vh;font-family:'Inter',system-ui,sans-serif;color:#F5F7FA;display:flex;flex-direction:column;">
-        <header style="display:flex;align-items:center;justify-content:space-between;padding:20px 40px;border-bottom:1px solid rgba(255,255,255,0.06);">
-          <span style="font-size:20px;font-weight:700;color:#3DDC97;">Spendly</span>
-          <nav aria-label="Nawigacja główna" style="display:flex;gap:24px;">
-            <a href="#funkcje" style="color:#9BA6B2;text-decoration:none;font-size:14px;">Funkcje</a>
-            <a href="#cennik" style="color:#9BA6B2;text-decoration:none;font-size:14px;">Cennik</a>
-            <a href="/sign-in" style="color:#9BA6B2;text-decoration:none;font-size:14px;">Logowanie</a>
-            <a href="/sign-up" style="background:#3DDC97;color:#0B0F14;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">Zacznij za darmo</a>
-          </nav>
-        </header>
-        <main style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px 60px;text-align:center;">
-          <h1 style="font-size:clamp(2.2rem,5vw,3.5rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:20px;max-width:700px;">
-            Kontroluj koszty restauracji<br />
-            <span style="color:#3DDC97;">w czasie rzeczywistym</span>
-          </h1>
-          <p style="font-size:17px;color:#9BA6B2;line-height:1.7;max-width:480px;margin-bottom:36px;">
-            Spendly automatycznie importuje faktury z KSeF, kontroluje food cost i alarmuje o podwyżkach — zanim uderzą w marżę Twojej restauracji.
-          </p>
-          <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-            <a href="/sign-up" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;background:#3DDC97;color:#0B0F14;text-decoration:none;">Rozpocznij za darmo</a>
-            <a href="#jak-to-dziala" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;background:rgba(255,255,255,0.05);color:#F5F7FA;text-decoration:none;border:1px solid rgba(255,255,255,0.08);">Zobacz jak to działa</a>
+      <!-- Static prerender for crawlers and AI bots — replaced by React on hydration -->
+      <div style="background:#0B0F14;min-height:100vh;font-family:'Inter',system-ui,sans-serif;color:#F5F7FA;">
+
+        <!-- NAV -->
+        <header style="position:sticky;top:0;z-index:50;background:rgba(11,15,20,0.9);border-bottom:1px solid rgba(255,255,255,0.08);">
+          <div style="max-width:1200px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;">
+            <span style="font-size:18px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;">SPENDLY<span style="color:#F5F7FA;">.</span></span>
+            <nav aria-label="Nawigacja główna" style="display:flex;gap:28px;">
+              <a href="#jak-to-dziala" style="color:#9BA6B2;text-decoration:none;font-size:13px;">Jak to działa</a>
+              <a href="#funkcje" style="color:#9BA6B2;text-decoration:none;font-size:13px;">Funkcje</a>
+              <a href="#cennik" style="color:#9BA6B2;text-decoration:none;font-size:13px;">Cennik</a>
+              <a href="#faq" style="color:#9BA6B2;text-decoration:none;font-size:13px;">FAQ</a>
+            </nav>
+            <div style="display:flex;gap:8px;">
+              <a href="/sign-in" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid rgba(255,255,255,0.08);color:#9BA6B2;text-decoration:none;">Zaloguj</a>
+              <a href="/sign-up" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;background:#3DDC97;color:#0B0F14;text-decoration:none;">Rozpocznij za darmo</a>
+            </div>
           </div>
-          <ul style="list-style:none;margin:28px 0 0;padding:0;display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
-            <li style="font-size:13px;color:#9BA6B2;">Integracja z KSeF</li>
-            <li style="font-size:13px;color:#9BA6B2;">Monitoring food cost</li>
-            <li style="font-size:13px;color:#9BA6B2;">Alerty cenowe</li>
-            <li style="font-size:13px;color:#9BA6B2;">AI analityka zakupów</li>
-          </ul>
-        </main>
+        </header>
+
+        <!-- HERO -->
+        <section style="max-width:1200px;margin:0 auto;padding:72px 24px 80px;">
+          <div>
+            <div style="margin-bottom:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#9BA6B2;font-size:12px;font-weight:500;">
+                KSeF + kontrola kosztów gastronomii
+              </span>
+              <span style="display:inline-flex;padding:5px 12px;border-radius:999px;border:1px solid rgba(61,220,151,0.12);background:rgba(61,220,151,0.12);color:#3DDC97;font-size:12px;font-weight:600;">Okres testowy — bezpłatnie</span>
+            </div>
+            <h1 style="font-size:clamp(2.2rem,5vw,3.5rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:20px;color:#F5F7FA;">
+              Kontroluj koszty restauracji<br />
+              <span style="color:#3DDC97;">w czasie rzeczywistym</span>
+            </h1>
+            <p style="font-size:17px;color:#9BA6B2;line-height:1.7;max-width:480px;margin-bottom:36px;">
+              Spendly automatycznie importuje faktury z KSeF, kontroluje food cost i alarmuje o podwyżkach — zanim uderzą w marżę Twojej restauracji.
+            </p>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px;">
+              <a href="/sign-up" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;background:#3DDC97;color:#0B0F14;text-decoration:none;">Rozpocznij za darmo</a>
+              <a href="#jak-to-dziala" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:500;background:none;border:1px solid rgba(255,255,255,0.08);color:#F5F7FA;text-decoration:none;">Zobacz jak działa</a>
+            </div>
+            <ul style="list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px 20px;">
+              <li style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9BA6B2;">Bez wdrożenia</li>
+              <li style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9BA6B2;">Gotowe w kilka minut</li>
+              <li style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9BA6B2;">Działa z KSeF</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- SOCIAL PROOF STATS -->
+        <section style="border-top:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);padding:32px 24px;">
+          <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 24px;display:flex;align-items:center;gap:16px;">
+              <div>
+                <p style="font-size:22px;font-weight:800;color:#F5F7FA;margin:0;">-18%</p>
+                <p style="font-size:12px;color:#9BA6B2;margin:2px 0 0;">Redukcja strat kosztowych</p>
+              </div>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 24px;display:flex;align-items:center;gap:16px;">
+              <div>
+                <p style="font-size:22px;font-weight:800;color:#F5F7FA;margin:0;">15 s</p>
+                <p style="font-size:12px;color:#9BA6B2;margin:2px 0 0;">OCR faktury ze zdjęcia</p>
+              </div>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px 24px;display:flex;align-items:center;gap:16px;">
+              <div>
+                <p style="font-size:22px;font-weight:800;color:#F5F7FA;margin:0;">100%</p>
+                <p style="font-size:12px;color:#9BA6B2;margin:2px 0 0;">Faktur z KSeF automatycznie</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- HOW IT WORKS -->
+        <section id="jak-to-dziala" style="max-width:1200px;margin:0 auto;padding:80px 24px;">
+          <div style="text-align:center;margin-bottom:56px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#3DDC97;text-transform:uppercase;margin-bottom:12px;">Jak to działa</p>
+            <h2 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:600;letter-spacing:-0.025em;color:#F5F7FA;margin:0;">Od faktury do alertu w trzech krokach</h2>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;">
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:28px 24px;">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <span style="font-size:12px;font-weight:700;color:#9BA6B2;letter-spacing:0.05em;">01</span>
+              </div>
+              <h3 style="font-size:15px;font-weight:600;color:#F5F7FA;margin-bottom:8px;">Synchronizuj z KSeF</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.65;margin:0;">Podajesz NIP i token KSeF. Spendly automatycznie pobiera faktury zakupowe od wszystkich dostawców — bez ręcznego wgrywania plików.</p>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:28px 24px;">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <span style="font-size:12px;font-weight:700;color:#9BA6B2;letter-spacing:0.05em;">02</span>
+              </div>
+              <h3 style="font-size:15px;font-weight:600;color:#F5F7FA;margin-bottom:8px;">Śledź zmiany cen</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.65;margin:0;">Każda pozycja trafia do bazy. Widzisz historię ceny każdego surowca, wykres trendu i który dostawca podniósł cenę i o ile.</p>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:28px 24px;">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <span style="font-size:12px;font-weight:700;color:#9BA6B2;letter-spacing:0.05em;">03</span>
+              </div>
+              <h3 style="font-size:15px;font-weight:600;color:#F5F7FA;margin-bottom:8px;">Reaguj na podwyżki</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.65;margin:0;">Ustawiasz progi cenowe dla kluczowych składników. Spendly alarmuje cię zanim podwyżka wpłynie na marżę i food cost.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- PROBLEM / SOLUTION -->
+        <section style="border-top:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);">
+          <div style="max-width:1200px;margin:0 auto;padding:80px 24px;">
+            <div style="text-align:center;margin-bottom:56px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#3DDC97;text-transform:uppercase;margin-bottom:12px;">Problem i rozwiązanie</p>
+              <h2 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:600;letter-spacing:-0.025em;color:#F5F7FA;margin:0;">Znasz te problemy?</h2>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:32px;">
+              <div>
+                <p style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#F87171;text-transform:uppercase;margin-bottom:20px;">Bez Spendly</p>
+                <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:14px;">
+                  <li style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#9BA6B2;line-height:1.5;">Chaos faktur — ręczne przepisywanie danych godzinami</li>
+                  <li style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#9BA6B2;line-height:1.5;">Brak kontroli food cost — dowiadujesz się o problemie za późno</li>
+                  <li style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#9BA6B2;line-height:1.5;">Ręczne wpisywanie cen — błędy, brak historii, zero analizy</li>
+                  <li style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#9BA6B2;line-height:1.5;">Brak analizy dostawców — nie wiesz który drożeje i dlaczego</li>
+                </ul>
+              </div>
+              <div>
+                <p style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#3DDC97;text-transform:uppercase;margin-bottom:20px;">Z Spendly</p>
+                <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:14px;">
+                  <li style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#F5F7FA;line-height:1.5;">AI OCR — faktury odczytywane automatycznie w 15 sekund</li>
+                  <li style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#F5F7FA;line-height:1.5;">Analiza food cost w czasie rzeczywistym z alertami</li>
+                  <li style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#F5F7FA;line-height:1.5;">Automatyczne raporty — dzienne, miesięczne, per-dostawca</li>
+                  <li style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#F5F7FA;line-height:1.5;">Alerty cenowe — wiesz zanim podwyżka uderzy w marżę</li>
+                  <li style="display:flex;align-items:flex-start;gap:10px;font-size:14px;color:#F5F7FA;line-height:1.5;">Integracja KSeF — faktury pobierane bez żadnego działania</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- FEATURES -->
+        <section id="funkcje" style="max-width:1200px;margin:0 auto;padding:80px 24px;">
+          <div style="text-align:center;margin-bottom:56px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#3DDC97;text-transform:uppercase;margin-bottom:12px;">Funkcje</p>
+            <h2 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:600;letter-spacing:-0.025em;color:#F5F7FA;margin:0;">Wszystko czego potrzebujesz do kontroli kosztów</h2>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;">
+              <h3 style="font-size:14px;font-weight:600;color:#F5F7FA;margin-bottom:6px;">Integracja z KSeF</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.6;margin:0;">Automatyczny import faktur zakupowych z Krajowego Systemu e-Faktur. Bez ręcznego wgrywania plików.</p>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;">
+              <h3 style="font-size:14px;font-weight:600;color:#F5F7FA;margin-bottom:6px;">OCR faktur</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.6;margin:0;">System odczytuje dane z faktur kosztowych — ze zdjęcia lub PDF — w kilkanaście sekund.</p>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;">
+              <h3 style="font-size:14px;font-weight:600;color:#F5F7FA;margin-bottom:6px;">Kontrola food cost</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.6;margin:0;">Monitoruj udział kosztów w przychodach restauracji i reaguj zanim food cost przekroczy cel.</p>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;">
+              <h3 style="font-size:14px;font-weight:600;color:#F5F7FA;margin-bottom:6px;">Analiza kosztów</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.6;margin:0;">Wykrywaj wzrosty cen surowców, porównuj dostawców i analizuj trendy zakupowe miesiąc po miesiącu.</p>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;">
+              <h3 style="font-size:14px;font-weight:600;color:#F5F7FA;margin-bottom:6px;">Raporty miesięczne</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.6;margin:0;">Zestawienie wydatków per-dostawca i per-kategoria z eksportem do CSV — gotowe do księgowości.</p>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;">
+              <h3 style="font-size:14px;font-weight:600;color:#F5F7FA;margin-bottom:6px;">Alerty kosztowe</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.6;margin:0;">Ustawiasz progi procentowe lub kwotowe dla kluczowych składników. Alert trafia do Ciebie od razu.</p>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;">
+              <h3 style="font-size:14px;font-weight:600;color:#F5F7FA;margin-bottom:6px;">Bezpieczeństwo danych</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.6;margin:0;">Faktury i tokeny KSeF szyfrowane AES-256 w bazie. Każdy użytkownik widzi wyłącznie swoje dane.</p>
+            </div>
+            <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:24px;">
+              <h3 style="font-size:14px;font-weight:600;color:#F5F7FA;margin-bottom:6px;">Zbiorcze zarządzanie płatnościami</h3>
+              <p style="font-size:13px;color:#9BA6B2;line-height:1.6;margin:0;">Zaznacz wiele faktur jednocześnie i oznacz je jako zapłacone jednym kliknięciem. Pełna historia płatności w jednym miejscu.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- SEO CONTENT -->
+        <section style="max-width:1200px;margin:0 auto;padding:80px 24px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:48px;">
+            <div>
+              <h2 style="font-size:17px;font-weight:600;color:#F5F7FA;margin-bottom:12px;line-height:1.35;">System kontroli kosztów dla gastronomii</h2>
+              <p style="font-size:14px;color:#9BA6B2;line-height:1.75;margin:0;">Spendly to dedykowany system do kontroli kosztów restauracji, który automatyzuje analizę faktur i monitorowanie food cost. Dzięki integracji z KSeF i AI OCR, restauratorzy oszczędzają godziny ręcznej pracy i zyskują pełen wgląd w strukturę wydatków — per-dostawca, per-produkt i per-kategoria.</p>
+            </div>
+            <div>
+              <h2 style="font-size:17px;font-weight:600;color:#F5F7FA;margin-bottom:12px;line-height:1.35;">Integracja z KSeF dla restauracji</h2>
+              <p style="font-size:14px;color:#9BA6B2;line-height:1.75;margin:0;">Krajowy System e-Faktur (KSeF) staje się standardem dla polskich firm gastronomicznych. Spendly automatycznie pobiera faktury zakupowe przez API KSeF, eliminując ręczne wprowadzanie danych. Integracja działa dla wszystkich dostawców zarejestrowanych w KSeF i nie wymaga żadnej dodatkowej konfiguracji po stronie dostawcy.</p>
+            </div>
+            <div>
+              <h2 style="font-size:17px;font-weight:600;color:#F5F7FA;margin-bottom:12px;line-height:1.35;">Automatyczna analiza kosztów i food cost</h2>
+              <p style="font-size:14px;color:#9BA6B2;line-height:1.75;margin:0;">Food cost to jeden z kluczowych wskaźników rentowności restauracji. Spendly automatycznie wylicza food cost na podstawie zaimportowanych faktur, śledzi zmiany cen surowców i generuje raporty miesięczne. System wykrywa anomalie cenowe i alarmuje zanim podwyżka składników wpłynie na wynik finansowy lokalu.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- PRICING -->
+        <section id="cennik" style="border-top:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.015);">
+          <div style="max-width:1200px;margin:0 auto;padding:80px 24px;">
+            <div style="text-align:center;margin-bottom:48px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#3DDC97;text-transform:uppercase;margin-bottom:12px;">Cennik</p>
+              <h2 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:600;letter-spacing:-0.025em;color:#F5F7FA;margin-bottom:12px;">Prosta cena. Pełna kontrola kosztów.</h2>
+              <p style="font-size:15px;color:#9BA6B2;margin:0;">Okres testowy — bezpłatnie dla każdego. Anuluj w dowolnym momencie.</p>
+            </div>
+            <div style="max-width:420px;margin:0 auto;">
+              <div style="background:#131A22;border:1px solid rgba(61,220,151,0.25);border-radius:24px;padding:36px 32px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+                  <p style="font-size:13px;font-weight:700;color:#F5F7FA;margin:0;">Spendly Pro</p>
+                  <span style="font-size:10px;font-weight:700;text-transform:uppercase;background:rgba(61,220,151,0.12);color:#3DDC97;padding:4px 10px;border-radius:999px;">Okres testowy</span>
+                </div>
+                <div style="margin-bottom:28px;">
+                  <div style="display:flex;align-items:baseline;gap:8px;">
+                    <span style="font-size:52px;font-weight:800;color:#3DDC97;letter-spacing:-0.03em;line-height:1;">0</span>
+                    <span style="font-size:16px;color:#9BA6B2;">zł / mies.</span>
+                    <span style="font-size:14px;color:#9BA6B2;text-decoration:line-through;opacity:0.6;">200 zł</span>
+                  </div>
+                  <p style="font-size:13px;color:#9BA6B2;margin-top:8px;">Bezpłatnie w całym okresie testowym — dla każdego.</p>
+                </div>
+                <ul style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:12px;">
+                  <li style="font-size:14px;color:#F5F7FA;">Integracja z KSeF</li>
+                  <li style="font-size:14px;color:#F5F7FA;">OCR faktur</li>
+                  <li style="font-size:14px;color:#F5F7FA;">Kontrola food cost</li>
+                  <li style="font-size:14px;color:#F5F7FA;">Analiza kosztów restauracji</li>
+                  <li style="font-size:14px;color:#F5F7FA;">Alerty kosztowe</li>
+                  <li style="font-size:14px;color:#F5F7FA;">Dashboard wydatków</li>
+                  <li style="font-size:14px;color:#F5F7FA;">Raporty miesięczne</li>
+                  <li style="font-size:14px;color:#F5F7FA;">Monitoring cen dostawców</li>
+                  <li style="font-size:14px;color:#F5F7FA;">Zbiorcze zarządzanie płatnościami</li>
+                </ul>
+                <a href="/sign-up" style="display:block;width:100%;padding:14px;border-radius:12px;font-size:14px;font-weight:700;background:#3DDC97;color:#0B0F14;text-decoration:none;text-align:center;margin-bottom:12px;">Rozpocznij za darmo</a>
+                <p style="text-align:center;font-size:12px;color:#9BA6B2;margin:0;">Bez umowy. Bez wdrożenia. Bez ukrytych kosztów.</p>
+              </div>
+            </div>
+            <p style="text-align:center;font-size:13px;color:#9BA6B2;margin-top:24px;">
+              Potrzebujesz dedykowanej integracji lub wsparcia dla sieci lokali?
+              <a href="mailto:kontakt@spendly.pl" style="color:#3DDC97;text-decoration:none;">Napisz do nas</a>
+            </p>
+          </div>
+        </section>
+
+        <!-- FAQ -->
+        <section id="faq" style="max-width:760px;margin:0 auto;padding:80px 24px;">
+          <div style="text-align:center;margin-bottom:48px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#3DDC97;text-transform:uppercase;margin-bottom:12px;">FAQ</p>
+            <h2 style="font-size:clamp(1.8rem,4vw,2.4rem);font-weight:600;letter-spacing:-0.025em;color:#F5F7FA;margin:0;">Najczęstsze pytania</h2>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);">
+            <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#F5F7FA;margin:0 0 8px;">Czy mogę anulować w dowolnym momencie?</h3>
+              <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Tak. Brak długoterminowych umów — anulujesz subskrypcję kiedy chcesz, bez żadnych opłat za rezygnację.</p>
+            </div>
+            <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#F5F7FA;margin:0 0 8px;">Czy jest okres próbny?</h3>
+              <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Tak. Obecnie Spendly jest bezpłatny dla wszystkich w ramach okresu testowego. Nie wymagamy karty kredytowej na etapie rejestracji.</p>
+            </div>
+            <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#F5F7FA;margin:0 0 8px;">Jak chronione są moje dane?</h3>
+              <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Faktury i tokeny KSeF są szyfrowane AES-256-GCM w bazie danych. Każdy użytkownik ma dostęp wyłącznie do swoich danych — bez wyjątków. Komunikacja odbywa się wyłącznie przez szyfrowane połączenie HTTPS.</p>
+            </div>
+            <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#F5F7FA;margin:0 0 8px;">Czy Spendly integruje się z KSeF?</h3>
+              <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Tak. Spendly łączy się bezpośrednio z API Krajowego Systemu e-Faktur i automatycznie pobiera faktury zakupowe dla Twojego NIP-u. Wystarczy jednorazowo podać NIP i token — resztą zajmuje się system.</p>
+            </div>
+            <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#F5F7FA;margin:0 0 8px;">Czy system działa dla wielu lokali?</h3>
+              <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Tak. System obsługuje wiele lokali i dostawców z jednego panelu. Skontaktuj się z nami, jeśli masz specyficzne wymagania dla sieci restauracji.</p>
+            </div>
+            <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#F5F7FA;margin:0 0 8px;">Jak działa OCR faktur?</h3>
+              <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">System automatycznie odczytuje dane z faktur kosztowych — ze zdjęcia telefonu lub pliku PDF. Rozpoznaje dostawcę, produkty, ceny i daty bez ręcznego przepisywania.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- FINAL CTA -->
+        <section style="max-width:1200px;margin:0 auto;padding:0 24px 80px;">
+          <div style="background:linear-gradient(135deg,rgba(61,220,151,0.12) 0%,rgba(61,220,151,0.04) 100%);border:1px solid rgba(61,220,151,0.2);border-radius:24px;padding:60px 40px;text-align:center;">
+            <span style="display:inline-flex;padding:5px 12px;border-radius:999px;margin-bottom:20px;border:1px solid rgba(61,220,151,0.12);background:rgba(61,220,151,0.12);color:#3DDC97;font-size:12px;font-weight:600;">Okres testowy — bezpłatnie</span>
+            <h2 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:600;letter-spacing:-0.025em;color:#F5F7FA;margin-bottom:16px;">Zobacz ile kosztów możesz odzyskać.</h2>
+            <p style="font-size:15px;color:#9BA6B2;max-width:520px;margin:0 auto 32px;line-height:1.65;">Spendly pomaga restauracjom kontrolować wydatki, food cost i faktury w jednym miejscu.</p>
+            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+              <a href="/sign-up" style="display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:700;background:#3DDC97;color:#0B0F14;text-decoration:none;">Rozpocznij za darmo</a>
+              <a href="/sign-in" style="display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:500;background:none;border:1px solid rgba(255,255,255,0.08);color:#F5F7FA;text-decoration:none;">Mam już konto</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer style="border-top:1px solid rgba(255,255,255,0.08);padding:40px 24px;">
+          <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+            <span style="font-size:16px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;">SPENDLY<span style="color:#F5F7FA;">.</span></span>
+            <p style="font-size:12px;color:#9BA6B2;margin:0;">Kontrola kosztów restauracji z integracją KSeF i OCR faktur</p>
+          </div>
+        </footer>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

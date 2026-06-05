@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
@@ -9,19 +9,20 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
-import Dashboard from "@/pages/dashboard";
-import Suppliers from "@/pages/suppliers";
-import SupplierDetail from "@/pages/supplier-detail";
-import Products from "@/pages/products";
-import Invoices from "@/pages/invoices";
-import PriceAlerts from "@/pages/price-alerts";
-import Reports from "@/pages/reports";
-import Predictive from "@/pages/predictive";
-import PendingInvoices from "@/pages/pending-invoices";
-import SettingsKsef from "@/pages/settings-ksef";
-import { AiCfoPage } from "@/pages/ai-cfo";
-import AdminUsers from "@/pages/admin-users";
-import SettingsCostCenters from "@/pages/settings-cost-centers";
+
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Suppliers = lazy(() => import("@/pages/suppliers"));
+const SupplierDetail = lazy(() => import("@/pages/supplier-detail"));
+const Products = lazy(() => import("@/pages/products"));
+const Invoices = lazy(() => import("@/pages/invoices"));
+const PriceAlerts = lazy(() => import("@/pages/price-alerts"));
+const Reports = lazy(() => import("@/pages/reports"));
+const Predictive = lazy(() => import("@/pages/predictive"));
+const PendingInvoices = lazy(() => import("@/pages/pending-invoices"));
+const SettingsKsef = lazy(() => import("@/pages/settings-ksef"));
+const AiCfoPage = lazy(() => import("@/pages/ai-cfo").then((m) => ({ default: m.AiCfoPage })));
+const AdminUsers = lazy(() => import("@/pages/admin-users"));
+const SettingsCostCenters = lazy(() => import("@/pages/settings-cost-centers"));
 import { CostCenterProvider } from "@/contexts/cost-center-context";
 
 const queryClient = new QueryClient({
@@ -212,51 +213,53 @@ function AppRouter() {
         <CostCenterProvider>
         <TooltipProvider>
           <ClerkQueryClientCacheInvalidator />
-          <Switch>
-            <Route path="/" component={HomeRedirect} />
-            <Route path="/sign-in/*?" component={SignInPage} />
-            <Route path="/sign-up/*?" component={SignUpPage} />
-            <Route path="/dashboard">
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
-            </Route>
-            <Route path="/suppliers">
-              <ProtectedRoute><Suppliers /></ProtectedRoute>
-            </Route>
-            <Route path="/suppliers/:id">
-              {(params) => <ProtectedRoute><SupplierDetail params={params} /></ProtectedRoute>}
-            </Route>
-            <Route path="/products">
-              <ProtectedRoute><Products /></ProtectedRoute>
-            </Route>
-            <Route path="/invoices">
-              <ProtectedRoute><Invoices /></ProtectedRoute>
-            </Route>
-            <Route path="/price-alerts">
-              <ProtectedRoute><PriceAlerts /></ProtectedRoute>
-            </Route>
-            <Route path="/reports">
-              <ProtectedRoute><Reports /></ProtectedRoute>
-            </Route>
-            <Route path="/predictive">
-              <ProtectedRoute><Predictive /></ProtectedRoute>
-            </Route>
-            <Route path="/pending-invoices">
-              <ProtectedRoute><PendingInvoices /></ProtectedRoute>
-            </Route>
-            <Route path="/ai-cfo">
-              <ProtectedRoute><AiCfoPage /></ProtectedRoute>
-            </Route>
-            <Route path="/settings/ksef">
-              <ProtectedRoute><SettingsKsef /></ProtectedRoute>
-            </Route>
-            <Route path="/settings/cost-centers">
-              <ProtectedRoute><SettingsCostCenters /></ProtectedRoute>
-            </Route>
-            <Route path="/admin/users">
-              <ProtectedRoute><AdminUsers /></ProtectedRoute>
-            </Route>
-            <Route component={NotFound} />
-          </Switch>
+          <Suspense fallback={null}>
+            <Switch>
+              <Route path="/" component={HomeRedirect} />
+              <Route path="/sign-in/*?" component={SignInPage} />
+              <Route path="/sign-up/*?" component={SignUpPage} />
+              <Route path="/dashboard">
+                <ProtectedRoute><Dashboard /></ProtectedRoute>
+              </Route>
+              <Route path="/suppliers">
+                <ProtectedRoute><Suppliers /></ProtectedRoute>
+              </Route>
+              <Route path="/suppliers/:id">
+                {(params) => <ProtectedRoute><SupplierDetail params={params} /></ProtectedRoute>}
+              </Route>
+              <Route path="/products">
+                <ProtectedRoute><Products /></ProtectedRoute>
+              </Route>
+              <Route path="/invoices">
+                <ProtectedRoute><Invoices /></ProtectedRoute>
+              </Route>
+              <Route path="/price-alerts">
+                <ProtectedRoute><PriceAlerts /></ProtectedRoute>
+              </Route>
+              <Route path="/reports">
+                <ProtectedRoute><Reports /></ProtectedRoute>
+              </Route>
+              <Route path="/predictive">
+                <ProtectedRoute><Predictive /></ProtectedRoute>
+              </Route>
+              <Route path="/pending-invoices">
+                <ProtectedRoute><PendingInvoices /></ProtectedRoute>
+              </Route>
+              <Route path="/ai-cfo">
+                <ProtectedRoute><AiCfoPage /></ProtectedRoute>
+              </Route>
+              <Route path="/settings/ksef">
+                <ProtectedRoute><SettingsKsef /></ProtectedRoute>
+              </Route>
+              <Route path="/settings/cost-centers">
+                <ProtectedRoute><SettingsCostCenters /></ProtectedRoute>
+              </Route>
+              <Route path="/admin/users">
+                <ProtectedRoute><AdminUsers /></ProtectedRoute>
+              </Route>
+              <Route component={NotFound} />
+            </Switch>
+          </Suspense>
           <Toaster />
         </TooltipProvider>
         </CostCenterProvider>

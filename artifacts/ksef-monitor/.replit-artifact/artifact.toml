@@ -29,19 +29,19 @@ to = "/index.html"
 
 [[services.production.rewrites]]
 from = "/sign-in"
-to = "/index.html"
+to = "/sign-in.html"
 
 [[services.production.rewrites]]
 from = "/sign-in/*"
-to = "/index.html"
+to = "/sign-in.html"
 
 [[services.production.rewrites]]
 from = "/sign-up"
-to = "/index.html"
+to = "/sign-up.html"
 
 [[services.production.rewrites]]
 from = "/sign-up/*"
-to = "/index.html"
+to = "/sign-up.html"
 
 [[services.production.rewrites]]
 from = "/clerk/*"
