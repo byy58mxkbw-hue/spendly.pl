@@ -209,6 +209,7 @@ function FaqItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean
     <div style={{ borderBottom: `1px solid ${C.border}` }}>
       <button
         onClick={onToggle}
+        aria-expanded={open}
         style={{
           width: "100%", display: "flex", alignItems: "center",
           justifyContent: "space-between", gap: 16,
@@ -225,19 +226,15 @@ function FaqItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean
           <ChevronDown size={16} style={{ color: C.muted }} />
         </motion.div>
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease }}
-            style={{ overflow: "hidden" }}
-          >
-            <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.7, paddingBottom: 20 }}>{a}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <motion.div
+        initial={false}
+        animate={{ height: open ? "auto" : 0, opacity: open ? 1 : 0 }}
+        transition={{ duration: 0.25, ease }}
+        style={{ overflow: "hidden" }}
+        aria-hidden={!open}
+      >
+        <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.7, paddingBottom: 20 }}>{a}</p>
+      </motion.div>
     </div>
   );
 }
