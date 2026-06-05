@@ -630,6 +630,17 @@ function PendingDetailDialog({
   const [creatingProduct, setCreatingProduct] = useState<Set<number>>(new Set());
   const [showNewProduct, setShowNewProduct] = useState<Record<number, boolean>>({});
   const [newProductData, setNewProductData] = useState<Record<number, { name: string; unit: string }>>({});
+  const [skipped, setSkipped] = useState<Set<number>>(new Set());
+
+  function skipItem(index: number) {
+    setSkipped((prev) => new Set(prev).add(index));
+    setMapping((m) => { const next = { ...m }; delete next[index]; return next; });
+    setShowNewProduct((prev) => ({ ...prev, [index]: false }));
+  }
+
+  function unskipItem(index: number) {
+    setSkipped((prev) => { const next = new Set(prev); next.delete(index); return next; });
+  }
 
   useEffect(() => {
     if (!detail) return;
@@ -648,8 +659,10 @@ function PendingDetailDialog({
   const allMapped = useMemo(() => {
     if (!detail) return false;
     if (!supplierId) return false;
-    return detail.items.every((_, i) => mapping[i]);
-  }, [detail, supplierId, mapping]);
+    const activeItems = detail.items.filter((_, i) => !skipped.has(i));
+    if (activeItems.length === 0) return false;
+    return detail.items.every((_, i) => skipped.has(i) || !!mapping[i]);
+  }, [detail, supplierId, mapping, skipped]);
 
   function onAccept() {
     if (!detail || !supplierId) return;
@@ -658,10 +671,9 @@ function PendingDetailDialog({
         id,
         data: {
           supplierId: parseInt(supplierId, 10),
-          itemMappings: detail.items.map((_, i) => ({
-            index: i,
-            productId: parseInt(mapping[i], 10),
-          })),
+          itemMappings: detail.items
+            .map((_, i) => ({ index: i, productId: parseInt(mapping[i], 10) }))
+            .filter((_, i) => !skipped.has(i) && mapping[i]),
         },
       },
       {
@@ -927,18 +939,24 @@ function PendingDetailDialog({
             </Collapsible>
 
             <div>
-              <p className="text-sm font-medium mb-2">Dopasuj produkty ({detail.items.length})</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium">Dopasuj produkty ({detail.items.length - skipped.size}{skipped.size > 0 ? ` z ${detail.items.length}` : ""})</p>
+                {skipped.size > 0 && (
+                  <p className="text-xs text-muted-foreground">{skipped.size} {skipped.size === 1 ? "pozycja pominięta" : "pozycje pominięte"} — nie zostaną zaimportowane</p>
+                )}
+              </div>
               <div className="rounded-lg border border-border divide-y divide-border">
                 {detail.items.map((item, i) => {
+                  const isSkipped = skipped.has(i);
                   const isMapped = !!mapping[i];
                   const isCreating = creatingProduct.has(i);
                   const isFormOpen = !!showNewProduct[i];
                   const productForm = newProductData[i] ?? { name: item.name, unit: item.unit };
                   return (
-                    <div key={i} className="px-4 py-3 space-y-2">
+                    <div key={i} className={cn("px-4 py-3 space-y-2", isSkipped && "opacity-50 bg-secondary/20")}>
                       <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
+                          <p className={cn("text-sm font-medium text-foreground truncate", isSkipped && "line-through text-muted-foreground")}>
                             {item.name}
                           </p>
                           <p className="text-xs text-muted-foreground">
@@ -947,29 +965,48 @@ function PendingDetailDialog({
                             {item.gtin ? ` · GTIN ${item.gtin}` : ""}
                           </p>
                         </div>
-                        <div className="flex flex-col gap-1.5 items-end">
-                          <Select
-                            value={mapping[i] ?? ""}
-                            onValueChange={(v) => {
-                              setMapping((m) => ({ ...m, [i]: v }));
-                              setShowNewProduct((prev) => ({ ...prev, [i]: false }));
-                            }}
+                        {isSkipped ? (
+                          <button
+                            type="button"
+                            onClick={() => unskipItem(i)}
+                            className="text-xs text-muted-foreground hover:text-foreground underline transition-colors shrink-0 mt-0.5"
                           >
-                            <SelectTrigger
-                              className={cn("w-52", !isMapped && "border-amber-300")}
-                              data-testid={`select-product-${i}`}
+                            Przywróć
+                          </button>
+                        ) : (
+                        <div className="flex flex-col gap-1.5 items-end">
+                          <div className="flex items-center gap-1.5">
+                            <Select
+                              value={mapping[i] ?? ""}
+                              onValueChange={(v) => {
+                                setMapping((m) => ({ ...m, [i]: v }));
+                                setShowNewProduct((prev) => ({ ...prev, [i]: false }));
+                              }}
                             >
-                              <SelectValue placeholder="Wybierz produkt" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {products?.map((p) => (
-                                <SelectItem key={p.id} value={String(p.id)}>
-                                  {p.name}
-                                  {item.suggestedProductId === p.id ? " (sugerowany)" : ""}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                              <SelectTrigger
+                                className={cn("w-52", !isMapped && "border-amber-300")}
+                                data-testid={`select-product-${i}`}
+                              >
+                                <SelectValue placeholder="Wybierz produkt" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products?.map((p) => (
+                                  <SelectItem key={p.id} value={String(p.id)}>
+                                    {p.name}
+                                    {item.suggestedProductId === p.id ? " (sugerowany)" : ""}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <button
+                              type="button"
+                              onClick={() => skipItem(i)}
+                              className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                              title="Pomiń tę pozycję"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
 
                           {!isMapped && (
                             <button
@@ -984,6 +1021,7 @@ function PendingDetailDialog({
                             </button>
                           )}
                         </div>
+                        )}
                       </div>
 
                       {isFormOpen && !isMapped && (

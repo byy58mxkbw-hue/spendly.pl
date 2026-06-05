@@ -1226,11 +1226,9 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   for (const m of body.data.itemMappings) {
     mappingByIndex.set(m.index, m.productId);
   }
-  for (let i = 0; i < parsed.items.length; i++) {
-    if (!mappingByIndex.has(i)) {
-      res.status(400).json({ error: `Brak dopasowania produktu dla pozycji #${i + 1}.` });
-      return;
-    }
+  if (mappingByIndex.size === 0) {
+    res.status(400).json({ error: "Musisz dopasować co najmniej jedną pozycję." });
+    return;
   }
 
   const productIds = Array.from(new Set(mappingByIndex.values()));
@@ -1243,7 +1241,10 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
     return;
   }
 
-  const totalAmount = parsed.header.totalGross ?? parsed.items.reduce((s, i) => s + i.gross, 0);
+  const totalAmount = parsed.items.reduce(
+    (s, item, i) => (mappingByIndex.has(i) ? s + item.gross : s),
+    0,
+  );
   const acceptPayMethod = (parsed.header.paymentMethod as "gotowka" | "przelew" | "karta" | null | undefined) ?? null;
   const acceptPayDue = acceptPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
   const acceptNow = new Date();
@@ -1269,6 +1270,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
 
     const items: Array<typeof invoiceItemsTable.$inferSelect> = [];
     for (let i = 0; i < parsed.items.length; i++) {
+      if (!mappingByIndex.has(i)) continue;
       const item = parsed.items[i];
       const [inserted] = await tx
         .insert(invoiceItemsTable)
