@@ -916,6 +916,43 @@ router.patch("/invoices/bulk-assign-cost-center", async (req, res): Promise<void
   res.json({ updated: result.length });
 });
 
+router.delete("/invoices/:invoiceId/items/:itemId", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const invoiceId = Number(req.params.invoiceId);
+  const itemId = Number(req.params.itemId);
+  if (!invoiceId || !itemId) { res.status(400).json({ error: "Nieprawidłowe parametry" }); return; }
+
+  // Verify the invoice belongs to this user
+  const [invoice] = await db
+    .select({ id: invoicesTable.id })
+    .from(invoicesTable)
+    .where(and(eq(invoicesTable.id, invoiceId), eq(invoicesTable.userId, userId)));
+  if (!invoice) { res.status(404).json({ error: "Faktura nie znaleziona" }); return; }
+
+  // Verify the item belongs to this invoice
+  const [item] = await db
+    .select({ id: invoiceItemsTable.id, totalPrice: invoiceItemsTable.totalPrice })
+    .from(invoiceItemsTable)
+    .where(and(eq(invoiceItemsTable.id, itemId), eq(invoiceItemsTable.invoiceId, invoiceId)));
+  if (!item) { res.status(404).json({ error: "Pozycja nie znaleziona" }); return; }
+
+  // Delete the item and update invoice total
+  await db.delete(invoiceItemsTable).where(eq(invoiceItemsTable.id, itemId));
+
+  const remaining = await db
+    .select({ totalPrice: invoiceItemsTable.totalPrice })
+    .from(invoiceItemsTable)
+    .where(eq(invoiceItemsTable.invoiceId, invoiceId));
+  const newTotal = remaining.reduce((s, r) => s + toNum(r.totalPrice), 0);
+
+  await db
+    .update(invoicesTable)
+    .set({ totalAmount: String(newTotal) })
+    .where(eq(invoicesTable.id, invoiceId));
+
+  res.json({ deleted: true, newTotal });
+});
+
 router.delete("/invoices/delete-all", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const result = await db

@@ -42,6 +42,7 @@ import type {
   DeleteAllKsefPending200,
   DeleteAllKsefPendingParams,
   DeleteCostCenter200,
+  DeleteInvoiceItem200,
   DeleteKsefPending200,
   DeleteSupplier200,
   DismissPriceAlertBody,
@@ -3764,6 +3765,94 @@ export const useDeleteInvoice = <
   TContext
 > => {
   return useMutation(getDeleteInvoiceMutationOptions(options));
+};
+
+/**
+ * @summary Delete a single line item from an invoice
+ */
+export const getDeleteInvoiceItemUrl = (invoiceId: number, itemId: number) => {
+  return `/api/invoices/${invoiceId}/items/${itemId}`;
+};
+
+export const deleteInvoiceItem = async (
+  invoiceId: number,
+  itemId: number,
+  options?: RequestInit,
+): Promise<DeleteInvoiceItem200> => {
+  return customFetch<DeleteInvoiceItem200>(
+    getDeleteInvoiceItemUrl(invoiceId, itemId),
+    {
+      ...options,
+      method: "DELETE",
+    },
+  );
+};
+
+export const getDeleteInvoiceItemMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteInvoiceItem>>,
+    TError,
+    { invoiceId: number; itemId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteInvoiceItem>>,
+  TError,
+  { invoiceId: number; itemId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteInvoiceItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteInvoiceItem>>,
+    { invoiceId: number; itemId: number }
+  > = (props) => {
+    const { invoiceId, itemId } = props ?? {};
+
+    return deleteInvoiceItem(invoiceId, itemId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteInvoiceItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteInvoiceItem>>
+>;
+
+export type DeleteInvoiceItemMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a single line item from an invoice
+ */
+export const useDeleteInvoiceItem = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteInvoiceItem>>,
+    TError,
+    { invoiceId: number; itemId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteInvoiceItem>>,
+  TError,
+  { invoiceId: number; itemId: number },
+  TContext
+> => {
+  return useMutation(getDeleteInvoiceItemMutationOptions(options));
 };
 
 /**

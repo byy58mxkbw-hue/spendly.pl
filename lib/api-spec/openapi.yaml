@@ -979,6 +979,40 @@ paths:
         "204":
           description: Deleted
 
+  /invoices/{invoiceId}/items/{itemId}:
+    delete:
+      operationId: deleteInvoiceItem
+      tags: [invoices]
+      summary: Delete a single line item from an invoice
+      parameters:
+        - name: invoiceId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Item deleted, returns updated invoice total
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                  newTotal:
+                    type: number
+                required:
+                  - deleted
+                  - newTotal
+        "404":
+          description: Not found
+
   /invoices/timeline:
     get:
       operationId: getInvoicesTimeline

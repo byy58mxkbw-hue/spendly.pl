@@ -811,6 +811,19 @@ export const DeleteInvoiceParams = zod.object({
 });
 
 /**
+ * @summary Delete a single line item from an invoice
+ */
+export const DeleteInvoiceItemParams = zod.object({
+  invoiceId: zod.coerce.number(),
+  itemId: zod.coerce.number(),
+});
+
+export const DeleteInvoiceItemResponse = zod.object({
+  deleted: zod.boolean(),
+  newTotal: zod.number(),
+});
+
+/**
  * @summary Get purchase timeline grouped by day for a given month
  */
 export const GetInvoicesTimelineQueryParams = zod.object({

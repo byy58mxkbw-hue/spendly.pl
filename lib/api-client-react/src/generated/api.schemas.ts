@@ -933,6 +933,11 @@ export type DeleteAllInvoices200 = {
   deleted: number;
 };
 
+export type DeleteInvoiceItem200 = {
+  deleted: boolean;
+  newTotal: number;
+};
+
 export type GetInvoicesTimelineParams = {
   /**
    * Month in YYYY-MM format (defaults to current month)

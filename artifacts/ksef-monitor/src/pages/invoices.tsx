@@ -9,6 +9,7 @@ import {
   useDeleteAllInvoices,
   useGetKsefConfig,
   useGetInvoice,
+  useDeleteInvoiceItem,
   useToggleInvoiceExcluded,
   useGetInvoicesTimeline,
   useGetInvoicesCalendar,
@@ -799,12 +800,36 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
 // ─── Invoice detail modal ──────────────────────────────────────────────────────
 
 function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const { data, isLoading } = useGetInvoice(invoiceId, {
     query: { queryKey: getGetInvoiceQueryKey(invoiceId) },
   });
+  const deleteItem = useDeleteInvoiceItem();
+  const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
   const total = data?.items.reduce((s, i) => s + i.totalPrice, 0) ?? 0;
+  const deleteItemName = data?.items.find((i) => i.id === deleteItemId)?.productName;
+
+  function handleDeleteItem() {
+    if (deleteItemId == null) return;
+    deleteItem.mutate(
+      { invoiceId, itemId: deleteItemId },
+      {
+        onSuccess: () => {
+          void qc.invalidateQueries({ queryKey: getGetInvoiceQueryKey(invoiceId) });
+          void qc.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+          setDeleteItemId(null);
+          toast({ title: "Pozycja usunięta" });
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "Błąd", description: "Nie udało się usunąć pozycji." });
+        },
+      },
+    );
+  }
 
   return (
+    <>
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
@@ -838,15 +863,16 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
             </div>
             {data.items.length > 0 ? (
               <div className="flex-1 min-h-0 border border-border rounded-xl overflow-hidden">
-                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-2.5 text-xs font-medium text-muted-foreground bg-secondary/30 border-b border-border">
+                <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-2.5 text-xs font-medium text-muted-foreground bg-secondary/30 border-b border-border">
                   <div>Produkt</div>
                   <div className="text-right w-20 hidden sm:block">Ilość</div>
                   <div className="text-right w-24">Cena jedn.</div>
                   <div className="text-right w-24">Wartość</div>
+                  <div className="w-7" />
                 </div>
                 <div className="divide-y divide-border overflow-y-auto max-h-[340px]">
                   {data.items.map((item) => (
-                    <div key={item.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-3 items-center">
+                    <div key={item.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-3 items-center group hover:bg-secondary/20 transition-colors">
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{item.productName}</p>
                         {item.vatRate != null && <p className="text-xs text-muted-foreground">VAT {item.vatRate}%</p>}
@@ -862,14 +888,24 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
                       <div className="text-right w-24">
                         <p className="text-sm font-semibold tabular-nums">{formatPrice(item.totalPrice)}</p>
                       </div>
+                      <div className="w-7 flex justify-end">
+                        <button
+                          onClick={() => setDeleteItemId(item.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title="Usuń pozycję"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 px-4 py-2.5 border-t border-border bg-secondary/20">
+                <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-2.5 border-t border-border bg-secondary/20">
                   <p className="text-xs font-medium text-muted-foreground">Razem</p>
                   <div className="w-20 hidden sm:block" />
                   <div className="w-24" />
                   <p className="text-sm font-bold text-right w-24 tabular-nums">{formatPrice(total)}</p>
+                  <div className="w-7" />
                 </div>
               </div>
             ) : (
@@ -882,6 +918,30 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
         ) : null}
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={deleteItemId != null} onOpenChange={(open) => { if (!open) setDeleteItemId(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Usuń pozycję</AlertDialogTitle>
+          <AlertDialogDescription>
+            Czy na pewno chcesz usunąć pozycję{" "}
+            {deleteItemName && <span className="font-medium text-foreground">{deleteItemName}</span>}
+            ? Wartość faktury zostanie zaktualizowana.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Anuluj</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDeleteItem}
+            disabled={deleteItem.isPending}
+            className="bg-destructive hover:bg-destructive/90"
+          >
+            {deleteItem.isPending ? "Usuwanie..." : "Usuń"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
