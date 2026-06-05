@@ -2,7 +2,7 @@
 
 ## In scope
 - Public landing page (`/`)
-- Public authentication pages (`/sign-in`, `/sign-up`)
+- Public authentication pages (`/sign-in`, `/sign-up`) — audited to ensure they stay `noindex` and return route-correct metadata, not as ranking targets
 - Static SEO-facing assets in the frontend shell (`index.html`, `public/robots.txt`, favicon, OG image)
 
 ## Out of scope
