@@ -20,4 +20,4 @@ Spendly helps restaurant owners track price changes across their supply chain by
 
 - /sign-in — authentication page, no useful content for AI retrieval
 - /sign-up — registration page, no useful content for AI retrieval
-- All authenticated app routes (/dashboard, /dostawcy, /produkty, /faktury, /alerty, /ustawienia) — require login, contain tenant-specific data
+- All authenticated app routes (/dashboard, /suppliers, /products, /invoices, /price-alerts, /reports, /predictive, /pending-invoices, /ai-cfo, /settings/ksef, /settings/cost-centers, /admin/users) — require login, contain tenant-specific data
