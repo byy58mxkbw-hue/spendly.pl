@@ -56,7 +56,39 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static prerender for crawlers — replaced by React on hydration -->
+      <div style="background:#0B0F14;min-height:100vh;font-family:'Inter',system-ui,sans-serif;color:#F5F7FA;display:flex;flex-direction:column;">
+        <header style="display:flex;align-items:center;justify-content:space-between;padding:20px 40px;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <span style="font-size:20px;font-weight:700;color:#3DDC97;">Spendly</span>
+          <nav aria-label="Nawigacja główna" style="display:flex;gap:24px;">
+            <a href="#funkcje" style="color:#9BA6B2;text-decoration:none;font-size:14px;">Funkcje</a>
+            <a href="#cennik" style="color:#9BA6B2;text-decoration:none;font-size:14px;">Cennik</a>
+            <a href="/sign-in" style="color:#9BA6B2;text-decoration:none;font-size:14px;">Logowanie</a>
+            <a href="/sign-up" style="background:#3DDC97;color:#0B0F14;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">Zacznij za darmo</a>
+          </nav>
+        </header>
+        <main style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px 60px;text-align:center;">
+          <h1 style="font-size:clamp(2.2rem,5vw,3.5rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:20px;max-width:700px;">
+            Kontroluj koszty restauracji<br />
+            <span style="color:#3DDC97;">w czasie rzeczywistym</span>
+          </h1>
+          <p style="font-size:17px;color:#9BA6B2;line-height:1.7;max-width:480px;margin-bottom:36px;">
+            Spendly automatycznie importuje faktury z KSeF, kontroluje food cost i alarmuje o podwyżkach — zanim uderzą w marżę Twojej restauracji.
+          </p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+            <a href="/sign-up" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;background:#3DDC97;color:#0B0F14;text-decoration:none;">Rozpocznij za darmo</a>
+            <a href="#jak-to-dziala" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;background:rgba(255,255,255,0.05);color:#F5F7FA;text-decoration:none;border:1px solid rgba(255,255,255,0.08);">Zobacz jak to działa</a>
+          </div>
+          <ul style="list-style:none;margin:28px 0 0;padding:0;display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
+            <li style="font-size:13px;color:#9BA6B2;">Integracja z KSeF</li>
+            <li style="font-size:13px;color:#9BA6B2;">Monitoring food cost</li>
+            <li style="font-size:13px;color:#9BA6B2;">Alerty cenowe</li>
+            <li style="font-size:13px;color:#9BA6B2;">AI analityka zakupów</li>
+          </ul>
+        </main>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
