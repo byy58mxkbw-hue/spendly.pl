@@ -21,9 +21,82 @@ run = "pnpm --filter @workspace/ksef-monitor run dev"
 build = [ "pnpm", "--filter", "@workspace/ksef-monitor", "run", "build" ]
 publicDir = "artifacts/ksef-monitor/dist/public"
 serve = "static"
+notFoundPage = "404.html"
 
 [[services.production.rewrites]]
-from = "/*"
+from = "/"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/sign-in"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/sign-in/*"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/sign-up"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/sign-up/*"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/clerk/*"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/dashboard"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/suppliers"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/suppliers/*"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/products"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/invoices"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/price-alerts"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/reports"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/predictive"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/pending-invoices"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/ai-cfo"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/settings/ksef"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/settings/cost-centers"
+to = "/index.html"
+
+[[services.production.rewrites]]
+from = "/admin/users"
 to = "/index.html"
 
 [services.env]

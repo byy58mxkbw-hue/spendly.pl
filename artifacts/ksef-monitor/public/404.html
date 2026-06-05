@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404 — Nie znaleziono strony | Spendly</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: Inter, system-ui, sans-serif;
+        background: #f9fafb;
+        color: #111827;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .container { text-align: center; max-width: 28rem; width: 100%; }
+      .code { font-size: 5rem; font-weight: 700; color: #e5e7eb; line-height: 1; margin-bottom: 1.5rem; }
+      h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.75rem; }
+      p { color: #6b7280; margin-bottom: 2rem; }
+      .links { display: flex; flex-direction: column; gap: 0.75rem; align-items: center; }
+      @media (min-width: 640px) { .links { flex-direction: row; justify-content: center; } }
+      a {
+        display: inline-flex; align-items: center; justify-content: center;
+        padding: 0.625rem 1.25rem; border-radius: 0.375rem;
+        font-size: 0.875rem; font-weight: 500; text-decoration: none;
+        transition: background-color 0.15s, border-color 0.15s;
+      }
+      .btn-primary { background: #0d9488; color: #fff; }
+      .btn-primary:hover { background: #0f766e; }
+      .btn-secondary { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+      .btn-secondary:hover { background: #f9fafb; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="code">404</div>
+      <h1>Nie znaleziono strony</h1>
+      <p>Strona, której szukasz, nie istnieje lub została przeniesiona.</p>
+      <div class="links">
+        <a href="/" class="btn-primary">Wróć na stronę główną</a>
+        <a href="/sign-in" class="btn-secondary">Zaloguj się</a>
+      </div>
+    </div>
+  </body>
+</html>
