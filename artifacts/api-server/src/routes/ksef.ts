@@ -1141,6 +1141,29 @@ router.get("/ksef/pending/:id", async (req, res): Promise<void> => {
   });
 });
 
+router.delete("/ksef/pending/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const p = GetKsefPendingParams.safeParse(req.params);
+  if (!p.success) {
+    res.status(400).json({ error: p.error.message });
+    return;
+  }
+
+  const result = await db
+    .delete(ksefPendingInvoicesTable)
+    .where(
+      and(eq(ksefPendingInvoicesTable.id, p.data.id), eq(ksefPendingInvoicesTable.userId, userId)),
+    )
+    .returning({ id: ksefPendingInvoicesTable.id });
+
+  if (result.length === 0) {
+    res.status(404).json({ error: "Nie znaleziono faktury." });
+    return;
+  }
+
+  res.json({ deleted: true });
+});
+
 router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const p = AcceptKsefPendingParams.safeParse(req.params);

@@ -34,6 +34,7 @@ import {
   useCreateProduct,
   useRetryKsefPending,
   useDeleteAllKsefPending,
+  useDeleteKsefPending,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -48,70 +49,60 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertTriangle, CheckCircle2, X, Inbox, ChevronDown, FileCode, Loader2, Plus, ChevronLeft, ChevronRight, Receipt, Trash2, ArrowUpDown } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  X,
+  Inbox,
+  ChevronDown,
+  FileCode,
+  Loader2,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Receipt,
+  Trash2,
+  ArrowUpDown,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZE = 10;
+function formatMonth(ym: string): string {
+  const [year, month] = ym.split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleDateString("pl-PL", { month: "long", year: "numeric" });
+}
 
-function Pagination({
-  page,
-  totalPages,
+function MonthNav({
+  months,
+  selected,
   onChange,
 }: {
-  page: number;
-  totalPages: number;
-  onChange: (p: number) => void;
+  months: string[];
+  selected: string;
+  onChange: (m: string) => void;
 }) {
-  if (totalPages <= 1) return null;
-
-  const pages: (number | "…")[] = [];
-  if (totalPages <= 7) {
-    for (let i = 1; i <= totalPages; i++) pages.push(i);
-  } else {
-    pages.push(1);
-    if (page > 3) pages.push("…");
-    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
-    if (page < totalPages - 2) pages.push("…");
-    pages.push(totalPages);
-  }
+  const idx = months.indexOf(selected);
+  const canPrev = idx < months.length - 1;
+  const canNext = idx > 0;
 
   return (
-    <div className="flex items-center justify-center gap-1 px-4 py-3 border-t border-border bg-secondary/20">
+    <div className="flex items-center gap-2">
       <button
-        onClick={() => onChange(page - 1)}
-        disabled={page === 1}
+        onClick={() => canPrev && onChange(months[idx + 1])}
+        disabled={!canPrev}
         className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        aria-label="Poprzednia strona"
+        aria-label="Poprzedni miesiąc"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
-
-      {pages.map((p, i) =>
-        p === "…" ? (
-          <span key={`ellipsis-${i}`} className="w-8 text-center text-sm text-muted-foreground select-none">
-            …
-          </span>
-        ) : (
-          <button
-            key={p}
-            onClick={() => onChange(p)}
-            className={cn(
-              "w-8 h-8 rounded-md text-sm font-medium transition-colors",
-              p === page
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-            )}
-          >
-            {p}
-          </button>
-        )
-      )}
-
+      <span className="text-sm font-medium text-foreground min-w-[140px] text-center capitalize">
+        {selected ? formatMonth(selected) : "—"}
+      </span>
       <button
-        onClick={() => onChange(page + 1)}
-        disabled={page === totalPages}
+        onClick={() => canNext && onChange(months[idx - 1])}
+        disabled={!canNext}
         className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        aria-label="Następna strona"
+        aria-label="Następny miesiąc"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
@@ -136,20 +127,25 @@ interface SupplierGroupData {
   totalGross: number;
 }
 
-function SupplierGroupCard({
+function SupplierTile({
   group,
+  expanded,
+  onToggle,
   onOpenInvoice,
+  onDeleteInvoice,
 }: {
   group: SupplierGroupData;
+  expanded: boolean;
+  onToggle: () => void;
   onOpenInvoice: (id: number) => void;
+  onDeleteInvoice: (id: number, label: string) => void;
 }) {
-  const [open, setOpen] = useState(!group.isKnown);
-
-  const initials = group.sellerName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => (w[0] ?? "").toUpperCase())
-    .join("") || "?";
+  const initials =
+    group.sellerName
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => (w[0] ?? "").toUpperCase())
+      .join("") || "?";
 
   const invoiceWord =
     group.invoices.length === 1
@@ -159,84 +155,106 @@ function SupplierGroupCard({
         : "faktur";
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="w-full px-5 py-4 flex items-center gap-4 hover:bg-muted/30 transition-colors text-left"
-          >
-            <div className="w-9 h-9 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-semibold shrink-0 select-none">
-              {initials}
-            </div>
+    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+      <button
+        type="button"
+        className="w-full px-5 py-4 flex items-start gap-4 hover:bg-muted/30 transition-colors text-left"
+        onClick={onToggle}
+        data-testid={`tile-${group.key}`}
+      >
+        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0 select-none">
+          {initials}
+        </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-semibold text-foreground truncate">
-                  {group.sellerName}
-                </span>
-                {group.isKnown ? (
-                  <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
-                    Znany
-                  </span>
-                ) : (
-                  <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
-                    Nowy
-                  </span>
-                )}
-              </div>
-              {group.sellerNip && (
-                <p className="text-xs text-muted-foreground mt-0.5">NIP {group.sellerNip}</p>
-              )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-foreground truncate leading-tight">
+              {group.sellerName}
+            </span>
+            {group.isKnown ? (
+              <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+                Znany
+              </span>
+            ) : (
+              <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                Nowy
+              </span>
+            )}
+          </div>
+          {group.sellerNip && (
+            <p className="text-xs text-muted-foreground mt-0.5">NIP {group.sellerNip}</p>
+          )}
+          <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Faktury</p>
+              <p className="text-sm font-semibold text-foreground">
+                {group.invoices.length} {invoiceWord}
+              </p>
             </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Łącznie</p>
+              <p className="text-sm font-semibold text-foreground">{formatPrice(group.totalGross)}</p>
+            </div>
+          </div>
+        </div>
 
-            <div className="flex items-center gap-4 shrink-0">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-foreground">{formatPrice(group.totalGross)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {group.invoices.length} {invoiceWord}
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-muted-foreground transition-transform duration-200 mt-3 shrink-0",
+            expanded && "rotate-180",
+          )}
+        />
+      </button>
+
+      {expanded && (
+        <div className="border-t border-border divide-y divide-border">
+          {group.invoices.map((row) => (
+            <div
+              key={row.id}
+              className="px-5 py-3 flex items-center gap-3"
+              data-testid={`pending-row-${row.id}`}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-foreground truncate">
+                  {row.invoiceNumber ?? row.ksefNumber}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {row.invoiceDate ? formatDate(row.invoiceDate) : "—"}
+                  {row.reason ? ` · ${row.reason}` : ""}
                 </p>
               </div>
-              <ChevronDown
-                className={cn(
-                  "w-4 h-4 text-muted-foreground transition-transform duration-200",
-                  open && "rotate-180"
-                )}
-              />
+              {row.totalGross != null && (
+                <p className="text-sm font-medium text-foreground shrink-0">
+                  {formatPrice(row.totalGross)}
+                </p>
+              )}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onOpenInvoice(row.id)}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  aria-label="Otwórz fakturę"
+                  data-testid={`btn-open-pending-${row.id}`}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onDeleteInvoice(row.id, row.invoiceNumber ?? row.ksefNumber)
+                  }
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label="Usuń fakturę"
+                  data-testid={`btn-delete-pending-${row.id}`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-          </button>
-        </CollapsibleTrigger>
-
-        <CollapsibleContent>
-          <div className="border-t border-border divide-y divide-border">
-            {group.invoices.map((row) => (
-              <button
-                key={row.id}
-                onClick={() => onOpenInvoice(row.id)}
-                className="w-full px-5 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left"
-                data-testid={`pending-row-${row.id}`}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground truncate">
-                    {row.invoiceNumber ?? row.ksefNumber}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {row.invoiceDate ? formatDate(row.invoiceDate) : "—"}
-                    {row.reason ? ` · ${row.reason}` : ""}
-                  </p>
-                </div>
-                {row.totalGross != null && (
-                  <p className="text-sm font-medium text-foreground shrink-0">
-                    {formatPrice(row.totalGross)}
-                  </p>
-                )}
-                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-              </button>
-            ))}
-          </div>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -244,50 +262,54 @@ export default function PendingInvoices() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [status, setStatus] = useState<"pending" | "accepted" | "rejected">("pending");
-  const [sortBy, setSortBy] = useState<"default" | "date-desc" | "date-asc" | "count-desc">("default");
   const { data: pending, isLoading } = useListKsefPending({ status });
   const { data: suppliers } = useListSuppliers();
   const [openId, setOpenId] = useState<number | null>(null);
-  const [page, setPage] = useState(1);
   const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; label: string } | null>(null);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+
   const deleteAll = useDeleteAllKsefPending();
-
-  useEffect(() => { setPage(1); }, [status, sortBy]);
-
-  function handleDeleteAll() {
-    deleteAll.mutate(
-      { params: { status } },
-      {
-        onSuccess: (data) => {
-          queryClient.invalidateQueries();
-          setShowDeleteAll(false);
-          const label =
-            status === "pending" ? "oczekujących" : status === "accepted" ? "zaakceptowanych" : "odrzuconych";
-          toast({
-            title: "Usunięto faktury",
-            description: `Usunięto ${data.deleted} ${label} faktur z kolejki.`,
-          });
-        },
-        onError: () => {
-          toast({ variant: "destructive", title: "Błąd", description: "Nie udało się usunąć faktur." });
-        },
-      }
-    );
-  }
+  const deleteSingle = useDeleteKsefPending();
 
   const knownNips = useMemo(() => {
     if (!suppliers) return new Set<string>();
     return new Set(
       suppliers
         .filter((s) => s.taxId)
-        .map((s) => s.taxId!.replace(/[\s\-]/g, ""))
+        .map((s) => s.taxId!.replace(/[\s\-]/g, "")),
     );
   }, [suppliers]);
 
-  const groups = useMemo((): SupplierGroupData[] => {
+  const allMonths = useMemo((): string[] => {
     if (!pending) return [];
-    const map = new Map<string, SupplierGroupData>();
+    const set = new Set<string>();
     for (const row of pending) {
+      if (row.invoiceDate) set.add(row.invoiceDate.slice(0, 7));
+    }
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [pending]);
+
+  useEffect(() => {
+    if (allMonths.length > 0 && (!selectedMonth || !allMonths.includes(selectedMonth))) {
+      setSelectedMonth(allMonths[0]);
+    }
+  }, [allMonths]);
+
+  useEffect(() => {
+    setExpandedKey(null);
+  }, [selectedMonth]);
+
+  const filteredPending = useMemo(() => {
+    if (!pending || !selectedMonth) return pending ?? [];
+    return pending.filter((row) => row.invoiceDate?.startsWith(selectedMonth));
+  }, [pending, selectedMonth]);
+
+  const groups = useMemo((): SupplierGroupData[] => {
+    if (!filteredPending) return [];
+    const map = new Map<string, SupplierGroupData>();
+    for (const row of filteredPending) {
       const nip = row.sellerNip?.replace(/[\s\-]/g, "") ?? null;
       const key = nip ?? row.sellerName ?? "unknown";
       if (!map.has(key)) {
@@ -304,31 +326,66 @@ export default function PendingInvoices() {
       g.invoices.push(row);
       g.totalGross += row.totalGross ?? 0;
     }
-    const arr = Array.from(map.values());
-    if (sortBy === "count-desc") {
-      return arr.sort((a, b) => b.invoices.length - a.invoices.length);
-    }
-    if (sortBy === "date-desc" || sortBy === "date-asc") {
-      const latestDate = (g: SupplierGroupData) =>
-        g.invoices.reduce((max, inv) => (inv.invoiceDate && inv.invoiceDate > max ? inv.invoiceDate : max), "");
-      return arr.sort((a, b) => {
-        const diff = latestDate(b).localeCompare(latestDate(a));
-        return sortBy === "date-desc" ? diff : -diff;
-      });
-    }
-    return arr.sort((a, b) => {
+    return Array.from(map.values()).sort((a, b) => {
       if (a.isKnown !== b.isKnown) return a.isKnown ? 1 : -1;
       return a.sellerName.localeCompare(b.sellerName, "pl");
     });
-  }, [pending, knownNips, sortBy]);
+  }, [filteredPending, knownNips]);
 
   const totalAmount = useMemo(
     () => groups.reduce((sum, g) => sum + g.totalGross, 0),
-    [groups]
+    [groups],
   );
 
-  const totalPages = Math.ceil(groups.length / PAGE_SIZE);
-  const paginatedGroups = groups.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  function handleDeleteAll() {
+    deleteAll.mutate(
+      { params: { status } },
+      {
+        onSuccess: (data) => {
+          queryClient.invalidateQueries();
+          setShowDeleteAll(false);
+          const label =
+            status === "pending"
+              ? "oczekujących"
+              : status === "accepted"
+                ? "zaakceptowanych"
+                : "odrzuconych";
+          toast({
+            title: "Usunięto faktury",
+            description: `Usunięto ${data.deleted} ${label} faktur z kolejki.`,
+          });
+        },
+        onError: () => {
+          toast({
+            variant: "destructive",
+            title: "Błąd",
+            description: "Nie udało się usunąć faktur.",
+          });
+        },
+      },
+    );
+  }
+
+  function handleDeleteSingle() {
+    if (!deleteTarget) return;
+    deleteSingle.mutate(
+      { id: deleteTarget.id },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries();
+          setDeleteTarget(null);
+          toast({ title: "Faktura usunięta" });
+        },
+        onError: () => {
+          toast({
+            variant: "destructive",
+            title: "Błąd",
+            description: "Nie udało się usunąć faktury.",
+          });
+        },
+      },
+    );
+  }
 
   return (
     <Layout>
@@ -337,19 +394,7 @@ export default function PendingInvoices() {
           title="Faktury do przeglądu"
           subtitle="Faktury pobrane z KSeF, dla których brakuje dopasowania dostawcy lub produktów"
           action={
-            <div className="flex items-center gap-2">
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-                <SelectTrigger className="w-48">
-                  <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground shrink-0" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Domyślna kolejność</SelectItem>
-                  <SelectItem value="date-desc">Od najnowszych</SelectItem>
-                  <SelectItem value="date-asc">Od najstarszych</SelectItem>
-                  <SelectItem value="count-desc">Najwięcej faktur</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-muted-foreground">Status:</span>
               <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
                 <SelectTrigger className="w-40" data-testid="select-pending-status">
@@ -376,43 +421,22 @@ export default function PendingInvoices() {
           }
         />
 
-        {!isLoading && groups.length > 0 && (
-          <div className="mb-5 flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3.5 py-2">
-              <Receipt className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <span className="text-sm text-muted-foreground">
-                <strong className="text-foreground">{formatPrice(totalAmount)}</strong>
-              </span>
-            </div>
-            <div className="bg-card border border-border rounded-lg px-3.5 py-2">
-              <span className="text-sm text-muted-foreground">
-                <strong className="text-foreground">{groups.length}</strong>{" "}
-                {groups.length === 1 ? "dostawca" : "dostawców"}
-              </span>
-            </div>
-            <div className="bg-card border border-border rounded-lg px-3.5 py-2">
-              <span className="text-sm text-muted-foreground">
-                <strong className="text-foreground">{pending!.length}</strong>{" "}
-                {pending!.length === 1 ? "faktura" : pending!.length < 5 ? "faktury" : "faktur"}
-              </span>
-            </div>
-          </div>
-        )}
-
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-5 flex items-center gap-4">
-                <Skeleton className="w-9 h-9 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-3 w-28" />
+              <div key={i} className="bg-card border border-border rounded-xl p-5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
                 </div>
-                <Skeleton className="h-4 w-20 hidden sm:block" />
+                <Skeleton className="h-3 w-full" />
               </div>
             ))}
           </div>
-        ) : groups.length === 0 ? (
+        ) : (pending?.length ?? 0) === 0 ? (
           <div className="bg-card border border-border rounded-xl py-16 text-center">
             <Inbox className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-foreground font-medium mb-1">
@@ -430,18 +454,63 @@ export default function PendingInvoices() {
           </div>
         ) : (
           <>
-            <div className="space-y-3">
-              {paginatedGroups.map((group) => (
-                <SupplierGroupCard
-                  key={group.key}
-                  group={group}
-                  onOpenInvoice={setOpenId}
+            <div className="mb-5 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3.5 py-2">
+                  <Receipt className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-sm text-muted-foreground">
+                    <strong className="text-foreground">{formatPrice(totalAmount)}</strong>
+                  </span>
+                </div>
+                <div className="bg-card border border-border rounded-lg px-3.5 py-2">
+                  <span className="text-sm text-muted-foreground">
+                    <strong className="text-foreground">{groups.length}</strong>{" "}
+                    {groups.length === 1 ? "dostawca" : "dostawców"}
+                  </span>
+                </div>
+                <div className="bg-card border border-border rounded-lg px-3.5 py-2">
+                  <span className="text-sm text-muted-foreground">
+                    <strong className="text-foreground">{filteredPending.length}</strong>{" "}
+                    {filteredPending.length === 1
+                      ? "faktura"
+                      : filteredPending.length < 5
+                        ? "faktury"
+                        : "faktur"}
+                  </span>
+                </div>
+              </div>
+
+              {allMonths.length > 0 && (
+                <MonthNav
+                  months={allMonths}
+                  selected={selectedMonth}
+                  onChange={(m) => setSelectedMonth(m)}
                 />
-              ))}
+              )}
             </div>
-            {totalPages > 1 && (
-              <div className="mt-4 bg-card border border-border rounded-xl overflow-hidden">
-                <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+
+            {groups.length === 0 ? (
+              <div className="bg-card border border-border rounded-xl py-12 text-center">
+                <Inbox className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-foreground font-medium mb-1">Brak faktur w tym miesiącu</p>
+                <p className="text-sm text-muted-foreground">
+                  Użyj nawigacji aby wybrać inny miesiąc.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {groups.map((group) => (
+                  <SupplierTile
+                    key={group.key}
+                    group={group}
+                    expanded={expandedKey === group.key}
+                    onToggle={() =>
+                      setExpandedKey((prev) => (prev === group.key ? null : group.key))
+                    }
+                    onOpenInvoice={setOpenId}
+                    onDeleteInvoice={(id, label) => setDeleteTarget({ id, label })}
+                  />
+                ))}
               </div>
             )}
           </>
@@ -460,13 +529,22 @@ export default function PendingInvoices() {
         />
       )}
 
-      <AlertDialog open={showDeleteAll} onOpenChange={(open) => { if (!open) setShowDeleteAll(false); }}>
+      <AlertDialog
+        open={showDeleteAll}
+        onOpenChange={(open) => {
+          if (!open) setShowDeleteAll(false);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Usuń wszystkie faktury z kolejki</AlertDialogTitle>
             <AlertDialogDescription>
               Ta operacja jest nieodwracalna. Zostaną usunięte wszystkie{" "}
-              {status === "pending" ? "oczekujące" : status === "accepted" ? "zaakceptowane" : "odrzucone"}{" "}
+              {status === "pending"
+                ? "oczekujące"
+                : status === "accepted"
+                  ? "zaakceptowane"
+                  : "odrzucone"}{" "}
               faktury z kolejki "Do przeglądu".
               {(pending?.length ?? 0) > 0 && (
                 <span className="block mt-2 font-medium text-foreground">
@@ -484,6 +562,35 @@ export default function PendingInvoices() {
               data-testid="btn-confirm-delete-all-pending"
             >
               {deleteAll.isPending ? "Usuwanie..." : "Usuń wszystkie"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Usuń fakturę</AlertDialogTitle>
+            <AlertDialogDescription>
+              Czy na pewno chcesz usunąć fakturę{" "}
+              <span className="font-medium text-foreground">{deleteTarget?.label}</span>?
+              Tej operacji nie można cofnąć.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSingle}
+              disabled={deleteSingle.isPending}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid="btn-confirm-delete-pending"
+            >
+              {deleteSingle.isPending ? "Usuwanie..." : "Usuń fakturę"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -565,7 +672,10 @@ function PendingDetailDialog({
           toast({
             variant: "destructive",
             title: "Błąd",
-            description: e?.response?.data?.error ?? e?.message ?? "Nie udało się zaakceptować faktury.",
+            description:
+              e?.response?.data?.error ??
+              e?.message ??
+              "Nie udało się zaakceptować faktury.",
           });
         },
       },
@@ -595,27 +705,27 @@ function PendingDetailDialog({
           queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
           toast({ title: "Dostawca dodany", description: created.name });
           retryPending.mutate(undefined, {
-              onSuccess: (result) => {
-                queryClient.invalidateQueries({ queryKey: ["/api/ksef/pending"] });
-                if (result.imported > 0) {
-                  toast({
-                    title: "Automatyczny import",
-                    description:
-                      result.imported === 1
-                        ? `Zaimportowano 1 fakturę od tego dostawcy.`
-                        : `Zaimportowano ${result.imported} faktury od tego dostawcy.`,
-                  });
-                }
-              },
+            onSuccess: (result) => {
+              queryClient.invalidateQueries({ queryKey: ["/api/ksef/pending"] });
+              if (result.imported > 0) {
+                toast({
+                  title: "Automatyczny import",
+                  description:
+                    result.imported === 1
+                      ? `Zaimportowano 1 fakturę od tego dostawcy.`
+                      : `Zaimportowano ${result.imported} faktury od tego dostawcy.`,
+                });
+              }
             },
-          );
+          });
         },
         onError: (err: unknown) => {
           const e = err as { response?: { data?: { error?: string } }; message?: string };
           toast({
             variant: "destructive",
             title: "Błąd",
-            description: e?.response?.data?.error ?? e?.message ?? "Nie udało się dodać dostawcy.",
+            description:
+              e?.response?.data?.error ?? e?.message ?? "Nie udało się dodać dostawcy.",
           });
         },
       },
@@ -637,7 +747,8 @@ function PendingDetailDialog({
           toast({
             variant: "destructive",
             title: "Błąd tworzenia produktu",
-            description: e?.response?.data?.error ?? e?.message ?? "Nie udało się dodać produktu.",
+            description:
+              e?.response?.data?.error ?? e?.message ?? "Nie udało się dodać produktu.",
           });
         },
         onSettled: () => {
@@ -696,7 +807,13 @@ function PendingDetailDialog({
 
             <div>
               <label className="text-sm font-medium mb-1.5 block">Dopasuj dostawcę</label>
-              <Select value={supplierId} onValueChange={(v) => { setSupplierId(v); setShowNewSupplier(false); }}>
+              <Select
+                value={supplierId}
+                onValueChange={(v) => {
+                  setSupplierId(v);
+                  setShowNewSupplier(false);
+                }}
+              >
                 <SelectTrigger data-testid="select-pending-supplier">
                   <SelectValue placeholder="Wybierz dostawcę z bazy" />
                 </SelectTrigger>
@@ -778,11 +895,16 @@ function PendingDetailDialog({
                     <FileCode className="w-4 h-4 text-muted-foreground" />
                     Podgląd surowego XML faktury
                   </span>
-                  <ChevronDown className={cn("w-4 h-4 transition-transform", showXml && "rotate-180")} />
+                  <ChevronDown
+                    className={cn("w-4 h-4 transition-transform", showXml && "rotate-180")}
+                  />
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <pre className="mt-2 max-h-72 overflow-auto rounded-lg border border-border bg-secondary/30 p-3 text-[11px] font-mono leading-snug text-foreground whitespace-pre-wrap break-all" data-testid="pre-raw-xml">
+                <pre
+                  className="mt-2 max-h-72 overflow-auto rounded-lg border border-border bg-secondary/30 p-3 text-[11px] font-mono leading-snug text-foreground whitespace-pre-wrap break-all"
+                  data-testid="pre-raw-xml"
+                >
                   {detail.rawXml}
                 </pre>
               </CollapsibleContent>
@@ -798,9 +920,12 @@ function PendingDetailDialog({
                     <div key={i} className="px-4 py-3 space-y-2">
                       <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {item.name}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            {item.quantity} {item.unit} × {formatPrice(item.unitPrice)} = {formatPrice(item.gross)}
+                            {item.quantity} {item.unit} × {formatPrice(item.unitPrice)} ={" "}
+                            {formatPrice(item.gross)}
                             {item.gtin ? ` · GTIN ${item.gtin}` : ""}
                           </p>
                         </div>

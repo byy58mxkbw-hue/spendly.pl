@@ -42,6 +42,7 @@ import type {
   DeleteAllKsefPending200,
   DeleteAllKsefPendingParams,
   DeleteCostCenter200,
+  DeleteKsefPending200,
   DismissPriceAlertBody,
   DismissedAlert,
   GenerateInsightsResponse,
@@ -6157,6 +6158,90 @@ export function useGetKsefPending<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Delete a single pending KSeF invoice
+ */
+export const getDeleteKsefPendingUrl = (id: number) => {
+  return `/api/ksef/pending/${id}`;
+};
+
+export const deleteKsefPending = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DeleteKsefPending200> => {
+  return customFetch<DeleteKsefPending200>(getDeleteKsefPendingUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteKsefPendingMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteKsefPending>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteKsefPending>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteKsefPending"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteKsefPending>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteKsefPending(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteKsefPendingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteKsefPending>>
+>;
+
+export type DeleteKsefPendingMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a single pending KSeF invoice
+ */
+export const useDeleteKsefPending = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteKsefPending>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteKsefPending>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteKsefPendingMutationOptions(options));
+};
 
 /**
  * @summary Accept a pending invoice with user-provided supplier / product mapping

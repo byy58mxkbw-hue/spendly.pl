@@ -1588,6 +1588,17 @@ export const GetKsefPendingResponse = zod.object({
 });
 
 /**
+ * @summary Delete a single pending KSeF invoice
+ */
+export const DeleteKsefPendingParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteKsefPendingResponse = zod.object({
+  deleted: zod.boolean(),
+});
+
+/**
  * @summary Accept a pending invoice with user-provided supplier / product mapping
  */
 export const AcceptKsefPendingParams = zod.object({

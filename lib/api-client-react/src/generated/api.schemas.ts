@@ -1099,3 +1099,7 @@ export const ListKsefPendingStatus = {
   accepted: "accepted",
   rejected: "rejected",
 } as const;
+
+export type DeleteKsefPending200 = {
+  deleted: boolean;
+};

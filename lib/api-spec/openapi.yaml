@@ -1591,6 +1591,29 @@ paths:
                 $ref: "#/components/schemas/KsefPendingInvoiceDetail"
         "404":
           description: Not found
+    delete:
+      operationId: deleteKsefPending
+      tags: [ksef]
+      summary: Delete a single pending KSeF invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: boolean
+        "404":
+          description: Not found
 
   /ksef/pending/{id}/accept:
     post:
