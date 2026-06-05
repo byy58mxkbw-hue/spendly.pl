@@ -1,0 +1,23 @@
+# Spendly
+
+> SaaS platform for restaurants to monitor ingredient prices from KSeF supplier invoices.
+
+Spendly helps restaurant owners track price changes across their supply chain by importing invoices from the Polish KSeF tax invoice system. It highlights price increases before they hit food cost margins.
+
+## Product
+
+- Automatic price tracking per ingredient and supplier
+- Food cost trend charts and monthly spend analytics
+- Price change alerts with configurable thresholds
+- KSeF invoice sync and manual invoice import
+- Supplier management with invoice history
+
+## Public URLs
+
+- Homepage: https://spendly.app/
+
+## Out of scope
+
+- /sign-in — authentication page, no useful content for AI retrieval
+- /sign-up — registration page, no useful content for AI retrieval
+- All authenticated app routes (/dashboard, /dostawcy, /produkty, /faktury, /alerty, /ustawienia) — require login, contain tenant-specific data
