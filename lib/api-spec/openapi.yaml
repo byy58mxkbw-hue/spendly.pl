@@ -395,6 +395,12 @@ paths:
           schema:
             type: integer
           description: "Filter to suppliers that have invoices in this cost center"
+        - name: includeInactive
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: "If true, return only inactive (soft-deleted) suppliers"
       responses:
         "200":
           description: List of suppliers
@@ -470,7 +476,7 @@ paths:
     delete:
       operationId: deleteSupplier
       tags: [suppliers]
-      summary: Delete a supplier
+      summary: Soft-delete a supplier (sets isActive=false, marks their invoices as excluded)
       parameters:
         - name: id
           in: path
@@ -478,8 +484,39 @@ paths:
           schema:
             type: integer
       responses:
-        "204":
-          description: Deleted
+        "200":
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: boolean
+        "404":
+          description: Not found
+
+  /suppliers/{id}/restore:
+    post:
+      operationId: restoreSupplier
+      tags: [suppliers]
+      summary: Restore a soft-deleted supplier (sets isActive=true, un-excludes their invoices)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Restored supplier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "404":
+          description: Not found
 
   /products:
     get:

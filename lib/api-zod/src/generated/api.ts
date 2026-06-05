@@ -295,6 +295,10 @@ export const ListSuppliersQueryParams = zod.object({
     .number()
     .optional()
     .describe("Filter to suppliers that have invoices in this cost center"),
+  includeInactive: zod.coerce
+    .boolean()
+    .optional()
+    .describe("If true, return only inactive (soft-deleted) suppliers"),
 });
 
 export const ListSuppliersResponseItem = zod.object({
@@ -379,10 +383,37 @@ export const UpdateSupplierResponse = zod.object({
 });
 
 /**
- * @summary Delete a supplier
+ * @summary Soft-delete a supplier (sets isActive=false, marks their invoices as excluded)
  */
 export const DeleteSupplierParams = zod.object({
   id: zod.coerce.number(),
+});
+
+export const DeleteSupplierResponse = zod.object({
+  deleted: zod.boolean(),
+});
+
+/**
+ * @summary Restore a soft-deleted supplier (sets isActive=true, un-excludes their invoices)
+ */
+export const RestoreSupplierParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RestoreSupplierResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  taxId: zod.string(),
+  email: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  isActive: zod.boolean(),
+  defaultCostCenterId: zod.number().nullish(),
+  defaultCostCenterName: zod.string().nullish(),
+  defaultCostCenterColor: zod.string().nullish(),
+  invoiceCount: zod.number(),
+  lastInvoiceDate: zod.string().nullish(),
+  totalSpend: zod.number().nullish(),
+  createdAt: zod.string(),
 });
 
 /**

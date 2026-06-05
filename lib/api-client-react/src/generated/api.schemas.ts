@@ -862,6 +862,14 @@ export type ListSuppliersParams = {
    * Filter to suppliers that have invoices in this cost center
    */
   costCenterId?: number;
+  /**
+   * If true, return only inactive (soft-deleted) suppliers
+   */
+  includeInactive?: boolean;
+};
+
+export type DeleteSupplier200 = {
+  deleted: boolean;
 };
 
 export type ListProductsParams = {

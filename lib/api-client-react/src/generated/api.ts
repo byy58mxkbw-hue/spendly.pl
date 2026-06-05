@@ -43,6 +43,7 @@ import type {
   DeleteAllKsefPendingParams,
   DeleteCostCenter200,
   DeleteKsefPending200,
+  DeleteSupplier200,
   DismissPriceAlertBody,
   DismissedAlert,
   GenerateInsightsResponse,
@@ -1908,7 +1909,7 @@ export const useUpdateSupplier = <
 };
 
 /**
- * @summary Delete a supplier
+ * @summary Soft-delete a supplier (sets isActive=false, marks their invoices as excluded)
  */
 export const getDeleteSupplierUrl = (id: number) => {
   return `/api/suppliers/${id}`;
@@ -1917,15 +1918,15 @@ export const getDeleteSupplierUrl = (id: number) => {
 export const deleteSupplier = async (
   id: number,
   options?: RequestInit,
-): Promise<void> => {
-  return customFetch<void>(getDeleteSupplierUrl(id), {
+): Promise<DeleteSupplier200> => {
+  return customFetch<DeleteSupplier200>(getDeleteSupplierUrl(id), {
     ...options,
     method: "DELETE",
   });
 };
 
 export const getDeleteSupplierMutationOptions = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1966,13 +1967,13 @@ export type DeleteSupplierMutationResult = NonNullable<
   Awaited<ReturnType<typeof deleteSupplier>>
 >;
 
-export type DeleteSupplierMutationError = ErrorType<unknown>;
+export type DeleteSupplierMutationError = ErrorType<void>;
 
 /**
- * @summary Delete a supplier
+ * @summary Soft-delete a supplier (sets isActive=false, marks their invoices as excluded)
  */
 export const useDeleteSupplier = <
-  TError = ErrorType<unknown>,
+  TError = ErrorType<void>,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1989,6 +1990,90 @@ export const useDeleteSupplier = <
   TContext
 > => {
   return useMutation(getDeleteSupplierMutationOptions(options));
+};
+
+/**
+ * @summary Restore a soft-deleted supplier (sets isActive=true, un-excludes their invoices)
+ */
+export const getRestoreSupplierUrl = (id: number) => {
+  return `/api/suppliers/${id}/restore`;
+};
+
+export const restoreSupplier = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Supplier> => {
+  return customFetch<Supplier>(getRestoreSupplierUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRestoreSupplierMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreSupplier>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof restoreSupplier>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["restoreSupplier"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof restoreSupplier>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return restoreSupplier(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RestoreSupplierMutationResult = NonNullable<
+  Awaited<ReturnType<typeof restoreSupplier>>
+>;
+
+export type RestoreSupplierMutationError = ErrorType<void>;
+
+/**
+ * @summary Restore a soft-deleted supplier (sets isActive=true, un-excludes their invoices)
+ */
+export const useRestoreSupplier = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof restoreSupplier>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof restoreSupplier>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getRestoreSupplierMutationOptions(options));
 };
 
 /**

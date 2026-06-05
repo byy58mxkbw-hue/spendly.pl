@@ -8,6 +8,7 @@ import {
   UpdateSupplierParams,
   DeleteSupplierParams,
   ListSuppliersQueryParams,
+  RestoreSupplierParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -19,7 +20,7 @@ router.get("/suppliers", async (req, res): Promise<void> => {
     res.status(400).json({ error: queryParams.error.message });
     return;
   }
-  const { costCenterId } = queryParams.data;
+  const { costCenterId, includeInactive } = queryParams.data;
 
   const ccJoinCond =
     costCenterId != null
@@ -34,6 +35,10 @@ router.get("/suppliers", async (req, res): Promise<void> => {
         ? sql` AND i2.cost_center_id IS NULL`
         : sql` AND i2.cost_center_id = ${costCenterId}`
       : sql``;
+
+  const whereConditions = includeInactive
+    ? and(eq(suppliersTable.userId, userId), eq(suppliersTable.isActive, false))
+    : and(eq(suppliersTable.userId, userId), eq(suppliersTable.isActive, true));
 
   const suppliers = await db
     .select({
@@ -59,7 +64,7 @@ router.get("/suppliers", async (req, res): Promise<void> => {
     .from(suppliersTable)
     .leftJoin(invoicesTable, ccJoinCond)
     .leftJoin(costCentersTable, eq(suppliersTable.defaultCostCenterId, costCentersTable.id))
-    .where(eq(suppliersTable.userId, userId))
+    .where(whereConditions)
     .groupBy(suppliersTable.id, costCentersTable.name, costCentersTable.color)
     .orderBy(suppliersTable.name);
 
@@ -156,10 +161,57 @@ router.delete("/suppliers/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const [supplier] = await db
+    .update(suppliersTable)
+    .set({ isActive: false })
+    .where(and(eq(suppliersTable.id, params.data.id), eq(suppliersTable.userId, userId)))
+    .returning({ id: suppliersTable.id });
+
+  if (!supplier) {
+    res.status(404).json({ error: "Nie znaleziono dostawcy." });
+    return;
+  }
+
   await db
-    .delete(suppliersTable)
-    .where(and(eq(suppliersTable.id, params.data.id), eq(suppliersTable.userId, userId)));
-  res.sendStatus(204);
+    .update(invoicesTable)
+    .set({ excluded: true })
+    .where(and(eq(invoicesTable.supplierId, params.data.id), eq(invoicesTable.userId, userId)));
+
+  res.json({ deleted: true });
+});
+
+router.post("/suppliers/:id/restore", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const params = RestoreSupplierParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [supplier] = await db
+    .update(suppliersTable)
+    .set({ isActive: true })
+    .where(and(eq(suppliersTable.id, params.data.id), eq(suppliersTable.userId, userId)))
+    .returning();
+
+  if (!supplier) {
+    res.status(404).json({ error: "Nie znaleziono dostawcy." });
+    return;
+  }
+
+  await db
+    .update(invoicesTable)
+    .set({ excluded: false })
+    .where(and(eq(invoicesTable.supplierId, params.data.id), eq(invoicesTable.userId, userId)));
+
+  res.json({
+    ...supplier,
+    invoiceCount: 0,
+    lastInvoiceDate: null,
+    totalSpend: null,
+    defaultCostCenterName: null,
+    defaultCostCenterColor: null,
+  });
 });
 
 export default router;
