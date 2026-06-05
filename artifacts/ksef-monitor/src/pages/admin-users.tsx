@@ -36,6 +36,7 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
+  RefreshCw,
 } from "lucide-react";
 import {
   BarChart,
@@ -353,8 +354,8 @@ function sortUsers(users: AdminUser[], col: SortColumn, dir: SortDir): AdminUser
 }
 
 export default function AdminUsers() {
-  const { data, isLoading, isError } = useAdminUsers();
-  const { data: stats, isLoading: statsLoading } = useAdminStats();
+  const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } = useAdminUsers();
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats, isFetching: isStatsFetching } = useAdminStats();
   const blockUser = useBlockUser();
   const deleteUser = useDeleteUser();
   const { toast } = useToast();
@@ -365,6 +366,14 @@ export default function AdminUsers() {
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [sortCol, setSortCol] = useState<SortColumn>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function handleRefresh() {
+    void refetch();
+    void refetchStats();
+  }
+
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+  const isRefreshing = isFetching || isStatsFetching;
 
   function handleSort(col: SortColumn) {
     if (col === sortCol) {
@@ -406,6 +415,25 @@ export default function AdminUsers() {
         <PageHeader
           title="Panel administracyjny"
           subtitle="Zarządzanie kontami użytkowników platformy"
+          action={
+            <div className="flex items-center gap-3">
+              {lastUpdated && (
+                <span className="text-xs text-muted-foreground hidden sm:inline">
+                  Odświeżono: {lastUpdated.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="gap-2"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                Odśwież
+              </Button>
+            </div>
+          }
         />
 
         <Tabs defaultValue="users">
