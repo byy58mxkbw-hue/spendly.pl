@@ -1,5 +1,4 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { clerkClient } from "@clerk/express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
@@ -18,22 +17,52 @@ function denyAdmin(res: Response): void {
   res.status(403).json({ error: "Brak dostępu." });
 }
 
+interface ClerkUserRaw {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email_addresses: { id: string; email_address: string }[];
+  primary_email_address_id: string | null;
+  created_at: number;
+  last_sign_in_at: number | null;
+  public_metadata: Record<string, unknown>;
+}
+
+interface ClerkUserListResponse {
+  data: ClerkUserRaw[];
+  total_count: number;
+}
+
+async function clerkApiFetch(path: string): Promise<Response> {
+  const secretKey = process.env.CLERK_SECRET_KEY ?? "";
+  return fetch(`https://api.clerk.com/v1${path}`, {
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      "Cache-Control": "no-cache, no-store",
+    },
+  });
+}
+
 async function fetchAllClerkUsers() {
   const PAGE = 500;
-  const allUsers: Awaited<ReturnType<typeof clerkClient.users.getUserList>>["data"] = [];
+  const allUsers: ClerkUserRaw[] = [];
   let offset = 0;
   let total = Infinity;
+
   while (allUsers.length < total) {
-    const page = await clerkClient.users.getUserList({
-      limit: PAGE,
-      offset,
-      orderBy: "-created_at",
-    });
-    total = page.totalCount;
-    allUsers.push(...page.data);
-    offset += page.data.length;
-    if (page.data.length < PAGE) break;
+    const res = await clerkApiFetch(
+      `/users?limit=${PAGE}&offset=${offset}&order_by=-created_at`,
+    );
+    if (!res.ok) {
+      throw new Error(`Clerk API error: ${res.status}`);
+    }
+    const body = (await res.json()) as ClerkUserListResponse;
+    total = body.total_count;
+    allUsers.push(...body.data);
+    offset += body.data.length;
+    if (body.data.length < PAGE) break;
   }
+
   return { data: allUsers, totalCount: total };
 }
 
@@ -68,16 +97,16 @@ router.get("/admin/users", async (req, res): Promise<void> => {
 
   const users = clerkResult.data.map((u) => ({
     id: u.id,
-    firstName: u.firstName ?? null,
-    lastName: u.lastName ?? null,
+    firstName: u.first_name ?? null,
+    lastName: u.last_name ?? null,
     email:
-      u.emailAddresses.find((e) => e.id === u.primaryEmailAddressId)
-        ?.emailAddress ??
-      u.emailAddresses[0]?.emailAddress ??
+      u.email_addresses.find((e) => e.id === u.primary_email_address_id)
+        ?.email_address ??
+      u.email_addresses[0]?.email_address ??
       null,
-    createdAt: u.createdAt,
-    lastSignInAt: u.lastSignInAt ?? null,
-    blocked: (u.publicMetadata?.["blocked"] as boolean | undefined) === true,
+    createdAt: u.created_at,
+    lastSignInAt: u.last_sign_in_at ?? null,
+    blocked: (u.public_metadata?.["blocked"] as boolean | undefined) === true,
     invoiceCount: invoiceMap.get(u.id) ?? 0,
     supplierCount: supplierMap.get(u.id) ?? 0,
     productCount: productMap.get(u.id) ?? 0,
@@ -104,7 +133,7 @@ router.get("/admin/stats", async (req, res): Promise<void> => {
     registrationsByMonth[key] = 0;
   }
   for (const u of clerkResult.data) {
-    const d = new Date(u.createdAt);
+    const d = new Date(u.created_at);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     if (key in registrationsByMonth) {
       registrationsByMonth[key]++;
@@ -171,9 +200,20 @@ router.patch("/admin/users/:userId/block", async (req, res): Promise<void> => {
   const { userId } = req.params;
   const blocked = (req.body as Record<string, unknown>)?.["blocked"] === true;
 
-  await clerkClient.users.updateUser(userId, {
-    publicMetadata: { blocked },
+  const r = await clerkApiFetch(`/users/${userId}`);
+  if (!r.ok) { res.status(502).json({ error: "Błąd Clerk API" }); return; }
+  const user = (await r.json()) as ClerkUserRaw;
+  const currentMeta = user.public_metadata ?? {};
+
+  const patchRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${process.env.CLERK_SECRET_KEY ?? ""}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ public_metadata: { ...currentMeta, blocked } }),
   });
+  if (!patchRes.ok) { res.status(502).json({ error: "Błąd aktualizacji Clerk" }); return; }
 
   res.json({ ok: true, blocked });
 });
@@ -183,7 +223,13 @@ router.delete("/admin/users/:userId", async (req, res): Promise<void> => {
 
   const { userId } = req.params;
 
-  await clerkClient.users.deleteUser(userId);
+  const delRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${process.env.CLERK_SECRET_KEY ?? ""}`,
+    },
+  });
+  if (!delRes.ok) { res.status(502).json({ error: "Błąd usuwania w Clerk" }); return; }
 
   res.status(204).end();
 });
