@@ -28,12 +28,7 @@ interface ClerkUserRaw {
   public_metadata: Record<string, unknown>;
 }
 
-interface ClerkUserListResponse {
-  data: ClerkUserRaw[];
-  total_count: number;
-}
-
-async function clerkApiFetch(path: string): Promise<Response> {
+async function clerkApiFetch(path: string): Promise<globalThis.Response> {
   const secretKey = process.env.CLERK_SECRET_KEY ?? "";
   return fetch(`https://api.clerk.com/v1${path}`, {
     headers: {
@@ -47,20 +42,22 @@ async function fetchAllClerkUsers() {
   const PAGE = 500;
   const allUsers: ClerkUserRaw[] = [];
   let offset = 0;
-  let total = Infinity;
+
+  // GET /v1/users returns a plain array (not wrapped in { data: [] })
+  // GET /v1/users/count returns { total_count: N }
+  const countRes = await clerkApiFetch("/users/count");
+  if (!countRes.ok) throw new Error(`Clerk API error (count): ${countRes.status}`);
+  const { total_count: total } = (await countRes.json()) as { total_count: number };
 
   while (allUsers.length < total) {
     const res = await clerkApiFetch(
       `/users?limit=${PAGE}&offset=${offset}&order_by=-created_at`,
     );
-    if (!res.ok) {
-      throw new Error(`Clerk API error: ${res.status}`);
-    }
-    const body = (await res.json()) as ClerkUserListResponse;
-    total = body.total_count;
-    allUsers.push(...body.data);
-    offset += body.data.length;
-    if (body.data.length < PAGE) break;
+    if (!res.ok) throw new Error(`Clerk API error (users): ${res.status}`);
+    const page = (await res.json()) as ClerkUserRaw[];
+    allUsers.push(...page);
+    offset += page.length;
+    if (page.length < PAGE) break;
   }
 
   return { data: allUsers, totalCount: total };
