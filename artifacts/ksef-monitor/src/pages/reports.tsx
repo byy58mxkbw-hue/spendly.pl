@@ -262,18 +262,18 @@ function PriceImpactList({
       {top.map((p, i) => {
         const up = p.priceImpact > 0;
         return (
-          <div key={i} className="flex items-center gap-3 py-3 px-4 md:px-5">
+          <div key={i} className="flex items-start gap-3 py-3 px-4 md:px-5">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-sm">{CATEGORIES.find((c) => c.id)?.emoji ?? "📦"}</span>
-                <span className="text-sm font-medium text-foreground truncate">
-                  {p.productName}
-                </span>
-              </div>
+              <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">
+                {p.productName}
+              </p>
+              {p.supplierName && (
+                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{p.supplierName}</p>
+              )}
             </div>
             <span
               className={cn(
-                "text-sm font-bold tabular-nums shrink-0",
+                "text-sm font-bold tabular-nums shrink-0 mt-0.5",
                 up ? "text-red-500" : "text-emerald-600",
               )}
             >
@@ -323,11 +323,9 @@ function QuantityImpactTable({
 
   return (
     <div>
-      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+      <div className="grid grid-cols-[1fr_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
         <div>Produkt</div>
-        <div className="text-right w-16">Poprz.</div>
-        <div className="text-right w-16">Teraz</div>
-        <div className="text-right w-14">Zmiana</div>
+        <div className="text-right w-16">Zmiana</div>
       </div>
       <div className="divide-y divide-border">
         {top.map((p, i) => {
@@ -338,22 +336,21 @@ function QuantityImpactTable({
           return (
             <div
               key={i}
-              className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 md:px-5 py-2.5 items-center"
+              className="grid grid-cols-[1fr_auto] gap-2 px-4 md:px-5 py-2.5 items-center"
             >
-              <p className="text-sm text-foreground truncate">{p.productName}</p>
-              <p className="text-xs text-muted-foreground text-right w-16 tabular-nums">
-                {fmtQty(prevQty)}
-              </p>
-              <p className="text-xs text-foreground font-medium text-right w-16 tabular-nums">
-                {fmtQty(p.totalQuantity)}
-              </p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{p.productName}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                  {fmtQty(prevQty)} → {fmtQty(p.totalQuantity)}
+                </p>
+              </div>
               <span
                 className={cn(
-                  "text-xs font-bold text-right w-14 tabular-nums flex items-center justify-end gap-0.5",
+                  "text-sm font-bold text-right w-16 tabular-nums flex items-center justify-end gap-0.5 shrink-0",
                   up ? "text-red-500" : "text-emerald-600",
                 )}
               >
-                {up ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                 {Math.abs(p.qtyPct).toFixed(0)}%
               </span>
             </div>
@@ -395,11 +392,9 @@ function PriceChangesTable({
 
   return (
     <div>
-      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+      <div className="grid grid-cols-[1fr_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
         <div>Produkt</div>
-        <div className="text-right w-20">Poprz.</div>
-        <div className="text-right w-20">Teraz</div>
-        <div className="text-right w-12">Zmiana</div>
+        <div className="text-right w-16">Zmiana</div>
       </div>
       <div className="divide-y divide-border">
         {top.map((p, i) => {
@@ -407,22 +402,21 @@ function PriceChangesTable({
           return (
             <div
               key={i}
-              className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 md:px-5 py-2.5 items-center"
+              className="grid grid-cols-[1fr_auto] gap-2 px-4 md:px-5 py-2.5 items-center"
             >
-              <p className="text-sm text-foreground truncate">{p.productName}</p>
-              <p className="text-xs text-muted-foreground text-right w-20 tabular-nums">
-                {formatPrice(p.prevMonthAvgPrice ?? 0)}/{p.unit}
-              </p>
-              <p className="text-xs text-foreground font-medium text-right w-20 tabular-nums">
-                {formatPrice(p.avgPrice)}/{p.unit}
-              </p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{p.productName}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                  {formatPrice(p.prevMonthAvgPrice ?? 0)} → {formatPrice(p.avgPrice)}/{p.unit}
+                </p>
+              </div>
               <span
                 className={cn(
-                  "text-xs font-bold text-right w-12 tabular-nums flex items-center justify-end gap-0.5",
+                  "text-sm font-bold text-right w-16 tabular-nums flex items-center justify-end gap-0.5 shrink-0",
                   up ? "text-red-500" : "text-emerald-600",
                 )}
               >
-                {up ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
+                {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                 {Math.abs(p.pricePct).toFixed(1)}%
               </span>
             </div>
@@ -591,11 +585,10 @@ function TopSuppliersTable({
 
   return (
     <div>
-      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+      <div className="grid grid-cols-[1fr_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
         <div>Dostawca</div>
         <div className="text-right w-24">Wydatki</div>
-        <div className="text-right w-14">Udział</div>
-        <div className="text-right w-16">Zmiana cen</div>
+        <div className="text-right w-12">Udział</div>
       </div>
       <div className="divide-y divide-border">
         {sorted.map((s, i) => {
@@ -618,37 +611,25 @@ function TopSuppliersTable({
           return (
             <div
               key={s.supplierId}
-              className="grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 md:px-5 py-2.5 items-center"
+              className="grid grid-cols-[1fr_auto_auto] gap-2 px-4 md:px-5 py-2.5 items-center"
             >
               <div className="min-w-0">
-                <p className="text-sm text-foreground truncate">{s.supplierName}</p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-sm font-medium text-foreground leading-snug line-clamp-2">{s.supplierName}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   {s.invoiceCount} {s.invoiceCount === 1 ? "faktura" : "faktur"}
+                  {avgPriceChange !== null && (
+                    <span className={cn("ml-2 font-semibold", avgPriceChange > 0 ? "text-red-500" : "text-emerald-600")}>
+                      {avgPriceChange > 0 ? "+" : ""}{avgPriceChange.toFixed(1)}%
+                    </span>
+                  )}
                 </p>
               </div>
-              <p className="text-sm font-semibold text-right w-24 tabular-nums">
+              <p className="text-sm font-semibold text-right w-24 tabular-nums shrink-0">
                 {formatPrice(s.totalSpend)}
               </p>
-              <p className="text-xs text-muted-foreground text-right w-14 tabular-nums">
+              <p className="text-xs text-muted-foreground text-right w-12 tabular-nums shrink-0">
                 {pct.toFixed(1)}%
               </p>
-              {avgPriceChange !== null ? (
-                <span
-                  className={cn(
-                    "text-xs font-bold text-right w-16 tabular-nums flex items-center justify-end gap-0.5",
-                    avgPriceChange > 0 ? "text-red-500" : "text-emerald-600",
-                  )}
-                >
-                  {avgPriceChange > 0 ? (
-                    <ArrowUp className="w-2.5 h-2.5" />
-                  ) : (
-                    <ArrowDown className="w-2.5 h-2.5" />
-                  )}
-                  {Math.abs(avgPriceChange).toFixed(1)}%
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground text-right w-16">—</span>
-              )}
             </div>
           );
         })}
