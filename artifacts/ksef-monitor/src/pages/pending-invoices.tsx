@@ -133,12 +133,14 @@ function SupplierTile({
   onToggle,
   onOpenInvoice,
   onDeleteInvoice,
+  onRejectGroup,
 }: {
   group: SupplierGroupData;
   expanded: boolean;
   onToggle: () => void;
   onOpenInvoice: (id: number) => void;
   onDeleteInvoice: (id: number, label: string) => void;
+  onRejectGroup?: (ids: number[], supplierName: string) => void;
 }) {
   const initials =
     group.sellerName
@@ -156,9 +158,9 @@ function SupplierTile({
 
   return (
     <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-      <button
-        type="button"
-        className="w-full px-5 py-4 flex items-start gap-4 hover:bg-muted/30 transition-colors text-left"
+      {/* Header — clickable div for expand, with separate action buttons */}
+      <div
+        className="px-5 py-4 flex items-start gap-4 hover:bg-muted/30 transition-colors cursor-pointer"
         onClick={onToggle}
         data-testid={`tile-${group.key}`}
       >
@@ -198,13 +200,32 @@ function SupplierTile({
           </div>
         </div>
 
-        <ChevronDown
-          className={cn(
-            "w-4 h-4 text-muted-foreground transition-transform duration-200 mt-3 shrink-0",
-            expanded && "rotate-180",
+        <div className="flex items-center gap-1 mt-1 shrink-0">
+          {onRejectGroup && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRejectGroup(
+                  group.invoices.map((r) => r.id),
+                  group.sellerName,
+                );
+              }}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              aria-label="Odrzuć faktury dostawcy"
+              title="Odrzuć wszystkie faktury tego dostawcy"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           )}
-        />
-      </button>
+          <ChevronDown
+            className={cn(
+              "w-4 h-4 text-muted-foreground transition-transform duration-200 shrink-0",
+              expanded && "rotate-180",
+            )}
+          />
+        </div>
+      </div>
 
       {expanded && (
         <div className="border-t border-border divide-y divide-border">
@@ -244,7 +265,7 @@ function SupplierTile({
                     onDeleteInvoice(row.id, row.invoiceNumber ?? row.ksefNumber)
                   }
                   className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  aria-label="Usuń fakturę"
+                  aria-label="Odrzuć fakturę"
                   data-testid={`btn-delete-pending-${row.id}`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -274,6 +295,8 @@ export default function PendingInvoices() {
   const deleteSingle = useDeleteKsefPending();
   const rejectSingle = useRejectKsefPending();
   const [rejectTarget, setRejectTarget] = useState<{ id: number; label: string } | null>(null);
+  const [groupRejectTarget, setGroupRejectTarget] = useState<{ ids: number[]; supplierName: string } | null>(null);
+  const [groupRejectPending, setGroupRejectPending] = useState(false);
 
   const knownNips = useMemo(() => {
     if (!suppliers) return new Set<string>();
@@ -366,6 +389,23 @@ export default function PendingInvoices() {
         },
       },
     );
+  }
+
+  async function handleRejectGroup() {
+    if (!groupRejectTarget) return;
+    setGroupRejectPending(true);
+    let rejected = 0;
+    for (const id of groupRejectTarget.ids) {
+      await new Promise<void>((resolve) => {
+        rejectSingle.mutate({ id }, { onSettled: () => resolve() });
+      });
+      rejected++;
+    }
+    setGroupRejectPending(false);
+    setGroupRejectTarget(null);
+    queryClient.invalidateQueries();
+    const word = rejected === 1 ? "faktura" : rejected < 5 ? "faktury" : "faktur";
+    toast({ title: "Odrzucono faktury", description: `${rejected} ${word} przeniesiono do zakładki Odrzucone.` });
   }
 
   function handleRejectSingle() {
@@ -532,6 +572,11 @@ export default function PendingInvoices() {
                         ? setRejectTarget({ id, label })
                         : setDeleteTarget({ id, label })
                     }
+                    onRejectGroup={
+                      status === "pending"
+                        ? (ids, supplierName) => setGroupRejectTarget({ ids, supplierName })
+                        : undefined
+                    }
                   />
                 ))}
               </div>
@@ -585,6 +630,34 @@ export default function PendingInvoices() {
               data-testid="btn-confirm-delete-all-pending"
             >
               {deleteAll.isPending ? "Usuwanie..." : "Usuń wszystkie"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!groupRejectTarget}
+        onOpenChange={(open) => { if (!open && !groupRejectPending) setGroupRejectTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Odrzuć faktury dostawcy</AlertDialogTitle>
+            <AlertDialogDescription>
+              {groupRejectTarget?.ids.length === 1 ? (
+                <>Faktura od <span className="font-medium text-foreground">{groupRejectTarget?.supplierName}</span> zostanie przeniesiona do zakładki <strong>Odrzucone</strong>.</>
+              ) : (
+                <><span className="font-medium text-foreground">{groupRejectTarget?.ids.length} faktury</span> od <span className="font-medium text-foreground">{groupRejectTarget?.supplierName}</span> zostaną przeniesione do zakładki <strong>Odrzucone</strong>.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={groupRejectPending}>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); void handleRejectGroup(); }}
+              disabled={groupRejectPending}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {groupRejectPending ? "Odrzucanie..." : "Odrzuć"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
