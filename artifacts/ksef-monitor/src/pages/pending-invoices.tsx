@@ -272,6 +272,8 @@ export default function PendingInvoices() {
 
   const deleteAll = useDeleteAllKsefPending();
   const deleteSingle = useDeleteKsefPending();
+  const rejectSingle = useRejectKsefPending();
+  const [rejectTarget, setRejectTarget] = useState<{ id: number; label: string } | null>(null);
 
   const knownNips = useMemo(() => {
     if (!suppliers) return new Set<string>();
@@ -361,6 +363,23 @@ export default function PendingInvoices() {
             title: "Błąd",
             description: "Nie udało się usunąć faktur.",
           });
+        },
+      },
+    );
+  }
+
+  function handleRejectSingle() {
+    if (!rejectTarget) return;
+    rejectSingle.mutate(
+      { id: rejectTarget.id },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries();
+          setRejectTarget(null);
+          toast({ title: "Faktura odrzucona", description: "Przeniesiono do zakładki Odrzucone." });
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "Błąd", description: "Nie udało się odrzucić faktury." });
         },
       },
     );
@@ -508,7 +527,11 @@ export default function PendingInvoices() {
                       setExpandedKey((prev) => (prev === group.key ? null : group.key))
                     }
                     onOpenInvoice={setOpenId}
-                    onDeleteInvoice={(id, label) => setDeleteTarget({ id, label })}
+                    onDeleteInvoice={(id, label) =>
+                      status === "pending"
+                        ? setRejectTarget({ id, label })
+                        : setDeleteTarget({ id, label })
+                    }
                   />
                 ))}
               </div>
@@ -562,6 +585,32 @@ export default function PendingInvoices() {
               data-testid="btn-confirm-delete-all-pending"
             >
               {deleteAll.isPending ? "Usuwanie..." : "Usuń wszystkie"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!rejectTarget}
+        onOpenChange={(open) => { if (!open) setRejectTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Odrzuć fakturę</AlertDialogTitle>
+            <AlertDialogDescription>
+              Faktura{" "}
+              <span className="font-medium text-foreground">{rejectTarget?.label}</span>{" "}
+              zostanie przeniesiona do zakładki <strong>Odrzucone</strong>. Możesz ją stamtąd przywrócić otwierając dialog faktury.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRejectSingle}
+              disabled={rejectSingle.isPending}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {rejectSingle.isPending ? "Odrzucanie..." : "Odrzuć fakturę"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
