@@ -3628,22 +3628,22 @@ components:
       properties:
         name:
           type: string
-        weeklySales:
+        sales:
           type: ["number", "null"]
-        ingredientCostPerPortion:
+        ingredientCost:
           type: number
-        salePricePerPortion:
+        salePrice:
           type: number
         marginPct:
           type: number
-        weeklyGrossProfit:
+        grossProfit:
           type: ["number", "null"]
         suggestedPrice:
           type: ["number", "null"]
       required:
         - name
-        - ingredientCostPerPortion
-        - salePricePerPortion
+        - ingredientCost
+        - salePrice
         - marginPct
 
     AiCfoFoodCostResponse:

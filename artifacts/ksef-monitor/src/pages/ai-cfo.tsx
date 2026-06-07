@@ -68,11 +68,11 @@ type ChatMessage =
 
 type FoodCostDish = {
   name: string;
-  weeklySales?: number | null;
-  ingredientCostPerPortion: number;
-  salePricePerPortion: number;
+  sales?: number | null;
+  ingredientCost: number;
+  salePrice: number;
   marginPct: number;
-  weeklyGrossProfit?: number | null;
+  grossProfit?: number | null;
   suggestedPrice?: number | null;
 };
 
@@ -756,15 +756,15 @@ function FoodCostAi() {
                         {dish.name}
                       </td>
                       <td className="px-3 py-2.5 text-right text-gray-600">
-                        {dish.weeklySales != null
-                          ? `${dish.weeklySales} szt.`
+                        {dish.sales != null
+                          ? `${dish.sales} szt.`
                           : "—"}
                       </td>
                       <td className="px-3 py-2.5 text-right text-gray-700">
-                        {PLN(dish.ingredientCostPerPortion)}
+                        {PLN(dish.ingredientCost)}
                       </td>
                       <td className="px-3 py-2.5 text-right text-gray-700">
-                        {PLN(dish.salePricePerPortion)}
+                        {PLN(dish.salePrice)}
                       </td>
                       <td
                         className={cn(
@@ -775,8 +775,8 @@ function FoodCostAi() {
                         {PCT(dish.marginPct)}
                       </td>
                       <td className="px-3 py-2.5 text-right text-gray-600">
-                        {dish.weeklyGrossProfit != null
-                          ? PLN(dish.weeklyGrossProfit)
+                        {dish.grossProfit != null
+                          ? PLN(dish.grossProfit)
                           : "—"}
                       </td>
                       <td className="px-3 py-2.5 text-right">

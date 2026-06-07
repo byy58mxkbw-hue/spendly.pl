@@ -430,11 +430,11 @@ Odpowiedz TYLKO jako JSON (bez tekstu poza JSON):
   "dishes": [
     {
       "name": "Nazwa dania",
-      "weeklySales": 45,
-      "ingredientCostPerPortion": 8.50,
-      "salePricePerPortion": 28.00,
+      "sales": 45,
+      "ingredientCost": 8.50,
+      "salePrice": 28.00,
       "marginPct": 69.6,
-      "weeklyGrossProfit": 877.50,
+      "grossProfit": 877.50,
       "suggestedPrice": null
     }
   ],
@@ -443,10 +443,10 @@ Odpowiedz TYLKO jako JSON (bez tekstu poza JSON):
 }
 
 Reguły:
-- marginPct = (salePricePerPortion - ingredientCostPerPortion) / salePricePerPortion * 100
-- weeklyGrossProfit = (salePricePerPortion - ingredientCostPerPortion) * weeklySales
-- suggestedPrice: podaj nową cenę jeśli marża < 60%, w przeciwnym razie null
-- Sortuj dania od najgorszej do najlepszej marży
+- marginPct = (salePrice - ingredientCost) / salePrice * 100
+- grossProfit = (salePrice - ingredientCost) * sales
+- suggestedPrice: podaj nową cenę jeśli marża < 65%, w przeciwnym razie null
+- Sortuj dania od najgorszej do najlepszej marży (rosnąco po marginPct)
 - Wszystkie kwoty w PLN, odpowiadaj po polsku`;
 
   const resp = await openai.chat.completions.create({
@@ -466,6 +466,24 @@ Reguły:
     req.log.warn({ raw: raw.slice(0, 300) }, "ai-cfo food-cost JSON parse failed");
     res.status(422).json({ error: "Nie udało się przetworzyć danych. Sprawdź format receptur i spróbuj ponownie." });
     return;
+  }
+
+  // Deterministic post-processing: enforce sort and 65% threshold regardless of AI output
+  if (parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).dishes)) {
+    const p = parsed as { dishes: Array<Record<string, unknown>>; summary?: string; avgMarginPct?: number };
+    p.dishes = p.dishes
+      .map((d) => ({
+        ...d,
+        // Enforce suggestedPrice threshold: must be null when marginPct >= 65
+        suggestedPrice: typeof d.marginPct === "number" && d.marginPct < 65
+          ? (d.suggestedPrice ?? null)
+          : null,
+      }))
+      .sort((a, b) => {
+        const am = typeof a.marginPct === "number" ? a.marginPct : 999;
+        const bm = typeof b.marginPct === "number" ? b.marginPct : 999;
+        return am - bm; // ascending: worst margin first
+      });
   }
 
   res.json(parsed);

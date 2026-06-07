@@ -228,11 +228,11 @@ export const PostAiCfoFoodCostResponse = zod.object({
   dishes: zod.array(
     zod.object({
       name: zod.string(),
-      weeklySales: zod.number().nullish(),
-      ingredientCostPerPortion: zod.number(),
-      salePricePerPortion: zod.number(),
+      sales: zod.number().nullish(),
+      ingredientCost: zod.number(),
+      salePrice: zod.number(),
       marginPct: zod.number(),
-      weeklyGrossProfit: zod.number().nullish(),
+      grossProfit: zod.number().nullish(),
       suggestedPrice: zod.number().nullish(),
     }),
   ),

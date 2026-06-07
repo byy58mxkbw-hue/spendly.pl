@@ -912,12 +912,12 @@ export interface AiCfoFoodCostBody {
 export interface AiCfoFoodCostDish {
   name: string;
   /** @nullable */
-  weeklySales?: number | null;
-  ingredientCostPerPortion: number;
-  salePricePerPortion: number;
+  sales?: number | null;
+  ingredientCost: number;
+  salePrice: number;
   marginPct: number;
   /** @nullable */
-  weeklyGrossProfit?: number | null;
+  grossProfit?: number | null;
   /** @nullable */
   suggestedPrice?: number | null;
 }
