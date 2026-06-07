@@ -241,17 +241,12 @@ export const PostAiCfoFoodCostResponse = zod.object({
 });
 
 /**
- * @summary Extract menu items and prices from an image or PDF (base64-encoded)
+ * @summary Extract menu items and prices from an uploaded image or PDF (first page)
  */
 export const PostAiCfoExtractMenuBody = zod.object({
-  fileBase64: zod
-    .string()
-    .describe("Base64-encoded image (JPG, PNG, WEBP) or PDF content"),
-  mimeType: zod
-    .string()
-    .describe(
-      "MIME type: image\/jpeg, image\/png, image\/webp, or application\/pdf",
-    ),
+  file: zod
+    .instanceof(File)
+    .describe("Image (JPG, PNG, WEBP) or PDF file — max 10 MB"),
 });
 
 export const PostAiCfoExtractMenuResponse = zod.object({

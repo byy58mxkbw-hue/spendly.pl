@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, aiCfoSessionsTable } from "@workspace/db";
 import { sql, eq, and, desc } from "drizzle-orm";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import multer from "multer";
 
 const router: IRouter = Router();
 
@@ -609,29 +610,20 @@ Reguły:
 
 // ─── Route: POST /ai-cfo/extract-menu ────────────────────────────────────────
 
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const menuUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
+    if (allowed.includes(file.mimetype.toLowerCase())) {
+      cb(null, true);
+    } else {
+      cb(new Error("Nieobsługiwany format. Użyj JPG, PNG, WEBP lub PDF."));
+    }
+  },
+});
 
-router.post("/ai-cfo/extract-menu", async (req, res): Promise<void> => {
-  const { fileBase64, mimeType } = req.body as { fileBase64?: string; mimeType?: string };
-
-  if (!fileBase64 || typeof fileBase64 !== "string") {
-    res.status(400).json({ error: "Brakuje danych pliku (fileBase64)." });
-    return;
-  }
-  if (!mimeType || typeof mimeType !== "string") {
-    res.status(400).json({ error: "Brakuje typu pliku (mimeType)." });
-    return;
-  }
-
-  const isImage = ALLOWED_IMAGE_TYPES.includes(mimeType.toLowerCase());
-  const isPdf = mimeType.toLowerCase() === "application/pdf";
-
-  if (!isImage && !isPdf) {
-    res.status(400).json({ error: "Nieobsługiwany format pliku. Użyj JPG, PNG, WEBP lub PDF." });
-    return;
-  }
-
-  const EXTRACT_PROMPT = `Jesteś asystentem restauratora. Twoim zadaniem jest wyciągnięcie listy dań z karty menu.
+const MENU_EXTRACT_PROMPT = `Jesteś asystentem restauratora. Twoim zadaniem jest wyciągnięcie listy dań z karty menu.
 
 Zwróć TYLKO tekst (nie JSON) w formacie gotowym do analizy food cost — dla każdego dania podaj:
 - nazwę dania
@@ -654,31 +646,41 @@ Cena menu: 42 zł
 Jeśli receptury nie są widoczne — podaj tylko nazwy dań z cenami.
 Odpowiadaj wyłącznie po polsku. Nie dodawaj żadnych komentarzy ani wyjaśnień — tylko listę dań.`;
 
+async function extractViaVision(buffer: Buffer, mimeType: string): Promise<string> {
+  const base64 = buffer.toString("base64");
+  const response = await openai.chat.completions.create({
+    model: "gpt-4.1",
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image_url",
+            image_url: { url: `data:${mimeType};base64,${base64}`, detail: "high" },
+          },
+          { type: "text", text: MENU_EXTRACT_PROMPT },
+        ],
+      },
+    ],
+    max_tokens: 2000,
+    temperature: 0.1,
+  });
+  return (response.choices[0]?.message?.content ?? "").trim();
+}
+
+router.post("/ai-cfo/extract-menu", menuUpload.single("file"), async (req, res): Promise<void> => {
+  if (!req.file) {
+    res.status(400).json({ error: "Brakuje pliku. Prześlij obraz lub PDF jako pole 'file'." });
+    return;
+  }
+
+  const { buffer, mimetype } = req.file;
+  const isImage = ["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(mimetype.toLowerCase());
+  const isPdf = mimetype.toLowerCase() === "application/pdf";
+
   try {
     if (isImage) {
-      // OpenAI vision extraction
-      const response = await openai.chat.completions.create({
-        model: "gpt-4.1",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType};base64,${fileBase64}`,
-                  detail: "high",
-                },
-              },
-              { type: "text", text: EXTRACT_PROMPT },
-            ],
-          },
-        ],
-        max_tokens: 2000,
-        temperature: 0.1,
-      });
-
-      const menuText = (response.choices[0]?.message?.content ?? "").trim();
+      const menuText = await extractViaVision(buffer, mimetype);
       if (!menuText || menuText.length < 10) {
         res.status(422).json({ error: "Nie udało się odczytać menu ze zdjęcia. Upewnij się, że zdjęcie jest ostre i dobrze oświetlone." });
         return;
@@ -688,10 +690,9 @@ Odpowiadaj wyłącznie po polsku. Nie dodawaj żadnych komentarzy ani wyjaśnie�
     }
 
     if (isPdf) {
-      // PDF text extraction using pdf-parse
-      let pdfParse: (buffer: Buffer) => Promise<{ text: string }>;
+      // Try native text extraction — first page only
+      let pdfParse: (buf: Buffer, opts?: { max?: number }) => Promise<{ text: string }>;
       try {
-        // Import from the library file directly to avoid the test-running issue in ESM
         // @ts-ignore — sub-path has no type declarations; @types/pdf-parse covers the API shape
         const mod = await import("pdf-parse/lib/pdf-parse.js");
         pdfParse = (mod.default ?? mod) as typeof pdfParse;
@@ -700,38 +701,48 @@ Odpowiadaj wyłącznie po polsku. Nie dodawaj żadnych komentarzy ani wyjaśnie�
         return;
       }
 
-      const buffer = Buffer.from(fileBase64, "base64");
-      let extracted: { text: string };
+      let rawText = "";
       try {
-        extracted = await pdfParse(buffer);
+        const extracted = await pdfParse(buffer, { max: 1 }); // first page only
+        rawText = (extracted.text ?? "").trim();
       } catch {
-        res.status(422).json({ error: "Nie udało się odczytać pliku PDF. Sprawdź czy plik nie jest uszkodzony lub spróbuj ze zdjęciem." });
+        rawText = "";
+      }
+
+      if (rawText.length >= 30) {
+        // Native text found — ask AI to clean and format it
+        const cleanupResponse = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "user",
+              content: `Poniżej jest surowy tekst wyciągnięty z PDF karty menu (pierwsza strona). Sformatuj go jako czytelną listę dań z cenami — usuń nagłówki, stopki, numery stron, zbędne znaki. Zachowaj wszystkie dania i ceny. Odpowiadaj po polsku, tylko sformatowaną listą dań, bez komentarzy.\n\nSUROWY TEKST:\n${rawText.slice(0, 4000)}`,
+            },
+          ],
+          max_tokens: 2000,
+          temperature: 0.1,
+        });
+        const menuText = (cleanupResponse.choices[0]?.message?.content ?? "").trim();
+        res.json({ menuText: menuText || rawText.slice(0, 3000) });
         return;
       }
 
-      const rawText = (extracted.text ?? "").trim();
-      if (rawText.length < 30) {
-        res.status(422).json({ error: "PDF nie zawiera tekstu do odczytania (prawdopodobnie jest to skan). Zrób zdjęcie menu i wyślij jako obraz." });
+      // Scanned PDF — convert page 1 to PNG and send to vision
+      let page1Buffer: Buffer;
+      try {
+        const { pdf } = await import("pdf-to-img");
+        const doc = await pdf(buffer, { scale: 2 });
+        page1Buffer = await doc.getPage(1);
+        await doc.destroy();
+      } catch (err) {
+        req.log.error({ err }, "ai-cfo extract-menu: pdf-to-img failed");
+        res.status(422).json({ error: "PDF nie zawiera tekstu (prawdopodobnie skan) i nie udało się go przekonwertować. Zrób zdjęcie menu i wyślij jako obraz JPG lub PNG." });
         return;
       }
 
-      // Use AI to clean up and format the extracted PDF text
-      const cleanupResponse = await openai.chat.completions.create({
-        model: "gpt-5-mini",
-        messages: [
-          {
-            role: "user",
-            content: `Poniżej jest surowy tekst wyciągnięty z PDF karty menu. Sformatuj go jako czytelną listę dań z cenami (usuń śmieci, nagłówki, stopki, numery stron). Zachowaj wszystkie dania i ceny. Odpowiadaj po polsku, tylko sformatowaną listą dań, bez komentarzy.\n\nSUROWY TEKST:\n${rawText.slice(0, 4000)}`,
-          },
-        ],
-        max_tokens: 2000,
-        temperature: 0.1,
-      });
-
-      const menuText = (cleanupResponse.choices[0]?.message?.content ?? "").trim();
+      const menuText = await extractViaVision(page1Buffer, "image/png");
       if (!menuText || menuText.length < 10) {
-        // Fallback: return the raw extracted text
-        res.json({ menuText: rawText.slice(0, 3000) });
+        res.status(422).json({ error: "Nie udało się odczytać menu ze skanu PDF. Upewnij się, że plik jest czytelny lub zrób zdjęcie aparatem." });
         return;
       }
       res.json({ menuText });

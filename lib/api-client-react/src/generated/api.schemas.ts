@@ -905,10 +905,8 @@ export interface AiCfoChatResponse {
 }
 
 export interface AiCfoExtractMenuBody {
-  /** Base64-encoded image (JPG, PNG, WEBP) or PDF content */
-  fileBase64: string;
-  /** MIME type: image/jpeg, image/png, image/webp, or application/pdf */
-  mimeType: string;
+  /** Image (JPG, PNG, WEBP) or PDF file — max 10 MB */
+  file: Blob;
 }
 
 export interface AiCfoExtractMenuResponse {

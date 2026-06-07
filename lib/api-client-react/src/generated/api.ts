@@ -1139,7 +1139,7 @@ export const usePostAiCfoFoodCost = <
 };
 
 /**
- * @summary Extract menu items and prices from an image or PDF (base64-encoded)
+ * @summary Extract menu items and prices from an uploaded image or PDF (first page)
  */
 export const getPostAiCfoExtractMenuUrl = () => {
   return `/api/ai-cfo/extract-menu`;
@@ -1149,11 +1149,13 @@ export const postAiCfoExtractMenu = async (
   aiCfoExtractMenuBody: AiCfoExtractMenuBody,
   options?: RequestInit,
 ): Promise<AiCfoExtractMenuResponse> => {
+  const formData = new FormData();
+  formData.append(`file`, aiCfoExtractMenuBody.file);
+
   return customFetch<AiCfoExtractMenuResponse>(getPostAiCfoExtractMenuUrl(), {
     ...options,
     method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(aiCfoExtractMenuBody),
+    body: formData,
   });
 };
 
@@ -1202,7 +1204,7 @@ export type PostAiCfoExtractMenuMutationBody = BodyType<AiCfoExtractMenuBody>;
 export type PostAiCfoExtractMenuMutationError = ErrorType<void>;
 
 /**
- * @summary Extract menu items and prices from an image or PDF (base64-encoded)
+ * @summary Extract menu items and prices from an uploaded image or PDF (first page)
  */
 export const usePostAiCfoExtractMenu = <
   TError = ErrorType<void>,

@@ -904,47 +904,33 @@ function FoodCostAi() {
 
     setExtractError(null);
 
-    // Size check: max 10MB
+    // Client-side size check: max 10 MB
     if (file.size > 10 * 1024 * 1024) {
       setExtractError("Plik jest za duży. Maksymalny rozmiar to 10 MB.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      // data:[mimeType];base64,[base64data]
-      const commaIdx = dataUrl.indexOf(",");
-      if (commaIdx === -1) {
-        setExtractError("Nie udało się odczytać pliku.");
-        return;
-      }
-      const fileBase64 = dataUrl.slice(commaIdx + 1);
-      const mimeType = file.type || "application/octet-stream";
-
-      extractMutation.mutate(
-        { data: { fileBase64, mimeType } },
-        {
-          onSuccess(data) {
-            const extracted = data as { menuText: string };
-            setMenuText(extracted.menuText);
-            setExtractError(null);
-          },
-          onError(err: unknown) {
-            const msg =
-              (err as { data?: { error?: string } })?.data?.error ??
-              "Nie udało się wyciągnąć menu z pliku. Spróbuj ponownie lub wpisz tekst ręcznie.";
-            setExtractError(msg);
-          },
-        },
-      );
-    };
-    reader.onerror = () => setExtractError("Nie udało się odczytać pliku.");
-    reader.readAsDataURL(file);
-
-    // Reset input so the same file can be re-selected
+    // Reset input so the same file can be re-selected later
     if (fileInputRef.current) fileInputRef.current.value = "";
+
+    // Pass raw File — hook wraps it in FormData automatically
+    extractMutation.mutate(
+      { data: { file } },
+      {
+        onSuccess(data) {
+          const extracted = data as { menuText: string };
+          setMenuText(extracted.menuText);
+          setExtractError(null);
+        },
+        onError(err: unknown) {
+          const msg =
+            (err as { data?: { error?: string } })?.data?.error ??
+            "Nie udało się wyciągnąć menu z pliku. Spróbuj ponownie lub wpisz tekst ręcznie.";
+          setExtractError(msg);
+        },
+      },
+    );
   }
 
   return (

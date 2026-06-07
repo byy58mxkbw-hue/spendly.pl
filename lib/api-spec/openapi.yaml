@@ -279,11 +279,11 @@ paths:
     post:
       operationId: postAiCfoExtractMenu
       tags: [ai-cfo]
-      summary: Extract menu items and prices from an image or PDF (base64-encoded)
+      summary: Extract menu items and prices from an uploaded image or PDF (first page)
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: "#/components/schemas/AiCfoExtractMenuBody"
       responses:
@@ -3792,15 +3792,12 @@ components:
     AiCfoExtractMenuBody:
       type: object
       properties:
-        fileBase64:
+        file:
           type: string
-          description: Base64-encoded image (JPG, PNG, WEBP) or PDF content
-        mimeType:
-          type: string
-          description: "MIME type: image/jpeg, image/png, image/webp, or application/pdf"
+          format: binary
+          description: Image (JPG, PNG, WEBP) or PDF file — max 10 MB
       required:
-        - fileBase64
-        - mimeType
+        - file
 
     AiCfoExtractMenuResponse:
       type: object
