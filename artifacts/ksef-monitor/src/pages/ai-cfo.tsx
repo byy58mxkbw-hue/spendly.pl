@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useId } from "react";
+import { useState, useRef, useEffect, useId, useCallback } from "react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,6 +7,11 @@ import {
   useGetAiCfoInsights,
   usePostAiCfoChat,
   usePostAiCfoFoodCost,
+  useListAiCfoSessions,
+  useCreateAiCfoSession,
+  useUpdateAiCfoSession,
+  useDeleteAiCfoSession,
+  useGetAiCfoSession,
 } from "@workspace/api-client-react";
 import {
   TrendingUp,
@@ -19,6 +24,12 @@ import {
   BarChart2,
   UtensilsCrossed,
   ArrowUpRight,
+  Plus,
+  Clock,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -343,20 +354,198 @@ function AiReplyCard({ data }: { data: ChatReply }) {
   );
 }
 
+// ─── SessionSidebar ────────────────────────────────────────────────────────────
+
+type SessionSummary = {
+  id: number;
+  title: string;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function SessionSidebar({
+  sessions,
+  activeSessionId,
+  onSelect,
+  onNew,
+  onDelete,
+  loading,
+}: {
+  sessions: SessionSummary[];
+  activeSessionId: number | null;
+  onSelect: (id: number) => void;
+  onNew: () => void;
+  onDelete: (id: number) => void;
+  loading: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (sessions.length === 0 && !loading) {
+    return (
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onNew}
+          className="gap-1.5 text-xs h-8"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Nowa sesja
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setOpen((p) => !p)}
+          className="gap-1.5 text-xs h-8 max-w-[220px]"
+        >
+          <Clock className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">
+            {activeSessionId
+              ? (sessions.find((s) => s.id === activeSessionId)?.title ?? "Sesja")
+              : "Historia sesji"}
+          </span>
+          {open ? (
+            <ChevronUp className="w-3 h-3 shrink-0" />
+          ) : (
+            <ChevronDown className="w-3 h-3 shrink-0" />
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onNew}
+          className="gap-1 text-xs h-8 px-2.5"
+          title="Nowa sesja"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Nowa
+        </Button>
+      </div>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 w-80 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+          <div className="px-3 py-2 border-b border-gray-100">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+              Ostatnie sesje (90 dni)
+            </p>
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {loading ? (
+              <div className="p-3 space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-10 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : sessions.length === 0 ? (
+              <div className="p-4 text-xs text-gray-400 text-center">
+                Brak zapisanych sesji
+              </div>
+            ) : (
+              sessions.map((s) => (
+                <div
+                  key={s.id}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors group border-b border-gray-50 last:border-0",
+                    activeSessionId === s.id && "bg-primary/5",
+                  )}
+                  onClick={() => { onSelect(s.id); setOpen(false); }}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      "text-xs font-medium truncate",
+                      activeSessionId === s.id ? "text-primary" : "text-gray-800",
+                    )}>
+                      {s.title}
+                    </p>
+                    <p className="text-[10px] text-gray-400">
+                      {new Date(s.updatedAt).toLocaleDateString("pl-PL")}
+                      {" · "}
+                      {s.messageCount} wiad.
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-50 hover:text-rose-500 transition-all text-gray-400"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ChatCfo ─────────────────────────────────────────────────────────────────
 
 function ChatCfo() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [loadingSessionId, setLoadingSessionId] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const uid = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const chatMutation = usePostAiCfoChat();
+  const sessionsQuery = useListAiCfoSessions();
+  const createSessionMutation = useCreateAiCfoSession();
+  const updateSessionMutation = useUpdateAiCfoSession();
+  const deleteSessionMutation = useDeleteAiCfoSession();
+  const getSessionQuery = useGetAiCfoSession(
+    loadingSessionId ?? 0,
+    { query: { queryKey: ["ai-cfo-session", loadingSessionId], enabled: loadingSessionId !== null } }
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (loadingSessionId === null) return;
+    if (getSessionQuery.data) {
+      const session = getSessionQuery.data as {
+        id: number;
+        title: string;
+        messages: Array<{ id: string; role: "user" | "assistant"; text?: string | null; data?: unknown | null }>;
+      };
+      const restored: ChatMessage[] = session.messages.map((m) => {
+        if (m.role === "user") {
+          return { id: m.id, role: "user" as const, text: m.text ?? "" };
+        }
+        return { id: m.id, role: "assistant" as const, data: (m.data ?? {}) as ChatReply };
+      });
+      setMessages(restored);
+      setActiveSessionId(session.id);
+      setLoadingSessionId(null);
+    } else if (getSessionQuery.isError) {
+      // Failed to load session — reset to new session state
+      setLoadingSessionId(null);
+      setActiveSessionId(null);
+      setMessages([]);
+    }
+  }, [getSessionQuery.data, getSessionQuery.isError, loadingSessionId]);
+
+  function serializeMessages(msgs: ChatMessage[]) {
+    return msgs.map((m) => ({
+      id: m.id,
+      role: m.role,
+      text: m.role === "user" ? m.text : null,
+      data: m.role === "assistant" ? m.data : null,
+    }));
+  }
 
   function buildHistory() {
     return messages.slice(-10).map((m) => ({
@@ -381,7 +570,8 @@ function ChatCfo() {
       role: "user",
       text: q,
     };
-    setMessages((prev) => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
 
     chatMutation.mutate(
       { data: { question: q, history: buildHistory() } },
@@ -392,7 +582,28 @@ function ChatCfo() {
             role: "assistant",
             data: data as ChatReply,
           };
-          setMessages((prev) => [...prev, replyMsg]);
+          const updatedMessages = [...newMessages, replyMsg];
+          setMessages(updatedMessages);
+
+          const serialized = serializeMessages(updatedMessages);
+
+          if (activeSessionId === null) {
+            createSessionMutation.mutate(
+              { data: { title: q.slice(0, 120), messages: serialized } },
+              {
+                onSuccess(session) {
+                  const s = session as { id: number };
+                  setActiveSessionId(s.id);
+                  sessionsQuery.refetch();
+                },
+              }
+            );
+          } else {
+            updateSessionMutation.mutate(
+              { id: activeSessionId, data: { messages: serialized } },
+              { onSuccess: () => sessionsQuery.refetch() }
+            );
+          }
         },
         onError() {
           const errMsg: ChatMessage = {
@@ -419,23 +630,71 @@ function ChatCfo() {
     }
   }
 
+  function handleNewSession() {
+    setMessages([]);
+    setActiveSessionId(null);
+    setLoadingSessionId(null);
+  }
+
+  function handleSelectSession(id: number) {
+    if (id === activeSessionId) return;
+    setMessages([]);
+    setActiveSessionId(null);
+    setLoadingSessionId(id);
+  }
+
+  function handleDeleteSession(id: number) {
+    deleteSessionMutation.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          if (activeSessionId === id) {
+            setMessages([]);
+            setActiveSessionId(null);
+          }
+          sessionsQuery.refetch();
+        },
+      }
+    );
+  }
+
+  const sessions = (sessionsQuery.data ?? []) as SessionSummary[];
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-primary" />
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Chat CFO</h2>
+            <p className="text-[11px] text-gray-400">
+              Zadaj pytanie o koszty, ceny lub dostawcow
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-sm font-semibold text-gray-900">Chat CFO</h2>
-          <p className="text-[11px] text-gray-400">
-            Zadaj pytanie o koszty, ceny lub dostawcow
-          </p>
-        </div>
+        <SessionSidebar
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSelect={handleSelectSession}
+          onNew={handleNewSession}
+          onDelete={handleDeleteSession}
+          loading={sessionsQuery.isLoading}
+        />
       </div>
 
+      {/* Loading session */}
+      {loadingSessionId !== null && getSessionQuery.isLoading && (
+        <div className="px-5 py-8 flex items-center justify-center gap-2 text-sm text-gray-400">
+          <RefreshCw className="w-4 h-4 animate-spin" />
+          Wczytywanie sesji…
+        </div>
+      )}
+
       {/* Messages */}
-      {messages.length > 0 && (
+      {messages.length > 0 && loadingSessionId === null && (
         <div className="px-5 py-4 space-y-5 max-h-[520px] overflow-y-auto">
           {messages.map((msg) => (
             <div key={msg.id}>
@@ -481,7 +740,7 @@ function ChatCfo() {
       )}
 
       {/* Quick chips — only when no messages */}
-      {messages.length === 0 && (
+      {messages.length === 0 && loadingSessionId === null && (
         <div className="px-5 pt-5 pb-3 space-y-4">
           {QUICK_CHIPS.map((group) => (
             <div key={group.group}>
@@ -517,7 +776,7 @@ function ChatCfo() {
               onKeyDown={handleKeyDown}
               placeholder="Zapytaj o produkty, ceny, ilosci, dostawcow lub marze…"
               rows={1}
-              disabled={chatMutation.isPending}
+              disabled={chatMutation.isPending || loadingSessionId !== null}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none transition-all disabled:opacity-50"
               style={{ maxHeight: "120px", overflowY: "auto" }}
               onInput={(e) => {
@@ -530,7 +789,7 @@ function ChatCfo() {
           </div>
           <Button
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || chatMutation.isPending}
+            disabled={!input.trim() || chatMutation.isPending || loadingSessionId !== null}
             size="icon"
             className="rounded-xl h-10 w-10 shrink-0"
           >
@@ -543,10 +802,10 @@ function ChatCfo() {
         </div>
         {messages.length > 0 && (
           <button
-            onClick={() => setMessages([])}
+            onClick={handleNewSession}
             className="mt-2 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
           >
-            Wyczysc historie
+            Nowa sesja
           </button>
         )}
       </div>
@@ -678,7 +937,7 @@ function FoodCostAi() {
                   </p>
                   <p
                     className={cn(
-                      "text-xl font-bold",
+                      "text-2xl font-bold",
                       marginColor(result.avgMarginPct),
                     )}
                   >
@@ -686,34 +945,19 @@ function FoodCostAi() {
                   </p>
                 </div>
               )}
-              <div className="rounded-xl px-4 py-3 border border-gray-200 bg-gray-50">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
-                  Analizowanych dan
-                </p>
-                <p className="text-xl font-bold text-gray-900">
-                  {result.dishes.length}
-                </p>
-              </div>
-              {result.dishes.filter((d) => d.suggestedPrice != null).length >
-                0 && (
-                <div className="rounded-xl px-4 py-3 border border-amber-200 bg-amber-50">
-                  <p className="text-[10px] text-amber-600 uppercase tracking-wide mb-0.5">
-                    Wymaga podwyzki
+              {result.summary && (
+                <div className="flex-1 min-w-[200px] bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
+                  <p className="text-[10px] font-semibold text-teal-700 uppercase tracking-wide mb-1">
+                    Ocena
                   </p>
-                  <p className="text-xl font-bold text-amber-700">
-                    {result.dishes.filter((d) => d.suggestedPrice != null).length}
+                  <p className="text-xs text-teal-800 leading-relaxed">
+                    {result.summary}
                   </p>
                 </div>
               )}
             </div>
 
-            {result.summary && (
-              <p className="text-sm text-gray-600 leading-relaxed">
-                {result.summary}
-              </p>
-            )}
-
-            {/* Results table */}
+            {/* Dishes table */}
             <div className="overflow-x-auto rounded-xl border border-gray-200">
               <table className="w-full text-xs">
                 <thead>
@@ -722,70 +966,69 @@ function FoodCostAi() {
                       Danie
                     </th>
                     <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
-                      Sprzed./tyg.
+                      Koszt sk.
                     </th>
                     <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
-                      Koszt/por.
+                      Cena menu
                     </th>
                     <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
-                      Cena
+                      Marza
                     </th>
+                    {result.dishes.some((d) => d.sales != null) && (
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                        Sprzedaz
+                      </th>
+                    )}
+                    {result.dishes.some((d) => d.grossProfit != null) && (
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                        Zysk brutto
+                      </th>
+                    )}
                     <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
-                      Marza %
-                    </th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
-                      Zysk/tyg.
-                    </th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
-                      Suger. cena
+                      Sugerowana cena
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {result.dishes.map((dish, i) => (
+                  {result.dishes.map((d, i) => (
                     <tr
                       key={i}
-                      className={cn(
-                        "border-b border-gray-100 last:border-0",
-                        dish.suggestedPrice != null
-                          ? "bg-amber-50/40"
-                          : "hover:bg-gray-50",
-                      )}
+                      className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
                     >
-                      <td className="px-3 py-2.5 font-medium text-gray-800 max-w-[160px] truncate">
-                        {dish.name}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-gray-600">
-                        {dish.sales != null
-                          ? `${dish.sales} szt.`
-                          : "—"}
+                      <td className="px-3 py-2.5 font-medium text-gray-800">
+                        {d.name}
                       </td>
                       <td className="px-3 py-2.5 text-right text-gray-700">
-                        {PLN(dish.ingredientCost)}
+                        {PLN(d.ingredientCost)}
                       </td>
                       <td className="px-3 py-2.5 text-right text-gray-700">
-                        {PLN(dish.salePrice)}
+                        {PLN(d.salePrice)}
                       </td>
                       <td
                         className={cn(
                           "px-3 py-2.5 text-right font-semibold",
-                          marginColor(dish.marginPct),
+                          marginColor(d.marginPct),
                         )}
                       >
-                        {PCT(dish.marginPct)}
+                        {PCT(d.marginPct)}
                       </td>
-                      <td className="px-3 py-2.5 text-right text-gray-600">
-                        {dish.grossProfit != null
-                          ? PLN(dish.grossProfit)
-                          : "—"}
-                      </td>
+                      {result.dishes.some((x) => x.sales != null) && (
+                        <td className="px-3 py-2.5 text-right text-gray-700">
+                          {d.sales != null ? `${d.sales} szt.` : "—"}
+                        </td>
+                      )}
+                      {result.dishes.some((x) => x.grossProfit != null) && (
+                        <td className="px-3 py-2.5 text-right text-gray-700">
+                          {d.grossProfit != null ? PLN(d.grossProfit) : "—"}
+                        </td>
+                      )}
                       <td className="px-3 py-2.5 text-right">
-                        {dish.suggestedPrice != null ? (
-                          <span className="font-semibold text-amber-700">
-                            {PLN(dish.suggestedPrice)}
+                        {d.suggestedPrice != null ? (
+                          <span className="font-semibold text-rose-600">
+                            {PLN(d.suggestedPrice)}
                           </span>
                         ) : (
-                          <span className="text-gray-400">—</span>
+                          <span className="text-emerald-600 font-medium">OK</span>
                         )}
                       </td>
                     </tr>
@@ -803,88 +1046,75 @@ function FoodCostAi() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AiCfoPage() {
-  const {
-    data: insights,
-    isLoading,
-    refetch,
-    isRefetching,
-  } = useGetAiCfoInsights();
+  const insightsQuery = useGetAiCfoInsights();
+  const [tab, setTab] = useState<"chat" | "food-cost">("chat");
+
+  const cards = (insightsQuery.data ?? []) as InsightCardData[];
 
   return (
     <Layout>
-      <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <div className="px-6 py-8 max-w-6xl mx-auto space-y-8">
         {/* Page header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5 text-primary" />
-              </div>
-              <h1 className="text-xl font-bold text-gray-900">AI CFO</h1>
-            </div>
-            <p className="text-sm text-gray-500">
-              Analiza kosztow, porownania cen i rekomendacje finansowe na
-              podstawie Twoich faktur
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            className="gap-2 shrink-0"
-          >
-            <RefreshCw
-              className={cn("w-3.5 h-3.5", isRefetching && "animate-spin")}
-            />
-            Odswiez
-          </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">AI CFO</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Analizy AI, chat z danymi i kalkulator food cost
+          </p>
         </div>
 
-        {/* Top 3 insight cards */}
+        {/* Top insights */}
         <section>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
-            Kluczowe obserwacje — ostatnie 90 dni
-          </h2>
-          {isLoading ? (
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart2 className="w-4 h-4 text-gray-500" />
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              Kluczowe sygnaly (ostatnie 90 dni)
+            </h2>
+          </div>
+          {insightsQuery.isLoading ? (
             <InsightsSkeleton />
-          ) : insights && insights.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {insights.map((card, i) => (
-                <InsightCard key={i} card={card as InsightCardData} />
-              ))}
+          ) : cards.length === 0 ? (
+            <div className="bg-gray-50 rounded-2xl border border-gray-200 px-6 py-8 text-center">
+              <p className="text-sm text-gray-500">
+                Brak danych do analizy. Importuj faktury, aby zobaczyc sygnaly cenowe.
+              </p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
-              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                <BarChart2 className="w-5 h-5 text-gray-400" />
-              </div>
-              <p className="text-sm font-medium text-gray-700 mb-1">
-                Brak danych do analizy
-              </p>
-              <p className="text-xs text-gray-500">
-                Zaimportuj faktury od co najmniej 2 okresow, aby zobaczyc
-                analize cen.
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {cards.map((card, i) => (
+                <InsightCard key={i} card={card} />
+              ))}
             </div>
           )}
         </section>
 
-        {/* Chat CFO */}
-        <section>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
-            Chat z AI CFO
-          </h2>
-          <ChatCfo />
-        </section>
-
-        {/* Food Cost AI */}
-        <section>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
+        {/* Tab switcher */}
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
+          <button
+            onClick={() => setTab("chat")}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              tab === "chat"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700",
+            )}
+          >
+            Chat CFO
+          </button>
+          <button
+            onClick={() => setTab("food-cost")}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+              tab === "food-cost"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700",
+            )}
+          >
             Food Cost AI
-          </h2>
-          <FoodCostAi />
-        </section>
+          </button>
+        </div>
+
+        {/* Tab content */}
+        {tab === "chat" ? <ChatCfo /> : <FoodCostAi />}
       </div>
     </Layout>
   );

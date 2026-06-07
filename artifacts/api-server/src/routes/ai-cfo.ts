@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { db, aiCfoSessionsTable } from "@workspace/db";
+import { sql, eq, and, desc } from "drizzle-orm";
 import { openai } from "@workspace/integrations-openai-ai-server";
 
 const router: IRouter = Router();
@@ -472,7 +472,7 @@ Reguły:
   if (parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).dishes)) {
     const p = parsed as { dishes: Array<Record<string, unknown>>; summary?: string; avgMarginPct?: number };
     p.dishes = p.dishes
-      .map((d) => ({
+      .map((d): Record<string, unknown> => ({
         ...d,
         // Enforce suggestedPrice threshold: must be null when marginPct >= 65
         suggestedPrice: typeof d.marginPct === "number" && d.marginPct < 65
@@ -487,6 +487,166 @@ Reguły:
   }
 
   res.json(parsed);
+});
+
+// ─── Session helpers ──────────────────────────────────────────────────────────
+
+function sessionExpiresAt(): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + 90);
+  return d;
+}
+
+type StoredMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text?: string | null;
+  data?: unknown | null;
+};
+
+// ─── Route: GET /ai-cfo/sessions ─────────────────────────────────────────────
+
+router.get("/ai-cfo/sessions", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const now = new Date();
+
+  // Opportunistic cleanup: delete expired sessions for this user (fire-and-forget)
+  db.delete(aiCfoSessionsTable)
+    .where(sql`${aiCfoSessionsTable.expiresAt} <= ${now.toISOString()}`)
+    .catch((err: unknown) => req.log.warn({ err }, "ai-cfo sessions cleanup failed"));
+
+  const rows = await db
+    .select()
+    .from(aiCfoSessionsTable)
+    .where(and(
+      eq(aiCfoSessionsTable.userId, userId),
+      sql`${aiCfoSessionsTable.expiresAt} > ${now.toISOString()}`
+    ))
+    .orderBy(desc(aiCfoSessionsTable.updatedAt))
+    .limit(20);
+
+  const summaries = rows.map((row) => {
+    const msgs = (row.messages as StoredMessage[]) ?? [];
+    return {
+      id: row.id,
+      title: row.title,
+      messageCount: msgs.length,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  });
+
+  res.json(summaries);
+});
+
+// ─── Route: POST /ai-cfo/sessions ────────────────────────────────────────────
+
+router.post("/ai-cfo/sessions", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const { title, messages } = req.body as { title: string; messages: StoredMessage[] };
+
+  if (!title || typeof title !== "string") {
+    res.status(400).json({ error: "Brakuje tytułu sesji." });
+    return;
+  }
+
+  const [row] = await db
+    .insert(aiCfoSessionsTable)
+    .values({
+      userId,
+      title: title.slice(0, 200),
+      messages: messages ?? [],
+      expiresAt: sessionExpiresAt(),
+    })
+    .returning();
+
+  const msgs = (row.messages as StoredMessage[]) ?? [];
+  res.status(201).json({
+    id: row.id,
+    title: row.title,
+    messages: msgs,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  });
+});
+
+// ─── Route: GET /ai-cfo/sessions/:id ─────────────────────────────────────────
+
+router.get("/ai-cfo/sessions/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = parseInt(req.params.id ?? "", 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Nieprawidłowe id." }); return; }
+
+  const now = new Date();
+  const [row] = await db
+    .select()
+    .from(aiCfoSessionsTable)
+    .where(and(
+      eq(aiCfoSessionsTable.id, id),
+      eq(aiCfoSessionsTable.userId, userId),
+      sql`${aiCfoSessionsTable.expiresAt} > ${now.toISOString()}`
+    ));
+
+  if (!row) { res.status(404).json({ error: "Nie znaleziono sesji." }); return; }
+
+  const msgs = (row.messages as StoredMessage[]) ?? [];
+  res.json({
+    id: row.id,
+    title: row.title,
+    messages: msgs,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  });
+});
+
+// ─── Route: PUT /ai-cfo/sessions/:id ─────────────────────────────────────────
+
+router.put("/ai-cfo/sessions/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = parseInt(req.params.id ?? "", 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Nieprawidłowe id." }); return; }
+
+  const { messages } = req.body as { messages: StoredMessage[] };
+  if (!Array.isArray(messages)) { res.status(400).json({ error: "Brakuje listy wiadomości." }); return; }
+
+  const now2 = new Date();
+  const [row] = await db
+    .update(aiCfoSessionsTable)
+    .set({ messages, updatedAt: new Date() })
+    .where(and(
+      eq(aiCfoSessionsTable.id, id),
+      eq(aiCfoSessionsTable.userId, userId),
+      sql`${aiCfoSessionsTable.expiresAt} > ${now2.toISOString()}`
+    ))
+    .returning();
+
+  if (!row) { res.status(404).json({ error: "Nie znaleziono sesji." }); return; }
+
+  const msgs = (row.messages as StoredMessage[]) ?? [];
+  res.json({
+    id: row.id,
+    title: row.title,
+    messages: msgs,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  });
+});
+
+// ─── Route: DELETE /ai-cfo/sessions/:id ──────────────────────────────────────
+
+router.delete("/ai-cfo/sessions/:id", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = parseInt(req.params.id ?? "", 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Nieprawidłowe id." }); return; }
+
+  await db
+    .delete(aiCfoSessionsTable)
+    .where(and(
+      eq(aiCfoSessionsTable.id, id),
+      eq(aiCfoSessionsTable.userId, userId)
+    ));
+
+  res.status(204).send();
 });
 
 export default router;

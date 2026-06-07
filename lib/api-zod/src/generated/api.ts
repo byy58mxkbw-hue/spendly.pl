@@ -241,6 +241,97 @@ export const PostAiCfoFoodCostResponse = zod.object({
 });
 
 /**
+ * @summary List recent AI CFO chat sessions for the current user
+ */
+export const ListAiCfoSessionsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  messageCount: zod.number(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListAiCfoSessionsResponse = zod.array(
+  ListAiCfoSessionsResponseItem,
+);
+
+/**
+ * @summary Create a new AI CFO chat session
+ */
+export const CreateAiCfoSessionBody = zod.object({
+  title: zod.string(),
+  messages: zod.array(
+    zod.object({
+      id: zod.string(),
+      role: zod.enum(["user", "assistant"]),
+      text: zod.string().nullish(),
+      data: zod.object({}).passthrough().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get a single AI CFO session with full message history
+ */
+export const GetAiCfoSessionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetAiCfoSessionResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  messages: zod.array(
+    zod.object({
+      id: zod.string(),
+      role: zod.enum(["user", "assistant"]),
+      text: zod.string().nullish(),
+      data: zod.object({}).passthrough().nullish(),
+    }),
+  ),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Append messages to an existing AI CFO session
+ */
+export const UpdateAiCfoSessionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateAiCfoSessionBody = zod.object({
+  messages: zod.array(
+    zod.object({
+      id: zod.string(),
+      role: zod.enum(["user", "assistant"]),
+      text: zod.string().nullish(),
+      data: zod.object({}).passthrough().nullish(),
+    }),
+  ),
+});
+
+export const UpdateAiCfoSessionResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  messages: zod.array(
+    zod.object({
+      id: zod.string(),
+      role: zod.enum(["user", "assistant"]),
+      text: zod.string().nullish(),
+      data: zod.object({}).passthrough().nullish(),
+    }),
+  ),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Delete an AI CFO session
+ */
+export const DeleteAiCfoSessionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * Returns server health status
  * @summary Health check
  */

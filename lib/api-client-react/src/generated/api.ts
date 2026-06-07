@@ -26,6 +26,8 @@ import type {
   AiCfoFoodCostBody,
   AiCfoFoodCostResponse,
   AiCfoInsightCard,
+  AiCfoSessionDetail,
+  AiCfoSessionSummary,
   AiInsight,
   BulkAssignCostCenter200,
   BulkVerifyProducts200,
@@ -36,6 +38,7 @@ import type {
   CorrectProductCategoryBody,
   CostCenter,
   CostCenterReport,
+  CreateAiCfoSessionBody,
   CreateCategoryBody,
   CreateCostCenterBody,
   CreatePriceAlertBody,
@@ -110,6 +113,7 @@ import type {
   ToggleInvoiceExcluded200,
   ToggleInvoiceExcludedBody,
   TriggeredAlert,
+  UpdateAiCfoSessionBody,
   UpdateCategoryBody,
   UpdateCostCenterBody,
   UpdateKsefConfigBody,
@@ -1126,6 +1130,425 @@ export const usePostAiCfoFoodCost = <
   TContext
 > => {
   return useMutation(getPostAiCfoFoodCostMutationOptions(options));
+};
+
+/**
+ * @summary List recent AI CFO chat sessions for the current user
+ */
+export const getListAiCfoSessionsUrl = () => {
+  return `/api/ai-cfo/sessions`;
+};
+
+export const listAiCfoSessions = async (
+  options?: RequestInit,
+): Promise<AiCfoSessionSummary[]> => {
+  return customFetch<AiCfoSessionSummary[]>(getListAiCfoSessionsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAiCfoSessionsQueryKey = () => {
+  return [`/api/ai-cfo/sessions`] as const;
+};
+
+export const getListAiCfoSessionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAiCfoSessions>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAiCfoSessions>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAiCfoSessionsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAiCfoSessions>>
+  > = ({ signal }) => listAiCfoSessions({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAiCfoSessions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAiCfoSessionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAiCfoSessions>>
+>;
+export type ListAiCfoSessionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List recent AI CFO chat sessions for the current user
+ */
+
+export function useListAiCfoSessions<
+  TData = Awaited<ReturnType<typeof listAiCfoSessions>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAiCfoSessions>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAiCfoSessionsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new AI CFO chat session
+ */
+export const getCreateAiCfoSessionUrl = () => {
+  return `/api/ai-cfo/sessions`;
+};
+
+export const createAiCfoSession = async (
+  createAiCfoSessionBody: CreateAiCfoSessionBody,
+  options?: RequestInit,
+): Promise<AiCfoSessionDetail> => {
+  return customFetch<AiCfoSessionDetail>(getCreateAiCfoSessionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createAiCfoSessionBody),
+  });
+};
+
+export const getCreateAiCfoSessionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAiCfoSession>>,
+    TError,
+    { data: BodyType<CreateAiCfoSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAiCfoSession>>,
+  TError,
+  { data: BodyType<CreateAiCfoSessionBody> },
+  TContext
+> => {
+  const mutationKey = ["createAiCfoSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAiCfoSession>>,
+    { data: BodyType<CreateAiCfoSessionBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createAiCfoSession(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAiCfoSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAiCfoSession>>
+>;
+export type CreateAiCfoSessionMutationBody = BodyType<CreateAiCfoSessionBody>;
+export type CreateAiCfoSessionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new AI CFO chat session
+ */
+export const useCreateAiCfoSession = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAiCfoSession>>,
+    TError,
+    { data: BodyType<CreateAiCfoSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAiCfoSession>>,
+  TError,
+  { data: BodyType<CreateAiCfoSessionBody> },
+  TContext
+> => {
+  return useMutation(getCreateAiCfoSessionMutationOptions(options));
+};
+
+/**
+ * @summary Get a single AI CFO session with full message history
+ */
+export const getGetAiCfoSessionUrl = (id: number) => {
+  return `/api/ai-cfo/sessions/${id}`;
+};
+
+export const getAiCfoSession = async (
+  id: number,
+  options?: RequestInit,
+): Promise<AiCfoSessionDetail> => {
+  return customFetch<AiCfoSessionDetail>(getGetAiCfoSessionUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAiCfoSessionQueryKey = (id: number) => {
+  return [`/api/ai-cfo/sessions/${id}`] as const;
+};
+
+export const getGetAiCfoSessionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAiCfoSession>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAiCfoSession>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAiCfoSessionQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiCfoSession>>> = ({
+    signal,
+  }) => getAiCfoSession(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAiCfoSession>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAiCfoSessionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAiCfoSession>>
+>;
+export type GetAiCfoSessionQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a single AI CFO session with full message history
+ */
+
+export function useGetAiCfoSession<
+  TData = Awaited<ReturnType<typeof getAiCfoSession>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAiCfoSession>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAiCfoSessionQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Append messages to an existing AI CFO session
+ */
+export const getUpdateAiCfoSessionUrl = (id: number) => {
+  return `/api/ai-cfo/sessions/${id}`;
+};
+
+export const updateAiCfoSession = async (
+  id: number,
+  updateAiCfoSessionBody: UpdateAiCfoSessionBody,
+  options?: RequestInit,
+): Promise<AiCfoSessionDetail> => {
+  return customFetch<AiCfoSessionDetail>(getUpdateAiCfoSessionUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateAiCfoSessionBody),
+  });
+};
+
+export const getUpdateAiCfoSessionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAiCfoSession>>,
+    TError,
+    { id: number; data: BodyType<UpdateAiCfoSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAiCfoSession>>,
+  TError,
+  { id: number; data: BodyType<UpdateAiCfoSessionBody> },
+  TContext
+> => {
+  const mutationKey = ["updateAiCfoSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAiCfoSession>>,
+    { id: number; data: BodyType<UpdateAiCfoSessionBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateAiCfoSession(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAiCfoSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAiCfoSession>>
+>;
+export type UpdateAiCfoSessionMutationBody = BodyType<UpdateAiCfoSessionBody>;
+export type UpdateAiCfoSessionMutationError = ErrorType<void>;
+
+/**
+ * @summary Append messages to an existing AI CFO session
+ */
+export const useUpdateAiCfoSession = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAiCfoSession>>,
+    TError,
+    { id: number; data: BodyType<UpdateAiCfoSessionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAiCfoSession>>,
+  TError,
+  { id: number; data: BodyType<UpdateAiCfoSessionBody> },
+  TContext
+> => {
+  return useMutation(getUpdateAiCfoSessionMutationOptions(options));
+};
+
+/**
+ * @summary Delete an AI CFO session
+ */
+export const getDeleteAiCfoSessionUrl = (id: number) => {
+  return `/api/ai-cfo/sessions/${id}`;
+};
+
+export const deleteAiCfoSession = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteAiCfoSessionUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteAiCfoSessionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAiCfoSession>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAiCfoSession>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteAiCfoSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAiCfoSession>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteAiCfoSession(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAiCfoSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAiCfoSession>>
+>;
+
+export type DeleteAiCfoSessionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete an AI CFO session
+ */
+export const useDeleteAiCfoSession = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAiCfoSession>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAiCfoSession>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteAiCfoSessionMutationOptions(options));
 };
 
 /**

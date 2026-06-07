@@ -275,6 +275,97 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiCfoFoodCostResponse"
 
+  /ai-cfo/sessions:
+    get:
+      operationId: listAiCfoSessions
+      tags: [ai-cfo]
+      summary: List recent AI CFO chat sessions for the current user
+      responses:
+        "200":
+          description: List of sessions (newest first)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiCfoSessionSummary"
+    post:
+      operationId: createAiCfoSession
+      tags: [ai-cfo]
+      summary: Create a new AI CFO chat session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAiCfoSessionBody"
+      responses:
+        "201":
+          description: Created session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiCfoSessionDetail"
+
+  /ai-cfo/sessions/{id}:
+    get:
+      operationId: getAiCfoSession
+      tags: [ai-cfo]
+      summary: Get a single AI CFO session with full message history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Session with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiCfoSessionDetail"
+        "404":
+          description: Not found
+    put:
+      operationId: updateAiCfoSession
+      tags: [ai-cfo]
+      summary: Append messages to an existing AI CFO session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAiCfoSessionBody"
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiCfoSessionDetail"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteAiCfoSession
+      tags: [ai-cfo]
+      summary: Delete an AI CFO session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /healthz:
     get:
       operationId: healthCheck
@@ -3659,3 +3750,84 @@ components:
           type: number
       required:
         - dishes
+
+    AiCfoSessionMessage:
+      type: object
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant]
+        text:
+          type: ["string", "null"]
+        data:
+          type: ["object", "null"]
+      required:
+        - id
+        - role
+
+    AiCfoSessionSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        messageCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - title
+        - messageCount
+        - createdAt
+        - updatedAt
+
+    AiCfoSessionDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCfoSessionMessage"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - title
+        - messages
+        - createdAt
+        - updatedAt
+
+    CreateAiCfoSessionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCfoSessionMessage"
+      required:
+        - title
+        - messages
+
+    UpdateAiCfoSessionBody:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCfoSessionMessage"
+      required:
+        - messages

@@ -928,6 +928,53 @@ export interface AiCfoFoodCostResponse {
   avgMarginPct?: number;
 }
 
+export type AiCfoSessionMessageRole =
+  (typeof AiCfoSessionMessageRole)[keyof typeof AiCfoSessionMessageRole];
+
+export const AiCfoSessionMessageRole = {
+  user: "user",
+  assistant: "assistant",
+} as const;
+
+/**
+ * @nullable
+ */
+export type AiCfoSessionMessageData = { [key: string]: unknown } | null;
+
+export interface AiCfoSessionMessage {
+  id: string;
+  role: AiCfoSessionMessageRole;
+  /** @nullable */
+  text?: string | null;
+  /** @nullable */
+  data?: AiCfoSessionMessageData;
+}
+
+export interface AiCfoSessionSummary {
+  id: number;
+  title: string;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AiCfoSessionDetail {
+  id: number;
+  title: string;
+  messages: AiCfoSessionMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAiCfoSessionBody {
+  title: string;
+  messages: AiCfoSessionMessage[];
+}
+
+export interface UpdateAiCfoSessionBody {
+  messages: AiCfoSessionMessage[];
+}
+
 export type PatchAdminUserBlockBody = {
   blocked: boolean;
 };
