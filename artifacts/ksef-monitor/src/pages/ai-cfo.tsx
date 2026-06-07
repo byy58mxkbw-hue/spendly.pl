@@ -1,714 +1,890 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useRef, useEffect, useId } from "react";
 import { Layout } from "@/components/layout";
-import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  AlertTriangle,
-  TrendingUp,
-  TrendingDown,
-  Zap,
-  RefreshCw,
-  X,
-  BarChart2,
-  ShoppingCart,
-  Star,
-  Leaf,
-  Globe,
-  Users,
-  Lightbulb,
-  ChevronRight,
-  ArrowUpRight,
-  ArrowDownRight,
-  CheckCircle2,
-  Info,
-  Sparkles,
-  DollarSign,
-  Store,
-} from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import {
-  useGetInsights,
-  usePostInsightsGenerate,
-  usePostInsightsIdDismiss,
-  usePostInsightsIdRead,
+  useGetAiCfoInsights,
+  usePostAiCfoChat,
+  usePostAiCfoFoodCost,
 } from "@workspace/api-client-react";
+import {
+  TrendingUp,
+  PackageSearch,
+  ArrowDownRight,
+  Sparkles,
+  Send,
+  RefreshCw,
+  ChevronRight,
+  BarChart2,
+  UtensilsCrossed,
+  ArrowUpRight,
+} from "lucide-react";
+import { Link } from "wouter";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-type Insight = {
-  id: number;
-  type: string;
-  severity: string;
+// ─── Inline types ─────────────────────────────────────────────────────────────
+
+type InsightCardData = {
+  type: "price_spike" | "quantity_anomaly" | "savings_opportunity";
   title: string;
-  body: string;
-  riskScore: number;
+  description: string;
+  impactAmount: number;
+  impactLabel: string;
   productId?: number | null;
   supplierId?: number | null;
-  readAt?: string | null;
-  dismissedAt?: string | null;
-  createdAt: string;
-  metadata?: {
-    estimatedImpact?: number | null;
-    category?: string | null;
-    productName?: string | null;
-    supplierName?: string | null;
-  } | null;
+  productName?: string | null;
+  supplierName?: string | null;
 };
 
-// ─── Severity config ──────────────────────────────────────────────────────────
-const SEV = {
-  critical: {
-    label: "Krytyczne",
-    badge: "bg-[#FF5C5C]/15 text-[#FF5C5C] border-[#FF5C5C]/20",
-    icon: AlertTriangle,
-    dot: "bg-[#FF5C5C]",
-    bar: "bg-[#FF5C5C]",
-    glow: "shadow-[0_0_0_1px_rgba(255,92,92,0.25)]",
-  },
-  high: {
-    label: "Ostrzeżenie",
-    badge: "bg-[#F5B942]/15 text-[#F5B942] border-[#F5B942]/20",
-    icon: AlertTriangle,
-    dot: "bg-[#F5B942]",
-    bar: "bg-[#F5B942]",
-    glow: "shadow-[0_0_0_1px_rgba(245,185,66,0.2)]",
-  },
-  medium: {
-    label: "Szansa",
-    badge: "bg-[#4ADEB3]/15 text-[#4ADEB3] border-[#4ADEB3]/20",
-    icon: TrendingUp,
-    dot: "bg-[#4ADEB3]",
-    bar: "bg-[#4ADEB3]",
-    glow: "",
-  },
-  low: {
-    label: "Info",
-    badge: "bg-muted text-muted-foreground border-border",
-    icon: Info,
-    dot: "bg-muted-foreground",
-    bar: "bg-muted-foreground",
-    glow: "",
-  },
-} as const;
-
-const TYPE_ICON: Record<string, React.ElementType> = {
-  price_spike: TrendingUp,
-  price_drop: TrendingDown,
-  price_trend: BarChart2,
-  supplier_pattern: ShoppingCart,
-  supplier_risk: Users,
-  cost_forecast: BarChart2,
-  weekly_trend: TrendingUp,
-  record_high: Star,
-  seasonal: Leaf,
-  market_outlook: Globe,
-  action_required: Lightbulb,
+type KpiCard = {
+  label: string;
+  value: string;
+  delta?: string | null;
+  deltaPositive?: boolean | null;
 };
 
-const TYPE_LABEL: Record<string, string> = {
-  price_spike: "Podwyżka",
-  price_drop: "Obniżka",
-  price_trend: "Trend",
-  supplier_pattern: "Dostawca",
-  supplier_risk: "Ryzyko dostawcy",
-  cost_forecast: "Prognoza",
-  weekly_trend: "Trend",
-  record_high: "Rekord ceny",
-  seasonal: "Sezonowość",
-  market_outlook: "Rynek",
-  action_required: "Rekomendacja",
+type TableData = {
+  headers: string[];
+  rows: string[][];
+};
+
+type Action = {
+  label: string;
+  href: string;
+};
+
+type ChatReply = {
+  type: string;
+  summary: string;
+  kpiCards: KpiCard[];
+  table?: TableData | null;
+  recommendation?: string;
+  actions: Action[];
+};
+
+type ChatMessage =
+  | { id: string; role: "user"; text: string }
+  | { id: string; role: "assistant"; data: ChatReply };
+
+type FoodCostDish = {
+  name: string;
+  weeklySales?: number | null;
+  ingredientCostPerPortion: number;
+  salePricePerPortion: number;
+  marginPct: number;
+  weeklyGrossProfit?: number | null;
+  suggestedPrice?: number | null;
+};
+
+type FoodCostResult = {
+  dishes: FoodCostDish[];
+  summary?: string;
+  avgMarginPct?: number;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function formatImpact(val: number): string {
-  return new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN", maximumFractionDigits: 0 }).format(Math.abs(val));
-}
 
-function getCategory(insight: Insight): string {
-  return insight.metadata?.category ?? (
-    ["price_drop", "action_required"].includes(insight.type) ? "opportunity"
-      : ["price_spike", "record_high", "supplier_risk"].includes(insight.type) ? "risk"
-        : ["seasonal", "market_outlook"].includes(insight.type) ? "warning"
-          : "info"
-  );
-}
+const PLN = (n: number) =>
+  new Intl.NumberFormat("pl-PL", {
+    style: "currency",
+    currency: "PLN",
+    maximumFractionDigits: 0,
+  }).format(n);
 
-// ─── Loading shimmer ──────────────────────────────────────────────────────────
-function GeneratingState() {
-  const steps = [
-    "AI analizuje zmiany cen…",
-    "Sprawdzanie rynku…",
-    "Obliczanie ryzyka dostawców…",
-    "Szacowanie oszczędności…",
-    "Finalizowanie rekomendacji…",
-  ];
-  const [step] = useState(() => Math.floor(Math.random() * steps.length));
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="relative mb-6">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <Sparkles className="w-7 h-7 text-primary animate-pulse" />
-        </div>
-        <div className="absolute inset-0 rounded-2xl bg-primary/5 animate-ping" />
-      </div>
-      <p className="text-sm font-semibold text-foreground mb-1">{steps[step]}</p>
-      <p className="text-xs text-muted-foreground mb-8">To może potrwać do 30 sekund</p>
-      <div className="w-48 space-y-2">
-        {[1, 0.7, 0.5].map((opacity, i) => (
-          <div key={i} className="h-1.5 rounded-full bg-border overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full animate-pulse"
-              style={{ width: `${60 + i * 15}%`, opacity }}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+const PCT = (n: number) => `${n.toFixed(1)}%`;
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
-function EmptyState({ onGenerate, isLoading }: { onGenerate: () => void; isLoading: boolean }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-5">
-        <Zap className="w-8 h-8" />
-      </div>
-      <h3 className="text-lg font-semibold text-foreground mb-2">AI CFO gotowy do analizy</h3>
-      <p className="text-sm text-muted-foreground mb-8 max-w-sm leading-relaxed">
-        Wygeneruj analizę na podstawie Twoich faktur, aby zobaczyć możliwe oszczędności, ryzyka cenowe i rekomendacje.
-      </p>
-      <Button onClick={onGenerate} disabled={isLoading} className="gap-2 px-6">
-        <Sparkles className={cn("w-4 h-4", isLoading && "animate-spin")} />
-        {isLoading ? "Analizuję…" : "Uruchom AI CFO"}
-      </Button>
-    </div>
-  );
-}
+const INSIGHT_CONFIG = {
+  price_spike: {
+    icon: TrendingUp,
+    color: "text-rose-500",
+    bg: "bg-rose-50",
+    border: "border-rose-200",
+    badge: "bg-rose-100 text-rose-600",
+    label: "Podwyzka ceny",
+  },
+  quantity_anomaly: {
+    icon: PackageSearch,
+    color: "text-amber-500",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    badge: "bg-amber-100 text-amber-700",
+    label: "Anomalia ilosci",
+  },
+  savings_opportunity: {
+    icon: ArrowDownRight,
+    color: "text-emerald-500",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    badge: "bg-emerald-100 text-emerald-700",
+    label: "Szansa oszczednosci",
+  },
+} as const;
 
-// ─── Hero block ───────────────────────────────────────────────────────────────
-function HeroBlock({
-  insights,
-  onGenerate,
-  generating,
-}: {
-  insights: Insight[];
-  onGenerate: () => void;
-  generating: boolean;
-}) {
-  const totalSavings = useMemo(() => {
-    return insights.reduce((sum, i) => {
-      const impact = i.metadata?.estimatedImpact ?? 0;
-      return sum + (impact > 0 ? impact : 0);
-    }, 0);
-  }, [insights]);
+const QUICK_CHIPS: Array<{ group: string; chips: string[] }> = [
+  {
+    group: "Produkty",
+    chips: [
+      "Ktore produkty drozaly w ostatnim miesiacu?",
+      "Pokaz 5 produktow z najwyzszym spendem",
+      "Co podrozalo najbardziej procentowo?",
+    ],
+  },
+  {
+    group: "Koszty",
+    chips: [
+      "Jaki jest moj laczny food cost?",
+      "Porownaj wydatki miesiac do miesiaca",
+      "Gdzie trace najwiecej przez podwyzki?",
+    ],
+  },
+  {
+    group: "Ilosci",
+    chips: [
+      "Gdzie zamawiamy nadmiernie duzo?",
+      "Anomalie ilosciowe w ostatnim miesiacu",
+    ],
+  },
+  {
+    group: "Dostawcy",
+    chips: [
+      "Ktory dostawca jest najdrozszy?",
+      "Porownaj ceny tego samego produktu u roznych dostawcow",
+      "Gdzie moge wynegocjowac lepsza cene?",
+    ],
+  },
+];
 
-  const totalRisk = useMemo(() => {
-    return insights.reduce((sum, i) => {
-      const impact = i.metadata?.estimatedImpact ?? 0;
-      return sum + (impact < 0 ? Math.abs(impact) : 0);
-    }, 0);
-  }, [insights]);
+// ─── InsightCard ──────────────────────────────────────────────────────────────
 
-  const topDrivers = useMemo(() => {
-    return insights
-      .filter((i) => i.metadata?.estimatedImpact && Math.abs(i.metadata.estimatedImpact) > 100)
-      .sort((a, b) => Math.abs(b.metadata?.estimatedImpact ?? 0) - Math.abs(a.metadata?.estimatedImpact ?? 0))
-      .slice(0, 3)
-      .map((i) => i.metadata?.productName ?? i.title.split(" ").slice(0, 2).join(" "))
-      .filter(Boolean)
-      .join(", ");
-  }, [insights]);
+function InsightCard({ card }: { card: InsightCardData }) {
+  const cfg = INSIGHT_CONFIG[card.type] ?? INSIGHT_CONFIG.price_spike;
+  const Icon = cfg.icon;
+  const isPositive = card.type === "savings_opportunity";
 
-  const criticalCount = insights.filter((i) => i.severity === "critical").length;
-  const opportunityCount = insights.filter((i) => getCategory(i) === "opportunity").length;
-
-  return (
-    <div
-      className="relative rounded-2xl overflow-hidden border border-white/8 mb-6"
-      style={{ background: "linear-gradient(135deg, #0d1520 0%, #111c2a 50%, #0d1520 100%)" }}
-    >
-      {/* Animated glow */}
-      <div
-        className="absolute top-0 right-0 w-72 h-72 rounded-full pointer-events-none"
-        style={{
-          background: "radial-gradient(circle, rgba(74,222,179,0.08) 0%, transparent 70%)",
-          transform: "translate(30%, -30%)",
-        }}
-      />
-      <div
-        className="absolute bottom-0 left-0 w-48 h-48 rounded-full pointer-events-none"
-        style={{
-          background: "radial-gradient(circle, rgba(74,222,179,0.05) 0%, transparent 70%)",
-          transform: "translate(-30%, 30%)",
-        }}
-      />
-
-      <div className="relative p-6 md:p-8">
-        {/* Label */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#4ADEB3]/30 bg-[#4ADEB3]/10">
-            <Sparkles className="w-3 h-3 text-[#4ADEB3]" />
-            <span className="text-[11px] font-semibold text-[#4ADEB3] tracking-wider uppercase">AI CFO</span>
-          </div>
-          <span className="text-xs text-muted-foreground">{insights.length} insightów aktywnych</span>
-        </div>
-
-        {/* Main headline */}
-        <div className="mb-2">
-          {totalSavings > 0 ? (
-            <>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-1">Wykryto możliwe oszczędności</p>
-              <p className="text-3xl md:text-4xl font-bold text-white leading-tight">
-                {formatImpact(totalSavings)}
-                <span className="text-base font-normal text-muted-foreground ml-2">/ miesiąc</span>
-              </p>
-            </>
-          ) : totalRisk > 0 ? (
-            <>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-1">Wykryte ryzyko finansowe</p>
-              <p className="text-3xl md:text-4xl font-bold text-[#FF5C5C] leading-tight">
-                {formatImpact(totalRisk)}
-                <span className="text-base font-normal text-muted-foreground ml-2">/ miesiąc</span>
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-1">Analiza kosztów restauracji</p>
-              <p className="text-3xl md:text-4xl font-bold text-white leading-tight">
-                {insights.length} insightów
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Subtext */}
-        {topDrivers && (
-          <p className="text-sm text-muted-foreground mb-6 max-w-lg leading-relaxed">
-            Największy wpływ: {topDrivers}.{" "}
-            {criticalCount > 0 && <span className="text-[#FF5C5C] font-medium">{criticalCount} krytycznych alertów.</span>}
-          </p>
-        )}
-
-        {/* Stats row */}
-        <div className="flex items-center gap-4 mb-6 flex-wrap">
-          {totalRisk > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#FF5C5C]" />
-              <span className="text-sm text-white/70">Ryzyko: <strong className="text-white">{formatImpact(totalRisk)}/mies.</strong></span>
-            </div>
-          )}
-          {totalSavings > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#4ADEB3]" />
-              <span className="text-sm text-white/70">Oszczędności: <strong className="text-[#4ADEB3]">{formatImpact(totalSavings)}/mies.</strong></span>
-            </div>
-          )}
-          {opportunityCount > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary" />
-              <span className="text-sm text-white/70"><strong className="text-white">{opportunityCount}</strong> szans do wykorzystania</span>
-            </div>
-          )}
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={onGenerate}
-            disabled={generating}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
-            style={{ background: "#4ADEB3", color: "#0B0F14" }}
-          >
-            <RefreshCw className={cn("w-4 h-4", generating && "animate-spin")} />
-            {generating ? "Analizuję…" : "Odśwież analizę"}
-          </button>
-          <button
-            onClick={() => document.getElementById("insights-list")?.scrollIntoView({ behavior: "smooth" })}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border border-white/15 text-white/80 hover:border-white/30 hover:text-white transition-all"
-          >
-            Zobacz rekomendacje
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Daily Briefing ───────────────────────────────────────────────────────────
-function DailyBriefing({ insights }: { insights: Insight[] }) {
-  const bullets = useMemo(() => {
-    const sorted = [...insights].sort((a, b) => b.riskScore - a.riskScore);
-    return sorted.slice(0, 6).map((i) => {
-      const impact = i.metadata?.estimatedImpact;
-      const impactStr = impact && Math.abs(impact) > 50
-        ? impact < 0
-          ? ` — możliwa strata ${formatImpact(impact)}/mies.`
-          : ` — możliwa oszczędność ${formatImpact(impact)}/mies.`
-        : "";
-      return { text: i.title + impactStr, severity: i.severity, type: i.type };
-    });
-  }, [insights]);
-
-  if (bullets.length === 0) return null;
-
-  return (
-    <div className="bg-card border border-border rounded-2xl p-5 mb-4">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-5 h-5 rounded-md bg-primary/15 flex items-center justify-center">
-          <Sparkles className="w-3 h-3 text-primary" />
-        </div>
-        <h2 className="text-sm font-semibold text-foreground">Dzisiejszy briefing</h2>
-        <span className="text-xs text-muted-foreground ml-auto">
-          {new Date().toLocaleDateString("pl-PL", { day: "numeric", month: "long" })}
-        </span>
-      </div>
-      <div className="space-y-2.5">
-        {bullets.map((b, i) => {
-          const sev = SEV[b.severity as keyof typeof SEV] ?? SEV.low;
-          return (
-            <div key={i} className="flex items-start gap-3">
-              <div className={cn("w-1.5 h-1.5 rounded-full mt-1.5 shrink-0", sev.dot)} />
-              <p className="text-sm text-foreground/85 leading-snug">{b.text}</p>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── Insight card ─────────────────────────────────────────────────────────────
-function InsightCard({ insight, onDismiss, onRead }: {
-  insight: Insight;
-  onDismiss: (id: number) => void;
-  onRead: (id: number) => void;
-}) {
-  const sev = SEV[insight.severity as keyof typeof SEV] ?? SEV.low;
-  const SevIcon = sev.icon;
-  const TypeIcon = TYPE_ICON[insight.type] ?? AlertTriangle;
-  const isUnread = !insight.readAt;
-  const impact = insight.metadata?.estimatedImpact ?? null;
-  const cat = getCategory(insight);
-  const isOpportunity = cat === "opportunity" || (impact !== null && impact > 0);
-  const isRisk = cat === "risk" || (impact !== null && impact < 0);
+  const href =
+    card.productId ? "/produkty" : card.supplierId ? "/dostawcy" : "/faktury";
 
   return (
     <div
       className={cn(
-        "group relative bg-card border border-border rounded-2xl p-5 transition-all hover:border-border/80",
-        isUnread && "border-l-2",
-        isUnread && insight.severity === "critical" && "border-l-[#FF5C5C]",
-        isUnread && insight.severity === "high" && "border-l-[#F5B942]",
-        isUnread && insight.severity === "medium" && "border-l-[#4ADEB3]",
-        isUnread && insight.severity === "low" && "border-l-primary",
+        "bg-white rounded-2xl border p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow",
+        cfg.border,
       )}
-      onClick={() => isUnread && onRead(insight.id)}
     >
-      {/* Dismiss */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onDismiss(insight.id); }}
-        className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
-        aria-label="Odrzuć"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-
-      {/* Top row: severity badge + type */}
-      <div className="flex items-center gap-2 mb-3 pr-8">
-        <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border", sev.badge)}>
-          <SevIcon className="w-3 h-3" />
-          {sev.label}
+      <div className="flex items-start justify-between gap-2">
+        <div
+          className={cn(
+            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+            cfg.bg,
+          )}
+        >
+          <Icon className={cn("w-[18px] h-[18px]", cfg.color)} />
+        </div>
+        <span
+          className={cn(
+            "text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0",
+            cfg.badge,
+          )}
+        >
+          {cfg.label}
         </span>
-        <span className="text-[11px] text-muted-foreground font-medium">{TYPE_LABEL[insight.type] ?? insight.type}</span>
-        {isUnread && <div className={cn("w-1.5 h-1.5 rounded-full ml-auto", sev.dot)} />}
       </div>
 
-      {/* Title + financial impact */}
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <h3 className="text-sm font-semibold text-foreground leading-snug flex-1">{insight.title}</h3>
-        {impact !== null && Math.abs(impact) > 50 && (
-          <div className={cn(
-            "shrink-0 text-right",
-          )}>
-            <p className={cn(
-              "text-sm font-bold",
-              isRisk && "text-[#FF5C5C]",
-              isOpportunity && "text-[#4ADEB3]",
-            )}>
-              {isRisk ? "-" : "+"}{formatImpact(impact)}
-            </p>
-            <p className="text-[10px] text-muted-foreground">/miesiąc</p>
-          </div>
-        )}
+      <div className="flex-1">
+        <h3 className="text-sm font-semibold text-gray-900 mb-1 leading-snug">
+          {card.title}
+        </h3>
+        <p className="text-xs text-gray-500 leading-relaxed">{card.description}</p>
       </div>
 
-      {/* Body */}
-      <p className="text-sm text-muted-foreground leading-relaxed mb-4">{insight.body}</p>
-
-      {/* Bottom: risk bar + actions */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-1 max-w-36">
-          <div className="flex-1 h-1 bg-border rounded-full overflow-hidden">
-            <div
-              className={cn("h-full rounded-full", sev.bar)}
-              style={{ width: `${insight.riskScore}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-muted-foreground font-medium w-5">{insight.riskScore}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button className="text-[11px] font-medium text-primary hover:underline transition-colors">
-            {isOpportunity ? "Sprawdź oszczędności" : "Pokaż historię"}
-          </button>
-        </div>
+      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+        <span
+          className={cn(
+            "text-base font-bold",
+            isPositive ? "text-emerald-600" : "text-rose-600",
+          )}
+        >
+          {card.impactLabel}
+        </span>
+        <Link
+          href={href}
+          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+        >
+          Szczegoly
+          <ChevronRight className="w-3 h-3" />
+        </Link>
       </div>
     </div>
   );
 }
 
-// ─── Supplier risk panel ──────────────────────────────────────────────────────
-function SupplierRiskPanel({ insights }: { insights: Insight[] }) {
-  const supplierInsights = insights.filter((i) =>
-    ["supplier_risk", "supplier_pattern"].includes(i.type) ||
-    (i.metadata?.supplierName && i.severity !== "low")
-  );
-
-  if (supplierInsights.length === 0) return null;
-
+function InsightsSkeleton() {
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 mb-4">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-5 h-5 rounded-md bg-amber-500/15 flex items-center justify-center">
-          <Users className="w-3 h-3 text-amber-500" />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3 shadow-sm"
+        >
+          <div className="flex justify-between">
+            <Skeleton className="w-9 h-9 rounded-xl" />
+            <Skeleton className="w-24 h-5 rounded-full" />
+          </div>
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-2/3" />
+          <div className="flex justify-between pt-1">
+            <Skeleton className="h-5 w-20" />
+            <Skeleton className="h-4 w-16" />
+          </div>
         </div>
-        <h2 className="text-sm font-semibold text-foreground">Ryzyko dostawców</h2>
-      </div>
-      <div className="space-y-3">
-        {supplierInsights.slice(0, 3).map((i, idx) => {
-          const sev = SEV[i.severity as keyof typeof SEV] ?? SEV.low;
-          const impact = i.metadata?.estimatedImpact;
-          return (
-            <div key={idx} className="flex items-start gap-3 py-2 border-b border-border last:border-0">
-              <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5", sev.badge)}>
-                <Users className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-foreground mb-0.5 truncate">{i.title}</p>
-                <p className="text-[11px] text-muted-foreground line-clamp-2">{i.body}</p>
-              </div>
-              {impact && Math.abs(impact) > 50 && (
-                <p className={cn("text-xs font-bold shrink-0", impact < 0 ? "text-[#FF5C5C]" : "text-[#4ADEB3]")}>
-                  {impact < 0 ? "-" : "+"}{formatImpact(impact)}<span className="text-[10px] font-normal text-muted-foreground">/mies.</span>
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      ))}
     </div>
   );
 }
 
-// ─── Market intelligence ──────────────────────────────────────────────────────
-function MarketIntelligence({ insights }: { insights: Insight[] }) {
-  const marketInsights = insights.filter((i) =>
-    ["market_outlook", "seasonal", "cost_forecast"].includes(i.type)
-  );
+// ─── AiReplyCard ──────────────────────────────────────────────────────────────
 
-  if (marketInsights.length === 0) return null;
-
+function AiReplyCard({ data }: { data: ChatReply }) {
   return (
-    <div className="mb-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Globe className="w-4 h-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold text-foreground">Monitoring rynku</h2>
-      </div>
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none" style={{ scrollbarWidth: "none" }}>
-        {marketInsights.map((insight, i) => {
-          const sev = SEV[insight.severity as keyof typeof SEV] ?? SEV.low;
-          const Icon = TYPE_ICON[insight.type] ?? Globe;
-          const impact = insight.metadata?.estimatedImpact;
-          return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-800 leading-relaxed">{data.summary}</p>
+
+      {data.kpiCards && data.kpiCards.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {data.kpiCards.map((kpi, i) => (
             <div
               key={i}
-              className="flex-shrink-0 w-52 bg-card border border-border rounded-2xl p-4"
+              className="bg-white rounded-xl p-3 border border-gray-200"
             >
-              <div className={cn("w-8 h-8 rounded-xl flex items-center justify-center mb-3", sev.badge)}>
-                <Icon className="w-4 h-4" />
-              </div>
-              <p className="text-xs font-semibold text-foreground mb-1 line-clamp-2">{insight.title}</p>
-              {impact && Math.abs(impact) > 50 ? (
-                <p className={cn("text-sm font-bold mt-2", impact < 0 ? "text-[#FF5C5C]" : "text-[#4ADEB3]")}>
-                  {impact < 0 ? "−" : "+"}{formatImpact(impact)}<span className="text-[10px] font-normal text-muted-foreground">/mies.</span>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">
+                {kpi.label}
+              </p>
+              <p className="text-lg font-bold text-gray-900 leading-none">
+                {kpi.value}
+              </p>
+              {kpi.delta && (
+                <p
+                  className={cn(
+                    "text-[11px] font-medium mt-1",
+                    kpi.deltaPositive ? "text-emerald-600" : "text-rose-500",
+                  )}
+                >
+                  {kpi.delta}
                 </p>
-              ) : (
-                <p className="text-[11px] text-muted-foreground mt-2 line-clamp-2">{insight.body.split(".")[0]}.</p>
               )}
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {data.table &&
+        data.table.headers.length > 0 &&
+        data.table.rows.length > 0 && (
+          <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  {data.table.headers.map((h, i) => (
+                    <th
+                      key={i}
+                      className="text-left px-3 py-2.5 font-semibold text-gray-600 whitespace-nowrap"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.table.rows.map((row, ri) => (
+                  <tr
+                    key={ri}
+                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                  >
+                    {row.map((cell, ci) => (
+                      <td
+                        key={ci}
+                        className="px-3 py-2.5 text-gray-700 whitespace-nowrap"
+                      >
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+      {data.recommendation && (
+        <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
+          <p className="text-[10px] font-semibold text-teal-700 uppercase tracking-wide mb-1">
+            Rekomendacja
+          </p>
+          <p className="text-sm text-teal-800 leading-relaxed">
+            {data.recommendation}
+          </p>
+        </div>
+      )}
+
+      {data.actions && data.actions.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {data.actions.map((a, i) => (
+            <Link key={i} href={a.href}>
+              <Button variant="outline" size="sm" className="text-xs h-7 gap-1">
+                {a.label}
+                <ArrowUpRight className="w-3 h-3" />
+              </Button>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
-export function AiCfoPage() {
-  const qc = useQueryClient();
-  const { data: insights = [], isLoading, queryKey } = useGetInsights();
-  const { mutateAsync: generate } = usePostInsightsGenerate();
-  const { mutateAsync: dismiss } = usePostInsightsIdDismiss();
-  const { mutateAsync: markRead } = usePostInsightsIdRead();
-  const [generating, setGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+// ─── ChatCfo ─────────────────────────────────────────────────────────────────
 
-  const handleGenerate = useCallback(async () => {
-    setGenerating(true);
-    setGenerateError(null);
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+function ChatCfo() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const uid = useId();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    try {
-      await generate({ data: {} });
-    } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } }; message?: string };
-      setGenerateError(e?.response?.data?.error ?? e?.message ?? "Nie udało się uruchomić analizy.");
-      setGenerating(false);
-      return;
+  const chatMutation = usePostAiCfoChat();
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  function buildHistory() {
+    return messages.slice(-10).map((m) => ({
+      role: m.role,
+      content:
+        m.role === "user"
+          ? m.text
+          : (m.data.summary ?? "").slice(0, 500),
+    }));
+  }
+
+  function sendMessage(question: string) {
+    if (!question.trim() || chatMutation.isPending) return;
+    const q = question.trim();
+    setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
     }
 
-    const currentInsights = qc.getQueryData<Insight[]>(queryKey) ?? [];
-    const latestBefore = currentInsights.reduce<string>((max, i) => (i.createdAt > max ? i.createdAt : max), "");
+    const userMsg: ChatMessage = {
+      id: `${uid}-${Date.now()}`,
+      role: "user",
+      text: q,
+    };
+    setMessages((prev) => [...prev, userMsg]);
 
-    let attempts = 0;
-    const iv = setInterval(async () => {
-      attempts++;
-      try { await qc.invalidateQueries({ queryKey }); } catch { /* keep polling */ }
-      const fresh = qc.getQueryData<Insight[]>(queryKey) ?? [];
-      const latestAfter = fresh.reduce<string>((max, i) => (i.createdAt > max ? i.createdAt : max), "");
-      if (latestAfter > latestBefore || attempts >= 30) {
-        clearInterval(iv);
-        pollRef.current = null;
-        await qc.invalidateQueries({ queryKey });
-        setGenerating(false);
-      }
-    }, 3000);
-    pollRef.current = iv;
-  }, [generate, qc, queryKey]);
+    chatMutation.mutate(
+      { data: { question: q, history: buildHistory() } },
+      {
+        onSuccess(data) {
+          const replyMsg: ChatMessage = {
+            id: `${uid}-${Date.now()}-r`,
+            role: "assistant",
+            data: data as ChatReply,
+          };
+          setMessages((prev) => [...prev, replyMsg]);
+        },
+        onError() {
+          const errMsg: ChatMessage = {
+            id: `${uid}-${Date.now()}-err`,
+            role: "assistant",
+            data: {
+              type: "general",
+              summary:
+                "Przepraszam, wystapil problem z polaczeniem. Sprobuj ponownie.",
+              kpiCards: [],
+              actions: [],
+            },
+          };
+          setMessages((prev) => [...prev, errMsg]);
+        },
+      },
+    );
+  }
 
-  const handleDismiss = useCallback(async (id: number) => {
-    await dismiss({ id, data: {} });
-    await qc.invalidateQueries({ queryKey });
-  }, [dismiss, qc, queryKey]);
-
-  const handleRead = useCallback(async (id: number) => {
-    await markRead({ id, data: {} });
-  }, [markRead]);
-
-  const typedInsights = insights as Insight[];
-
-  const sorted = useMemo(() => {
-    const order = { critical: 0, high: 1, medium: 2, low: 3 };
-    return [...typedInsights].sort((a, b) => {
-      const sevDiff = (order[a.severity as keyof typeof order] ?? 3) - (order[b.severity as keyof typeof order] ?? 3);
-      if (sevDiff !== 0) return sevDiff;
-      return b.riskScore - a.riskScore;
-    });
-  }, [typedInsights]);
-
-  const mainInsights = sorted.filter(i =>
-    !["market_outlook", "seasonal", "cost_forecast"].includes(i.type) ||
-    i.severity === "critical"
-  );
-
-  const unread = typedInsights.filter((i) => !i.readAt).length;
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
+    }
+  }
 
   return (
-    <Layout>
-      <div className="px-4 py-5 md:px-6 md:py-6 max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-5 gap-3">
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-lg font-bold text-foreground">AI CFO</h1>
-            {unread > 0 && (
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
-                {unread}
-              </span>
-            )}
-          </div>
-          {typedInsights.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGenerate}
-              disabled={generating}
-              className="gap-1.5 h-8 text-xs"
-            >
-              <RefreshCw className={cn("w-3.5 h-3.5", generating && "animate-spin")} />
-              <span className="hidden sm:inline">{generating ? "Analizuję…" : "Odśwież"}</span>
-            </Button>
-          )}
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Sparkles className="w-4 h-4 text-primary" />
         </div>
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Chat CFO</h2>
+          <p className="text-[11px] text-gray-400">
+            Zadaj pytanie o koszty, ceny lub dostawcow
+          </p>
+        </div>
+      </div>
 
-        {generateError && (
-          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-            {generateError}
-          </div>
-        )}
+      {/* Messages */}
+      {messages.length > 0 && (
+        <div className="px-5 py-4 space-y-5 max-h-[520px] overflow-y-auto">
+          {messages.map((msg) => (
+            <div key={msg.id}>
+              {msg.role === "user" ? (
+                <div className="flex justify-end">
+                  <div className="bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-md text-sm">
+                    {msg.text}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 border border-gray-100">
+                    <AiReplyCard data={msg.data} />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
 
-        {isLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-52 rounded-2xl" />
-            <Skeleton className="h-32 rounded-2xl" />
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}
-          </div>
-        ) : generating && typedInsights.length === 0 ? (
-          <GeneratingState />
-        ) : typedInsights.length === 0 ? (
-          <EmptyState onGenerate={handleGenerate} isLoading={generating} />
-        ) : (
-          <>
-            {/* Hero */}
-            <HeroBlock insights={typedInsights} onGenerate={handleGenerate} generating={generating} />
-
-            {/* Generating overlay on refresh */}
-            {generating && (
-              <div className="mb-4 flex items-center gap-3 px-4 py-2.5 rounded-xl border border-primary/20 bg-primary/5">
-                <RefreshCw className="w-4 h-4 text-primary animate-spin shrink-0" />
-                <p className="text-sm text-foreground font-medium">AI analizuje nowe dane…</p>
+          {chatMutation.isPending && (
+            <div className="flex gap-3">
+              <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
               </div>
-            )}
-
-            {/* Daily briefing */}
-            <DailyBriefing insights={typedInsights} />
-
-            {/* Market intelligence horizontal scroll */}
-            <MarketIntelligence insights={typedInsights} />
-
-            {/* Supplier risk */}
-            <SupplierRiskPanel insights={typedInsights} />
-
-            {/* Main insights list */}
-            <div id="insights-list">
-              <div className="flex items-center gap-2 mb-3">
-                <h2 className="text-sm font-semibold text-foreground">Priorytety</h2>
-                <span className="text-xs text-muted-foreground">{mainInsights.length} insightów</span>
+              <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 border border-gray-100">
+                <div className="flex gap-1.5 items-center h-5">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="space-y-3">
-                {mainInsights.map((insight) => (
-                  <InsightCard
-                    key={insight.id}
-                    insight={insight}
-                    onDismiss={handleDismiss}
-                    onRead={handleRead}
-                  />
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      )}
+
+      {/* Quick chips — only when no messages */}
+      {messages.length === 0 && (
+        <div className="px-5 pt-5 pb-3 space-y-4">
+          {QUICK_CHIPS.map((group) => (
+            <div key={group.group}>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
+                {group.group}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {group.chips.map((chip) => (
+                  <button
+                    key={chip}
+                    onClick={() => sendMessage(chip)}
+                    disabled={chatMutation.isPending}
+                    className="text-xs px-3 py-1.5 rounded-full bg-gray-100 hover:bg-primary/10 hover:text-primary text-gray-700 transition-colors border border-transparent hover:border-primary/20 disabled:opacity-50 text-left"
+                  >
+                    {chip}
+                  </button>
                 ))}
               </div>
             </div>
-          </>
+          ))}
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="p-4 border-t border-gray-100">
+        <div className="flex gap-2 items-end">
+          <div className="flex-1 relative">
+            <Sparkles className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Zapytaj o produkty, ceny, ilosci, dostawcow lub marze…"
+              rows={1}
+              disabled={chatMutation.isPending}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none transition-all disabled:opacity-50"
+              style={{ maxHeight: "120px", overflowY: "auto" }}
+              onInput={(e) => {
+                const t = e.currentTarget;
+                t.style.height = "auto";
+                t.style.height =
+                  Math.min(t.scrollHeight, 120) + "px";
+              }}
+            />
+          </div>
+          <Button
+            onClick={() => sendMessage(input)}
+            disabled={!input.trim() || chatMutation.isPending}
+            size="icon"
+            className="rounded-xl h-10 w-10 shrink-0"
+          >
+            {chatMutation.isPending ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+        {messages.length > 0 && (
+          <button
+            onClick={() => setMessages([])}
+            className="mt-2 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Wyczysc historie
+          </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── FoodCostAi ──────────────────────────────────────────────────────────────
+
+function marginColor(pct: number) {
+  if (pct >= 65) return "text-emerald-600";
+  if (pct >= 50) return "text-amber-600";
+  return "text-rose-600";
+}
+
+function marginBg(pct: number) {
+  if (pct >= 65) return "bg-emerald-50";
+  if (pct >= 50) return "bg-amber-50";
+  return "bg-rose-50";
+}
+
+function FoodCostAi() {
+  const [menuText, setMenuText] = useState("");
+  const [salesText, setSalesText] = useState("");
+  const [result, setResult] = useState<FoodCostResult | null>(null);
+
+  const mutation = usePostAiCfoFoodCost();
+
+  function analyze() {
+    if (!menuText.trim()) return;
+    setResult(null);
+    mutation.mutate(
+      { data: { menuText: menuText.trim(), salesText: salesText.trim() } },
+      {
+        onSuccess(data) {
+          setResult(data as FoodCostResult);
+        },
+      },
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+        <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center">
+          <UtensilsCrossed className="w-4 h-4 text-orange-500" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Food Cost AI</h2>
+          <p className="text-[11px] text-gray-400">
+            Wklej menu z recepturami i dane sprzedazy — AI obliczy marze
+          </p>
+        </div>
+      </div>
+
+      <div className="p-5 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">
+              Menu i receptury
+              <span className="font-normal text-gray-400 ml-1">
+                (skladniki + ilosci)
+              </span>
+            </label>
+            <textarea
+              value={menuText}
+              onChange={(e) => setMenuText(e.target.value)}
+              placeholder={`np.\nMakaron carbonara (2 porcje):\n- 200g spaghetti\n- 100g boczek wedzony\n- 2 jajka\n- 30g parmezan\nCena menu: 32 zl`}
+              rows={9}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none font-mono"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">
+              Sprzedaz tygodniowa
+              <span className="font-normal text-gray-400 ml-1">
+                (opcjonalnie)
+              </span>
+            </label>
+            <textarea
+              value={salesText}
+              onChange={(e) => setSalesText(e.target.value)}
+              placeholder={`np.\nMakaron carbonara: 45 porcji\nBurger wolowy: 62 porcje\nSalatka grecka: 28 porcji`}
+              rows={9}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none font-mono"
+            />
+          </div>
+        </div>
+
+        <Button
+          onClick={analyze}
+          disabled={!menuText.trim() || mutation.isPending}
+          className="gap-2"
+        >
+          {mutation.isPending ? (
+            <>
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              Analizuje food cost…
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              Analizuj food cost
+            </>
+          )}
+        </Button>
+
+        {mutation.isError && (
+          <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-700">
+            Nie udalo sie przetworzyc danych. Sprawdz format receptur i sprobuj
+            ponownie.
+          </div>
+        )}
+
+        {result && (
+          <div className="space-y-4 pt-2">
+            {/* Summary KPIs */}
+            <div className="flex flex-wrap gap-3">
+              {result.avgMarginPct != null && (
+                <div
+                  className={cn(
+                    "rounded-xl px-4 py-3 border border-gray-200",
+                    marginBg(result.avgMarginPct),
+                  )}
+                >
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
+                    Srednia marza
+                  </p>
+                  <p
+                    className={cn(
+                      "text-xl font-bold",
+                      marginColor(result.avgMarginPct),
+                    )}
+                  >
+                    {PCT(result.avgMarginPct)}
+                  </p>
+                </div>
+              )}
+              <div className="rounded-xl px-4 py-3 border border-gray-200 bg-gray-50">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
+                  Analizowanych dan
+                </p>
+                <p className="text-xl font-bold text-gray-900">
+                  {result.dishes.length}
+                </p>
+              </div>
+              {result.dishes.filter((d) => d.suggestedPrice != null).length >
+                0 && (
+                <div className="rounded-xl px-4 py-3 border border-amber-200 bg-amber-50">
+                  <p className="text-[10px] text-amber-600 uppercase tracking-wide mb-0.5">
+                    Wymaga podwyzki
+                  </p>
+                  <p className="text-xl font-bold text-amber-700">
+                    {result.dishes.filter((d) => d.suggestedPrice != null).length}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {result.summary && (
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {result.summary}
+              </p>
+            )}
+
+            {/* Results table */}
+            <div className="overflow-x-auto rounded-xl border border-gray-200">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-600">
+                      Danie
+                    </th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                      Sprzed./tyg.
+                    </th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                      Koszt/por.
+                    </th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                      Cena
+                    </th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                      Marza %
+                    </th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                      Zysk/tyg.
+                    </th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                      Suger. cena
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.dishes.map((dish, i) => (
+                    <tr
+                      key={i}
+                      className={cn(
+                        "border-b border-gray-100 last:border-0",
+                        dish.suggestedPrice != null
+                          ? "bg-amber-50/40"
+                          : "hover:bg-gray-50",
+                      )}
+                    >
+                      <td className="px-3 py-2.5 font-medium text-gray-800 max-w-[160px] truncate">
+                        {dish.name}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-gray-600">
+                        {dish.weeklySales != null
+                          ? `${dish.weeklySales} szt.`
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-gray-700">
+                        {PLN(dish.ingredientCostPerPortion)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-gray-700">
+                        {PLN(dish.salePricePerPortion)}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2.5 text-right font-semibold",
+                          marginColor(dish.marginPct),
+                        )}
+                      >
+                        {PCT(dish.marginPct)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-gray-600">
+                        {dish.weeklyGrossProfit != null
+                          ? PLN(dish.weeklyGrossProfit)
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right">
+                        {dish.suggestedPrice != null ? (
+                          <span className="font-semibold text-amber-700">
+                            {PLN(dish.suggestedPrice)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function AiCfoPage() {
+  const {
+    data: insights,
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useGetAiCfoInsights();
+
+  return (
+    <Layout>
+      <div className="p-6 max-w-5xl mx-auto space-y-6">
+        {/* Page header */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">AI CFO</h1>
+            </div>
+            <p className="text-sm text-gray-500">
+              Analiza kosztow, porownania cen i rekomendacje finansowe na
+              podstawie Twoich faktur
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="gap-2 shrink-0"
+          >
+            <RefreshCw
+              className={cn("w-3.5 h-3.5", isRefetching && "animate-spin")}
+            />
+            Odswiez
+          </Button>
+        </div>
+
+        {/* Top 3 insight cards */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
+            Kluczowe obserwacje — ostatnie 90 dni
+          </h2>
+          {isLoading ? (
+            <InsightsSkeleton />
+          ) : insights && insights.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {insights.map((card, i) => (
+                <InsightCard key={i} card={card as InsightCardData} />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                <BarChart2 className="w-5 h-5 text-gray-400" />
+              </div>
+              <p className="text-sm font-medium text-gray-700 mb-1">
+                Brak danych do analizy
+              </p>
+              <p className="text-xs text-gray-500">
+                Zaimportuj faktury od co najmniej 2 okresow, aby zobaczyc
+                analize cen.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* Chat CFO */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
+            Chat z AI CFO
+          </h2>
+          <ChatCfo />
+        </section>
+
+        {/* Food Cost AI */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
+            Food Cost AI
+          </h2>
+          <FoodCostAi />
+        </section>
       </div>
     </Layout>
   );

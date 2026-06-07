@@ -156,6 +156,91 @@ export const PostInsightsIdDismissResponse = zod.object({
 });
 
 /**
+ * @summary Get top 3 AI CFO insight cards (pure SQL, no AI)
+ */
+export const GetAiCfoInsightsResponseItem = zod.object({
+  type: zod.enum(["price_spike", "quantity_anomaly", "savings_opportunity"]),
+  title: zod.string(),
+  description: zod.string(),
+  impactAmount: zod.number(),
+  impactLabel: zod.string(),
+  productId: zod.number().nullish(),
+  supplierId: zod.number().nullish(),
+  productName: zod.string().nullish(),
+  supplierName: zod.string().nullish(),
+  metadata: zod.object({}).passthrough().optional(),
+});
+export const GetAiCfoInsightsResponse = zod.array(GetAiCfoInsightsResponseItem);
+
+/**
+ * @summary Chat with AI CFO — returns a structured mini-report
+ */
+export const PostAiCfoChatBody = zod.object({
+  question: zod.string(),
+  history: zod
+    .array(
+      zod.object({
+        role: zod.enum(["user", "assistant"]),
+        content: zod.string(),
+      }),
+    )
+    .optional(),
+});
+
+export const PostAiCfoChatResponse = zod.object({
+  type: zod.string(),
+  summary: zod.string(),
+  kpiCards: zod.array(
+    zod.object({
+      label: zod.string(),
+      value: zod.string(),
+      delta: zod.string().nullish(),
+      deltaPositive: zod.boolean().nullish(),
+    }),
+  ),
+  table: zod
+    .union([
+      zod.object({
+        headers: zod.array(zod.string()),
+        rows: zod.array(zod.array(zod.string())),
+      }),
+      zod.null(),
+    ])
+    .optional(),
+  recommendation: zod.string().optional(),
+  actions: zod.array(
+    zod.object({
+      label: zod.string(),
+      href: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Calculate food cost from menu text + weekly sales
+ */
+export const PostAiCfoFoodCostBody = zod.object({
+  menuText: zod.string(),
+  salesText: zod.string().optional(),
+});
+
+export const PostAiCfoFoodCostResponse = zod.object({
+  dishes: zod.array(
+    zod.object({
+      name: zod.string(),
+      weeklySales: zod.number().nullish(),
+      ingredientCostPerPortion: zod.number(),
+      salePricePerPortion: zod.number(),
+      marginPct: zod.number(),
+      weeklyGrossProfit: zod.number().nullish(),
+      suggestedPrice: zod.number().nullish(),
+    }),
+  ),
+  summary: zod.string().optional(),
+  avgMarginPct: zod.number().optional(),
+});
+
+/**
  * Returns server health status
  * @summary Health check
  */

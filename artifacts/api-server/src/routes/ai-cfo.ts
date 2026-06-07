@@ -1,0 +1,474 @@
+import { Router, type IRouter } from "express";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+import { openai } from "@workspace/integrations-openai-ai-server";
+
+const router: IRouter = Router();
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function fmtPln(n: number): string {
+  return new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN", maximumFractionDigits: 0 }).format(Math.abs(n));
+}
+
+function since90Days(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 90);
+  return d.toISOString().slice(0, 10);
+}
+
+// ─── Top-3 insights (pure SQL, no AI) ────────────────────────────────────────
+
+async function getSpikeInsight(userId: string, sinceStr: string) {
+  const result = await db.execute(sql`
+    WITH ranked AS (
+      SELECT
+        p.id   AS product_id,
+        p.name AS product_name,
+        s.id   AS supplier_id,
+        s.name AS supplier_name,
+        ii.unit_price::numeric        AS unit_price,
+        ii.quantity::numeric          AS quantity,
+        i.invoice_date,
+        ROW_NUMBER() OVER (PARTITION BY p.id, s.id ORDER BY i.invoice_date DESC) AS rn,
+        SUM(ii.quantity::numeric)    OVER (PARTITION BY p.id, s.id) AS total_qty_90d
+      FROM invoice_items ii
+      JOIN invoices  i ON ii.invoice_id  = i.id
+      JOIN products  p ON ii.product_id  = p.id
+      JOIN suppliers s ON i.supplier_id  = s.id
+      WHERE i.user_id     = ${userId}
+        AND i.invoice_date >= ${sinceStr}
+        AND s.is_active    = true
+    ),
+    latest AS (SELECT * FROM ranked WHERE rn = 1),
+    prev   AS (SELECT * FROM ranked WHERE rn = 2)
+    SELECT
+      l.product_id, l.product_name,
+      l.supplier_id, l.supplier_name,
+      l.unit_price                                                   AS current_price,
+      p.unit_price                                                   AS prev_price,
+      ROUND((l.unit_price - p.unit_price) / NULLIF(p.unit_price,0) * 100, 1) AS change_pct,
+      ROUND((l.unit_price - p.unit_price) * (l.total_qty_90d / 3.0), 0)      AS monthly_impact
+    FROM latest l
+    JOIN prev   p ON l.product_id = p.product_id AND l.supplier_id = p.supplier_id
+    WHERE l.unit_price > p.unit_price
+    ORDER BY monthly_impact DESC
+    LIMIT 1
+  `);
+
+  const row = result.rows[0] as {
+    product_id: number; product_name: string;
+    supplier_id: number; supplier_name: string;
+    current_price: string; prev_price: string;
+    change_pct: string; monthly_impact: string;
+  } | undefined;
+
+  if (!row) return null;
+
+  const impact = parseFloat(row.monthly_impact ?? "0");
+  const pct = parseFloat(row.change_pct ?? "0");
+
+  return {
+    type: "price_spike" as const,
+    title: `Podwyżka: ${row.product_name}`,
+    description: `Cena u ${row.supplier_name} wzrosła o ${pct.toFixed(1)}% (z ${parseFloat(row.prev_price).toFixed(2)} na ${parseFloat(row.current_price).toFixed(2)} zł/j.). Szacowany dodatkowy koszt: ${fmtPln(impact)}/mies.`,
+    impactAmount: -impact,
+    impactLabel: `-${fmtPln(impact)}/mies.`,
+    productId: Number(row.product_id),
+    supplierId: Number(row.supplier_id),
+    productName: row.product_name,
+    supplierName: row.supplier_name,
+    metadata: { changePct: pct, currentPrice: parseFloat(row.current_price), prevPrice: parseFloat(row.prev_price) },
+  };
+}
+
+async function getQuantityAnomaly(userId: string, sinceStr: string) {
+  const result = await db.execute(sql`
+    WITH qty_data AS (
+      SELECT
+        p.id   AS product_id,
+        p.name AS product_name,
+        s.id   AS supplier_id,
+        s.name AS supplier_name,
+        ii.quantity::numeric                                       AS quantity,
+        i.invoice_date,
+        ROW_NUMBER() OVER (PARTITION BY p.id, s.id ORDER BY i.invoice_date DESC) AS rn,
+        AVG(ii.quantity::numeric) OVER (PARTITION BY p.id, s.id)  AS avg_qty,
+        COUNT(*)                  OVER (PARTITION BY p.id, s.id)  AS purchase_count
+      FROM invoice_items ii
+      JOIN invoices  i ON ii.invoice_id = i.id
+      JOIN products  p ON ii.product_id = p.id
+      JOIN suppliers s ON i.supplier_id = s.id
+      WHERE i.user_id     = ${userId}
+        AND i.invoice_date >= ${sinceStr}
+        AND s.is_active    = true
+    )
+    SELECT
+      product_id, product_name, supplier_id, supplier_name,
+      quantity     AS latest_qty,
+      ROUND(avg_qty, 2) AS avg_qty,
+      purchase_count,
+      ROUND(ABS(quantity - avg_qty) / NULLIF(avg_qty, 0) * 100, 1) AS anomaly_pct
+    FROM qty_data
+    WHERE rn = 1
+      AND purchase_count >= 3
+      AND ABS(quantity - avg_qty) / NULLIF(avg_qty, 0) > 0.25
+    ORDER BY anomaly_pct DESC
+    LIMIT 1
+  `);
+
+  const row = result.rows[0] as {
+    product_id: number; product_name: string;
+    supplier_id: number; supplier_name: string;
+    latest_qty: string; avg_qty: string;
+    purchase_count: string; anomaly_pct: string;
+  } | undefined;
+
+  if (!row) return null;
+
+  const pct = parseFloat(row.anomaly_pct ?? "0");
+  const latest = parseFloat(row.latest_qty ?? "0");
+  const avg = parseFloat(row.avg_qty ?? "0");
+  const dir = latest > avg ? "wzrost" : "spadek";
+
+  return {
+    type: "quantity_anomaly" as const,
+    title: `Anomalia ilości: ${row.product_name}`,
+    description: `Ostatni zakup: ${latest.toFixed(2)} j. vs. średnia ${avg.toFixed(2)} j. — ${dir} o ${pct.toFixed(1)}%. Może sygnalizować błąd zamówienia lub zmianę popytu.`,
+    impactAmount: 0,
+    impactLabel: `${pct.toFixed(1)}% vs. średnia`,
+    productId: Number(row.product_id),
+    supplierId: Number(row.supplier_id),
+    productName: row.product_name,
+    supplierName: row.supplier_name,
+    metadata: { latestQty: latest, avgQty: avg, anomalyPct: pct },
+  };
+}
+
+async function getSavingsInsight(userId: string, sinceStr: string) {
+  const result = await db.execute(sql`
+    WITH latest_prices AS (
+      SELECT DISTINCT ON (ii.product_id, i.supplier_id)
+        p.id   AS product_id,
+        p.name AS product_name,
+        s.id   AS supplier_id,
+        s.name AS supplier_name,
+        ii.unit_price::numeric AS unit_price
+      FROM invoice_items ii
+      JOIN invoices  i ON ii.invoice_id = i.id
+      JOIN products  p ON ii.product_id = p.id
+      JOIN suppliers s ON i.supplier_id = s.id
+      WHERE i.user_id     = ${userId}
+        AND i.invoice_date >= ${sinceStr}
+        AND s.is_active    = true
+      ORDER BY ii.product_id, i.supplier_id, i.invoice_date DESC
+    ),
+    qty_90d AS (
+      SELECT ii.product_id, ROUND(SUM(ii.quantity::numeric) / 3.0, 2) AS monthly_qty
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      WHERE i.user_id     = ${userId}
+        AND i.invoice_date >= ${sinceStr}
+      GROUP BY ii.product_id
+    ),
+    price_range AS (
+      SELECT
+        lp.product_id, lp.product_name,
+        MIN(lp.unit_price) AS min_price,
+        MAX(lp.unit_price) AS max_price,
+        COUNT(*)           AS supplier_count,
+        COALESCE((SELECT monthly_qty FROM qty_90d WHERE product_id = lp.product_id), 0) AS monthly_qty
+      FROM latest_prices lp
+      GROUP BY lp.product_id, lp.product_name
+      HAVING COUNT(*) >= 2 AND MIN(lp.unit_price) < MAX(lp.unit_price)
+    ),
+    final AS (
+      SELECT
+        pr.*,
+        (SELECT lp.supplier_name FROM latest_prices lp WHERE lp.product_id = pr.product_id AND lp.unit_price = pr.min_price LIMIT 1) AS cheapest_supplier,
+        (SELECT lp.supplier_name FROM latest_prices lp WHERE lp.product_id = pr.product_id AND lp.unit_price = pr.max_price LIMIT 1) AS expensive_supplier,
+        ROUND((pr.max_price - pr.min_price) * pr.monthly_qty, 0) AS monthly_savings
+      FROM price_range pr
+    )
+    SELECT * FROM final
+    ORDER BY monthly_savings DESC
+    LIMIT 1
+  `);
+
+  const row = result.rows[0] as {
+    product_id: number; product_name: string;
+    min_price: string; max_price: string;
+    cheapest_supplier: string; expensive_supplier: string;
+    supplier_count: string; monthly_qty: string; monthly_savings: string;
+  } | undefined;
+
+  if (!row) return null;
+
+  const savings = parseFloat(row.monthly_savings ?? "0");
+  const minP = parseFloat(row.min_price ?? "0");
+  const maxP = parseFloat(row.max_price ?? "0");
+
+  return {
+    type: "savings_opportunity" as const,
+    title: `Oszczędność: ${row.product_name}`,
+    description: `${row.expensive_supplier} oferuje ${maxP.toFixed(2)} zł/j., ${row.cheapest_supplier} tylko ${minP.toFixed(2)} zł/j. Przełączenie dostawcy = ${fmtPln(savings)}/mies. oszczędności.`,
+    impactAmount: savings,
+    impactLabel: `+${fmtPln(savings)}/mies.`,
+    productId: Number(row.product_id),
+    supplierId: null,
+    productName: row.product_name,
+    supplierName: row.cheapest_supplier,
+    metadata: { minPrice: minP, maxPrice: maxP, cheapestSupplier: row.cheapest_supplier, expensiveSupplier: row.expensive_supplier },
+  };
+}
+
+// ─── Route: GET /ai-cfo/insights ─────────────────────────────────────────────
+
+router.get("/ai-cfo/insights", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const sinceStr = since90Days();
+
+  const [spikeRes, anomalyRes, savingsRes] = await Promise.allSettled([
+    getSpikeInsight(userId, sinceStr),
+    getQuantityAnomaly(userId, sinceStr),
+    getSavingsInsight(userId, sinceStr),
+  ]);
+
+  const cards = [
+    spikeRes.status === "fulfilled" ? spikeRes.value : null,
+    anomalyRes.status === "fulfilled" ? anomalyRes.value : null,
+    savingsRes.status === "fulfilled" ? savingsRes.value : null,
+  ].filter(Boolean);
+
+  res.json(cards);
+});
+
+// ─── Route: POST /ai-cfo/chat ─────────────────────────────────────────────────
+
+async function buildChatContext(userId: string, sinceStr: string): Promise<string> {
+  const [spendRes, topProductsRes, monthlyRes] = await Promise.allSettled([
+    db.execute(sql`
+      SELECT s.name AS supplier_name, ROUND(SUM(ii.total_price::numeric), 0) AS total_spend
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      JOIN suppliers s ON i.supplier_id = s.id
+      WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} AND s.is_active = true
+      GROUP BY s.name ORDER BY total_spend DESC LIMIT 8
+    `),
+    db.execute(sql`
+      SELECT
+        p.name AS product_name, s.name AS supplier_name,
+        ROUND(MIN(ii.unit_price::numeric), 2) AS min_price,
+        ROUND(MAX(ii.unit_price::numeric), 2) AS max_price,
+        ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
+        COUNT(*) AS purchase_count
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      JOIN products p ON ii.product_id = p.id
+      JOIN suppliers s ON i.supplier_id = s.id
+      WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr}
+      GROUP BY p.name, s.name
+      ORDER BY total_spend DESC
+      LIMIT 20
+    `),
+    db.execute(sql`
+      SELECT SUBSTRING(i.invoice_date, 1, 7) AS month, ROUND(SUM(ii.total_price::numeric), 0) AS total
+      FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
+      WHERE i.user_id = ${userId}
+      GROUP BY 1 ORDER BY 1 DESC LIMIT 6
+    `),
+  ]);
+
+  const suppliers = spendRes.status === "fulfilled"
+    ? (spendRes.value.rows as Array<{supplier_name: string; total_spend: string}>)
+      .map(r => `${r.supplier_name}: ${r.total_spend} zł`).join(", ")
+    : "(brak)";
+
+  const products = topProductsRes.status === "fulfilled"
+    ? (topProductsRes.value.rows as Array<{product_name: string; supplier_name: string; min_price: string; max_price: string; total_spend: string; purchase_count: string}>)
+      .map(r => `${r.product_name} @ ${r.supplier_name}: ${r.min_price}–${r.max_price} zł/j., wydatki: ${r.total_spend} zł, ${r.purchase_count}x`)
+      .join("\n")
+    : "(brak)";
+
+  const monthly = monthlyRes.status === "fulfilled"
+    ? (monthlyRes.value.rows as Array<{month: string; total: string}>)
+      .map(r => `${r.month}: ${r.total} zł`).join(", ")
+    : "(brak)";
+
+  return `DANE RESTAURACJI (ostatnie 90 dni):
+TOP DOSTAWCY: ${suppliers}
+MIESIĘCZNE WYDATKI: ${monthly}
+PRODUKTY I CENY:
+${products}`;
+}
+
+router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const { question, history = [] } = req.body as {
+    question: string;
+    history?: Array<{ role: "user" | "assistant"; content: string }>;
+  };
+
+  if (!question || typeof question !== "string" || question.trim().length === 0) {
+    res.status(400).json({ error: "Brakuje pytania." });
+    return;
+  }
+
+  const sinceStr = since90Days();
+  const context = await buildChatContext(userId, sinceStr);
+
+  const systemPrompt = `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur i dostarczasz precyzyjne rekomendacje finansowe.
+
+${context}
+
+INSTRUKCJA ODPOWIEDZI:
+Odpowiadaj ZAWSZE jako JSON (bez markdown, bez tekstu poza JSON):
+{
+  "type": "product_analysis|supplier_comparison|cost_analysis|quantity_anomaly|general",
+  "summary": "Główny wniosek w 2-3 zdaniach z konkretnymi liczbami PLN.",
+  "kpiCards": [
+    {"label": "Nazwa KPI", "value": "np. 4 280 zł", "delta": "np. +12%", "deltaPositive": true}
+  ],
+  "table": {
+    "headers": ["Kolumna 1", "Kolumna 2"],
+    "rows": [["Wiersz 1 kol 1", "Wiersz 1 kol 2"]]
+  },
+  "recommendation": "Konkretna rekomendacja działania z szacowanym efektem PLN.",
+  "actions": [
+    {"label": "Etykieta przycisku", "href": "/produkty"}
+  ]
+}
+
+Dozwolone href: /produkty, /dostawcy, /faktury, /raporty, /alerty
+Tabela i kpiCards mogą mieć null jeśli nieistotne dla pytania, ale recommendation zawsze musi być.
+Odpowiadaj wyłącznie po polsku.`;
+
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: systemPrompt },
+    ...history.slice(-6).map(h => ({
+      role: h.role as "user" | "assistant",
+      content: String(h.content).slice(0, 1000),
+    })),
+    { role: "user", content: question.trim().slice(0, 500) },
+  ];
+
+  const resp = await openai.chat.completions.create({
+    model: "gpt-5-mini",
+    max_completion_tokens: 4000,
+    messages,
+  });
+
+  const raw = (resp.choices[0]?.message?.content ?? "").trim();
+  req.log.info({ rawLen: raw.length }, "ai-cfo chat response");
+
+  let parsed: unknown;
+  try {
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+    parsed = JSON.parse(cleaned);
+  } catch {
+    req.log.warn({ raw: raw.slice(0, 300) }, "ai-cfo chat JSON parse failed");
+    parsed = {
+      type: "general",
+      summary: raw.slice(0, 500),
+      kpiCards: [],
+      table: null,
+      recommendation: "",
+      actions: [],
+    };
+  }
+
+  res.json(parsed);
+});
+
+// ─── Route: POST /ai-cfo/food-cost ───────────────────────────────────────────
+
+router.post("/ai-cfo/food-cost", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const { menuText, salesText } = req.body as { menuText: string; salesText: string };
+
+  if (!menuText || typeof menuText !== "string") {
+    res.status(400).json({ error: "Brakuje danych menu/receptur." });
+    return;
+  }
+
+  // Try to get relevant ingredient prices from DB
+  let dbPrices = "";
+  try {
+    const priceResult = await db.execute(sql`
+      SELECT DISTINCT ON (p.name)
+        p.name, ROUND(ii.unit_price::numeric, 2) AS unit_price, s.name AS supplier_name
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      JOIN products p ON ii.product_id = p.id
+      JOIN suppliers s ON i.supplier_id = s.id
+      WHERE i.user_id = ${userId}
+      ORDER BY p.name, i.invoice_date DESC
+      LIMIT 50
+    `);
+    const rows = priceResult.rows as Array<{ name: string; unit_price: string; supplier_name: string }>;
+    if (rows.length > 0) {
+      dbPrices = "\n\nCENY SKŁADNIKÓW Z FAKTUR RESTAURACJI:\n" +
+        rows.map(r => `${r.name}: ${r.unit_price} zł/j. (${r.supplier_name})`).join("\n");
+    }
+  } catch {
+    // ignore
+  }
+
+  const prompt = `Jesteś AI CFO dla restauracji w Polsce. Na podstawie podanych danych oblicz food cost.
+${dbPrices}
+
+MENU/RECEPTURY:
+${menuText.slice(0, 3000)}
+
+SPRZEDAŻ TYGODNIOWA:
+${salesText ? salesText.slice(0, 1000) : "(nie podano — przyjmij szacunkowe wartości)"}
+
+ZADANIE: Dla każdego dania z menu oblicz food cost i marżę. Jeśli znasz ceny składników z faktur, użyj ich. W przeciwnym razie użyj typowych cen rynkowych dla polskich restauracji.
+
+Odpowiedz TYLKO jako JSON (bez tekstu poza JSON):
+{
+  "dishes": [
+    {
+      "name": "Nazwa dania",
+      "weeklySales": 45,
+      "ingredientCostPerPortion": 8.50,
+      "salePricePerPortion": 28.00,
+      "marginPct": 69.6,
+      "weeklyGrossProfit": 877.50,
+      "suggestedPrice": null
+    }
+  ],
+  "summary": "Ogólny komentarz o food cost restauracji.",
+  "avgMarginPct": 65.2
+}
+
+Reguły:
+- marginPct = (salePricePerPortion - ingredientCostPerPortion) / salePricePerPortion * 100
+- weeklyGrossProfit = (salePricePerPortion - ingredientCostPerPortion) * weeklySales
+- suggestedPrice: podaj nową cenę jeśli marża < 60%, w przeciwnym razie null
+- Sortuj dania od najgorszej do najlepszej marży
+- Wszystkie kwoty w PLN, odpowiadaj po polsku`;
+
+  const resp = await openai.chat.completions.create({
+    model: "gpt-5-mini",
+    max_completion_tokens: 4000,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const raw = (resp.choices[0]?.message?.content ?? "").trim();
+  req.log.info({ rawLen: raw.length }, "ai-cfo food-cost response");
+
+  let parsed: unknown;
+  try {
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+    parsed = JSON.parse(cleaned);
+  } catch {
+    req.log.warn({ raw: raw.slice(0, 300) }, "ai-cfo food-cost JSON parse failed");
+    res.status(422).json({ error: "Nie udało się przetworzyć danych. Sprawdź format receptur i spróbuj ponownie." });
+    return;
+  }
+
+  res.json(parsed);
+});
+
+export default router;

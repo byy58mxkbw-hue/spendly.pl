@@ -28,6 +28,9 @@ router.use(ksefRouter);
 router.use(insightsRouter);
 router.use(costCentersRouter);
 
+import aiCfoRouter from "./ai-cfo";
+router.use(aiCfoRouter);
+
 import adminRouter from "./admin";
 router.use(adminRouter);
 

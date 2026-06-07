@@ -26,6 +26,8 @@ tags:
     description: KSeF 2.0 integration (sync, config, pending review)
   - name: insights
     description: AI CFO — automated price insights
+  - name: ai-cfo
+    description: AI CFO 2.0 — chat, food cost, top insights
   - name: cost-centers
     description: Cost center management
   - name: admin
@@ -219,6 +221,59 @@ paths:
                 properties:
                   ok:
                     type: boolean
+
+  /ai-cfo/insights:
+    get:
+      operationId: getAiCfoInsights
+      tags: [ai-cfo]
+      summary: Get top 3 AI CFO insight cards (pure SQL, no AI)
+      responses:
+        "200":
+          description: Array of up to 3 insight cards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiCfoInsightCard"
+
+  /ai-cfo/chat:
+    post:
+      operationId: postAiCfoChat
+      tags: [ai-cfo]
+      summary: Chat with AI CFO — returns a structured mini-report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiCfoChatBody"
+      responses:
+        "200":
+          description: Structured AI response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiCfoChatResponse"
+
+  /ai-cfo/food-cost:
+    post:
+      operationId: postAiCfoFoodCost
+      tags: [ai-cfo]
+      summary: Calculate food cost from menu text + weekly sales
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiCfoFoodCostBody"
+      responses:
+        "200":
+          description: Food cost analysis table
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiCfoFoodCostResponse"
 
   /healthz:
     get:
@@ -3435,3 +3490,172 @@ components:
         - suppliers
         - recentInvoices
         - topProducts
+
+    AiCfoInsightCard:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [price_spike, quantity_anomaly, savings_opportunity]
+        title:
+          type: string
+        description:
+          type: string
+        impactAmount:
+          type: number
+        impactLabel:
+          type: string
+        productId:
+          type: ["integer", "null"]
+        supplierId:
+          type: ["integer", "null"]
+        productName:
+          type: ["string", "null"]
+        supplierName:
+          type: ["string", "null"]
+        metadata:
+          type: object
+      required:
+        - type
+        - title
+        - description
+        - impactAmount
+        - impactLabel
+
+    AiCfoKpiCard:
+      type: object
+      properties:
+        label:
+          type: string
+        value:
+          type: string
+        delta:
+          type: ["string", "null"]
+        deltaPositive:
+          type: ["boolean", "null"]
+      required:
+        - label
+        - value
+
+    AiCfoTableData:
+      type: object
+      properties:
+        headers:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+      required:
+        - headers
+        - rows
+
+    AiCfoAction:
+      type: object
+      properties:
+        label:
+          type: string
+        href:
+          type: string
+      required:
+        - label
+        - href
+
+    AiCfoChatBody:
+      type: object
+      properties:
+        question:
+          type: string
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+            required:
+              - role
+              - content
+      required:
+        - question
+
+    AiCfoChatResponse:
+      type: object
+      properties:
+        type:
+          type: string
+        summary:
+          type: string
+        kpiCards:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCfoKpiCard"
+        table:
+          oneOf:
+            - $ref: "#/components/schemas/AiCfoTableData"
+            - type: "null"
+        recommendation:
+          type: string
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCfoAction"
+      required:
+        - type
+        - summary
+        - kpiCards
+        - actions
+
+    AiCfoFoodCostBody:
+      type: object
+      properties:
+        menuText:
+          type: string
+        salesText:
+          type: string
+      required:
+        - menuText
+
+    AiCfoFoodCostDish:
+      type: object
+      properties:
+        name:
+          type: string
+        weeklySales:
+          type: ["number", "null"]
+        ingredientCostPerPortion:
+          type: number
+        salePricePerPortion:
+          type: number
+        marginPct:
+          type: number
+        weeklyGrossProfit:
+          type: ["number", "null"]
+        suggestedPrice:
+          type: ["number", "null"]
+      required:
+        - name
+        - ingredientCostPerPortion
+        - salePricePerPortion
+        - marginPct
+
+    AiCfoFoodCostResponse:
+      type: object
+      properties:
+        dishes:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCfoFoodCostDish"
+        summary:
+          type: string
+        avgMarginPct:
+          type: number
+      required:
+        - dishes

@@ -830,6 +830,104 @@ export interface AdminUserDetails {
   topProducts: AdminTopProduct[];
 }
 
+export type AiCfoInsightCardType =
+  (typeof AiCfoInsightCardType)[keyof typeof AiCfoInsightCardType];
+
+export const AiCfoInsightCardType = {
+  price_spike: "price_spike",
+  quantity_anomaly: "quantity_anomaly",
+  savings_opportunity: "savings_opportunity",
+} as const;
+
+export type AiCfoInsightCardMetadata = { [key: string]: unknown };
+
+export interface AiCfoInsightCard {
+  type: AiCfoInsightCardType;
+  title: string;
+  description: string;
+  impactAmount: number;
+  impactLabel: string;
+  /** @nullable */
+  productId?: number | null;
+  /** @nullable */
+  supplierId?: number | null;
+  /** @nullable */
+  productName?: string | null;
+  /** @nullable */
+  supplierName?: string | null;
+  metadata?: AiCfoInsightCardMetadata;
+}
+
+export interface AiCfoKpiCard {
+  label: string;
+  value: string;
+  /** @nullable */
+  delta?: string | null;
+  /** @nullable */
+  deltaPositive?: boolean | null;
+}
+
+export interface AiCfoTableData {
+  headers: string[];
+  rows: string[][];
+}
+
+export interface AiCfoAction {
+  label: string;
+  href: string;
+}
+
+export type AiCfoChatBodyHistoryItemRole =
+  (typeof AiCfoChatBodyHistoryItemRole)[keyof typeof AiCfoChatBodyHistoryItemRole];
+
+export const AiCfoChatBodyHistoryItemRole = {
+  user: "user",
+  assistant: "assistant",
+} as const;
+
+export type AiCfoChatBodyHistoryItem = {
+  role: AiCfoChatBodyHistoryItemRole;
+  content: string;
+};
+
+export interface AiCfoChatBody {
+  question: string;
+  history?: AiCfoChatBodyHistoryItem[];
+}
+
+export interface AiCfoChatResponse {
+  type: string;
+  summary: string;
+  kpiCards: AiCfoKpiCard[];
+  table?: AiCfoTableData | null;
+  recommendation?: string;
+  actions: AiCfoAction[];
+}
+
+export interface AiCfoFoodCostBody {
+  menuText: string;
+  salesText?: string;
+}
+
+export interface AiCfoFoodCostDish {
+  name: string;
+  /** @nullable */
+  weeklySales?: number | null;
+  ingredientCostPerPortion: number;
+  salePricePerPortion: number;
+  marginPct: number;
+  /** @nullable */
+  weeklyGrossProfit?: number | null;
+  /** @nullable */
+  suggestedPrice?: number | null;
+}
+
+export interface AiCfoFoodCostResponse {
+  dishes: AiCfoFoodCostDish[];
+  summary?: string;
+  avgMarginPct?: number;
+}
+
 export type PatchAdminUserBlockBody = {
   blocked: boolean;
 };

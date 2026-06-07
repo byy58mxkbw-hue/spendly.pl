@@ -21,6 +21,11 @@ import type {
   AdminStatsResponse,
   AdminUserDetails,
   AdminUsersResponse,
+  AiCfoChatBody,
+  AiCfoChatResponse,
+  AiCfoFoodCostBody,
+  AiCfoFoodCostResponse,
+  AiCfoInsightCard,
   AiInsight,
   BulkAssignCostCenter200,
   BulkVerifyProducts200,
@@ -874,6 +879,253 @@ export const usePostInsightsIdDismiss = <
   TContext
 > => {
   return useMutation(getPostInsightsIdDismissMutationOptions(options));
+};
+
+/**
+ * @summary Get top 3 AI CFO insight cards (pure SQL, no AI)
+ */
+export const getGetAiCfoInsightsUrl = () => {
+  return `/api/ai-cfo/insights`;
+};
+
+export const getAiCfoInsights = async (
+  options?: RequestInit,
+): Promise<AiCfoInsightCard[]> => {
+  return customFetch<AiCfoInsightCard[]>(getGetAiCfoInsightsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAiCfoInsightsQueryKey = () => {
+  return [`/api/ai-cfo/insights`] as const;
+};
+
+export const getGetAiCfoInsightsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAiCfoInsights>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAiCfoInsights>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAiCfoInsightsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAiCfoInsights>>
+  > = ({ signal }) => getAiCfoInsights({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAiCfoInsights>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAiCfoInsightsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAiCfoInsights>>
+>;
+export type GetAiCfoInsightsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get top 3 AI CFO insight cards (pure SQL, no AI)
+ */
+
+export function useGetAiCfoInsights<
+  TData = Awaited<ReturnType<typeof getAiCfoInsights>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAiCfoInsights>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAiCfoInsightsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Chat with AI CFO — returns a structured mini-report
+ */
+export const getPostAiCfoChatUrl = () => {
+  return `/api/ai-cfo/chat`;
+};
+
+export const postAiCfoChat = async (
+  aiCfoChatBody: AiCfoChatBody,
+  options?: RequestInit,
+): Promise<AiCfoChatResponse> => {
+  return customFetch<AiCfoChatResponse>(getPostAiCfoChatUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(aiCfoChatBody),
+  });
+};
+
+export const getPostAiCfoChatMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postAiCfoChat>>,
+    TError,
+    { data: BodyType<AiCfoChatBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof postAiCfoChat>>,
+  TError,
+  { data: BodyType<AiCfoChatBody> },
+  TContext
+> => {
+  const mutationKey = ["postAiCfoChat"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof postAiCfoChat>>,
+    { data: BodyType<AiCfoChatBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return postAiCfoChat(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PostAiCfoChatMutationResult = NonNullable<
+  Awaited<ReturnType<typeof postAiCfoChat>>
+>;
+export type PostAiCfoChatMutationBody = BodyType<AiCfoChatBody>;
+export type PostAiCfoChatMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Chat with AI CFO — returns a structured mini-report
+ */
+export const usePostAiCfoChat = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postAiCfoChat>>,
+    TError,
+    { data: BodyType<AiCfoChatBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof postAiCfoChat>>,
+  TError,
+  { data: BodyType<AiCfoChatBody> },
+  TContext
+> => {
+  return useMutation(getPostAiCfoChatMutationOptions(options));
+};
+
+/**
+ * @summary Calculate food cost from menu text + weekly sales
+ */
+export const getPostAiCfoFoodCostUrl = () => {
+  return `/api/ai-cfo/food-cost`;
+};
+
+export const postAiCfoFoodCost = async (
+  aiCfoFoodCostBody: AiCfoFoodCostBody,
+  options?: RequestInit,
+): Promise<AiCfoFoodCostResponse> => {
+  return customFetch<AiCfoFoodCostResponse>(getPostAiCfoFoodCostUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(aiCfoFoodCostBody),
+  });
+};
+
+export const getPostAiCfoFoodCostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postAiCfoFoodCost>>,
+    TError,
+    { data: BodyType<AiCfoFoodCostBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof postAiCfoFoodCost>>,
+  TError,
+  { data: BodyType<AiCfoFoodCostBody> },
+  TContext
+> => {
+  const mutationKey = ["postAiCfoFoodCost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof postAiCfoFoodCost>>,
+    { data: BodyType<AiCfoFoodCostBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return postAiCfoFoodCost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PostAiCfoFoodCostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof postAiCfoFoodCost>>
+>;
+export type PostAiCfoFoodCostMutationBody = BodyType<AiCfoFoodCostBody>;
+export type PostAiCfoFoodCostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Calculate food cost from menu text + weekly sales
+ */
+export const usePostAiCfoFoodCost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postAiCfoFoodCost>>,
+    TError,
+    { data: BodyType<AiCfoFoodCostBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof postAiCfoFoodCost>>,
+  TError,
+  { data: BodyType<AiCfoFoodCostBody> },
+  TContext
+> => {
+  return useMutation(getPostAiCfoFoodCostMutationOptions(options));
 };
 
 /**

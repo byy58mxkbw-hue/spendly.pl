@@ -20,7 +20,7 @@ const Reports = lazy(() => import("@/pages/reports"));
 const Predictive = lazy(() => import("@/pages/predictive"));
 const PendingInvoices = lazy(() => import("@/pages/pending-invoices"));
 const SettingsKsef = lazy(() => import("@/pages/settings-ksef"));
-const AiCfoPage = lazy(() => import("@/pages/ai-cfo").then((m) => ({ default: m.AiCfoPage })));
+const AiCfoPage = lazy(() => import("@/pages/ai-cfo"));
 const AdminUsers = lazy(() => import("@/pages/admin-users"));
 const SettingsCostCenters = lazy(() => import("@/pages/settings-cost-centers"));
 import { CostCenterProvider } from "@/contexts/cost-center-context";
