@@ -279,7 +279,7 @@ paths:
     post:
       operationId: postAiCfoExtractMenu
       tags: [ai-cfo]
-      summary: Extract menu items and prices from an uploaded image or PDF (first page)
+      summary: Extract menu items and prices from uploaded images or a multi-page PDF (up to 5 files)
       requestBody:
         required: true
         content:
@@ -3792,12 +3792,16 @@ components:
     AiCfoExtractMenuBody:
       type: object
       properties:
-        file:
-          type: string
-          format: binary
-          description: Image (JPG, PNG, WEBP) or PDF file — max 10 MB
+        files:
+          type: array
+          items:
+            type: string
+            format: binary
+          description: Up to 5 images (JPG, PNG, WEBP) or a single multi-page PDF — max 15 MB total
+          minItems: 1
+          maxItems: 5
       required:
-        - file
+        - files
 
     AiCfoExtractMenuResponse:
       type: object
@@ -3805,8 +3809,12 @@ components:
         menuText:
           type: string
           description: Extracted menu text ready to use in Food Cost AI
+        pageCount:
+          type: integer
+          description: Number of pages/files that were processed
       required:
         - menuText
+        - pageCount
 
     AiCfoFoodCostBody:
       type: object

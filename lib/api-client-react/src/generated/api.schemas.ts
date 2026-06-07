@@ -905,13 +905,19 @@ export interface AiCfoChatResponse {
 }
 
 export interface AiCfoExtractMenuBody {
-  /** Image (JPG, PNG, WEBP) or PDF file — max 10 MB */
-  file: Blob;
+  /**
+   * Up to 5 images (JPG, PNG, WEBP) or a single multi-page PDF — max 15 MB total
+   * @minItems 1
+   * @maxItems 5
+   */
+  files: Blob[];
 }
 
 export interface AiCfoExtractMenuResponse {
   /** Extracted menu text ready to use in Food Cost AI */
   menuText: string;
+  /** Number of pages/files that were processed */
+  pageCount: number;
 }
 
 export interface AiCfoFoodCostBody {

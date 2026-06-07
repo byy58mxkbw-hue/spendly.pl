@@ -610,9 +610,11 @@ Reguły:
 
 // ─── Route: POST /ai-cfo/extract-menu ────────────────────────────────────────
 
+const MAX_MENU_UPLOAD_BYTES = 15 * 1024 * 1024; // 15 MB aggregate across all files
+
 const menuUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: MAX_MENU_UPLOAD_BYTES }, // per-file cap; aggregate enforced in handler
   fileFilter: (_req, file, cb) => {
     const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
     if (allowed.includes(file.mimetype.toLowerCase())) {
@@ -668,88 +670,135 @@ async function extractViaVision(buffer: Buffer, mimeType: string): Promise<strin
   return (response.choices[0]?.message?.content ?? "").trim();
 }
 
-router.post("/ai-cfo/extract-menu", menuUpload.single("file"), async (req, res): Promise<void> => {
-  if (!req.file) {
-    res.status(400).json({ error: "Brakuje pliku. Prześlij obraz lub PDF jako pole 'file'." });
+// Process a single image buffer via vision — returns extracted text
+async function processImageFile(buffer: Buffer, mimetype: string): Promise<string> {
+  return extractViaVision(buffer, mimetype);
+}
+
+// Process a single PDF buffer — returns { text, pageCount }
+async function processPdfFile(
+  buffer: Buffer,
+  log: { error: (obj: unknown, msg: string) => void },
+): Promise<{ text: string; pageCount: number }> {
+  // Try native text extraction (all pages)
+  let pdfParse: (buf: Buffer, opts?: { max?: number }) => Promise<{ text: string; numpages?: number }>;
+  try {
+    // @ts-ignore — sub-path has no type declarations
+    const mod = await import("pdf-parse/lib/pdf-parse.js");
+    pdfParse = (mod.default ?? mod) as typeof pdfParse;
+  } catch {
+    throw new Error("Nie można załadować biblioteki PDF.");
+  }
+
+  let rawText = "";
+  let nativePageCount = 1;
+  try {
+    const extracted = await pdfParse(buffer); // no page limit — process all pages
+    rawText = (extracted.text ?? "").trim();
+    nativePageCount = extracted.numpages ?? 1;
+  } catch {
+    rawText = "";
+  }
+
+  if (rawText.length >= 30) {
+    // Native text found — ask AI to clean and format all pages
+    const cleanupResponse = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: `Poniżej jest surowy tekst wyciągnięty z PDF karty menu (wszystkie strony). Sformatuj go jako czytelną listę dań z cenami — usuń nagłówki, stopki, numery stron, zbędne znaki. Zachowaj wszystkie dania i ceny ze wszystkich stron. Odpowiadaj po polsku, tylko sformatowaną listą dań, bez komentarzy.\n\nSUROWY TEKST:\n${rawText.slice(0, 8000)}`,
+        },
+      ],
+      max_tokens: 3000,
+      temperature: 0.1,
+    });
+    const menuText = (cleanupResponse.choices[0]?.message?.content ?? "").trim();
+    return { text: menuText || rawText.slice(0, 6000), pageCount: nativePageCount };
+  }
+
+  // Scanned PDF — convert every page to PNG and process with vision
+  try {
+    const { pdf: pdfToImg } = await import("pdf-to-img");
+    const doc = await pdfToImg(buffer, { scale: 2 });
+    const totalPages = doc.length;
+    const pageTexts: string[] = [];
+    for (let i = 1; i <= totalPages; i++) {
+      const pageBuffer = await doc.getPage(i);
+      const pageText = await extractViaVision(pageBuffer, "image/png");
+      if (pageText && pageText.length >= 5) {
+        pageTexts.push(`--- Strona ${i} ---\n${pageText}`);
+      }
+    }
+    await doc.destroy();
+    const combined = pageTexts.join("\n\n");
+    if (!combined || combined.length < 10) {
+      throw new Error("Nie udało się odczytać menu ze skanu PDF.");
+    }
+    return { text: combined, pageCount: totalPages };
+  } catch (err) {
+    log.error({ err }, "ai-cfo extract-menu: pdf-to-img failed");
+    throw new Error("PDF nie zawiera tekstu (prawdopodobnie skan) i nie udało się go przekonwertować. Zrób zdjęcie menu i wyślij jako obraz JPG lub PNG.");
+  }
+}
+
+router.post("/ai-cfo/extract-menu", menuUpload.array("files", 5), async (req, res): Promise<void> => {
+  const files = req.files as Express.Multer.File[] | undefined;
+  if (!files || files.length === 0) {
+    res.status(400).json({ error: "Brakuje pliku. Prześlij obraz lub PDF jako pole 'files'." });
     return;
   }
 
-  const { buffer, mimetype } = req.file;
-  const isImage = ["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(mimetype.toLowerCase());
-  const isPdf = mimetype.toLowerCase() === "application/pdf";
+  // Guard: max 5 files
+  if (files.length > 5) {
+    res.status(400).json({ error: "Można przesłać maksymalnie 5 plików naraz." });
+    return;
+  }
+
+  // Guard: aggregate size must not exceed 15 MB
+  const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+  if (totalBytes > MAX_MENU_UPLOAD_BYTES) {
+    res.status(413).json({ error: "Łączny rozmiar plików przekracza 15 MB. Zmniejsz liczbę plików lub ich rozmiar." });
+    return;
+  }
 
   try {
-    if (isImage) {
-      const menuText = await extractViaVision(buffer, mimetype);
-      if (!menuText || menuText.length < 10) {
-        res.status(422).json({ error: "Nie udało się odczytać menu ze zdjęcia. Upewnij się, że zdjęcie jest ostre i dobrze oświetlone." });
-        return;
+    const segments: string[] = [];
+    let totalPageCount = 0;
+
+    for (let idx = 0; idx < files.length; idx++) {
+      const { buffer, mimetype } = files[idx];
+      const isImage = ["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(mimetype.toLowerCase());
+      const isPdf = mimetype.toLowerCase() === "application/pdf";
+
+      if (isImage) {
+        const text = await processImageFile(buffer, mimetype);
+        if (text && text.length >= 5) {
+          const label = files.length > 1 ? `--- Zdjęcie ${idx + 1} ---\n` : "";
+          segments.push(`${label}${text}`);
+        }
+        totalPageCount += 1;
+      } else if (isPdf) {
+        const { text, pageCount } = await processPdfFile(buffer, req.log);
+        if (text && text.length >= 5) {
+          const label = files.length > 1 ? `--- Plik PDF ${idx + 1} ---\n` : "";
+          segments.push(`${label}${text}`);
+        }
+        totalPageCount += pageCount;
       }
-      res.json({ menuText });
+    }
+
+    const menuText = segments.join("\n\n");
+    if (!menuText || menuText.length < 10) {
+      res.status(422).json({ error: "Nie udało się odczytać menu z przesłanych plików. Upewnij się, że zdjęcia są ostre i dobrze oświetlone." });
       return;
     }
 
-    if (isPdf) {
-      // Try native text extraction — first page only
-      let pdfParse: (buf: Buffer, opts?: { max?: number }) => Promise<{ text: string }>;
-      try {
-        // @ts-ignore — sub-path has no type declarations; @types/pdf-parse covers the API shape
-        const mod = await import("pdf-parse/lib/pdf-parse.js");
-        pdfParse = (mod.default ?? mod) as typeof pdfParse;
-      } catch {
-        res.status(500).json({ error: "Nie można załadować biblioteki PDF. Spróbuj wysłać zdjęcie zamiast pliku PDF." });
-        return;
-      }
-
-      let rawText = "";
-      try {
-        const extracted = await pdfParse(buffer, { max: 1 }); // first page only
-        rawText = (extracted.text ?? "").trim();
-      } catch {
-        rawText = "";
-      }
-
-      if (rawText.length >= 30) {
-        // Native text found — ask AI to clean and format it
-        const cleanupResponse = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            {
-              role: "user",
-              content: `Poniżej jest surowy tekst wyciągnięty z PDF karty menu (pierwsza strona). Sformatuj go jako czytelną listę dań z cenami — usuń nagłówki, stopki, numery stron, zbędne znaki. Zachowaj wszystkie dania i ceny. Odpowiadaj po polsku, tylko sformatowaną listą dań, bez komentarzy.\n\nSUROWY TEKST:\n${rawText.slice(0, 4000)}`,
-            },
-          ],
-          max_tokens: 2000,
-          temperature: 0.1,
-        });
-        const menuText = (cleanupResponse.choices[0]?.message?.content ?? "").trim();
-        res.json({ menuText: menuText || rawText.slice(0, 3000) });
-        return;
-      }
-
-      // Scanned PDF — convert page 1 to PNG and send to vision
-      let page1Buffer: Buffer;
-      try {
-        const { pdf } = await import("pdf-to-img");
-        const doc = await pdf(buffer, { scale: 2 });
-        page1Buffer = await doc.getPage(1);
-        await doc.destroy();
-      } catch (err) {
-        req.log.error({ err }, "ai-cfo extract-menu: pdf-to-img failed");
-        res.status(422).json({ error: "PDF nie zawiera tekstu (prawdopodobnie skan) i nie udało się go przekonwertować. Zrób zdjęcie menu i wyślij jako obraz JPG lub PNG." });
-        return;
-      }
-
-      const menuText = await extractViaVision(page1Buffer, "image/png");
-      if (!menuText || menuText.length < 10) {
-        res.status(422).json({ error: "Nie udało się odczytać menu ze skanu PDF. Upewnij się, że plik jest czytelny lub zrób zdjęcie aparatem." });
-        return;
-      }
-      res.json({ menuText });
-    }
+    res.json({ menuText, pageCount: totalPageCount });
   } catch (err) {
     req.log.error({ err }, "ai-cfo extract-menu error");
-    res.status(500).json({ error: "Wystąpił błąd podczas ekstrakcji. Spróbuj ponownie." });
+    const msg = err instanceof Error ? err.message : "Wystąpił błąd podczas ekstrakcji. Spróbuj ponownie.";
+    res.status(422).json({ error: msg });
   }
 });
 

@@ -241,18 +241,27 @@ export const PostAiCfoFoodCostResponse = zod.object({
 });
 
 /**
- * @summary Extract menu items and prices from an uploaded image or PDF (first page)
+ * @summary Extract menu items and prices from uploaded images or a multi-page PDF (up to 5 files)
  */
+export const postAiCfoExtractMenuBodyFilesMax = 5;
+
 export const PostAiCfoExtractMenuBody = zod.object({
-  file: zod
-    .instanceof(File)
-    .describe("Image (JPG, PNG, WEBP) or PDF file — max 10 MB"),
+  files: zod
+    .array(zod.instanceof(File))
+    .min(1)
+    .max(postAiCfoExtractMenuBodyFilesMax)
+    .describe(
+      "Up to 5 images (JPG, PNG, WEBP) or a single multi-page PDF — max 15 MB total",
+    ),
 });
 
 export const PostAiCfoExtractMenuResponse = zod.object({
   menuText: zod
     .string()
     .describe("Extracted menu text ready to use in Food Cost AI"),
+  pageCount: zod
+    .number()
+    .describe("Number of pages\/files that were processed"),
 });
 
 /**

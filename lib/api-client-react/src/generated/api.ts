@@ -1139,7 +1139,7 @@ export const usePostAiCfoFoodCost = <
 };
 
 /**
- * @summary Extract menu items and prices from an uploaded image or PDF (first page)
+ * @summary Extract menu items and prices from uploaded images or a multi-page PDF (up to 5 files)
  */
 export const getPostAiCfoExtractMenuUrl = () => {
   return `/api/ai-cfo/extract-menu`;
@@ -1150,7 +1150,9 @@ export const postAiCfoExtractMenu = async (
   options?: RequestInit,
 ): Promise<AiCfoExtractMenuResponse> => {
   const formData = new FormData();
-  formData.append(`file`, aiCfoExtractMenuBody.file);
+  aiCfoExtractMenuBody.files.forEach((value) =>
+    formData.append(`files`, value),
+  );
 
   return customFetch<AiCfoExtractMenuResponse>(getPostAiCfoExtractMenuUrl(), {
     ...options,
@@ -1204,7 +1206,7 @@ export type PostAiCfoExtractMenuMutationBody = BodyType<AiCfoExtractMenuBody>;
 export type PostAiCfoExtractMenuMutationError = ErrorType<void>;
 
 /**
- * @summary Extract menu items and prices from an uploaded image or PDF (first page)
+ * @summary Extract menu items and prices from uploaded images or a multi-page PDF (up to 5 files)
  */
 export const usePostAiCfoExtractMenu = <
   TError = ErrorType<void>,

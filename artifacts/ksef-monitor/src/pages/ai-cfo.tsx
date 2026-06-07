@@ -883,6 +883,7 @@ function FoodCostAi() {
   const [salesText, setSalesText] = useState("");
   const [result, setResult] = useState<FoodCostResult | null>(null);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractedPageCount, setExtractedPageCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const mutation = usePostAiCfoFoodCost();
@@ -1053,28 +1054,39 @@ function FoodCostAi() {
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
 
+    const files = Array.from(fileList);
     setExtractError(null);
+    setExtractedPageCount(null);
 
-    // Client-side size check: max 10 MB
-    if (file.size > 10 * 1024 * 1024) {
-      setExtractError("Plik jest za duży. Maksymalny rozmiar to 10 MB.");
+    // Client-side guard: max 5 files
+    if (files.length > 5) {
+      setExtractError("Można wybrać maksymalnie 5 plików naraz.");
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
-    // Reset input so the same file can be re-selected later
+    // Client-side size check: max 15 MB total
+    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+    if (totalSize > 15 * 1024 * 1024) {
+      setExtractError("Łączny rozmiar plików jest za duży. Maksymalnie 15 MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // Reset input so the same files can be re-selected later
     if (fileInputRef.current) fileInputRef.current.value = "";
 
-    // Pass raw File — hook wraps it in FormData automatically
+    // Pass array of Files — hook appends each to FormData as 'files'
     extractMutation.mutate(
-      { data: { file } },
+      { data: { files } },
       {
         onSuccess(data) {
-          const extracted = data as { menuText: string };
+          const extracted = data as { menuText: string; pageCount: number };
           setMenuText(extracted.menuText);
+          setExtractedPageCount(extracted.pageCount ?? files.length);
           setExtractError(null);
         },
         onError(err: unknown) {
@@ -1103,11 +1115,12 @@ function FoodCostAi() {
       </div>
 
       <div className="p-5 space-y-4">
-        {/* Hidden file input */}
+        {/* Hidden file input — accepts up to 5 images or a multi-page PDF */}
         <input
           ref={fileInputRef}
           type="file"
           accept={ACCEPTED_MENU_FILE_TYPES}
+          multiple
           className="hidden"
           onChange={handleFileChange}
         />
@@ -1125,7 +1138,7 @@ function FoodCostAi() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={extractMutation.isPending}
                 className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-gray-200 text-gray-600 bg-white hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all disabled:opacity-50"
-                title="Wgraj zdjęcie menu lub plik PDF — AI wyciągnie listę dań"
+                title="Wgraj do 5 zdjęć stron menu lub PDF wielostronicowy — AI wyciągnie listę dań"
               >
                 {extractMutation.isPending ? (
                   <>
@@ -1135,7 +1148,7 @@ function FoodCostAi() {
                 ) : (
                   <>
                     <FileImage className="w-3 h-3" />
-                    Wgraj zdjęcie / PDF
+                    Wgraj zdjęcia / PDF
                   </>
                 )}
               </button>
@@ -1157,7 +1170,9 @@ function FoodCostAi() {
             {extractMutation.isSuccess && !extractMutation.isPending && !extractError && (
               <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-600">
                 <Upload className="w-3 h-3 shrink-0" />
-                Menu wyciągnięte — sprawdź i popraw jeśli potrzeba.
+                {extractedPageCount != null && extractedPageCount > 0
+                  ? `Wczytano ${extractedPageCount} ${extractedPageCount === 1 ? "stronę" : extractedPageCount < 5 ? "strony" : "stron"} — sprawdź i popraw jeśli potrzeba.`
+                  : "Menu wyciągnięte — sprawdź i popraw jeśli potrzeba."}
               </div>
             )}
             {extractError && (
