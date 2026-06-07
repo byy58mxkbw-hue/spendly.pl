@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { Layout, PageHeader } from "@/components/layout";
 import {
@@ -14,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Building2, Mail, Phone, FileText, Package } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
-import { useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -24,6 +24,16 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { PriceHistoryModal } from "./products";
+
+type TopProduct = {
+  productId?: number | null;
+  productName: string;
+  unit: string;
+  latestPrice: number;
+  totalSpend: number;
+  purchaseCount: number;
+};
 
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
   if (!active || !payload?.length) return null;
@@ -38,6 +48,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 export default function SupplierDetail({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
   const id = parseInt(params.id, 10);
+  const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
 
   const { data: supplier, isLoading: supplierLoading } = useGetSupplier(id, {
     query: { enabled: !!id, queryKey: getGetSupplierQueryKey(id) },
@@ -182,27 +193,31 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
                 </div>
               ) : topProducts && topProducts.length > 0 ? (
                 <div className="divide-y divide-border">
-                  {topProducts.map((product, i) => (
-                    <div
-                      key={i}
-                      className="px-6 py-3 flex items-center justify-between gap-4"
-                      data-testid={`top-product-row-${i}`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                          <Package className="w-3.5 h-3.5" />
+                  {(topProducts as TopProduct[]).map((product, i) => {
+                    const isClickable = product.productId != null;
+                    return (
+                      <div
+                        key={i}
+                        className={`px-6 py-3 flex items-center justify-between gap-4 transition-colors${isClickable ? " cursor-pointer hover:bg-secondary/40" : ""}`}
+                        data-testid={`top-product-row-${i}`}
+                        onClick={isClickable ? () => setSelectedProduct({ id: product.productId!, name: product.productName }) : undefined}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <Package className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{product.productName}</p>
+                            <p className="text-xs text-muted-foreground">{product.purchaseCount} zakupów &middot; {product.unit}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{product.productName}</p>
-                          <p className="text-xs text-muted-foreground">{product.purchaseCount} zakupów &middot; {product.unit}</p>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-semibold text-foreground">{formatPrice(product.latestPrice)}/{product.unit}</p>
+                          <p className="text-xs text-muted-foreground">Łącznie: {formatPrice(product.totalSpend)}</p>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-semibold text-foreground">{formatPrice(product.latestPrice)}/{product.unit}</p>
-                        <p className="text-xs text-muted-foreground">Łącznie: {formatPrice(product.totalSpend)}</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="p-12 text-center text-sm text-muted-foreground">
@@ -255,6 +270,15 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
           <div className="text-center py-12 text-muted-foreground">Nie znaleziono dostawcy.</div>
         )}
       </div>
+      {selectedProduct && (
+        <PriceHistoryModal
+          productId={selectedProduct.id}
+          productName={selectedProduct.name}
+          onClose={() => setSelectedProduct(null)}
+          focusSupplierId={id}
+          focusSupplierName={supplier?.name}
+        />
+      )}
     </Layout>
   );
 }

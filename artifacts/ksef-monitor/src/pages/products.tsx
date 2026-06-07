@@ -351,9 +351,27 @@ function PriceChangeBadge({ change }: { change: number | null | undefined }) {
   );
 }
 
-export function PriceHistoryModal({ productId, productName, onClose }: { productId: number; productName: string; onClose: () => void }) {
-  const { data: history, isLoading } = useGetProductPriceHistory(productId, undefined, {
-    query: { enabled: true, queryKey: getGetProductPriceHistoryQueryKey(productId) },
+export function PriceHistoryModal({
+  productId,
+  productName,
+  onClose,
+  focusSupplierId,
+  focusSupplierName,
+}: {
+  productId: number;
+  productName: string;
+  onClose: () => void;
+  focusSupplierId?: number;
+  focusSupplierName?: string;
+}) {
+  const params = focusSupplierId != null ? { supplierId: focusSupplierId } : undefined;
+  const { data: history, isLoading } = useGetProductPriceHistory(productId, params, {
+    query: {
+      enabled: true,
+      queryKey: focusSupplierId != null
+        ? [...getGetProductPriceHistoryQueryKey(productId), focusSupplierId]
+        : getGetProductPriceHistoryQueryKey(productId),
+    },
   });
 
   const chartData = history?.map((h) => ({
@@ -367,6 +385,12 @@ export function PriceHistoryModal({ productId, productName, onClose }: { product
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden" data-testid="dialog-price-history">
         <DialogHeader className="shrink-0">
           <DialogTitle>Historia cen: {productName}</DialogTitle>
+          {focusSupplierName && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <Building2 className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs text-primary font-medium">{focusSupplierName}</span>
+            </div>
+          )}
         </DialogHeader>
         {isLoading ? (
           <Skeleton className="h-56 w-full rounded-lg" />
