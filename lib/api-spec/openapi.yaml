@@ -664,6 +664,68 @@ paths:
         "404":
           description: Not found
 
+  /suppliers/{id}/monthly-spend:
+    get:
+      operationId: getSupplierMonthlySpend
+      tags: [suppliers]
+      summary: Get monthly spend breakdown for a supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 24
+          description: "Number of months to include (default 12)"
+      responses:
+        "200":
+          description: Monthly spend data for the supplier
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupplierMonthlySpend"
+        "404":
+          description: Not found
+
+  /suppliers/{id}/top-products:
+    get:
+      operationId: getSupplierTopProducts
+      tags: [suppliers]
+      summary: Get top products purchased from a supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+          description: "Max number of products to return (default 5)"
+      responses:
+        "200":
+          description: Top products for this supplier
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupplierTopProduct"
+        "404":
+          description: Not found
+
   /products:
     get:
       operationId: listProducts
@@ -3831,3 +3893,45 @@ components:
             $ref: "#/components/schemas/AiCfoSessionMessage"
       required:
         - messages
+
+    SupplierMonthlySpend:
+      type: object
+      properties:
+        month:
+          type: string
+        year:
+          type: integer
+        label:
+          type: string
+        totalAmount:
+          type: number
+        invoiceCount:
+          type: integer
+      required:
+        - month
+        - year
+        - label
+        - totalAmount
+        - invoiceCount
+
+    SupplierTopProduct:
+      type: object
+      properties:
+        productId:
+          type: ["integer", "null"]
+        productName:
+          type: string
+        unit:
+          type: string
+        latestPrice:
+          type: number
+        totalSpend:
+          type: number
+        purchaseCount:
+          type: integer
+      required:
+        - productName
+        - unit
+        - latestPrice
+        - totalSpend
+        - purchaseCount

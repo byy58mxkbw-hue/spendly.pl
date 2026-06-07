@@ -3,13 +3,37 @@ import { Layout, PageHeader } from "@/components/layout";
 import {
   useGetSupplier,
   useListInvoices,
+  useGetSupplierMonthlySpend,
+  useGetSupplierTopProducts,
   getGetSupplierQueryKey,
   getListInvoicesQueryKey,
+  getGetSupplierMonthlySpendQueryKey,
+  getGetSupplierTopProductsQueryKey,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Building2, Mail, Phone, FileText } from "lucide-react";
+import { ArrowLeft, Building2, Mail, Phone, FileText, Package } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
+import { useMemo } from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg text-xs">
+      <p className="text-muted-foreground mb-1 font-medium">{label}</p>
+      <p className="text-foreground font-bold">{formatPrice(payload[0]?.value ?? 0)}</p>
+    </div>
+  );
+}
 
 export default function SupplierDetail({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
@@ -22,6 +46,21 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
     { supplierId: id },
     { query: { enabled: !!id, queryKey: getListInvoicesQueryKey({ supplierId: id }) } }
   );
+  const { data: monthlyRaw, isLoading: monthlyLoading } = useGetSupplierMonthlySpend(
+    id,
+    { months: 12 },
+    { query: { enabled: !!id, queryKey: getGetSupplierMonthlySpendQueryKey(id, { months: 12 }) } }
+  );
+  const { data: topProducts, isLoading: topProductsLoading } = useGetSupplierTopProducts(
+    id,
+    { limit: 5 },
+    { query: { enabled: !!id, queryKey: getGetSupplierTopProductsQueryKey(id, { limit: 5 }) } }
+  );
+
+  const chartData = useMemo(() => {
+    if (!monthlyRaw) return [];
+    return [...monthlyRaw].reverse();
+  }, [monthlyRaw]);
 
   return (
     <Layout>
@@ -45,7 +84,8 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
           <>
             <PageHeader title={supplier.name} subtitle={`NIP: ${supplier.taxId}`} />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            {/* ── Stats + Contact row ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
               <div className="bg-card border border-border rounded-xl p-6">
                 <h3 className="text-sm font-medium text-muted-foreground mb-4">Informacje kontaktowe</h3>
                 <div className="space-y-3">
@@ -87,7 +127,91 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            {/* Invoices list */}
+            {/* ── Monthly spend chart ── */}
+            <div className="bg-card border border-border rounded-xl p-6 mb-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Wydatki miesięczne</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Łączne wydatki u tego dostawcy — ostatnie 12 miesięcy</p>
+                </div>
+              </div>
+
+              {monthlyLoading ? (
+                <Skeleton className="h-48 w-full rounded-lg" />
+              ) : chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={chartData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                    />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Bar
+                      dataKey="totalAmount"
+                      fill="hsl(var(--primary))"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={48}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+                  Brak danych. Zaimportuj faktury od tego dostawcy.
+                </div>
+              )}
+            </div>
+
+            {/* ── Top 5 products ── */}
+            <div className="bg-card border border-border rounded-xl mb-6">
+              <div className="px-6 py-4 border-b border-border">
+                <h2 className="font-semibold text-foreground">Top 5 produktów</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Produkty najczęściej kupowane u tego dostawcy według wartości</p>
+              </div>
+              {topProductsLoading ? (
+                <div className="p-6 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
+                </div>
+              ) : topProducts && topProducts.length > 0 ? (
+                <div className="divide-y divide-border">
+                  {topProducts.map((product, i) => (
+                    <div
+                      key={i}
+                      className="px-6 py-3 flex items-center justify-between gap-4"
+                      data-testid={`top-product-row-${i}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <Package className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{product.productName}</p>
+                          <p className="text-xs text-muted-foreground">{product.purchaseCount} zakupów &middot; {product.unit}</p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold text-foreground">{formatPrice(product.latestPrice)}/{product.unit}</p>
+                        <p className="text-xs text-muted-foreground">Łącznie: {formatPrice(product.totalSpend)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-12 text-center text-sm text-muted-foreground">
+                  Brak produktów od tego dostawcy.
+                </div>
+              )}
+            </div>
+
+            {/* ── Invoices list ── */}
             <div className="bg-card border border-border rounded-xl">
               <div className="px-6 py-4 border-b border-border">
                 <h2 className="font-semibold text-foreground">Historia faktur</h2>

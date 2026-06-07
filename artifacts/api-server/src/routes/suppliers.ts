@@ -9,7 +9,16 @@ import {
   DeleteSupplierParams,
   ListSuppliersQueryParams,
   RestoreSupplierParams,
+  GetSupplierMonthlySpendParams,
+  GetSupplierMonthlySpendQueryParams,
+  GetSupplierTopProductsParams,
+  GetSupplierTopProductsQueryParams,
 } from "@workspace/api-zod";
+
+function toNum(v: unknown): number {
+  const n = Number(v);
+  return isFinite(n) ? n : 0;
+}
 
 const router: IRouter = Router();
 
@@ -212,6 +221,141 @@ router.post("/suppliers/:id/restore", async (req, res): Promise<void> => {
     defaultCostCenterName: null,
     defaultCostCenterColor: null,
   });
+});
+
+router.get("/suppliers/:id/monthly-spend", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const params = GetSupplierMonthlySpendParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const queryParams = GetSupplierMonthlySpendQueryParams.safeParse(req.query);
+  if (!queryParams.success) {
+    res.status(400).json({ error: queryParams.error.message });
+    return;
+  }
+
+  const supplierId = params.data.id;
+  const months = queryParams.data.months ?? 12;
+
+  const [supplier] = await db
+    .select({ id: suppliersTable.id })
+    .from(suppliersTable)
+    .where(and(eq(suppliersTable.id, supplierId), eq(suppliersTable.userId, userId)));
+
+  if (!supplier) {
+    res.status(404).json({ error: "Supplier not found" });
+    return;
+  }
+
+  const rows = await db.execute<{
+    month_key: string;
+    month: string;
+    year: number;
+    label: string;
+    total_amount: string;
+    invoice_count: number;
+  }>(sql`
+    SELECT
+      substring(i.invoice_date, 1, 7) as month_key,
+      substring(i.invoice_date, 6, 2) as month,
+      substring(i.invoice_date, 1, 4)::int as year,
+      to_char(to_date(substring(i.invoice_date, 1, 7), 'YYYY-MM'), 'Mon YYYY') as label,
+      coalesce(sum(ii.total_price::numeric), 0)::text as total_amount,
+      count(DISTINCT i.id)::int as invoice_count
+    FROM invoices i
+    INNER JOIN invoice_items ii ON ii.invoice_id = i.id
+    WHERE i.user_id = ${userId}
+      AND i.supplier_id = ${supplierId}
+      AND i.excluded = false
+    GROUP BY 1, 2, 3, 4
+    ORDER BY 1 DESC
+    LIMIT ${sql.raw(String(months))}
+  `);
+
+  res.json(
+    rows.rows.map((r) => ({
+      month: r.month,
+      year: r.year,
+      label: r.label,
+      totalAmount: toNum(r.total_amount),
+      invoiceCount: r.invoice_count,
+    })),
+  );
+});
+
+router.get("/suppliers/:id/top-products", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const params = GetSupplierTopProductsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const queryParams = GetSupplierTopProductsQueryParams.safeParse(req.query);
+  if (!queryParams.success) {
+    res.status(400).json({ error: queryParams.error.message });
+    return;
+  }
+
+  const supplierId = params.data.id;
+  const limit = Math.min(queryParams.data.limit ?? 5, 20);
+
+  const [supplier] = await db
+    .select({ id: suppliersTable.id })
+    .from(suppliersTable)
+    .where(and(eq(suppliersTable.id, supplierId), eq(suppliersTable.userId, userId)));
+
+  if (!supplier) {
+    res.status(404).json({ error: "Supplier not found" });
+    return;
+  }
+
+  const rows = await db.execute<{
+    product_id: number | null;
+    product_name: string;
+    unit: string;
+    latest_price: string;
+    total_spend: string;
+    purchase_count: number;
+  }>(sql`
+    SELECT
+      ii.product_id,
+      ii.product_name,
+      ii.unit,
+      (
+        SELECT ii2.unit_price::numeric
+        FROM invoice_items ii2
+        INNER JOIN invoices i2 ON i2.id = ii2.invoice_id
+        WHERE ii2.product_name = ii.product_name
+          AND i2.supplier_id = ${supplierId}
+          AND i2.user_id = ${userId}
+          AND i2.excluded = false
+        ORDER BY i2.invoice_date DESC
+        LIMIT 1
+      ) as latest_price,
+      coalesce(sum(ii.total_price::numeric), 0)::text as total_spend,
+      count(*)::int as purchase_count
+    FROM invoice_items ii
+    INNER JOIN invoices i ON i.id = ii.invoice_id
+    WHERE i.supplier_id = ${supplierId}
+      AND i.user_id = ${userId}
+      AND i.excluded = false
+    GROUP BY ii.product_id, ii.product_name, ii.unit
+    ORDER BY sum(ii.total_price::numeric) DESC
+    LIMIT ${sql.raw(String(limit))}
+  `);
+
+  res.json(
+    rows.rows.map((r) => ({
+      productId: r.product_id ?? null,
+      productName: r.product_name,
+      unit: r.unit,
+      latestPrice: toNum(r.latest_price),
+      totalSpend: toNum(r.total_spend),
+      purchaseCount: r.purchase_count,
+    })),
+  );
 });
 
 export default router;

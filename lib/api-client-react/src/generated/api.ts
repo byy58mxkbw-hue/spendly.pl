@@ -68,6 +68,8 @@ import type {
   GetProductPriceHistoryParams,
   GetRecentPurchasesParams,
   GetReportsCostCentersParams,
+  GetSupplierMonthlySpendParams,
+  GetSupplierTopProductsParams,
   GetTopPriceChangesParams,
   HealthStatus,
   ImportInvoiceBody,
@@ -109,6 +111,8 @@ import type {
   Supplier,
   SupplierComparison,
   SupplierCostCenterSuggestion,
+  SupplierMonthlySpend,
+  SupplierTopProduct,
   SyncKsefInvoicesBody,
   ToggleInvoiceExcluded200,
   ToggleInvoiceExcludedBody,
@@ -2751,6 +2755,246 @@ export const useRestoreSupplier = <
 > => {
   return useMutation(getRestoreSupplierMutationOptions(options));
 };
+
+/**
+ * @summary Get monthly spend breakdown for a supplier
+ */
+export const getGetSupplierMonthlySpendUrl = (
+  id: number,
+  params?: GetSupplierMonthlySpendParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/suppliers/${id}/monthly-spend?${stringifiedParams}`
+    : `/api/suppliers/${id}/monthly-spend`;
+};
+
+export const getSupplierMonthlySpend = async (
+  id: number,
+  params?: GetSupplierMonthlySpendParams,
+  options?: RequestInit,
+): Promise<SupplierMonthlySpend[]> => {
+  return customFetch<SupplierMonthlySpend[]>(
+    getGetSupplierMonthlySpendUrl(id, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetSupplierMonthlySpendQueryKey = (
+  id: number,
+  params?: GetSupplierMonthlySpendParams,
+) => {
+  return [
+    `/api/suppliers/${id}/monthly-spend`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetSupplierMonthlySpendQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSupplierMonthlySpend>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  params?: GetSupplierMonthlySpendParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSupplierMonthlySpend>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetSupplierMonthlySpendQueryKey(id, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSupplierMonthlySpend>>
+  > = ({ signal }) =>
+    getSupplierMonthlySpend(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSupplierMonthlySpend>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSupplierMonthlySpendQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSupplierMonthlySpend>>
+>;
+export type GetSupplierMonthlySpendQueryError = ErrorType<void>;
+
+/**
+ * @summary Get monthly spend breakdown for a supplier
+ */
+
+export function useGetSupplierMonthlySpend<
+  TData = Awaited<ReturnType<typeof getSupplierMonthlySpend>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  params?: GetSupplierMonthlySpendParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSupplierMonthlySpend>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSupplierMonthlySpendQueryOptions(
+    id,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get top products purchased from a supplier
+ */
+export const getGetSupplierTopProductsUrl = (
+  id: number,
+  params?: GetSupplierTopProductsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/suppliers/${id}/top-products?${stringifiedParams}`
+    : `/api/suppliers/${id}/top-products`;
+};
+
+export const getSupplierTopProducts = async (
+  id: number,
+  params?: GetSupplierTopProductsParams,
+  options?: RequestInit,
+): Promise<SupplierTopProduct[]> => {
+  return customFetch<SupplierTopProduct[]>(
+    getGetSupplierTopProductsUrl(id, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetSupplierTopProductsQueryKey = (
+  id: number,
+  params?: GetSupplierTopProductsParams,
+) => {
+  return [
+    `/api/suppliers/${id}/top-products`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetSupplierTopProductsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSupplierTopProducts>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  params?: GetSupplierTopProductsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSupplierTopProducts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetSupplierTopProductsQueryKey(id, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSupplierTopProducts>>
+  > = ({ signal }) =>
+    getSupplierTopProducts(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSupplierTopProducts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSupplierTopProductsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSupplierTopProducts>>
+>;
+export type GetSupplierTopProductsQueryError = ErrorType<void>;
+
+/**
+ * @summary Get top products purchased from a supplier
+ */
+
+export function useGetSupplierTopProducts<
+  TData = Awaited<ReturnType<typeof getSupplierTopProducts>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  params?: GetSupplierTopProductsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSupplierTopProducts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSupplierTopProductsQueryOptions(
+    id,
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List all products

@@ -593,6 +593,65 @@ export const RestoreSupplierResponse = zod.object({
 });
 
 /**
+ * @summary Get monthly spend breakdown for a supplier
+ */
+export const GetSupplierMonthlySpendParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const getSupplierMonthlySpendQueryMonthsMax = 24;
+
+export const GetSupplierMonthlySpendQueryParams = zod.object({
+  months: zod.coerce
+    .number()
+    .min(1)
+    .max(getSupplierMonthlySpendQueryMonthsMax)
+    .optional()
+    .describe("Number of months to include (default 12)"),
+});
+
+export const GetSupplierMonthlySpendResponseItem = zod.object({
+  month: zod.string(),
+  year: zod.number(),
+  label: zod.string(),
+  totalAmount: zod.number(),
+  invoiceCount: zod.number(),
+});
+export const GetSupplierMonthlySpendResponse = zod.array(
+  GetSupplierMonthlySpendResponseItem,
+);
+
+/**
+ * @summary Get top products purchased from a supplier
+ */
+export const GetSupplierTopProductsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const getSupplierTopProductsQueryLimitMax = 20;
+
+export const GetSupplierTopProductsQueryParams = zod.object({
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(getSupplierTopProductsQueryLimitMax)
+    .optional()
+    .describe("Max number of products to return (default 5)"),
+});
+
+export const GetSupplierTopProductsResponseItem = zod.object({
+  productId: zod.number().nullish(),
+  productName: zod.string(),
+  unit: zod.string(),
+  latestPrice: zod.number(),
+  totalSpend: zod.number(),
+  purchaseCount: zod.number(),
+});
+export const GetSupplierTopProductsResponse = zod.array(
+  GetSupplierTopProductsResponseItem,
+);
+
+/**
  * @summary List all products
  */
 export const ListProductsQueryParams = zod.object({

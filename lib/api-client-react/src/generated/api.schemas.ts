@@ -975,6 +975,24 @@ export interface UpdateAiCfoSessionBody {
   messages: AiCfoSessionMessage[];
 }
 
+export interface SupplierMonthlySpend {
+  month: string;
+  year: number;
+  label: string;
+  totalAmount: number;
+  invoiceCount: number;
+}
+
+export interface SupplierTopProduct {
+  /** @nullable */
+  productId?: number | null;
+  productName: string;
+  unit: string;
+  latestPrice: number;
+  totalSpend: number;
+  purchaseCount: number;
+}
+
 export type PatchAdminUserBlockBody = {
   blocked: boolean;
 };
@@ -1015,6 +1033,24 @@ export type ListSuppliersParams = {
 
 export type DeleteSupplier200 = {
   deleted: boolean;
+};
+
+export type GetSupplierMonthlySpendParams = {
+  /**
+   * Number of months to include (default 12)
+   * @minimum 1
+   * @maximum 24
+   */
+  months?: number;
+};
+
+export type GetSupplierTopProductsParams = {
+  /**
+   * Max number of products to return (default 5)
+   * @minimum 1
+   * @maximum 20
+   */
+  limit?: number;
 };
 
 export type ListProductsParams = {
