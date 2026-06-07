@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useId, useCallback } from "react";
-import { Layout } from "@/components/layout";
+import { Layout, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -113,7 +113,8 @@ const INSIGHT_CONFIG = {
     bg: "bg-rose-50",
     border: "border-rose-200",
     badge: "bg-rose-100 text-rose-600",
-    label: "Podwyzka ceny",
+    accentBar: "bg-rose-400",
+    label: "Podwyżka ceny",
   },
   quantity_anomaly: {
     icon: PackageSearch,
@@ -121,7 +122,8 @@ const INSIGHT_CONFIG = {
     bg: "bg-amber-50",
     border: "border-amber-200",
     badge: "bg-amber-100 text-amber-700",
-    label: "Anomalia ilosci",
+    accentBar: "bg-amber-400",
+    label: "Anomalia ilości",
   },
   savings_opportunity: {
     icon: ArrowDownRight,
@@ -129,7 +131,8 @@ const INSIGHT_CONFIG = {
     bg: "bg-emerald-50",
     border: "border-emerald-200",
     badge: "bg-emerald-100 text-emerald-700",
-    label: "Szansa oszczednosci",
+    accentBar: "bg-emerald-400",
+    label: "Szansa oszczędności",
   },
 } as const;
 
@@ -137,32 +140,32 @@ const QUICK_CHIPS: Array<{ group: string; chips: string[] }> = [
   {
     group: "Produkty",
     chips: [
-      "Ktore produkty drozaly w ostatnim miesiacu?",
-      "Pokaz 5 produktow z najwyzszym spendem",
-      "Co podrozalo najbardziej procentowo?",
+      "Które produkty drożały w ostatnim miesiącu?",
+      "Pokaż 5 produktów z najwyższym spendem",
+      "Co podrożało najbardziej procentowo?",
     ],
   },
   {
     group: "Koszty",
     chips: [
-      "Jaki jest moj laczny food cost?",
-      "Porownaj wydatki miesiac do miesiaca",
-      "Gdzie trace najwiecej przez podwyzki?",
+      "Jaki jest mój łączny food cost?",
+      "Porównaj wydatki miesiąc do miesiąca",
+      "Gdzie tracę najwięcej przez podwyżki?",
     ],
   },
   {
-    group: "Ilosci",
+    group: "Ilości",
     chips: [
-      "Gdzie zamawiamy nadmiernie duzo?",
-      "Anomalie ilosciowe w ostatnim miesiacu",
+      "Gdzie zamawiamy nadmiernie dużo?",
+      "Anomalie ilościowe w ostatnim miesiącu",
     ],
   },
   {
     group: "Dostawcy",
     chips: [
-      "Ktory dostawca jest najdrozszy?",
-      "Porownaj ceny tego samego produktu u roznych dostawcow",
-      "Gdzie moge wynegocjowac lepsza cene?",
+      "Który dostawca jest najdroższy?",
+      "Porównaj ceny tego samego produktu u różnych dostawców",
+      "Gdzie mogę wynegocjować lepszą cenę?",
     ],
   },
 ];
@@ -184,52 +187,65 @@ function InsightCard({ card }: { card: InsightCardData }) {
   return (
     <div
       className={cn(
-        "bg-white rounded-2xl border p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow",
+        "bg-white rounded-2xl border overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-200 group",
         cfg.border,
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div
-          className={cn(
-            "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
-            cfg.bg,
-          )}
-        >
-          <Icon className={cn("w-[18px] h-[18px]", cfg.color)} />
+      {/* Accent top bar */}
+      <div className={cn("h-1 w-full", cfg.accentBar)} />
+
+      <div className="p-5 flex flex-col gap-4 flex-1">
+        {/* Top row: icon + badge */}
+        <div className="flex items-start justify-between gap-2">
+          <div
+            className={cn(
+              "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+              cfg.bg,
+            )}
+          >
+            <Icon className={cn("w-[18px] h-[18px]", cfg.color)} />
+          </div>
+          <span
+            className={cn(
+              "text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0",
+              cfg.badge,
+            )}
+          >
+            {cfg.label}
+          </span>
         </div>
-        <span
-          className={cn(
-            "text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0",
-            cfg.badge,
-          )}
-        >
-          {cfg.label}
-        </span>
-      </div>
 
-      <div className="flex-1">
-        <h3 className="text-sm font-semibold text-gray-900 mb-1 leading-snug">
-          {card.title}
-        </h3>
-        <p className="text-xs text-gray-500 leading-relaxed">{card.description}</p>
-      </div>
+        {/* Content */}
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-gray-900 mb-1 leading-snug">
+            {card.title}
+          </h3>
+          <p className="text-xs text-gray-500 leading-relaxed">{card.description}</p>
+        </div>
 
-      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-        <span
-          className={cn(
-            "text-base font-bold",
-            isPositive ? "text-emerald-600" : "text-rose-600",
-          )}
-        >
-          {card.impactLabel}
-        </span>
-        <Link
-          href={href}
-          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
-        >
-          Szczegoly
-          <ChevronRight className="w-3 h-3" />
-        </Link>
+        {/* Impact + CTA */}
+        <div className="flex items-end justify-between pt-3 border-t border-gray-100">
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
+              Wpływ
+            </p>
+            <span
+              className={cn(
+                "text-xl font-bold tracking-tight",
+                isPositive ? "text-emerald-600" : "text-rose-600",
+              )}
+            >
+              {card.impactLabel}
+            </span>
+          </div>
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/8 hover:bg-primary/15 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Szczegóły
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -241,18 +257,26 @@ function InsightsSkeleton() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3 shadow-sm"
+          className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm"
         >
-          <div className="flex justify-between">
-            <Skeleton className="w-9 h-9 rounded-xl" />
-            <Skeleton className="w-24 h-5 rounded-full" />
-          </div>
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-2/3" />
-          <div className="flex justify-between pt-1">
-            <Skeleton className="h-5 w-20" />
-            <Skeleton className="h-4 w-16" />
+          <div className="h-1 w-full bg-gray-200" />
+          <div className="p-5 space-y-4">
+            <div className="flex justify-between">
+              <Skeleton className="w-9 h-9 rounded-xl" />
+              <Skeleton className="w-24 h-5 rounded-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+            <div className="flex justify-between pt-3 border-t border-gray-100">
+              <div className="space-y-1">
+                <Skeleton className="h-2.5 w-10" />
+                <Skeleton className="h-6 w-20" />
+              </div>
+              <Skeleton className="h-8 w-20 rounded-lg" />
+            </div>
           </div>
         </div>
       ))}
@@ -268,13 +292,13 @@ function AiReplyCard({ data }: { data: ChatReply }) {
       <p className="text-sm text-gray-800 leading-relaxed">{data.summary}</p>
 
       {data.kpiCards && data.kpiCards.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {data.kpiCards.map((kpi, i) => (
             <div
               key={i}
-              className="bg-white rounded-xl p-3 border border-gray-200"
+              className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm"
             >
-              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1.5 font-medium">
                 {kpi.label}
               </p>
               <p className="text-lg font-bold text-gray-900 leading-none">
@@ -283,10 +307,13 @@ function AiReplyCard({ data }: { data: ChatReply }) {
               {kpi.delta && (
                 <p
                   className={cn(
-                    "text-[11px] font-medium mt-1",
+                    "text-[11px] font-semibold mt-1.5 flex items-center gap-0.5",
                     kpi.deltaPositive ? "text-emerald-600" : "text-rose-500",
                   )}
                 >
+                  {kpi.deltaPositive
+                    ? <ArrowDownRight className="w-3 h-3" />
+                    : <ArrowUpRight className="w-3 h-3" />}
                   {kpi.delta}
                 </p>
               )}
@@ -298,14 +325,14 @@ function AiReplyCard({ data }: { data: ChatReply }) {
       {data.table &&
         data.table.headers.length > 0 &&
         data.table.rows.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   {data.table.headers.map((h, i) => (
                     <th
                       key={i}
-                      className="text-left px-3 py-2.5 font-semibold text-gray-600 whitespace-nowrap"
+                      className="text-left px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px] whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -316,12 +343,15 @@ function AiReplyCard({ data }: { data: ChatReply }) {
                 {data.table.rows.map((row, ri) => (
                   <tr
                     key={ri}
-                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50/70 transition-colors"
                   >
                     {row.map((cell, ci) => (
                       <td
                         key={ci}
-                        className="px-3 py-2.5 text-gray-700 whitespace-nowrap"
+                        className={cn(
+                          "px-3 py-2.5 whitespace-nowrap",
+                          ci === 0 ? "font-medium text-gray-800" : "text-gray-600",
+                        )}
                       >
                         {cell}
                       </td>
@@ -334,8 +364,8 @@ function AiReplyCard({ data }: { data: ChatReply }) {
         )}
 
       {data.recommendation && (
-        <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
-          <p className="text-[10px] font-semibold text-teal-700 uppercase tracking-wide mb-1">
+        <div className="bg-teal-50 border border-teal-200 rounded-xl px-4 py-3.5">
+          <p className="text-[10px] font-bold text-teal-600 uppercase tracking-wider mb-1.5">
             Rekomendacja
           </p>
           <p className="text-sm text-teal-800 leading-relaxed">
@@ -348,7 +378,11 @@ function AiReplyCard({ data }: { data: ChatReply }) {
         <div className="flex flex-wrap gap-2">
           {data.actions.map((a, i) => (
             <Link key={i} href={a.href}>
-              <Button variant="outline" size="sm" className="text-xs h-7 gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 gap-1 border-gray-200 hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+              >
                 {a.label}
                 <ArrowUpRight className="w-3 h-3" />
               </Button>
@@ -389,39 +423,37 @@ function SessionSidebar({
 
   if (sessions.length === 0 && !loading) {
     return (
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onNew}
-          className="gap-1.5 text-xs h-8"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Nowa sesja
-        </Button>
-      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onNew}
+        className="gap-1.5 text-xs h-8"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        Nowa sesja
+      </Button>
     );
   }
 
   return (
     <div className="relative">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <Button
           variant="outline"
           size="sm"
           onClick={() => setOpen((p) => !p)}
-          className="gap-1.5 text-xs h-8 max-w-[220px]"
+          className="gap-1.5 text-xs h-8 max-w-[200px]"
         >
-          <Clock className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">
+          <Clock className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+          <span className="truncate text-gray-600">
             {activeSessionId
               ? (sessions.find((s) => s.id === activeSessionId)?.title ?? "Sesja")
-              : "Historia sesji"}
+              : "Historia"}
           </span>
           {open ? (
-            <ChevronUp className="w-3 h-3 shrink-0" />
+            <ChevronUp className="w-3 h-3 shrink-0 text-gray-400" />
           ) : (
-            <ChevronDown className="w-3 h-3 shrink-0" />
+            <ChevronDown className="w-3 h-3 shrink-0 text-gray-400" />
           )}
         </Button>
         <Button
@@ -432,26 +464,26 @@ function SessionSidebar({
           title="Nowa sesja"
         >
           <Plus className="w-3.5 h-3.5" />
-          Nowa
         </Button>
       </div>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 w-80 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
-          <div className="px-3 py-2 border-b border-gray-100">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
-              Ostatnie sesje (90 dni)
+        <div className="absolute top-full right-0 mt-1.5 z-50 w-72 bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+          <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              Ostatnie sesje
             </p>
+            <p className="text-[10px] text-gray-300">90 dni</p>
           </div>
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-72 overflow-y-auto">
             {loading ? (
               <div className="p-3 space-y-2">
                 {[0, 1, 2].map((i) => (
-                  <Skeleton key={i} className="h-10 w-full rounded-lg" />
+                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
                 ))}
               </div>
             ) : sessions.length === 0 ? (
-              <div className="p-4 text-xs text-gray-400 text-center">
+              <div className="p-5 text-xs text-gray-400 text-center">
                 Brak zapisanych sesji
               </div>
             ) : (
@@ -459,20 +491,23 @@ function SessionSidebar({
                 <div
                   key={s.id}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors group border-b border-gray-50 last:border-0",
-                    activeSessionId === s.id && "bg-primary/5",
+                    "flex items-center gap-2.5 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors group border-b border-gray-50 last:border-0",
+                    activeSessionId === s.id && "bg-primary/5 border-l-2 border-l-primary",
                   )}
                   onClick={() => { onSelect(s.id); setOpen(false); }}
                 >
-                  <MessageSquare className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                  <MessageSquare className={cn(
+                    "w-3.5 h-3.5 shrink-0",
+                    activeSessionId === s.id ? "text-primary" : "text-gray-300",
+                  )} />
                   <div className="flex-1 min-w-0">
                     <p className={cn(
-                      "text-xs font-medium truncate",
-                      activeSessionId === s.id ? "text-primary" : "text-gray-800",
+                      "text-xs font-medium truncate leading-tight",
+                      activeSessionId === s.id ? "text-primary" : "text-gray-700",
                     )}>
                       {s.title}
                     </p>
-                    <p className="text-[10px] text-gray-400">
+                    <p className="text-[10px] text-gray-400 mt-0.5">
                       {new Date(s.updatedAt).toLocaleDateString("pl-PL")}
                       {" · "}
                       {s.messageCount} wiad.
@@ -480,7 +515,7 @@ function SessionSidebar({
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); onDelete(s.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-rose-50 hover:text-rose-500 transition-all text-gray-400"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-rose-50 hover:text-rose-500 transition-all text-gray-300 shrink-0"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -537,7 +572,6 @@ function ChatCfo() {
       setActiveSessionId(session.id);
       setLoadingSessionId(null);
     } else if (getSessionQuery.isError) {
-      // Failed to load session — reset to new session state
       setLoadingSessionId(null);
       setActiveSessionId(null);
       setMessages([]);
@@ -597,7 +631,7 @@ function ChatCfo() {
             createSessionMutation.mutate(
               { data: { title: q.slice(0, 120), messages: serialized } },
               {
-                onSuccess(session) {
+                onSuccess(session: unknown) {
                   const s = session as { id: number };
                   setActiveSessionId(s.id);
                   sessionsQuery.refetch();
@@ -617,8 +651,7 @@ function ChatCfo() {
             role: "assistant",
             data: {
               type: "general",
-              summary:
-                "Przepraszam, wystapil problem z polaczeniem. Sprobuj ponownie.",
+              summary: "Przepraszam, wystąpił problem z połączeniem. Spróbuj ponownie.",
               kpiCards: [],
               actions: [],
             },
@@ -667,9 +700,9 @@ function ChatCfo() {
   const sessions = (sessionsQuery.data ?? []) as SessionSummary[];
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3 bg-gray-50/50">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-primary" />
@@ -677,7 +710,7 @@ function ChatCfo() {
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Chat CFO</h2>
             <p className="text-[11px] text-gray-400">
-              Zadaj pytanie o koszty, ceny lub dostawcow
+              Zadaj pytanie o koszty, ceny lub dostawców
             </p>
           </div>
         </div>
@@ -693,7 +726,7 @@ function ChatCfo() {
 
       {/* Loading session */}
       {loadingSessionId !== null && getSessionQuery.isLoading && (
-        <div className="px-5 py-8 flex items-center justify-center gap-2 text-sm text-gray-400">
+        <div className="px-5 py-10 flex items-center justify-center gap-2 text-sm text-gray-400">
           <RefreshCw className="w-4 h-4 animate-spin" />
           Wczytywanie sesji…
         </div>
@@ -701,21 +734,21 @@ function ChatCfo() {
 
       {/* Messages */}
       {messages.length > 0 && loadingSessionId === null && (
-        <div className="px-5 py-4 space-y-5 max-h-[520px] overflow-y-auto">
+        <div className="px-5 py-5 space-y-5 max-h-[520px] overflow-y-auto">
           {messages.map((msg) => (
             <div key={msg.id}>
               {msg.role === "user" ? (
                 <div className="flex justify-end">
-                  <div className="bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-md text-sm">
+                  <div className="bg-primary text-white rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-md text-sm leading-relaxed shadow-sm">
                     {msg.text}
                   </div>
                 </div>
               ) : (
-                <div className="flex gap-3">
-                  <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="flex gap-3 items-start">
+                  <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 ring-1 ring-primary/10">
                     <Sparkles className="w-3.5 h-3.5 text-primary" />
                   </div>
-                  <div className="flex-1 bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 border border-gray-100">
+                  <div className="flex-1 bg-white rounded-2xl rounded-tl-sm px-4 py-3.5 border border-gray-200 shadow-sm">
                     <AiReplyCard data={msg.data} />
                   </div>
                 </div>
@@ -724,17 +757,17 @@ function ChatCfo() {
           ))}
 
           {chatMutation.isPending && (
-            <div className="flex gap-3">
-              <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <div className="flex gap-3 items-start">
+              <div className="w-7 h-7 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 ring-1 ring-primary/10">
                 <Sparkles className="w-3.5 h-3.5 text-primary animate-pulse" />
               </div>
-              <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-3 border border-gray-100">
+              <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-3.5 border border-gray-200 shadow-sm">
                 <div className="flex gap-1.5 items-center h-5">
                   {[0, 1, 2].map((i) => (
                     <div
                       key={i}
-                      className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: `${i * 0.15}s` }}
+                      className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"
+                      style={{ animationDelay: `${i * 0.18}s` }}
                     />
                   ))}
                 </div>
@@ -747,10 +780,10 @@ function ChatCfo() {
 
       {/* Quick chips — only when no messages */}
       {messages.length === 0 && loadingSessionId === null && (
-        <div className="px-5 pt-5 pb-3 space-y-4">
+        <div className="px-5 pt-5 pb-4 space-y-4">
           {QUICK_CHIPS.map((group) => (
             <div key={group.group}>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
                 {group.group}
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -759,7 +792,7 @@ function ChatCfo() {
                     key={chip}
                     onClick={() => sendMessage(chip)}
                     disabled={chatMutation.isPending}
-                    className="text-xs px-3 py-1.5 rounded-full bg-gray-100 hover:bg-primary/10 hover:text-primary text-gray-700 transition-colors border border-transparent hover:border-primary/20 disabled:opacity-50 text-left"
+                    className="text-xs px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 hover:bg-primary/8 hover:text-primary hover:border-primary/30 text-gray-600 transition-all duration-150 disabled:opacity-50"
                   >
                     {chip}
                   </button>
@@ -771,25 +804,23 @@ function ChatCfo() {
       )}
 
       {/* Input */}
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-gray-100 bg-gray-50/30 mt-auto">
         <div className="flex gap-2 items-end">
           <div className="flex-1 relative">
-            <Sparkles className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
             <textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Zapytaj o produkty, ceny, ilosci, dostawcow lub marze…"
+              placeholder="Zapytaj o produkty, ceny, ilości, dostawców lub marżę…"
               rows={1}
               disabled={chatMutation.isPending || loadingSessionId !== null}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none transition-all disabled:opacity-50"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none transition-all disabled:opacity-50 bg-white"
               style={{ maxHeight: "120px", overflowY: "auto" }}
               onInput={(e) => {
                 const t = e.currentTarget;
                 t.style.height = "auto";
-                t.style.height =
-                  Math.min(t.scrollHeight, 120) + "px";
+                t.style.height = Math.min(t.scrollHeight, 120) + "px";
               }}
             />
           </div>
@@ -809,9 +840,9 @@ function ChatCfo() {
         {messages.length > 0 && (
           <button
             onClick={handleNewSession}
-            className="mt-2 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+            className="mt-2 text-[11px] text-gray-400 hover:text-primary transition-colors"
           >
-            Nowa sesja
+            + Nowa sesja
           </button>
         )}
       </div>
@@ -831,6 +862,12 @@ function marginBg(pct: number) {
   if (pct >= 65) return "bg-emerald-50";
   if (pct >= 50) return "bg-amber-50";
   return "bg-rose-50";
+}
+
+function marginRowBg(pct: number) {
+  if (pct < 50) return "bg-rose-50/50";
+  if (pct < 65) return "bg-amber-50/30";
+  return "";
 }
 
 function FoodCostAi() {
@@ -856,14 +893,14 @@ function FoodCostAi() {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
         <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center">
           <UtensilsCrossed className="w-4 h-4 text-orange-500" />
         </div>
         <div>
           <h2 className="text-sm font-semibold text-gray-900">Food Cost AI</h2>
           <p className="text-[11px] text-gray-400">
-            Wklej menu z recepturami i dane sprzedazy — AI obliczy marze
+            Wklej menu z recepturami i dane sprzedaży — AI obliczy marżę
           </p>
         </div>
       </div>
@@ -871,33 +908,29 @@ function FoodCostAi() {
       <div className="p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">
-              Menu i receptury
-              <span className="font-normal text-gray-400 ml-1">
-                (skladniki + ilosci)
-              </span>
+            <label className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+              Karta menu / receptury
+              <span className="font-normal text-gray-400">(składniki + ilości)</span>
             </label>
             <textarea
               value={menuText}
               onChange={(e) => setMenuText(e.target.value)}
-              placeholder={`np.\nMakaron carbonara (2 porcje):\n- 200g spaghetti\n- 100g boczek wedzony\n- 2 jajka\n- 30g parmezan\nCena menu: 32 zl`}
+              placeholder={`np.\nMakaron carbonara (2 porcje):\n- 200g spaghetti\n- 100g boczek wędzony\n- 2 jajka\n- 30g parmezan\nCena menu: 32 zł`}
               rows={9}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none font-mono"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none font-mono bg-gray-50/50"
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1.5 block">
-              Sprzedaz tygodniowa
-              <span className="font-normal text-gray-400 ml-1">
-                (opcjonalnie)
-              </span>
+            <label className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+              Sprzedaż tygodniowa
+              <span className="font-normal text-gray-400">(opcjonalnie)</span>
             </label>
             <textarea
               value={salesText}
               onChange={(e) => setSalesText(e.target.value)}
-              placeholder={`np.\nMakaron carbonara: 45 porcji\nBurger wolowy: 62 porcje\nSalatka grecka: 28 porcji`}
+              placeholder={`np.\nMakaron carbonara: 45 porcji\nBurger wołowy: 62 porcje\nSałatka grecka: 28 porcji`}
               rows={9}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none font-mono"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none font-mono bg-gray-50/50"
             />
           </div>
         </div>
@@ -910,7 +943,7 @@ function FoodCostAi() {
           {mutation.isPending ? (
             <>
               <RefreshCw className="w-4 h-4 animate-spin" />
-              Analizuje food cost…
+              Analizuję food cost…
             </>
           ) : (
             <>
@@ -922,28 +955,32 @@ function FoodCostAi() {
 
         {mutation.isError && (
           <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-700">
-            Nie udalo sie przetworzyc danych. Sprawdz format receptur i sprobuj
-            ponownie.
+            Nie udało się przetworzyć danych. Sprawdź format receptur i spróbuj ponownie.
           </div>
         )}
 
         {result && (
-          <div className="space-y-4 pt-2">
-            {/* Summary KPIs */}
+          <div className="space-y-4 pt-1">
+            {/* Summary row */}
             <div className="flex flex-wrap gap-3">
               {result.avgMarginPct != null && (
                 <div
                   className={cn(
-                    "rounded-xl px-4 py-3 border border-gray-200",
+                    "rounded-xl px-5 py-3.5 border",
                     marginBg(result.avgMarginPct),
+                    result.avgMarginPct >= 65
+                      ? "border-emerald-200"
+                      : result.avgMarginPct >= 50
+                        ? "border-amber-200"
+                        : "border-rose-200",
                   )}
                 >
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
-                    Srednia marza
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    Średnia marża
                   </p>
                   <p
                     className={cn(
-                      "text-2xl font-bold",
+                      "text-3xl font-bold leading-none",
                       marginColor(result.avgMarginPct),
                     )}
                   >
@@ -952,11 +989,11 @@ function FoodCostAi() {
                 </div>
               )}
               {result.summary && (
-                <div className="flex-1 min-w-[200px] bg-teal-50 border border-teal-200 rounded-xl px-4 py-3">
-                  <p className="text-[10px] font-semibold text-teal-700 uppercase tracking-wide mb-1">
-                    Ocena
+                <div className="flex-1 min-w-[200px] bg-teal-50 border border-teal-200 rounded-xl px-4 py-3.5">
+                  <p className="text-[10px] font-bold text-teal-600 uppercase tracking-wider mb-1.5">
+                    Ocena AI
                   </p>
-                  <p className="text-xs text-teal-800 leading-relaxed">
+                  <p className="text-sm text-teal-800 leading-relaxed">
                     {result.summary}
                   </p>
                 </div>
@@ -964,33 +1001,33 @@ function FoodCostAi() {
             </div>
 
             {/* Dishes table */}
-            <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left px-3 py-2.5 font-semibold text-gray-600">
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
                       Danie
                     </th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
-                      Koszt sk.
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
+                      Koszt skł.
                     </th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
                       Cena menu
                     </th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
-                      Marza
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
+                      Marża
                     </th>
                     {result.dishes.some((d) => d.sales != null) && (
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
-                        Sprzedaz
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
+                        Sprzedaż
                       </th>
                     )}
                     {result.dishes.some((d) => d.grossProfit != null) && (
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
                         Zysk brutto
                       </th>
                     )}
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-600">
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
                       Sugerowana cena
                     </th>
                   </tr>
@@ -999,48 +1036,71 @@ function FoodCostAi() {
                   {result.dishes.map((d, i) => (
                     <tr
                       key={i}
-                      className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                      className={cn(
+                        "border-b border-gray-100 last:border-0 transition-colors",
+                        marginRowBg(d.marginPct),
+                      )}
                     >
-                      <td className="px-3 py-2.5 font-medium text-gray-800">
+                      <td className="px-3 py-2.5 font-medium text-gray-800 max-w-[180px] truncate">
                         {d.name}
                       </td>
-                      <td className="px-3 py-2.5 text-right text-gray-700">
+                      <td className="px-3 py-2.5 text-right text-gray-600 font-mono">
                         {PLN(d.ingredientCost)}
                       </td>
-                      <td className="px-3 py-2.5 text-right text-gray-700">
+                      <td className="px-3 py-2.5 text-right text-gray-600 font-mono">
                         {PLN(d.salePrice)}
                       </td>
-                      <td
-                        className={cn(
-                          "px-3 py-2.5 text-right font-semibold",
-                          marginColor(d.marginPct),
-                        )}
-                      >
-                        {PCT(d.marginPct)}
+                      <td className="px-3 py-2.5 text-right">
+                        <span
+                          className={cn(
+                            "font-bold",
+                            marginColor(d.marginPct),
+                          )}
+                        >
+                          {PCT(d.marginPct)}
+                        </span>
                       </td>
                       {result.dishes.some((x) => x.sales != null) && (
-                        <td className="px-3 py-2.5 text-right text-gray-700">
+                        <td className="px-3 py-2.5 text-right text-gray-500">
                           {d.sales != null ? `${d.sales} szt.` : "—"}
                         </td>
                       )}
                       {result.dishes.some((x) => x.grossProfit != null) && (
-                        <td className="px-3 py-2.5 text-right text-gray-700">
+                        <td className="px-3 py-2.5 text-right text-gray-600 font-mono">
                           {d.grossProfit != null ? PLN(d.grossProfit) : "—"}
                         </td>
                       )}
                       <td className="px-3 py-2.5 text-right">
                         {d.suggestedPrice != null ? (
-                          <span className="font-semibold text-rose-600">
+                          <span className="inline-flex items-center gap-1 font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
                             {PLN(d.suggestedPrice)}
                           </span>
                         ) : (
-                          <span className="text-emerald-600 font-medium">OK</span>
+                          <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                            OK
+                          </span>
                         )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-4 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-200 shrink-0" />
+                Marża ≥ 65% — dobra
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-amber-100 border border-amber-200 shrink-0" />
+                50–65% — do monitorowania
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-rose-100 border border-rose-200 shrink-0" />
+                {"< 50%"} — niska marża
+              </span>
             </div>
           </div>
         )}
@@ -1059,68 +1119,83 @@ export default function AiCfoPage() {
 
   return (
     <Layout>
-      <div className="px-6 py-8 max-w-6xl mx-auto space-y-8">
-        {/* Page header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">AI CFO</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Analizy AI, chat z danymi i kalkulator food cost
-          </p>
-        </div>
+      <div className="px-4 py-5 md:px-6 md:py-6 max-w-6xl mx-auto">
+        <PageHeader
+          title="AI CFO"
+          subtitle="Kluczowe sygnały, chat z danymi i kalkulator food cost"
+          action={
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => insightsQuery.refetch()}
+              disabled={insightsQuery.isFetching}
+              className="gap-2 shrink-0"
+            >
+              <RefreshCw className={cn("w-4 h-4", insightsQuery.isFetching && "animate-spin")} />
+              <span className="hidden sm:inline">Odśwież sygnały</span>
+            </Button>
+          }
+        />
 
-        {/* Top insights */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart2 className="w-4 h-4 text-gray-500" />
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-              Kluczowe sygnaly (ostatnie 90 dni)
-            </h2>
-          </div>
-          {insightsQuery.isLoading ? (
-            <InsightsSkeleton />
-          ) : cards.length === 0 ? (
-            <div className="bg-gray-50 rounded-2xl border border-gray-200 px-6 py-8 text-center">
-              <p className="text-sm text-gray-500">
-                Brak danych do analizy. Importuj faktury, aby zobaczyc sygnaly cenowe.
-              </p>
+        <div className="space-y-6">
+          {/* ── Top insights ── */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart2 className="w-4 h-4 text-gray-400" />
+              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                Kluczowe sygnały (ostatnie 90 dni)
+              </h2>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {cards.map((card, i) => (
-                <InsightCard key={i} card={card} />
-              ))}
+            {insightsQuery.isLoading ? (
+              <InsightsSkeleton />
+            ) : cards.length === 0 ? (
+              <div className="bg-gray-50 rounded-2xl border border-gray-200 px-6 py-10 text-center">
+                <BarChart2 className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm font-medium text-gray-500 mb-1">Brak danych do analizy</p>
+                <p className="text-xs text-gray-400">Importuj faktury, aby zobaczyć sygnały cenowe.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {cards.map((card, i) => (
+                  <InsightCard key={i} card={card} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ── Tab section ── */}
+          <section>
+            {/* Tab switcher */}
+            <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl w-fit mb-5">
+              <button
+                onClick={() => setTab("chat")}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                  tab === "chat"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700",
+                )}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Chat CFO
+              </button>
+              <button
+                onClick={() => setTab("food-cost")}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                  tab === "food-cost"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700",
+                )}
+              >
+                <UtensilsCrossed className="w-3.5 h-3.5" />
+                Food Cost AI
+              </button>
             </div>
-          )}
-        </section>
 
-        {/* Tab switcher */}
-        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
-          <button
-            onClick={() => setTab("chat")}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              tab === "chat"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700",
-            )}
-          >
-            Chat CFO
-          </button>
-          <button
-            onClick={() => setTab("food-cost")}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all",
-              tab === "food-cost"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700",
-            )}
-          >
-            Food Cost AI
-          </button>
+            {tab === "chat" ? <ChatCfo /> : <FoodCostAi />}
+          </section>
         </div>
-
-        {/* Tab content */}
-        {tab === "chat" ? <ChatCfo /> : <FoodCostAi />}
       </div>
     </Layout>
   );
