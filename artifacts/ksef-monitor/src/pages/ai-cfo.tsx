@@ -33,7 +33,10 @@ import {
   MessageSquare,
   Upload,
   FileImage,
+  Download,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Link } from "wouter";
 
 // ─── Inline types ─────────────────────────────────────────────────────────────
@@ -885,6 +888,157 @@ function FoodCostAi() {
   const mutation = usePostAiCfoFoodCost();
   const extractMutation = usePostAiCfoExtractMenu();
 
+  function downloadPdf() {
+    if (!result) return;
+
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+
+    const reportDate = new Date().toLocaleDateString("pl-PL", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(20, 184, 166);
+    doc.text("Raport Food Cost AI", margin, 20);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Wygenerowano: ${reportDate}`, margin, 27);
+
+    doc.setDrawColor(20, 184, 166);
+    doc.setLineWidth(0.5);
+    doc.line(margin, 31, pageWidth - margin, 31);
+
+    let cursorY = 38;
+
+    if (result.avgMarginPct != null) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(60, 60, 60);
+      doc.text("Srednia marza:", margin, cursorY);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      const marginPct = result.avgMarginPct;
+      if (marginPct >= 65) {
+        doc.setTextColor(5, 150, 105);
+      } else if (marginPct >= 50) {
+        doc.setTextColor(180, 120, 0);
+      } else {
+        doc.setTextColor(220, 38, 38);
+      }
+      doc.text(`${marginPct.toFixed(1)}%`, margin + 38, cursorY);
+      cursorY += 7;
+    }
+
+    if (result.summary) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      const summaryLines = doc.splitTextToSize(result.summary, pageWidth - margin * 2);
+      doc.text(summaryLines, margin, cursorY);
+      cursorY += summaryLines.length * 5 + 4;
+    }
+
+    cursorY += 3;
+
+    const hasSales = result.dishes.some((d) => d.sales != null);
+    const hasGrossProfit = result.dishes.some((d) => d.grossProfit != null);
+
+    const head: string[][] = [["Danie", "Koszt skl.", "Cena menu", "Food cost %", "Marza %"]];
+    if (hasSales) head[0].push("Sprzedaz");
+    if (hasGrossProfit) head[0].push("Zysk brutto");
+    head[0].push("Sug. cena");
+
+    const pln = (n: number) =>
+      new Intl.NumberFormat("pl-PL", {
+        style: "currency",
+        currency: "PLN",
+        maximumFractionDigits: 0,
+      }).format(n);
+
+    const foodCostPct = (d: FoodCostDish) =>
+      d.salePrice > 0 ? (d.ingredientCost / d.salePrice) * 100 : 0;
+
+    const body = result.dishes.map((d) => {
+      const fc = foodCostPct(d);
+      const row = [
+        d.name,
+        pln(d.ingredientCost),
+        pln(d.salePrice),
+        `${fc.toFixed(1)}%`,
+        `${d.marginPct.toFixed(1)}%`,
+      ];
+      if (hasSales) row.push(d.sales != null ? `${d.sales} szt.` : "—");
+      if (hasGrossProfit) row.push(d.grossProfit != null ? pln(d.grossProfit) : "—");
+      row.push(d.suggestedPrice != null ? pln(d.suggestedPrice) : "OK");
+      return row;
+    });
+
+    const marginColIndex = 4;
+
+    autoTable(doc, {
+      startY: cursorY,
+      head,
+      body,
+      margin: { left: margin, right: margin },
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        font: "helvetica",
+      },
+      headStyles: {
+        fillColor: [20, 184, 166],
+        textColor: 255,
+        fontStyle: "bold",
+        halign: "center",
+      },
+      columnStyles: {
+        0: { halign: "left" },
+        1: { halign: "right" },
+        2: { halign: "right" },
+        3: { halign: "right" },
+        4: { halign: "right", fontStyle: "bold" },
+      },
+      didParseCell(data) {
+        if (data.section === "body" && data.column.index === marginColIndex) {
+          const val = parseFloat((data.cell.raw as string).replace(",", "."));
+          if (!isNaN(val)) {
+            if (val < 50) {
+              data.cell.styles.textColor = [220, 38, 38];
+            } else if (val < 65) {
+              data.cell.styles.textColor = [180, 120, 0];
+            } else {
+              data.cell.styles.textColor = [5, 150, 105];
+            }
+          }
+        }
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      tableLineColor: [226, 232, 240],
+      tableLineWidth: 0.3,
+    });
+
+    const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+
+    doc.setFontSize(8);
+    doc.setTextColor(160, 160, 160);
+    doc.setFont("helvetica", "italic");
+    doc.text(
+      "Marza >= 65% — dobra | 50–65% — do monitorowania | < 50% — niska marza",
+      margin,
+      finalY + 7,
+    );
+
+    const filename = `food-cost-raport-${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(filename);
+  }
+
   function analyze() {
     if (!menuText.trim()) return;
     setResult(null);
@@ -1053,6 +1207,19 @@ function FoodCostAi() {
 
         {result && (
           <div className="space-y-4 pt-1">
+            {/* Download button */}
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadPdf}
+                className="gap-2 text-xs h-8 border-gray-200 hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Pobierz raport PDF
+              </Button>
+            </div>
+
             {/* Summary row */}
             <div className="flex flex-wrap gap-3">
               {result.avgMarginPct != null && (
