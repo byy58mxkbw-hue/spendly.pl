@@ -243,21 +243,110 @@ router.get("/ai-cfo/insights", async (req, res): Promise<void> => {
   res.json(cards);
 });
 
+// ─── Entity enrichment for chat actions ──────────────────────────────────────
+
+type RawAction = { label: string; href: string };
+type EnrichedAction = { label: string; href: string; productId?: number; supplierId?: number };
+
+async function enrichActions(
+  actions: RawAction[],
+  fullText: string,
+  userId: string,
+): Promise<EnrichedAction[]> {
+  if (!actions.length) return [];
+
+  const [productsRes, suppliersRes] = await Promise.allSettled([
+    db.execute(sql`
+      SELECT id, name FROM products WHERE user_id = ${userId} ORDER BY length(name) DESC
+    `),
+    db.execute(sql`
+      SELECT id, name FROM suppliers WHERE user_id = ${userId} AND is_active = true ORDER BY length(name) DESC
+    `),
+  ]);
+
+  const products = productsRes.status === "fulfilled"
+    ? (productsRes.value.rows as Array<{ id: number; name: string }>)
+    : [];
+  const suppliers = suppliersRes.status === "fulfilled"
+    ? (suppliersRes.value.rows as Array<{ id: number; name: string }>)
+    : [];
+
+  const lowerText = fullText.toLowerCase();
+
+  function findProduct(): number | undefined {
+    for (const p of products) {
+      if (lowerText.includes(p.name.toLowerCase())) return p.id;
+    }
+    return undefined;
+  }
+
+  function findSupplier(): number | undefined {
+    for (const s of suppliers) {
+      if (lowerText.includes(s.name.toLowerCase())) return s.id;
+    }
+    return undefined;
+  }
+
+  let cachedProductId: number | undefined | null = null;
+  let cachedSupplierId: number | undefined | null = null;
+
+  function getProductId() {
+    if (cachedProductId === null) cachedProductId = findProduct() ?? undefined;
+    return cachedProductId;
+  }
+
+  function getSupplierId() {
+    if (cachedSupplierId === null) cachedSupplierId = findSupplier() ?? undefined;
+    return cachedSupplierId;
+  }
+
+  return actions.map((action): EnrichedAction => {
+    const href = action.href;
+
+    const productIdInHref = href.match(/^\/products\?id=(\d+)/);
+    if (productIdInHref) {
+      const pid = parseInt(productIdInHref[1], 10);
+      const valid = products.some((p) => p.id === pid);
+      return valid ? { ...action, productId: pid } : { ...action, href: "/products" };
+    }
+
+    const supplierIdInHref = href.match(/^\/suppliers\/(\d+)$/);
+    if (supplierIdInHref) {
+      const sid = parseInt(supplierIdInHref[1], 10);
+      const valid = suppliers.some((s) => s.id === sid);
+      return valid ? { ...action, supplierId: sid } : { ...action, href: "/suppliers" };
+    }
+
+    if (href === "/products") {
+      const pid = getProductId();
+      if (pid) return { ...action, href: `/products?id=${pid}`, productId: pid };
+    }
+
+    if (href === "/suppliers") {
+      const sid = getSupplierId();
+      if (sid) return { ...action, href: `/suppliers/${sid}`, supplierId: sid };
+    }
+
+    return action;
+  });
+}
+
 // ─── Route: POST /ai-cfo/chat ─────────────────────────────────────────────────
 
 async function buildChatContext(userId: string, sinceStr: string): Promise<string> {
   const [spendRes, topProductsRes, monthlyRes] = await Promise.allSettled([
     db.execute(sql`
-      SELECT s.name AS supplier_name, ROUND(SUM(ii.total_price::numeric), 0) AS total_spend
+      SELECT s.id AS supplier_id, s.name AS supplier_name, ROUND(SUM(ii.total_price::numeric), 0) AS total_spend
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} AND s.is_active = true
-      GROUP BY s.name ORDER BY total_spend DESC LIMIT 8
+      GROUP BY s.id, s.name ORDER BY total_spend DESC LIMIT 8
     `),
     db.execute(sql`
       SELECT
-        p.name AS product_name, s.name AS supplier_name,
+        p.id AS product_id, p.name AS product_name,
+        s.id AS supplier_id, s.name AS supplier_name,
         ROUND(MIN(ii.unit_price::numeric), 2) AS min_price,
         ROUND(MAX(ii.unit_price::numeric), 2) AS max_price,
         ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
@@ -267,7 +356,7 @@ async function buildChatContext(userId: string, sinceStr: string): Promise<strin
       JOIN products p ON ii.product_id = p.id
       JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr}
-      GROUP BY p.name, s.name
+      GROUP BY p.id, p.name, s.id, s.name
       ORDER BY total_spend DESC
       LIMIT 20
     `),
@@ -279,14 +368,20 @@ async function buildChatContext(userId: string, sinceStr: string): Promise<strin
     `),
   ]);
 
-  const suppliers = spendRes.status === "fulfilled"
-    ? (spendRes.value.rows as Array<{supplier_name: string; total_spend: string}>)
-      .map(r => `${r.supplier_name}: ${r.total_spend} zł`).join(", ")
+  const supplierRows = spendRes.status === "fulfilled"
+    ? (spendRes.value.rows as Array<{supplier_id: number; supplier_name: string; total_spend: string}>)
+    : [];
+
+  const suppliers = supplierRows.length
+    ? supplierRows.map(r => `[ID:${r.supplier_id}] ${r.supplier_name}: ${r.total_spend} zł`).join(", ")
     : "(brak)";
 
-  const products = topProductsRes.status === "fulfilled"
-    ? (topProductsRes.value.rows as Array<{product_name: string; supplier_name: string; min_price: string; max_price: string; total_spend: string; purchase_count: string}>)
-      .map(r => `${r.product_name} @ ${r.supplier_name}: ${r.min_price}–${r.max_price} zł/j., wydatki: ${r.total_spend} zł, ${r.purchase_count}x`)
+  const productRows = topProductsRes.status === "fulfilled"
+    ? (topProductsRes.value.rows as Array<{product_id: number; product_name: string; supplier_id: number; supplier_name: string; min_price: string; max_price: string; total_spend: string; purchase_count: string}>)
+    : [];
+
+  const products = productRows.length
+    ? productRows.map(r => `[ID:${r.product_id}] ${r.product_name} @ [ID:${r.supplier_id}] ${r.supplier_name}: ${r.min_price}–${r.max_price} zł/j., wydatki: ${r.total_spend} zł, ${r.purchase_count}x`)
       .join("\n")
     : "(brak)";
 
@@ -296,9 +391,9 @@ async function buildChatContext(userId: string, sinceStr: string): Promise<strin
     : "(brak)";
 
   return `DANE RESTAURACJI (ostatnie 90 dni):
-TOP DOSTAWCY: ${suppliers}
+TOP DOSTAWCY (format [ID:X] nazwa: wydatki): ${suppliers}
 MIESIĘCZNE WYDATKI: ${monthly}
-PRODUKTY I CENY:
+PRODUKTY I CENY (format [ID:X] nazwa @ [ID:Y] dostawca):
 ${products}`;
 }
 
@@ -335,11 +430,18 @@ Odpowiadaj ZAWSZE jako JSON (bez markdown, bez tekstu poza JSON):
   },
   "recommendation": "Konkretna rekomendacja działania z szacowanym efektem PLN.",
   "actions": [
-    {"label": "Etykieta przycisku", "href": "/produkty"}
+    {"label": "Etykieta przycisku", "href": "/products"}
   ]
 }
 
-Dozwolone href: /produkty, /dostawcy, /faktury, /raporty, /alerty
+WAŻNE — zasady tworzenia href w actions:
+- Gdy analizujesz KONKRETNY produkt (znasz jego ID z kontekstu [ID:X]): użyj "/products?id=X" (np. "/products?id=42")
+- Gdy analizujesz KONKRETNEGO dostawcę (znasz jego ID z kontekstu [ID:X]): użyj "/suppliers/X" (np. "/suppliers/7")
+- Lista wszystkich produktów: "/products"
+- Lista wszystkich dostawców: "/suppliers"
+- Faktury: "/invoices"
+- Raporty: "/reports"
+- Alerty cenowe: "/price-alerts"
 Tabela i kpiCards mogą mieć null jeśli nieistotne dla pytania, ale recommendation zawsze musi być.
 Odpowiadaj wyłącznie po polsku.`;
 
@@ -361,10 +463,10 @@ Odpowiadaj wyłącznie po polsku.`;
   const raw = (resp.choices[0]?.message?.content ?? "").trim();
   req.log.info({ rawLen: raw.length }, "ai-cfo chat response");
 
-  let parsed: unknown;
+  let parsed: Record<string, unknown>;
   try {
     const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-    parsed = JSON.parse(cleaned);
+    parsed = JSON.parse(cleaned) as Record<string, unknown>;
   } catch {
     req.log.warn({ raw: raw.slice(0, 300) }, "ai-cfo chat JSON parse failed");
     parsed = {
@@ -375,6 +477,22 @@ Odpowiadaj wyłącznie po polsku.`;
       recommendation: "",
       actions: [],
     };
+  }
+
+  // Server-side enrichment: resolve product/supplier IDs in actions deterministically
+  if (Array.isArray(parsed.actions) && parsed.actions.length > 0) {
+    const summary = typeof parsed.summary === "string" ? parsed.summary : "";
+    const recommendation = typeof parsed.recommendation === "string" ? parsed.recommendation : "";
+    const fullText = `${question} ${summary} ${recommendation}`;
+    try {
+      parsed.actions = await enrichActions(
+        parsed.actions as RawAction[],
+        fullText,
+        userId,
+      );
+    } catch (err) {
+      req.log.warn({ err }, "ai-cfo enrichActions failed, using raw actions");
+    }
   }
 
   res.json(parsed);

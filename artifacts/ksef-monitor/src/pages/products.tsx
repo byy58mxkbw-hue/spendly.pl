@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1024,11 +1024,24 @@ export default function Products() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>("history");
+  const [autoOpenId] = useState<number | null>(() => {
+    const id = new URLSearchParams(window.location.search).get("id");
+    return id ? parseInt(id, 10) : null;
+  });
   const [showKeywordComparison, setShowKeywordComparison] = useState(false);
   const [showNeedsReview, setShowNeedsReview] = useState(false);
   const [categorySpendOpen, setCategorySpendOpen] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const bulkVerify = useBulkVerifyProducts();
+
+  useEffect(() => {
+    if (autoOpenId == null || !products) return;
+    const product = products.find((p) => p.id === autoOpenId);
+    if (product) {
+      setSelectedProduct({ id: product.id, name: product.name });
+      setModalMode("history");
+    }
+  }, [autoOpenId, products]);
 
   const needsReviewCount = products?.filter((p) => p.needsReview === true).length ?? 0;
 

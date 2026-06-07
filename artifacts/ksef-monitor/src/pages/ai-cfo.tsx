@@ -62,6 +62,8 @@ type TableData = {
 type Action = {
   label: string;
   href: string;
+  productId?: number | null;
+  supplierId?: number | null;
 };
 
 type ChatReply = {
@@ -173,7 +175,11 @@ function InsightCard({ card }: { card: InsightCardData }) {
   const isPositive = card.type === "savings_opportunity";
 
   const href =
-    card.productId ? "/produkty" : card.supplierId ? "/dostawcy" : "/faktury";
+    card.productId
+      ? `/products?id=${card.productId}`
+      : card.supplierId
+        ? `/suppliers/${card.supplierId}`
+        : "/invoices";
 
   return (
     <div
