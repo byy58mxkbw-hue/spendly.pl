@@ -23,6 +23,8 @@ import type {
   AdminUsersResponse,
   AiCfoChatBody,
   AiCfoChatResponse,
+  AiCfoExtractMenuBody,
+  AiCfoExtractMenuResponse,
   AiCfoFoodCostBody,
   AiCfoFoodCostResponse,
   AiCfoInsightCard,
@@ -1134,6 +1136,92 @@ export const usePostAiCfoFoodCost = <
   TContext
 > => {
   return useMutation(getPostAiCfoFoodCostMutationOptions(options));
+};
+
+/**
+ * @summary Extract menu items and prices from an image or PDF (base64-encoded)
+ */
+export const getPostAiCfoExtractMenuUrl = () => {
+  return `/api/ai-cfo/extract-menu`;
+};
+
+export const postAiCfoExtractMenu = async (
+  aiCfoExtractMenuBody: AiCfoExtractMenuBody,
+  options?: RequestInit,
+): Promise<AiCfoExtractMenuResponse> => {
+  return customFetch<AiCfoExtractMenuResponse>(getPostAiCfoExtractMenuUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(aiCfoExtractMenuBody),
+  });
+};
+
+export const getPostAiCfoExtractMenuMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postAiCfoExtractMenu>>,
+    TError,
+    { data: BodyType<AiCfoExtractMenuBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof postAiCfoExtractMenu>>,
+  TError,
+  { data: BodyType<AiCfoExtractMenuBody> },
+  TContext
+> => {
+  const mutationKey = ["postAiCfoExtractMenu"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof postAiCfoExtractMenu>>,
+    { data: BodyType<AiCfoExtractMenuBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return postAiCfoExtractMenu(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PostAiCfoExtractMenuMutationResult = NonNullable<
+  Awaited<ReturnType<typeof postAiCfoExtractMenu>>
+>;
+export type PostAiCfoExtractMenuMutationBody = BodyType<AiCfoExtractMenuBody>;
+export type PostAiCfoExtractMenuMutationError = ErrorType<void>;
+
+/**
+ * @summary Extract menu items and prices from an image or PDF (base64-encoded)
+ */
+export const usePostAiCfoExtractMenu = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof postAiCfoExtractMenu>>,
+    TError,
+    { data: BodyType<AiCfoExtractMenuBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof postAiCfoExtractMenu>>,
+  TError,
+  { data: BodyType<AiCfoExtractMenuBody> },
+  TContext
+> => {
+  return useMutation(getPostAiCfoExtractMenuMutationOptions(options));
 };
 
 /**

@@ -7,6 +7,7 @@ import {
   useGetAiCfoInsights,
   usePostAiCfoChat,
   usePostAiCfoFoodCost,
+  usePostAiCfoExtractMenu,
   useListAiCfoSessions,
   useCreateAiCfoSession,
   useUpdateAiCfoSession,
@@ -30,6 +31,8 @@ import {
   ChevronDown,
   ChevronUp,
   MessageSquare,
+  Upload,
+  FileImage,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -870,12 +873,17 @@ function marginRowBg(pct: number) {
   return "";
 }
 
+const ACCEPTED_MENU_FILE_TYPES = "image/jpeg,image/jpg,image/png,image/webp,application/pdf";
+
 function FoodCostAi() {
   const [menuText, setMenuText] = useState("");
   const [salesText, setSalesText] = useState("");
   const [result, setResult] = useState<FoodCostResult | null>(null);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const mutation = usePostAiCfoFoodCost();
+  const extractMutation = usePostAiCfoExtractMenu();
 
   function analyze() {
     if (!menuText.trim()) return;
@@ -888,6 +896,55 @@ function FoodCostAi() {
         },
       },
     );
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setExtractError(null);
+
+    // Size check: max 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      setExtractError("Plik jest za duży. Maksymalny rozmiar to 10 MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      // data:[mimeType];base64,[base64data]
+      const commaIdx = dataUrl.indexOf(",");
+      if (commaIdx === -1) {
+        setExtractError("Nie udało się odczytać pliku.");
+        return;
+      }
+      const fileBase64 = dataUrl.slice(commaIdx + 1);
+      const mimeType = file.type || "application/octet-stream";
+
+      extractMutation.mutate(
+        { data: { fileBase64, mimeType } },
+        {
+          onSuccess(data) {
+            const extracted = data as { menuText: string };
+            setMenuText(extracted.menuText);
+            setExtractError(null);
+          },
+          onError(err: unknown) {
+            const msg =
+              (err as { data?: { error?: string } })?.data?.error ??
+              "Nie udało się wyciągnąć menu z pliku. Spróbuj ponownie lub wpisz tekst ręcznie.";
+            setExtractError(msg);
+          },
+        },
+      );
+    };
+    reader.onerror = () => setExtractError("Nie udało się odczytać pliku.");
+    reader.readAsDataURL(file);
+
+    // Reset input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   return (
@@ -906,12 +963,43 @@ function FoodCostAi() {
       </div>
 
       <div className="p-5 space-y-4">
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPTED_MENU_FILE_TYPES}
+          className="hidden"
+          onChange={handleFileChange}
+        />
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
-              Karta menu / receptury
-              <span className="font-normal text-gray-400">(składniki + ilości)</span>
-            </label>
+            {/* Label row with upload button */}
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                Karta menu / receptury
+                <span className="font-normal text-gray-400">(składniki + ilości)</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={extractMutation.isPending}
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-gray-200 text-gray-600 bg-white hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all disabled:opacity-50"
+                title="Wgraj zdjęcie menu lub plik PDF — AI wyciągnie listę dań"
+              >
+                {extractMutation.isPending ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    Wczytuję…
+                  </>
+                ) : (
+                  <>
+                    <FileImage className="w-3 h-3" />
+                    Wgraj zdjęcie / PDF
+                  </>
+                )}
+              </button>
+            </div>
             <textarea
               value={menuText}
               onChange={(e) => setMenuText(e.target.value)}
@@ -919,6 +1007,24 @@ function FoodCostAi() {
               rows={9}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none font-mono bg-gray-50/50"
             />
+            {/* Extraction loading / success / error indicator */}
+            {extractMutation.isPending && (
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-primary">
+                <RefreshCw className="w-3 h-3 animate-spin shrink-0" />
+                AI analizuje plik i wyciąga listę dań…
+              </div>
+            )}
+            {extractMutation.isSuccess && !extractMutation.isPending && !extractError && (
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-emerald-600">
+                <Upload className="w-3 h-3 shrink-0" />
+                Menu wyciągnięte — sprawdź i popraw jeśli potrzeba.
+              </div>
+            )}
+            {extractError && (
+              <div className="mt-2 text-[11px] text-rose-600 leading-relaxed">
+                {extractError}
+              </div>
+            )}
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">

@@ -57,7 +57,7 @@ app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
 app.use((req, res, next) => {
-  const limit = req.path.includes("/invoices/scan-receipt") ? "15mb" : "2mb";
+  const limit = (req.path.includes("/invoices/scan-receipt") || req.path.includes("/ai-cfo/extract-menu")) ? "15mb" : "2mb";
   express.json({ limit })(req, res, next);
 });
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));

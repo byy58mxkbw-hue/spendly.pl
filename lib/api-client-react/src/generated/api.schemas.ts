@@ -904,6 +904,18 @@ export interface AiCfoChatResponse {
   actions: AiCfoAction[];
 }
 
+export interface AiCfoExtractMenuBody {
+  /** Base64-encoded image (JPG, PNG, WEBP) or PDF content */
+  fileBase64: string;
+  /** MIME type: image/jpeg, image/png, image/webp, or application/pdf */
+  mimeType: string;
+}
+
+export interface AiCfoExtractMenuResponse {
+  /** Extracted menu text ready to use in Food Cost AI */
+  menuText: string;
+}
+
 export interface AiCfoFoodCostBody {
   menuText: string;
   salesText?: string;

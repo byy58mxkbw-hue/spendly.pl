@@ -607,6 +607,141 @@ Reguły:
   res.json(parsed);
 });
 
+// ─── Route: POST /ai-cfo/extract-menu ────────────────────────────────────────
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+router.post("/ai-cfo/extract-menu", async (req, res): Promise<void> => {
+  const { fileBase64, mimeType } = req.body as { fileBase64?: string; mimeType?: string };
+
+  if (!fileBase64 || typeof fileBase64 !== "string") {
+    res.status(400).json({ error: "Brakuje danych pliku (fileBase64)." });
+    return;
+  }
+  if (!mimeType || typeof mimeType !== "string") {
+    res.status(400).json({ error: "Brakuje typu pliku (mimeType)." });
+    return;
+  }
+
+  const isImage = ALLOWED_IMAGE_TYPES.includes(mimeType.toLowerCase());
+  const isPdf = mimeType.toLowerCase() === "application/pdf";
+
+  if (!isImage && !isPdf) {
+    res.status(400).json({ error: "Nieobsługiwany format pliku. Użyj JPG, PNG, WEBP lub PDF." });
+    return;
+  }
+
+  const EXTRACT_PROMPT = `Jesteś asystentem restauratora. Twoim zadaniem jest wyciągnięcie listy dań z karty menu.
+
+Zwróć TYLKO tekst (nie JSON) w formacie gotowym do analizy food cost — dla każdego dania podaj:
+- nazwę dania
+- składniki z gramaturą (jeśli widoczne)
+- cenę menu
+
+Przykładowy format:
+Makaron carbonara (2 porcje):
+- 200g spaghetti
+- 100g boczek wędzony
+- 2 jajka
+Cena menu: 32 zł
+
+Burger wołowy:
+- 180g wołowina
+- bułka brioche
+- sałata, pomidor
+Cena menu: 42 zł
+
+Jeśli receptury nie są widoczne — podaj tylko nazwy dań z cenami.
+Odpowiadaj wyłącznie po polsku. Nie dodawaj żadnych komentarzy ani wyjaśnień — tylko listę dań.`;
+
+  try {
+    if (isImage) {
+      // OpenAI vision extraction
+      const response = await openai.chat.completions.create({
+        model: "gpt-4.1",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${fileBase64}`,
+                  detail: "high",
+                },
+              },
+              { type: "text", text: EXTRACT_PROMPT },
+            ],
+          },
+        ],
+        max_tokens: 2000,
+        temperature: 0.1,
+      });
+
+      const menuText = (response.choices[0]?.message?.content ?? "").trim();
+      if (!menuText || menuText.length < 10) {
+        res.status(422).json({ error: "Nie udało się odczytać menu ze zdjęcia. Upewnij się, że zdjęcie jest ostre i dobrze oświetlone." });
+        return;
+      }
+      res.json({ menuText });
+      return;
+    }
+
+    if (isPdf) {
+      // PDF text extraction using pdf-parse
+      let pdfParse: (buffer: Buffer) => Promise<{ text: string }>;
+      try {
+        // Import from the library file directly to avoid the test-running issue in ESM
+        // @ts-ignore — sub-path has no type declarations; @types/pdf-parse covers the API shape
+        const mod = await import("pdf-parse/lib/pdf-parse.js");
+        pdfParse = (mod.default ?? mod) as typeof pdfParse;
+      } catch {
+        res.status(500).json({ error: "Nie można załadować biblioteki PDF. Spróbuj wysłać zdjęcie zamiast pliku PDF." });
+        return;
+      }
+
+      const buffer = Buffer.from(fileBase64, "base64");
+      let extracted: { text: string };
+      try {
+        extracted = await pdfParse(buffer);
+      } catch {
+        res.status(422).json({ error: "Nie udało się odczytać pliku PDF. Sprawdź czy plik nie jest uszkodzony lub spróbuj ze zdjęciem." });
+        return;
+      }
+
+      const rawText = (extracted.text ?? "").trim();
+      if (rawText.length < 30) {
+        res.status(422).json({ error: "PDF nie zawiera tekstu do odczytania (prawdopodobnie jest to skan). Zrób zdjęcie menu i wyślij jako obraz." });
+        return;
+      }
+
+      // Use AI to clean up and format the extracted PDF text
+      const cleanupResponse = await openai.chat.completions.create({
+        model: "gpt-5-mini",
+        messages: [
+          {
+            role: "user",
+            content: `Poniżej jest surowy tekst wyciągnięty z PDF karty menu. Sformatuj go jako czytelną listę dań z cenami (usuń śmieci, nagłówki, stopki, numery stron). Zachowaj wszystkie dania i ceny. Odpowiadaj po polsku, tylko sformatowaną listą dań, bez komentarzy.\n\nSUROWY TEKST:\n${rawText.slice(0, 4000)}`,
+          },
+        ],
+        max_tokens: 2000,
+        temperature: 0.1,
+      });
+
+      const menuText = (cleanupResponse.choices[0]?.message?.content ?? "").trim();
+      if (!menuText || menuText.length < 10) {
+        // Fallback: return the raw extracted text
+        res.json({ menuText: rawText.slice(0, 3000) });
+        return;
+      }
+      res.json({ menuText });
+    }
+  } catch (err) {
+    req.log.error({ err }, "ai-cfo extract-menu error");
+    res.status(500).json({ error: "Wystąpił błąd podczas ekstrakcji. Spróbuj ponownie." });
+  }
+});
+
 // ─── Session helpers ──────────────────────────────────────────────────────────
 
 function sessionExpiresAt(): Date {
