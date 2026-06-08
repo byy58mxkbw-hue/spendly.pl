@@ -64,50 +64,72 @@ router.get("/products", async (req, res): Promise<void> => {
 
   const enriched = await Promise.all(
     products.map(async (product) => {
-      // Fetch enough rows to find 2 distinct invoices after deduplication.
-      // IMPORTANT: limit(2) is NOT sufficient — a product can appear multiple times
-      // on the same invoice (multiple line items), which would cause us to compare
-      // two prices from the same purchase instead of two different time periods.
-      const priceHistoryRaw = await db
-        .select({
-          unitPrice: invoiceItemsTable.unitPrice,
-          invoiceDate: invoicesTable.invoiceDate,
-          invoiceId: invoicesTable.id,
-          supplierId: invoicesTable.supplierId,
-          supplierName: suppliersTable.name,
-        })
-        .from(invoiceItemsTable)
-        .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-        .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-        .where(
-          and(
-            eq(invoiceItemsTable.productId, product.id),
-            eq(invoicesTable.userId, userId),
-            eq(invoicesTable.excluded, false),
-            ccFilter,
-            supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
-            month
-              ? sql`${invoicesTable.invoiceDate} >= ${month + "-01"} AND ${invoicesTable.invoiceDate} < ${(() => { const [y, m2] = month.split("-").map(Number); return new Date(y, m2, 1).toISOString().split("T")[0]; })()}`
-              : days
-              ? sql`${invoicesTable.invoiceDate} >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')`
-              : undefined,
-          ),
-        )
-        .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
-        .limit(50);
+      // Build the shared base WHERE condition for price history queries.
+      const baseItemWhere = and(
+        eq(invoiceItemsTable.productId, product.id),
+        eq(invoicesTable.userId, userId),
+        eq(invoicesTable.excluded, false),
+        ccFilter,
+        supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
+      );
 
-      // Deduplicate by invoice date so we compare two distinct purchase dates,
-      // not two invoices from the same day or two line-items from the same invoice.
-      // Ordered by desc(invoiceDate), desc(invoice.id) so the most recent invoice
-      // on a given date is encountered first.
-      const seenDates = new Set<string>();
-      const priceHistory: typeof priceHistoryRaw = [];
-      for (const row of priceHistoryRaw) {
-        if (!seenDates.has(row.invoiceDate)) {
-          seenDates.add(row.invoiceDate);
-          priceHistory.push(row);
-          if (priceHistory.length === 2) break;
+      type PriceRow = { unitPrice: string; invoiceDate: string; supplierId: number; supplierName: string };
+      let latest: PriceRow | undefined;
+      let previous: PriceRow | undefined;
+
+      if (month) {
+        // When a month is selected: "latest" = most recent purchase within the month,
+        // "previous" = most recent purchase BEFORE the month. This mirrors the
+        // top-price-changes logic and correctly shows month-over-month changes.
+        const mStart = monthStart(month);
+        const mEnd = monthEnd(month);
+        const [latestRows, previousRows] = await Promise.all([
+          db
+            .select({ unitPrice: invoiceItemsTable.unitPrice, invoiceDate: invoicesTable.invoiceDate, supplierId: invoicesTable.supplierId, supplierName: suppliersTable.name })
+            .from(invoiceItemsTable)
+            .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
+            .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+            .where(and(baseItemWhere, sql`${invoicesTable.invoiceDate} >= ${mStart} AND ${invoicesTable.invoiceDate} < ${mEnd}`))
+            .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
+            .limit(1),
+          db
+            .select({ unitPrice: invoiceItemsTable.unitPrice, invoiceDate: invoicesTable.invoiceDate, supplierId: invoicesTable.supplierId, supplierName: suppliersTable.name })
+            .from(invoiceItemsTable)
+            .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
+            .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+            .where(and(baseItemWhere, sql`${invoicesTable.invoiceDate} < ${mStart}`))
+            .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
+            .limit(1),
+        ]);
+        latest = latestRows[0];
+        previous = previousRows[0];
+      } else {
+        // No month filter: compare the last 2 distinct purchase DATES globally.
+        // Fetch up to 50 rows and deduplicate by date so that multiple invoices on
+        // the same day or multiple line-items on the same invoice do not skew the result.
+        const priceHistoryRaw = await db
+          .select({ unitPrice: invoiceItemsTable.unitPrice, invoiceDate: invoicesTable.invoiceDate, invoiceId: invoicesTable.id, supplierId: invoicesTable.supplierId, supplierName: suppliersTable.name })
+          .from(invoiceItemsTable)
+          .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
+          .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+          .where(and(
+            baseItemWhere,
+            days ? sql`${invoicesTable.invoiceDate} >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')` : undefined,
+          ))
+          .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
+          .limit(50);
+
+        const seenDates = new Set<string>();
+        const priceHistory: typeof priceHistoryRaw = [];
+        for (const row of priceHistoryRaw) {
+          if (!seenDates.has(row.invoiceDate)) {
+            seenDates.add(row.invoiceDate);
+            priceHistory.push(row);
+            if (priceHistory.length === 2) break;
+          }
         }
+        latest = priceHistory[0];
+        previous = priceHistory[1];
       }
 
       const supplierCountResult = await db
@@ -134,8 +156,6 @@ router.get("/products", async (req, res): Promise<void> => {
           ),
         );
 
-      const latest = priceHistory[0];
-      const previous = priceHistory[1];
       const latestPrice = latest ? toNum(latest.unitPrice) : null;
       const previousPrice = previous ? toNum(previous.unitPrice) : null;
       const changePercent =
