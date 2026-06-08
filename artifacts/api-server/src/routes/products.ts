@@ -64,10 +64,15 @@ router.get("/products", async (req, res): Promise<void> => {
 
   const enriched = await Promise.all(
     products.map(async (product) => {
-      const priceHistory = await db
+      // Fetch enough rows to find 2 distinct invoices after deduplication.
+      // IMPORTANT: limit(2) is NOT sufficient — a product can appear multiple times
+      // on the same invoice (multiple line items), which would cause us to compare
+      // two prices from the same purchase instead of two different time periods.
+      const priceHistoryRaw = await db
         .select({
           unitPrice: invoiceItemsTable.unitPrice,
           invoiceDate: invoicesTable.invoiceDate,
+          invoiceId: invoicesTable.id,
           supplierId: invoicesTable.supplierId,
           supplierName: suppliersTable.name,
         })
@@ -88,8 +93,19 @@ router.get("/products", async (req, res): Promise<void> => {
               : undefined,
           ),
         )
-        .orderBy(desc(invoicesTable.invoiceDate))
-        .limit(2);
+        .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
+        .limit(50);
+
+      // Deduplicate: one entry per invoice_id (keep first = highest-id item per invoice)
+      const seenInvoices = new Set<number>();
+      const priceHistory: typeof priceHistoryRaw = [];
+      for (const row of priceHistoryRaw) {
+        if (!seenInvoices.has(row.invoiceId)) {
+          seenInvoices.add(row.invoiceId);
+          priceHistory.push(row);
+          if (priceHistory.length === 2) break;
+        }
+      }
 
       const supplierCountResult = await db
         .select({ cnt: sql<number>`count(distinct ${invoicesTable.supplierId})` })
@@ -226,19 +242,31 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
           lastDate: currentRows[0].invoiceDate,
         };
       } else {
-        // No month filter — compare last 2 entries globally
-        const history = await db
+        // No month filter — compare last 2 distinct invoices globally
+        const historyRaw = await db
           .select({
             unitPrice: invoiceItemsTable.unitPrice,
             invoiceDate: invoicesTable.invoiceDate,
+            invoiceId: invoicesTable.id,
             supplierName: suppliersTable.name,
           })
           .from(invoiceItemsTable)
           .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
           .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
           .where(baseWhere)
-          .orderBy(desc(invoicesTable.invoiceDate))
-          .limit(2);
+          .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
+          .limit(50);
+
+        // Deduplicate by invoice_id so same-invoice multi-line items don't skew the comparison
+        const seenIds = new Set<number>();
+        const history: typeof historyRaw = [];
+        for (const row of historyRaw) {
+          if (!seenIds.has(row.invoiceId)) {
+            seenIds.add(row.invoiceId);
+            history.push(row);
+            if (history.length === 2) break;
+          }
+        }
 
         if (history.length < 2) return null;
 
