@@ -8,7 +8,9 @@ import {
   useDeleteSupplier,
   useRestoreSupplier,
   useSetSupplierDefaultCostCenter,
+  useSetSupplierDefaultCategory,
   useListCostCenters,
+  useListCategories,
   getListSuppliersQueryKey,
   useGetSupplierCostCenterSuggestion,
   getGetSupplierCostCenterSuggestionQueryKey,
@@ -42,7 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Building2, Phone, Mail, ChevronRight, Trash2, Layers, RotateCcw } from "lucide-react";
+import { Plus, Building2, Phone, Mail, ChevronRight, Trash2, Layers, RotateCcw, Tag } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -110,7 +112,9 @@ export default function Suppliers() {
   const deleteSupplier = useDeleteSupplier();
   const restoreSupplier = useRestoreSupplier();
   const setDefaultCostCenter = useSetSupplierDefaultCostCenter();
+  const setDefaultCategory = useSetSupplierDefaultCategory();
   const { data: costCenters = [] } = useListCostCenters();
+  const { data: allCategories = [] } = useListCategories();
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -119,6 +123,13 @@ export default function Suppliers() {
   function handleSetDefaultCostCenter(supplierId: number, ccId: number | null) {
     setDefaultCostCenter.mutate(
       { id: supplierId, data: { defaultCostCenterId: ccId } },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() }) },
+    );
+  }
+
+  function handleSetDefaultCategory(supplierId: number, categoryId: string | null) {
+    setDefaultCategory.mutate(
+      { id: supplierId, data: { defaultCategory: categoryId } },
       { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() }) },
     );
   }
@@ -324,49 +335,109 @@ export default function Suppliers() {
                     </div>
                   </div>
 
-                  {tab === "active" && costCenters.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Layers className="w-3 h-3 shrink-0" />
-                            {supplier.defaultCostCenterName ? (
-                              <>
-                                <div
-                                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                                  style={{ background: supplier.defaultCostCenterColor ?? "#14B8A6" }}
-                                />
-                                <span className="truncate max-w-[120px]">{supplier.defaultCostCenterName}</span>
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground/50">Brak centrum kosztów</span>
-                            )}
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenuItem
-                            className={cn(!supplier.defaultCostCenterId && "text-primary")}
-                            onClick={() => handleSetDefaultCostCenter(supplier.id, null)}
-                          >
-                            <div className="w-3 h-3 rounded-full bg-muted-foreground/30 mr-2" />
-                            Brak centrum
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {costCenters.map((cc) => (
-                            <DropdownMenuItem
-                              key={cc.id}
-                              className={cn(supplier.defaultCostCenterId === cc.id && "text-primary")}
-                              onClick={() => handleSetDefaultCostCenter(supplier.id, cc.id)}
+                  {tab === "active" && (costCenters.length > 0 || allCategories.length > 0) && (
+                    <div className="mt-3 pt-3 border-t border-border flex items-center gap-3 flex-wrap">
+                      {costCenters.length > 0 && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="w-3 h-3 rounded-full mr-2" style={{ background: cc.color }} />
-                              {cc.name}
+                              <Layers className="w-3 h-3 shrink-0" />
+                              {supplier.defaultCostCenterName ? (
+                                <>
+                                  <div
+                                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                                    style={{ background: supplier.defaultCostCenterColor ?? "#14B8A6" }}
+                                  />
+                                  <span className="truncate max-w-[100px]">{supplier.defaultCostCenterName}</span>
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground/50">Centrum kosztów</span>
+                              )}
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem
+                              className={cn(!supplier.defaultCostCenterId && "text-primary")}
+                              onClick={() => handleSetDefaultCostCenter(supplier.id, null)}
+                            >
+                              <div className="w-3 h-3 rounded-full bg-muted-foreground/30 mr-2" />
+                              Brak centrum
                             </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <DropdownMenuSeparator />
+                            {costCenters.map((cc) => (
+                              <DropdownMenuItem
+                                key={cc.id}
+                                className={cn(supplier.defaultCostCenterId === cc.id && "text-primary")}
+                                onClick={() => handleSetDefaultCostCenter(supplier.id, cc.id)}
+                              >
+                                <div className="w-3 h-3 rounded-full mr-2" style={{ background: cc.color }} />
+                                {cc.name}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+
+                      {allCategories.length > 0 && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Tag className="w-3 h-3 shrink-0" />
+                              {supplier.defaultCategory ? (
+                                <span className="truncate max-w-[110px]">
+                                  {allCategories.find((c) => c.id === supplier.defaultCategory)?.emoji}{" "}
+                                  {allCategories.find((c) => c.id === supplier.defaultCategory)?.label ?? supplier.defaultCategory}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground/50">Kategoria</span>
+                              )}
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" onClick={(e) => e.stopPropagation()} className="max-h-64 overflow-y-auto">
+                            <DropdownMenuItem
+                              className={cn(!supplier.defaultCategory && "text-primary")}
+                              onClick={() => handleSetDefaultCategory(supplier.id, null)}
+                            >
+                              <Tag className="w-3 h-3 mr-2 text-muted-foreground" />
+                              Brak kategorii
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {allCategories.filter((c) => c.isCustom).length > 0 && (
+                              <>
+                                <p className="px-2 py-1 text-xs text-muted-foreground font-medium">Własne</p>
+                                {allCategories.filter((c) => c.isCustom).map((cat) => (
+                                  <DropdownMenuItem
+                                    key={cat.id}
+                                    className={cn(supplier.defaultCategory === cat.id && "text-primary")}
+                                    onClick={() => handleSetDefaultCategory(supplier.id, cat.id)}
+                                  >
+                                    <span className="mr-2">{cat.emoji}</span>
+                                    {cat.label}
+                                  </DropdownMenuItem>
+                                ))}
+                                <DropdownMenuSeparator />
+                              </>
+                            )}
+                            <p className="px-2 py-1 text-xs text-muted-foreground font-medium">Standardowe</p>
+                            {allCategories.filter((c) => !c.isCustom).map((cat) => (
+                              <DropdownMenuItem
+                                key={cat.id}
+                                className={cn(supplier.defaultCategory === cat.id && "text-primary")}
+                                onClick={() => handleSetDefaultCategory(supplier.id, cat.id)}
+                              >
+                                <span className="mr-2">{cat.emoji}</span>
+                                {cat.label}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   )}
 

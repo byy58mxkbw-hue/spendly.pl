@@ -109,6 +109,7 @@ import type {
   ScanReceiptBody,
   ScannedReceiptData,
   SetInvoiceCostCenterBody,
+  SetSupplierDefaultCategoryBody,
   SetSupplierDefaultCostCenterBody,
   Supplier,
   SupplierComparison,
@@ -2237,6 +2238,94 @@ export function useGetSupplierCostCenterSuggestion<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Set the default category for a supplier (all new products from this supplier will be auto-assigned this category)
+ */
+export const getSetSupplierDefaultCategoryUrl = (id: number) => {
+  return `/api/suppliers/${id}/default-category`;
+};
+
+export const setSupplierDefaultCategory = async (
+  id: number,
+  setSupplierDefaultCategoryBody: SetSupplierDefaultCategoryBody,
+  options?: RequestInit,
+): Promise<Supplier> => {
+  return customFetch<Supplier>(getSetSupplierDefaultCategoryUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setSupplierDefaultCategoryBody),
+  });
+};
+
+export const getSetSupplierDefaultCategoryMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setSupplierDefaultCategory>>,
+    TError,
+    { id: number; data: BodyType<SetSupplierDefaultCategoryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setSupplierDefaultCategory>>,
+  TError,
+  { id: number; data: BodyType<SetSupplierDefaultCategoryBody> },
+  TContext
+> => {
+  const mutationKey = ["setSupplierDefaultCategory"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setSupplierDefaultCategory>>,
+    { id: number; data: BodyType<SetSupplierDefaultCategoryBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return setSupplierDefaultCategory(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetSupplierDefaultCategoryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setSupplierDefaultCategory>>
+>;
+export type SetSupplierDefaultCategoryMutationBody =
+  BodyType<SetSupplierDefaultCategoryBody>;
+export type SetSupplierDefaultCategoryMutationError = ErrorType<void>;
+
+/**
+ * @summary Set the default category for a supplier (all new products from this supplier will be auto-assigned this category)
+ */
+export const useSetSupplierDefaultCategory = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setSupplierDefaultCategory>>,
+    TError,
+    { id: number; data: BodyType<SetSupplierDefaultCategoryBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setSupplierDefaultCategory>>,
+  TError,
+  { id: number; data: BodyType<SetSupplierDefaultCategoryBody> },
+  TContext
+> => {
+  return useMutation(getSetSupplierDefaultCategoryMutationOptions(options));
+};
 
 /**
  * @summary Set the default cost center for a supplier

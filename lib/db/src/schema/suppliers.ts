@@ -12,6 +12,7 @@ export const suppliersTable = pgTable("suppliers", {
   phone: text("phone"),
   isActive: boolean("is_active").notNull().default(true),
   defaultCostCenterId: integer("default_cost_center_id").references(() => costCentersTable.id, { onDelete: "set null" }),
+  defaultCategory: text("default_category"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [index("suppliers_user_id_idx").on(t.userId)]);

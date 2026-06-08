@@ -7,60 +7,42 @@
  */
 
 import { isNull, sql } from "drizzle-orm";
-import { db, productsTable } from "@workspace/db";
+import { db, productsTable, userCategoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { categorizeProductWithAI, normalizeProductName } from "../lib/categorize-ai.js";
 import { logger } from "../lib/logger.js";
 import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
 
 /**
- * Cleanup step A: delete all AI-hallucinated custom categories from user_categories.
- * These were created by a previous buggy version of the AI that invented category names.
- * The current code never auto-creates user_categories — only explicit POST /categories does.
+ * Cleanup step: reset classification_confidence to NULL for products whose
+ * category is not a known builtin AND not a user-created category.
+ * Also marks them needs_review so they get re-classified.
  *
- * Idempotent: once user_categories is empty, the DELETE touches 0 rows on subsequent runs.
- * Products that had those fake categories are handled in step B.
- */
-async function cleanupHallucinatedUserCategories(): Promise<void> {
-  try {
-    const builtinIds = Object.keys(BUILTIN_CATEGORY_DEFS);
-
-    // Delete user_categories whose category_id is NOT one of the built-in IDs.
-    // (Built-in IDs should never appear in user_categories, but guard anyway.)
-    const result = await db.execute(
-      sql.raw(
-        `DELETE FROM user_categories WHERE category_id NOT IN (${builtinIds
-          .map((id) => `'${id.replace(/'/g, "''")}'`)
-          .join(", ")})`
-      )
-    );
-
-    const affected = (result as unknown as { rowCount?: number }).rowCount ?? 0;
-    if (affected > 0) {
-      logger.info({ affected }, "backfill-categories: deleted AI-hallucinated user_categories entries");
-    }
-  } catch (err) {
-    logger.warn({ err }, "backfill-categories: cleanupHallucinatedUserCategories failed (non-fatal)");
-  }
-}
-
-/**
- * Cleanup step B: reset classification_confidence to NULL for products whose
- * category is not a known builtin.  Also marks them needs_review so the user
- * can verify the automatic re-classification in "Do przeglądu".
+ * Idempotent: after all products are properly classified, this touches 0 rows.
  *
- * Idempotent: after all products are re-classified into builtins, this touches 0 rows.
+ * NOTE: The old "cleanupHallucinatedUserCategories" step that deleted all entries
+ * from user_categories was REMOVED — it incorrectly destroyed user-created categories
+ * on every server restart. The current code never auto-creates user_categories
+ * (only explicit POST /categories does), so no cleanup of user_categories is needed.
  */
 async function cleanupInvalidCategories(): Promise<void> {
   try {
     const builtinIds = Object.keys(BUILTIN_CATEGORY_DEFS);
+
+    // Fetch all user-created custom categories so we don't reset products using them
+    const userCatRows = await db
+      .select({ categoryId: userCategoriesTable.categoryId })
+      .from(userCategoriesTable);
+    const userCategoryIds = userCatRows.map((r) => r.categoryId);
+
+    const allValidIds = [...builtinIds, ...userCategoryIds];
 
     const result = await db.execute(
       sql.raw(
         `UPDATE products
          SET classification_confidence = NULL, needs_review = true
          WHERE category IS NOT NULL
-           AND category NOT IN (${builtinIds
+           AND category NOT IN (${allValidIds
              .map((id) => `'${id.replace(/'/g, "''")}'`)
              .join(", ")})`
       )
@@ -68,7 +50,7 @@ async function cleanupInvalidCategories(): Promise<void> {
 
     const affected = (result as unknown as { rowCount?: number }).rowCount ?? 0;
     if (affected > 0) {
-      logger.info({ affected }, "backfill-categories: reset invalid categories for re-classification (marked needs_review)");
+      logger.info({ affected }, "backfill-categories: reset truly-invalid categories for re-classification (marked needs_review)");
     } else {
       logger.info("backfill-categories: no invalid categories found, cleanup not needed");
     }
@@ -110,10 +92,7 @@ async function processBatch(
 }
 
 export async function runCategoryBackfill(): Promise<void> {
-  // Step 1: Delete AI-hallucinated entries from user_categories
-  await cleanupHallucinatedUserCategories();
-
-  // Step 2: Reset products with non-builtin categories so they get re-classified
+  // Step 1: Reset products with categories that aren't builtin or user-created
   await cleanupInvalidCategories();
 
   try {

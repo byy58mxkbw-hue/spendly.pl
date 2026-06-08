@@ -10,6 +10,8 @@ import {
   SetInvoiceCostCenterParams,
   SetSupplierDefaultCostCenterBody,
   SetSupplierDefaultCostCenterParams,
+  SetSupplierDefaultCategoryBody,
+  SetSupplierDefaultCategoryParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -156,6 +158,24 @@ router.patch("/invoices/:id/cost-center", async (req, res): Promise<void> => {
     .returning();
 
   if (!updated) { res.status(404).json({ error: "Invoice not found" }); return; }
+  res.json(updated);
+});
+
+// ─── Set supplier default category ───────────────────────────────────────────
+router.patch("/suppliers/:id/default-category", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const params = SetSupplierDefaultCategoryParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  const parsed = SetSupplierDefaultCategoryBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [updated] = await db
+    .update(suppliersTable)
+    .set({ defaultCategory: parsed.data.defaultCategory })
+    .where(and(eq(suppliersTable.id, params.data.id), eq(suppliersTable.userId, userId)))
+    .returning();
+
+  if (!updated) { res.status(404).json({ error: "Supplier not found" }); return; }
   res.json(updated);
 });
 

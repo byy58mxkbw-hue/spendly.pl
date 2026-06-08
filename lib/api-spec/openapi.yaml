@@ -527,6 +527,33 @@ paths:
         "404":
           description: Not found
 
+  /suppliers/{id}/default-category:
+    patch:
+      operationId: setSupplierDefaultCategory
+      tags: [suppliers]
+      summary: Set the default category for a supplier (all new products from this supplier will be auto-assigned this category)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetSupplierDefaultCategoryBody"
+      responses:
+        "200":
+          description: Updated supplier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "404":
+          description: Not found
+
   /suppliers/{id}/default-cost-center:
     patch:
       operationId: setSupplierDefaultCostCenter
@@ -2043,6 +2070,14 @@ components:
       required:
         - defaultCostCenterId
 
+    SetSupplierDefaultCategoryBody:
+      type: object
+      properties:
+        defaultCategory:
+          type: ["string", "null"]
+      required:
+        - defaultCategory
+
     Supplier:
       type: object
       properties:
@@ -2063,6 +2098,8 @@ components:
         defaultCostCenterName:
           type: ["string", "null"]
         defaultCostCenterColor:
+          type: ["string", "null"]
+        defaultCategory:
           type: ["string", "null"]
         invoiceCount:
           type: integer
@@ -2108,6 +2145,8 @@ components:
           type: ["string", "null"]
         isActive:
           type: boolean
+        defaultCategory:
+          type: ["string", "null"]
 
     Product:
       type: object

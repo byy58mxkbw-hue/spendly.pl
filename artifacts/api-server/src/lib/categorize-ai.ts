@@ -123,11 +123,12 @@ export async function categorizeProductWithAI(
   productName: string,
   userId: string,
   logger?: Logger,
+  supplierDefaultCategory?: string | null,
 ): Promise<ClassificationResult> {
   const normalizedName = normalizeProductName(productName);
   const canonicalName = normalizedName || productName.toLowerCase().trim();
 
-  // Step 1: Check user corrections (self-learning)
+  // Step 1: Check user corrections (self-learning override — explicit per-product choice)
   const correction = await getLatestCorrection(userId, canonicalName);
   if (correction) {
     logger?.info({ productName, canonicalName, category: correction.correctedCategory }, "categorize: using user correction");
@@ -139,7 +140,18 @@ export async function categorizeProductWithAI(
     };
   }
 
-  // Step 2: Fast keyword matching on normalized + original
+  // Step 2: Supplier default category — if the supplier has a category override, use it for all its products
+  if (supplierDefaultCategory) {
+    logger?.info({ productName, canonicalName, category: supplierDefaultCategory }, "categorize: using supplier default category");
+    return {
+      category: supplierDefaultCategory,
+      subcategory: null,
+      confidence: 1.0,
+      canonicalName,
+    };
+  }
+
+  // Step 3: Fast keyword matching on normalized + original
   const keywordResult =
     categorizeProduct(canonicalName) !== "inne"
       ? categorizeProduct(canonicalName)

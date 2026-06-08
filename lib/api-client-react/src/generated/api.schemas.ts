@@ -38,6 +38,11 @@ export interface SetSupplierDefaultCostCenterBody {
   defaultCostCenterId: number | null;
 }
 
+export interface SetSupplierDefaultCategoryBody {
+  /** @nullable */
+  defaultCategory: string | null;
+}
+
 export interface Supplier {
   id: number;
   name: string;
@@ -53,6 +58,8 @@ export interface Supplier {
   defaultCostCenterName?: string | null;
   /** @nullable */
   defaultCostCenterColor?: string | null;
+  /** @nullable */
+  defaultCategory?: string | null;
   invoiceCount: number;
   /** @nullable */
   lastInvoiceDate?: string | null;
@@ -78,6 +85,8 @@ export interface UpdateSupplierBody {
   /** @nullable */
   phone?: string | null;
   isActive?: boolean;
+  /** @nullable */
+  defaultCategory?: string | null;
 }
 
 export interface Product {

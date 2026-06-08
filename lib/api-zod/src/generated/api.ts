@@ -461,6 +461,34 @@ export const GetSupplierCostCenterSuggestionResponse = zod.object({
 });
 
 /**
+ * @summary Set the default category for a supplier (all new products from this supplier will be auto-assigned this category)
+ */
+export const SetSupplierDefaultCategoryParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SetSupplierDefaultCategoryBody = zod.object({
+  defaultCategory: zod.string().nullable(),
+});
+
+export const SetSupplierDefaultCategoryResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  taxId: zod.string(),
+  email: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  isActive: zod.boolean(),
+  defaultCostCenterId: zod.number().nullish(),
+  defaultCostCenterName: zod.string().nullish(),
+  defaultCostCenterColor: zod.string().nullish(),
+  defaultCategory: zod.string().nullish(),
+  invoiceCount: zod.number(),
+  lastInvoiceDate: zod.string().nullish(),
+  totalSpend: zod.number().nullish(),
+  createdAt: zod.string(),
+});
+
+/**
  * @summary Set the default cost center for a supplier
  */
 export const SetSupplierDefaultCostCenterParams = zod.object({
@@ -481,6 +509,7 @@ export const SetSupplierDefaultCostCenterResponse = zod.object({
   defaultCostCenterId: zod.number().nullish(),
   defaultCostCenterName: zod.string().nullish(),
   defaultCostCenterColor: zod.string().nullish(),
+  defaultCategory: zod.string().nullish(),
   invoiceCount: zod.number(),
   lastInvoiceDate: zod.string().nullish(),
   totalSpend: zod.number().nullish(),
@@ -511,6 +540,7 @@ export const ListSuppliersResponseItem = zod.object({
   defaultCostCenterId: zod.number().nullish(),
   defaultCostCenterName: zod.string().nullish(),
   defaultCostCenterColor: zod.string().nullish(),
+  defaultCategory: zod.string().nullish(),
   invoiceCount: zod.number(),
   lastInvoiceDate: zod.string().nullish(),
   totalSpend: zod.number().nullish(),
@@ -545,6 +575,7 @@ export const GetSupplierResponse = zod.object({
   defaultCostCenterId: zod.number().nullish(),
   defaultCostCenterName: zod.string().nullish(),
   defaultCostCenterColor: zod.string().nullish(),
+  defaultCategory: zod.string().nullish(),
   invoiceCount: zod.number(),
   lastInvoiceDate: zod.string().nullish(),
   totalSpend: zod.number().nullish(),
@@ -564,6 +595,7 @@ export const UpdateSupplierBody = zod.object({
   email: zod.string().nullish(),
   phone: zod.string().nullish(),
   isActive: zod.boolean().optional(),
+  defaultCategory: zod.string().nullish(),
 });
 
 export const UpdateSupplierResponse = zod.object({
@@ -576,6 +608,7 @@ export const UpdateSupplierResponse = zod.object({
   defaultCostCenterId: zod.number().nullish(),
   defaultCostCenterName: zod.string().nullish(),
   defaultCostCenterColor: zod.string().nullish(),
+  defaultCategory: zod.string().nullish(),
   invoiceCount: zod.number(),
   lastInvoiceDate: zod.string().nullish(),
   totalSpend: zod.number().nullish(),
@@ -610,6 +643,7 @@ export const RestoreSupplierResponse = zod.object({
   defaultCostCenterId: zod.number().nullish(),
   defaultCostCenterName: zod.string().nullish(),
   defaultCostCenterColor: zod.string().nullish(),
+  defaultCategory: zod.string().nullish(),
   invoiceCount: zod.number(),
   lastInvoiceDate: zod.string().nullish(),
   totalSpend: zod.number().nullish(),

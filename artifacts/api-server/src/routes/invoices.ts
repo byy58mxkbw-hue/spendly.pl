@@ -736,7 +736,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   }> = [];
 
   for (const item of parsedItems) {
-    const classification = await categorizeProductWithAI(item.productName, userId, req.log);
+    const classification = await categorizeProductWithAI(item.productName, userId, req.log, supplier.defaultCategory ?? undefined);
     const productId = await findOrCreateProduct(userId, item.productName, item.unit, classification);
 
     const [invoiceItem] = await db

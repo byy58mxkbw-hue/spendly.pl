@@ -1,1 +1,2 @@
 - [Cost centers feature](cost-centers.md) — zod cannot be imported directly in api-server routes; use @workspace/api-zod generated schemas instead
+- [Categories backfill bug](categories-backfill-bug.md) — cleanupHallucinatedUserCategories was removed; it deleted ALL user categories on restart. cleanupInvalidCategories must also whitelist user_categories from DB.
