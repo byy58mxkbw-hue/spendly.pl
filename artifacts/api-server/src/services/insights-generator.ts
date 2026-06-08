@@ -263,7 +263,7 @@ async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
   logger?.info({ promptLen: prompt.length }, "AI CFO calling model");
 
   const resp = await openai.chat.completions.create({
-    model: "gpt-5-mini",
+    model: "gpt-4o-mini",
     max_completion_tokens: 12000,
     messages: [{ role: "user", content: prompt }],
   });

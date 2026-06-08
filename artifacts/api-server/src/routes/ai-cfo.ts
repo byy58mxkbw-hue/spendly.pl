@@ -456,7 +456,7 @@ Odpowiadaj wyłącznie po polsku.`;
   ];
 
   const resp = await openai.chat.completions.create({
-    model: "gpt-5-mini",
+    model: "gpt-4o-mini",
     max_completion_tokens: 4000,
     messages,
   });
@@ -569,7 +569,7 @@ Reguły:
 - Wszystkie kwoty w PLN, odpowiadaj po polsku`;
 
   const resp = await openai.chat.completions.create({
-    model: "gpt-5-mini",
+    model: "gpt-4o-mini",
     max_completion_tokens: 4000,
     messages: [{ role: "user", content: prompt }],
   });
