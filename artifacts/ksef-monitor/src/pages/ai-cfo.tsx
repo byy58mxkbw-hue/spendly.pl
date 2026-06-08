@@ -372,6 +372,137 @@ function InvoiceComparisonTable({ headers, rows }: { headers: string[]; rows: st
   );
 }
 
+// ─── PDF export ───────────────────────────────────────────────────────────────
+
+function downloadComparisonPdf(data: ChatReply) {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 14;
+  let y = margin;
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+  doc.setFillColor(20, 184, 166); // teal
+  doc.rect(0, 0, pageW, 14, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "bold");
+  doc.text("Porównanie faktur — AI CFO", margin, 9.5);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  const now = new Date().toLocaleDateString("pl-PL");
+  doc.text(`Wygenerowano: ${now}`, pageW - margin, 9.5, { align: "right" });
+
+  y = 20;
+
+  // ── Summary ─────────────────────────────────────────────────────────────────
+  doc.setTextColor(30, 30, 30);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  const summaryLines = doc.splitTextToSize(data.summary, pageW - margin * 2) as string[];
+  doc.text(summaryLines, margin, y);
+  y += summaryLines.length * 5 + 4;
+
+  // ── KPI cards ───────────────────────────────────────────────────────────────
+  if (data.kpiCards && data.kpiCards.length > 0) {
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(20, 184, 166);
+    doc.text("PODSUMOWANIE", margin, y);
+    y += 4;
+
+    const kpiColW = (pageW - margin * 2) / data.kpiCards.length;
+    data.kpiCards.forEach((kpi, i) => {
+      const x = margin + i * kpiColW;
+      doc.setDrawColor(220, 220, 220);
+      doc.setFillColor(250, 250, 250);
+      doc.roundedRect(x, y, kpiColW - 2, 14, 1, 1, "FD");
+      doc.setTextColor(120, 120, 120);
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(kpi.label.toUpperCase(), x + 3, y + 4);
+      doc.setTextColor(20, 20, 20);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text(kpi.value, x + 3, y + 10);
+      if (kpi.delta) {
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(kpi.deltaPositive ? 5 : 225, kpi.deltaPositive ? 150 : 50, kpi.deltaPositive ? 105 : 50);
+        doc.text(kpi.delta, x + kpiColW - 5, y + 10, { align: "right" });
+      }
+    });
+    y += 18;
+  }
+
+  // ── Comparison table ─────────────────────────────────────────────────────────
+  if (data.table && data.table.headers.length > 0 && data.table.rows.length > 0) {
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(20, 184, 166);
+    doc.text("ZESTAWIENIE POZYCJI", margin, y);
+    y += 3;
+
+    const deltaIdx = data.table.headers.length - 1;
+    const colGroupA = [1, 2];
+    const colGroupB = [3, 4];
+
+    autoTable(doc, {
+      startY: y,
+      head: [data.table.headers],
+      body: data.table.rows,
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 7.5, cellPadding: 2.5, overflow: "linebreak" },
+      headStyles: { fillColor: [240, 240, 240], textColor: [80, 80, 80], fontStyle: "bold", fontSize: 6.5 },
+      columnStyles: {
+        0: { fontStyle: "bold", textColor: [30, 30, 30] },
+        ...(colGroupA.reduce((acc, ci) => ({
+          ...acc,
+          [ci]: { fillColor: [240, 253, 250], textColor: [17, 94, 89] },
+        }), {})),
+        ...(colGroupB.reduce((acc, ci) => ({
+          ...acc,
+          [ci]: { fillColor: [240, 249, 255], textColor: [12, 74, 110] },
+        }), {})),
+        [deltaIdx]: { fontStyle: "bold" },
+      },
+      didParseCell: (hookData) => {
+        if (hookData.section === "body" && hookData.column.index === deltaIdx) {
+          const val = String(hookData.cell.raw ?? "").trim();
+          if (val.startsWith("+")) hookData.cell.styles.textColor = [220, 38, 38];
+          else if (val.startsWith("-")) hookData.cell.styles.textColor = [5, 150, 105];
+          else hookData.cell.styles.textColor = [150, 150, 150];
+        }
+      },
+      alternateRowStyles: { fillColor: [252, 252, 252] },
+    });
+
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+  }
+
+  // ── Recommendation ───────────────────────────────────────────────────────────
+  if (data.recommendation) {
+    if (y > doc.internal.pageSize.getHeight() - 30) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.setFillColor(240, 253, 250);
+    doc.setDrawColor(20, 184, 166);
+    const recLines = doc.splitTextToSize(data.recommendation, pageW - margin * 2 - 8) as string[];
+    const recH = recLines.length * 5 + 10;
+    doc.roundedRect(margin, y, pageW - margin * 2, recH, 2, 2, "FD");
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(20, 184, 166);
+    doc.text("REKOMENDACJA", margin + 4, y + 5);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(19, 78, 74);
+    doc.text(recLines, margin + 4, y + 10);
+  }
+
+  doc.save(`porownanie-faktur-${now.replace(/\./g, "-")}.pdf`);
+}
+
 // ─── AiReplyCard ──────────────────────────────────────────────────────────────
 
 function AiReplyCard({ data }: { data: ChatReply }) {
@@ -471,9 +602,20 @@ function AiReplyCard({ data }: { data: ChatReply }) {
         </div>
       )}
 
-      {data.actions && data.actions.length > 0 && (
+      {(data.actions && data.actions.length > 0 || isInvoiceCompare) && (
         <div className="flex flex-wrap gap-2">
-          {data.actions.map((a, i) => (
+          {isInvoiceCompare && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadComparisonPdf(data)}
+              className="text-xs h-7 gap-1 border-teal-200 text-teal-700 hover:border-teal-400 hover:bg-teal-50"
+            >
+              <Download className="w-3 h-3" />
+              Pobierz PDF porównania
+            </Button>
+          )}
+          {data.actions && data.actions.map((a, i) => (
             <Link key={i} href={a.href}>
               <Button
                 variant="outline"
