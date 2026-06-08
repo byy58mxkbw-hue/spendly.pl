@@ -96,12 +96,15 @@ router.get("/products", async (req, res): Promise<void> => {
         .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
         .limit(50);
 
-      // Deduplicate: one entry per invoice_id (keep first = highest-id item per invoice)
-      const seenInvoices = new Set<number>();
+      // Deduplicate by invoice date so we compare two distinct purchase dates,
+      // not two invoices from the same day or two line-items from the same invoice.
+      // Ordered by desc(invoiceDate), desc(invoice.id) so the most recent invoice
+      // on a given date is encountered first.
+      const seenDates = new Set<string>();
       const priceHistory: typeof priceHistoryRaw = [];
       for (const row of priceHistoryRaw) {
-        if (!seenInvoices.has(row.invoiceId)) {
-          seenInvoices.add(row.invoiceId);
+        if (!seenDates.has(row.invoiceDate)) {
+          seenDates.add(row.invoiceDate);
           priceHistory.push(row);
           if (priceHistory.length === 2) break;
         }
@@ -257,12 +260,12 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
           .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
           .limit(50);
 
-        // Deduplicate by invoice_id so same-invoice multi-line items don't skew the comparison
-        const seenIds = new Set<number>();
+        // Deduplicate by invoice date so we compare two distinct purchase dates
+        const seenDates = new Set<string>();
         const history: typeof historyRaw = [];
         for (const row of historyRaw) {
-          if (!seenIds.has(row.invoiceId)) {
-            seenIds.add(row.invoiceId);
+          if (!seenDates.has(row.invoiceDate)) {
+            seenDates.add(row.invoiceDate);
             history.push(row);
             if (history.length === 2) break;
           }
