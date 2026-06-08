@@ -332,6 +332,136 @@ async function enrichActions(
   });
 }
 
+// ─── Invoice compare: detect intent + fetch items ────────────────────────────
+
+async function fetchInvoiceCompareData(userId: string, question: string): Promise<string | null> {
+  const lowerQ = question.toLowerCase();
+
+  // Detect comparison intent
+  const hasIntent = ["porównaj", "porówna", "zestawien", "zestawie", "porównan"].some(k => lowerQ.includes(k));
+  if (!hasIntent) return null;
+
+  const tokens = question.split(/\s+/);
+  let invoiceIds: number[] = [];
+
+  // Strategy 1: explicit invoice numbers (tokens containing "/" or starting with FV/VAT)
+  const invoiceTokens = tokens
+    .map(t => t.replace(/[,;.:]/g, ""))
+    .filter(t => t.includes("/") || /^[Ff][Vv]/i.test(t));
+
+  if (invoiceTokens.length >= 1) {
+    for (const token of invoiceTokens.slice(0, 4)) {
+      if (invoiceIds.length >= 2) break;
+      const res = await db.execute(sql`
+        SELECT id FROM invoices
+        WHERE user_id = ${userId} AND LOWER(invoice_number) LIKE LOWER(${`%${token}%`})
+        ORDER BY invoice_date DESC, id DESC LIMIT 2
+      `);
+      for (const r of (res.rows as Array<{ id: number }>)) {
+        if (!invoiceIds.includes(r.id)) invoiceIds.push(r.id);
+        if (invoiceIds.length >= 2) break;
+      }
+    }
+  }
+
+  // Strategy 2: supplier name → last 2 invoices
+  if (invoiceIds.length < 2) {
+    const wordTokens = tokens.map(t => t.replace(/[,;.:]/g, "")).filter(t => t.length >= 3);
+    let supplierId: number | null = null;
+
+    // First pass: question token is substring of supplier name (standard)
+    for (const token of wordTokens) {
+      if (supplierId) break;
+      const res = await db.execute(sql`
+        SELECT id FROM suppliers
+        WHERE user_id = ${userId} AND is_active = true
+          AND LOWER(name) LIKE LOWER(${`%${token}%`})
+        ORDER BY length(name) ASC LIMIT 1
+      `);
+      const rows = res.rows as Array<{ id: number }>;
+      if (rows.length > 0) supplierId = rows[0].id;
+    }
+
+    // Second pass (reverse): supplier name word is substring of a question token
+    // e.g. user types "Stelmach", supplier name contains "STELMA" → "stelma" ⊆ "stelmach"
+    if (!supplierId) {
+      const suppRes = await db.execute(sql`
+        SELECT id, name FROM suppliers
+        WHERE user_id = ${userId} AND is_active = true
+        ORDER BY length(name) ASC
+      `);
+      const allSuppliers = suppRes.rows as Array<{ id: number; name: string }>;
+      const lowerQuestion = question.toLowerCase();
+
+      for (const s of allSuppliers) {
+        if (supplierId) break;
+        // Split supplier name into significant words (4+ chars, skip abbreviations)
+        const nameWords = s.name
+          .split(/[\s,./\\&]+/)
+          .map(w => w.toLowerCase().replace(/[^a-z0-9ąćęłńóśźż]/gi, ""))
+          .filter(w => w.length >= 4 && !/^(sp|sc|zo|oo|ltd|inc|llc|spo|sta|han|dla|skl)$/i.test(w));
+
+        for (const nw of nameWords) {
+          // Supplier word is a substring of the question (covers typos like "stelmach" ⊃ "stelma")
+          if (lowerQuestion.includes(nw)) {
+            supplierId = s.id;
+            break;
+          }
+        }
+      }
+    }
+
+    if (supplierId) {
+      const res = await db.execute(sql`
+        SELECT id FROM invoices
+        WHERE user_id = ${userId} AND supplier_id = ${supplierId} AND excluded = false
+        ORDER BY invoice_date DESC, id DESC LIMIT 2
+      `);
+      invoiceIds = (res.rows as Array<{ id: number }>).map(r => r.id);
+    }
+  }
+
+  if (invoiceIds.length < 2) return null;
+
+  type InvItem = { name: string; qty: string; unit: string; unit_price: string; total: string };
+  type InvRow = { id: number; invoice_number: string; invoice_date: string; total_amount: string; supplier_name: string; items: InvItem[] };
+
+  const fetchInv = async (invId: number): Promise<InvRow | null> => {
+    const res = await db.execute(sql`
+      SELECT i.id, i.invoice_number, i.invoice_date, i.total_amount::text,
+             s.name AS supplier_name,
+             json_agg(json_build_object(
+               'name', COALESCE(p.name, ii.product_name),
+               'qty', ii.quantity::text,
+               'unit', ii.unit,
+               'unit_price', ii.unit_price::text,
+               'total', ii.total_price::text
+             ) ORDER BY ii.id) AS items
+      FROM invoices i
+      JOIN suppliers s ON s.id = i.supplier_id
+      JOIN invoice_items ii ON ii.invoice_id = i.id
+      LEFT JOIN products p ON p.id = ii.product_id
+      WHERE i.id = ${invId} AND i.user_id = ${userId}
+      GROUP BY i.id, i.invoice_number, i.invoice_date, i.total_amount, s.name
+    `);
+    const row = res.rows[0] as InvRow | undefined;
+    return row ?? null;
+  };
+
+  const [invA, invB] = await Promise.all([fetchInv(invoiceIds[0]), fetchInv(invoiceIds[1])]);
+  if (!invA || !invB) return null;
+
+  const fmtInv = (inv: InvRow, label: string): string => {
+    const items = (typeof inv.items === "string" ? JSON.parse(inv.items) : inv.items) as InvItem[];
+    const lines = items.map(it =>
+      `  - ${it.name}: ${parseFloat(it.qty).toFixed(2)} ${it.unit} × ${parseFloat(it.unit_price).toFixed(2)} zł = ${parseFloat(it.total).toFixed(2)} zł`
+    );
+    return `FAKTURA ${label}: ${inv.invoice_number} — dostawca: ${inv.supplier_name} — data: ${inv.invoice_date} — łącznie: ${parseFloat(inv.total_amount).toFixed(2)} zł\nPozycje:\n${lines.join("\n")}`;
+  };
+
+  return `\nDANE FAKTUR DO PORÓWNANIA:\n${fmtInv(invA, "A")}\n\n${fmtInv(invB, "B")}`;
+}
+
 // ─── Route: POST /ai-cfo/chat ─────────────────────────────────────────────────
 
 async function buildChatContext(userId: string, sinceStr: string): Promise<string> {
@@ -502,11 +632,14 @@ router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
   }
 
   const sinceStr = since90Days();
-  const context = await buildChatContext(userId, sinceStr);
+  const [context, invoiceCompareBlock] = await Promise.all([
+    buildChatContext(userId, sinceStr),
+    fetchInvoiceCompareData(userId, question.trim()),
+  ]);
 
   const systemPrompt = `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur i dostarczasz precyzyjne rekomendacje finansowe.
 
-${context}
+${context}${invoiceCompareBlock ?? ""}
 
 MOŻLIWOŚCI ANALIZY:
 - Porównanie dostawców KWOTOWO: który dostawca generuje największe wydatki w PLN
@@ -519,7 +652,7 @@ MOŻLIWOŚCI ANALIZY:
 INSTRUKCJA ODPOWIEDZI:
 Odpowiadaj ZAWSZE jako JSON (bez markdown, bez tekstu poza JSON):
 {
-  "type": "product_analysis|supplier_comparison|cost_analysis|quantity_anomaly|category_analysis|general",
+  "type": "product_analysis|supplier_comparison|cost_analysis|quantity_anomaly|category_analysis|invoice_comparison|general",
   "summary": "Główny wniosek w 2-3 zdaniach z konkretnymi liczbami PLN i/lub jednostkami.",
   "kpiCards": [
     {"label": "Nazwa KPI", "value": "np. 4 280 zł", "delta": "np. +12%", "deltaPositive": true}
@@ -538,6 +671,17 @@ ZASADY TABEL — dla porównania dostawców zawsze pokazuj obie kolumny:
 - Porównanie kwotowe: kolumny "Dostawca", "Wydatki (PLN)", "Udział %", "Faktury"
 - Porównanie ilościowe: kolumny "Dostawca", "Wolumen (j.)", "Produkty", "Śr. cena jedn."
 - Kategorie: kolumny "Kategoria", "Wydatki (PLN)", "Wolumen (j.)", "Produkty"
+
+INSTRUKCJA DLA PORÓWNANIA FAKTUR (type: "invoice_comparison"):
+Gdy kontekst zawiera blok "DANE FAKTUR DO PORÓWNANIA":
+- Użyj type: "invoice_comparison"
+- table.headers: ["Produkt", "Ilość A ({nr_faktury_A} — {data_A})", "Cena A", "Ilość B ({nr_faktury_B} — {data_B})", "Cena B", "Zmiana ceny"]
+- Zastąp {nr_faktury_A}/{nr_faktury_B} skróconymi numerami (max 15 znaków), {data_A}/{data_B} datą w formacie DD.MM.YYYY
+- table.rows: każda pozycja jako ["nazwa produktu", "X,XX jed.", "X,XX zł", "Y,YY jed." lub "—", "Y,YY zł" lub "—", "+X,X%" lub "-X,X%" lub "0%" lub "—"]
+- Jeśli produkt jest tylko w jednej fakturze: ilość i cena drugiej = "—", zmiana = "—"
+- Delta obliczana z cen jednostkowych: (cena_B - cena_A) / cena_A * 100, format z plusem dla wzrostu (np. "+5,2%"), minusem dla spadku (np. "-3,1%")
+- kpiCards: kwota faktury A, kwota faktury B, różnica PLN (B - A), różnica %
+- Jeśli danych faktur brak — type: "general" i poinformuj że nie znaleziono faktur
 
 WAŻNE — zasady tworzenia href w actions:
 - Gdy analizujesz KONKRETNY produkt (znasz jego ID z kontekstu [ID:X]): użyj "/products?id=X" (np. "/products?id=42")

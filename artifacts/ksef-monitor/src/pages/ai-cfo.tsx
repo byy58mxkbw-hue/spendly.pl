@@ -146,10 +146,10 @@ const QUICK_CHIPS: Array<{ group: string; chips: string[] }> = [
   {
     group: "Dostawcy",
     chips: [
+      "Porównaj dwie ostatnie faktury od dostawcy Stelmach",
       "Porównaj dostawców kwotowo — kto generuje największe wydatki?",
       "Porównaj dostawców ilościowo — kto dostarcza największe wolumeny?",
       "Który dostawca jest najdroższy i gdzie mogę wynegocjować lepszą cenę?",
-      "Porównaj ceny tego samego produktu u różnych dostawców",
     ],
   },
   {
@@ -293,9 +293,90 @@ function InsightsSkeleton() {
   );
 }
 
+// ─── InvoiceComparisonTable ────────────────────────────────────────────────────
+
+function parseDelta(val: string): "up" | "down" | "zero" | "none" {
+  const v = val.trim();
+  if (v === "—" || v === "") return "none";
+  if (v === "0%" || v === "0,0%") return "zero";
+  if (v.startsWith("+")) return "up";
+  if (v.startsWith("-")) return "down";
+  return "zero";
+}
+
+function InvoiceComparisonTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
+  // Headers: [Produkt, IlośćA, CenaA, IlośćB, CenaB, Zmiana]
+  // Columns 1-2 belong to Invoice A, 3-4 to Invoice B, 5 = delta
+  const deltaIdx = headers.length - 1;
+  const colGroupA = [1, 2];
+  const colGroupB = [3, 4];
+
+  const headerClass = (i: number) => {
+    if (colGroupA.includes(i)) return "bg-teal-50 text-teal-700";
+    if (colGroupB.includes(i)) return "bg-sky-50 text-sky-700";
+    if (i === deltaIdx) return "bg-gray-50 text-gray-500";
+    return "bg-gray-50 text-gray-500";
+  };
+
+  const cellDeltaClass = (val: string) => {
+    const d = parseDelta(val);
+    if (d === "up") return "text-rose-600 font-semibold";
+    if (d === "down") return "text-emerald-600 font-semibold";
+    return "text-gray-400";
+  };
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-gray-200">
+            {headers.map((h, i) => (
+              <th
+                key={i}
+                className={cn(
+                  "text-left px-3 py-2.5 font-semibold uppercase tracking-wide text-[10px] whitespace-nowrap",
+                  headerClass(i),
+                )}
+              >
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr
+              key={ri}
+              className="border-b border-gray-100 last:border-0 hover:bg-gray-50/60 transition-colors"
+            >
+              {row.map((cell, ci) => (
+                <td
+                  key={ci}
+                  className={cn(
+                    "px-3 py-2.5 whitespace-nowrap",
+                    ci === 0 && "font-medium text-gray-800",
+                    colGroupA.includes(ci) && ci !== 0 && "text-teal-800 bg-teal-50/30",
+                    colGroupB.includes(ci) && "text-sky-800 bg-sky-50/30",
+                    ci === deltaIdx && cellDeltaClass(cell),
+                    (cell === "—") && "text-gray-300",
+                  )}
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ─── AiReplyCard ──────────────────────────────────────────────────────────────
 
 function AiReplyCard({ data }: { data: ChatReply }) {
+  const isInvoiceCompare = data.type === "invoice_comparison";
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-800 leading-relaxed">{data.summary}</p>
@@ -334,6 +415,12 @@ function AiReplyCard({ data }: { data: ChatReply }) {
       {data.table &&
         data.table.headers.length > 0 &&
         data.table.rows.length > 0 && (
+          isInvoiceCompare ? (
+            <InvoiceComparisonTable
+              headers={data.table.headers}
+              rows={data.table.rows}
+            />
+          ) : (
           <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
             <table className="w-full text-xs">
               <thead>
@@ -370,6 +457,7 @@ function AiReplyCard({ data }: { data: ChatReply }) {
               </tbody>
             </table>
           </div>
+          )
         )}
 
       {data.recommendation && (
