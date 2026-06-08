@@ -144,34 +144,37 @@ const INSIGHT_CONFIG = {
 
 const QUICK_CHIPS: Array<{ group: string; chips: string[] }> = [
   {
-    group: "Produkty",
-    chips: [
-      "Które produkty drożały w ostatnim miesiącu?",
-      "Pokaż 5 produktów z najwyższym spendem",
-      "Co podrożało najbardziej procentowo?",
-    ],
-  },
-  {
-    group: "Koszty",
-    chips: [
-      "Jaki jest mój łączny food cost?",
-      "Porównaj wydatki miesiąc do miesiąca",
-      "Gdzie tracę najwięcej przez podwyżki?",
-    ],
-  },
-  {
-    group: "Ilości",
-    chips: [
-      "Gdzie zamawiamy nadmiernie dużo?",
-      "Anomalie ilościowe w ostatnim miesiącu",
-    ],
-  },
-  {
     group: "Dostawcy",
     chips: [
-      "Który dostawca jest najdroższy?",
+      "Porównaj dostawców kwotowo — kto generuje największe wydatki?",
+      "Porównaj dostawców ilościowo — kto dostarcza największe wolumeny?",
+      "Który dostawca jest najdroższy i gdzie mogę wynegocjować lepszą cenę?",
       "Porównaj ceny tego samego produktu u różnych dostawców",
-      "Gdzie mogę wynegocjować lepszą cenę?",
+    ],
+  },
+  {
+    group: "Kategorie i raporty",
+    chips: [
+      "Pokaż wydatki według kategorii produktów (mięso, nabiał, warzywa...)",
+      "Które kategorie produktów rosną najbardziej kosztowo?",
+      "Raport produktowy — top 10 produktów wg ilości i wartości zakupów",
+      "Pokaż wydatki według centrów kosztów",
+    ],
+  },
+  {
+    group: "Koszty i trendy",
+    chips: [
+      "Porównaj wydatki miesiąc do miesiąca",
+      "Gdzie tracę najwięcej przez podwyżki cen?",
+      "Jaki jest mój łączny food cost?",
+    ],
+  },
+  {
+    group: "Produkty i ilości",
+    chips: [
+      "Które produkty drożały w ostatnim miesiącu?",
+      "Co podrożało najbardziej procentowo?",
+      "Gdzie zamawiamy nadmiernie dużo?",
     ],
   },
 ];

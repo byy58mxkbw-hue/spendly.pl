@@ -335,66 +335,157 @@ async function enrichActions(
 // ─── Route: POST /ai-cfo/chat ─────────────────────────────────────────────────
 
 async function buildChatContext(userId: string, sinceStr: string): Promise<string> {
-  const [spendRes, topProductsRes, monthlyRes] = await Promise.allSettled([
+  const [spendRes, topProductsRes, monthlyRes, categoryRes, costCenterRes, supplierDetailRes] = await Promise.allSettled([
+    // Top 8 suppliers by value (kwotowo)
     db.execute(sql`
-      SELECT s.id AS supplier_id, s.name AS supplier_name, ROUND(SUM(ii.total_price::numeric), 0) AS total_spend
+      SELECT s.id AS supplier_id, s.name AS supplier_name,
+        ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
+        ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
+        COUNT(DISTINCT i.id) AS invoice_count
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} AND s.is_active = true
       GROUP BY s.id, s.name ORDER BY total_spend DESC LIMIT 8
     `),
+    // Top 20 products with quantity info
     db.execute(sql`
       SELECT
         p.id AS product_id, p.name AS product_name,
+        p.category, p.subcategory,
         s.id AS supplier_id, s.name AS supplier_name,
         ROUND(MIN(ii.unit_price::numeric), 2) AS min_price,
         ROUND(MAX(ii.unit_price::numeric), 2) AS max_price,
         ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
-        COUNT(*) AS purchase_count
+        ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
+        ii.unit,
+        COUNT(DISTINCT i.id) AS purchase_count
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       JOIN products p ON ii.product_id = p.id
       JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr}
-      GROUP BY p.id, p.name, s.id, s.name
+      GROUP BY p.id, p.name, p.category, p.subcategory, s.id, s.name, ii.unit
       ORDER BY total_spend DESC
-      LIMIT 20
+      LIMIT 25
     `),
+    // Monthly spend last 6 months
     db.execute(sql`
       SELECT SUBSTRING(i.invoice_date, 1, 7) AS month, ROUND(SUM(ii.total_price::numeric), 0) AS total
       FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
       WHERE i.user_id = ${userId}
       GROUP BY 1 ORDER BY 1 DESC LIMIT 6
     `),
+    // Spend by product category (from products.category field)
+    db.execute(sql`
+      SELECT
+        COALESCE(p.category, 'Bez kategorii') AS category,
+        ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
+        ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
+        COUNT(DISTINCT p.id) AS product_count
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      JOIN products p ON ii.product_id = p.id
+      WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} AND i.excluded = false
+      GROUP BY 1 ORDER BY total_spend DESC LIMIT 15
+    `),
+    // Spend by cost center
+    db.execute(sql`
+      SELECT
+        COALESCE(cc.name, 'Bez centrum kosztów') AS cost_center,
+        ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
+        COUNT(DISTINCT i.id) AS invoice_count
+      FROM invoices i
+      JOIN invoice_items ii ON ii.invoice_id = i.id
+      LEFT JOIN cost_centers cc ON cc.id = i.cost_center_id
+      WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} AND i.excluded = false
+      GROUP BY 1 ORDER BY total_spend DESC LIMIT 10
+    `),
+    // Supplier comparison: value vs quantity per supplier, with top products
+    db.execute(sql`
+      SELECT
+        s.id AS supplier_id, s.name AS supplier_name,
+        ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
+        ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
+        COUNT(DISTINCT p.id) AS unique_products,
+        COUNT(DISTINCT i.id) AS invoice_count,
+        ROUND(AVG(ii.unit_price::numeric), 2) AS avg_unit_price
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      JOIN suppliers s ON i.supplier_id = s.id
+      JOIN products p ON ii.product_id = p.id
+      WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr}
+        AND s.is_active = true AND i.excluded = false
+      GROUP BY s.id, s.name
+      ORDER BY total_spend DESC LIMIT 10
+    `),
   ]);
 
+  // ── Suppliers (simple spend list) ──────────────────────────────────────────
   const supplierRows = spendRes.status === "fulfilled"
-    ? (spendRes.value.rows as Array<{supplier_id: number; supplier_name: string; total_spend: string}>)
+    ? (spendRes.value.rows as Array<{supplier_id: number; supplier_name: string; total_spend: string; total_qty: string; invoice_count: string}>)
     : [];
-
   const suppliers = supplierRows.length
-    ? supplierRows.map(r => `[ID:${r.supplier_id}] ${r.supplier_name}: ${r.total_spend} zł`).join(", ")
+    ? supplierRows.map(r => `[ID:${r.supplier_id}] ${r.supplier_name}: ${r.total_spend} zł (${r.total_qty} j., ${r.invoice_count} faktur)`).join(", ")
     : "(brak)";
 
+  // ── Products ───────────────────────────────────────────────────────────────
   const productRows = topProductsRes.status === "fulfilled"
-    ? (topProductsRes.value.rows as Array<{product_id: number; product_name: string; supplier_id: number; supplier_name: string; min_price: string; max_price: string; total_spend: string; purchase_count: string}>)
+    ? (topProductsRes.value.rows as Array<{product_id: number; product_name: string; category: string | null; subcategory: string | null; supplier_id: number; supplier_name: string; min_price: string; max_price: string; total_spend: string; total_qty: string; unit: string; purchase_count: string}>)
     : [];
-
   const products = productRows.length
-    ? productRows.map(r => `[ID:${r.product_id}] ${r.product_name} @ [ID:${r.supplier_id}] ${r.supplier_name}: ${r.min_price}–${r.max_price} zł/j., wydatki: ${r.total_spend} zł, ${r.purchase_count}x`)
-      .join("\n")
+    ? productRows.map(r => {
+        const cat = r.category ? ` [${r.category}${r.subcategory ? `/${r.subcategory}` : ""}]` : "";
+        return `[ID:${r.product_id}] ${r.product_name}${cat} @ [ID:${r.supplier_id}] ${r.supplier_name}: ${r.min_price}–${r.max_price} zł/j., wydatki: ${r.total_spend} zł, ilość: ${r.total_qty} ${r.unit ?? "j."}, ${r.purchase_count}x`;
+      }).join("\n")
     : "(brak)";
 
+  // ── Monthly ────────────────────────────────────────────────────────────────
   const monthly = monthlyRes.status === "fulfilled"
     ? (monthlyRes.value.rows as Array<{month: string; total: string}>)
       .map(r => `${r.month}: ${r.total} zł`).join(", ")
     : "(brak)";
 
+  // ── Category breakdown ─────────────────────────────────────────────────────
+  const categoryRows = categoryRes.status === "fulfilled"
+    ? (categoryRes.value.rows as Array<{category: string; total_spend: string; total_qty: string; product_count: string}>)
+    : [];
+  const categories = categoryRows.length
+    ? categoryRows.map(r => `${r.category}: ${r.total_spend} zł, ${r.total_qty} j., ${r.product_count} produktów`).join("\n")
+    : "(brak danych kategorii)";
+
+  // ── Cost centers ───────────────────────────────────────────────────────────
+  const costCenterRows = costCenterRes.status === "fulfilled"
+    ? (costCenterRes.value.rows as Array<{cost_center: string; total_spend: string; invoice_count: string}>)
+    : [];
+  const costCenters = costCenterRows.length
+    ? costCenterRows.map(r => `${r.cost_center}: ${r.total_spend} zł (${r.invoice_count} faktur)`).join(", ")
+    : "(brak centrów kosztów)";
+
+  // ── Supplier detail comparison (ilościowo + kwotowo) ──────────────────────
+  const supplierDetailRows = supplierDetailRes.status === "fulfilled"
+    ? (supplierDetailRes.value.rows as Array<{supplier_id: number; supplier_name: string; total_spend: string; total_qty: string; unique_products: string; invoice_count: string; avg_unit_price: string}>)
+    : [];
+  const supplierComparison = supplierDetailRows.length
+    ? supplierDetailRows.map(r =>
+        `[ID:${r.supplier_id}] ${r.supplier_name}: kwotowo ${r.total_spend} zł | ilościowo ${r.total_qty} j. | ${r.unique_products} produktów | ${r.invoice_count} faktur | śr. cena jedn. ${r.avg_unit_price} zł`
+      ).join("\n")
+    : "(brak)";
+
   return `DANE RESTAURACJI (ostatnie 90 dni):
-TOP DOSTAWCY (format [ID:X] nazwa: wydatki): ${suppliers}
+
+DOSTAWCY — kwotowo i ilościowo:
+${supplierComparison}
+
 MIESIĘCZNE WYDATKI: ${monthly}
-PRODUKTY I CENY (format [ID:X] nazwa @ [ID:Y] dostawca):
+
+WYDATKI WG KATEGORII PRODUKTÓW:
+${categories}
+
+CENTRA KOSZTÓW:
+${costCenters}
+
+PRODUKTY I CENY SZCZEGÓŁOWO (format [ID:X] nazwa [kategoria] @ [ID:Y] dostawca):
 ${products}`;
 }
 
@@ -417,23 +508,36 @@ router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
 
 ${context}
 
+MOŻLIWOŚCI ANALIZY:
+- Porównanie dostawców KWOTOWO: który dostawca generuje największe wydatki w PLN
+- Porównanie dostawców ILOŚCIOWO: który dostawca dostarcza największe wolumeny (jednostki/kg)
+- Analiza wg KATEGORII PRODUKTÓW: rozkład wydatków na Mięso, Nabiał, Warzywa itp.
+- Analiza wg CENTRÓW KOSZTÓW: faktury przypisane do konkretnych obszarów restauracji
+- Trendy miesięczne: jak zmieniają się wydatki miesiąc do miesiąca
+- Raporty produktowe: które produkty kupujemy najczęściej i w największych ilościach
+
 INSTRUKCJA ODPOWIEDZI:
 Odpowiadaj ZAWSZE jako JSON (bez markdown, bez tekstu poza JSON):
 {
-  "type": "product_analysis|supplier_comparison|cost_analysis|quantity_anomaly|general",
-  "summary": "Główny wniosek w 2-3 zdaniach z konkretnymi liczbami PLN.",
+  "type": "product_analysis|supplier_comparison|cost_analysis|quantity_anomaly|category_analysis|general",
+  "summary": "Główny wniosek w 2-3 zdaniach z konkretnymi liczbami PLN i/lub jednostkami.",
   "kpiCards": [
     {"label": "Nazwa KPI", "value": "np. 4 280 zł", "delta": "np. +12%", "deltaPositive": true}
   ],
   "table": {
-    "headers": ["Kolumna 1", "Kolumna 2"],
-    "rows": [["Wiersz 1 kol 1", "Wiersz 1 kol 2"]]
+    "headers": ["Kolumna 1", "Kolumna 2", "Kolumna 3"],
+    "rows": [["Wiersz 1 kol 1", "Wiersz 1 kol 2", "Wiersz 1 kol 3"]]
   },
   "recommendation": "Konkretna rekomendacja działania z szacowanym efektem PLN.",
   "actions": [
     {"label": "Etykieta przycisku", "href": "/products"}
   ]
 }
+
+ZASADY TABEL — dla porównania dostawców zawsze pokazuj obie kolumny:
+- Porównanie kwotowe: kolumny "Dostawca", "Wydatki (PLN)", "Udział %", "Faktury"
+- Porównanie ilościowe: kolumny "Dostawca", "Wolumen (j.)", "Produkty", "Śr. cena jedn."
+- Kategorie: kolumny "Kategoria", "Wydatki (PLN)", "Wolumen (j.)", "Produkty"
 
 WAŻNE — zasady tworzenia href w actions:
 - Gdy analizujesz KONKRETNY produkt (znasz jego ID z kontekstu [ID:X]): użyj "/products?id=X" (np. "/products?id=42")
