@@ -81,11 +81,6 @@
       "operatingSystem": "Web",
       "url": "https://spendly.app",
       "description": "System do kontroli kosztów restauracji, food cost i analizy faktur. Integracja z KSeF, OCR faktur i automatyczny monitoring wydatków dla gastronomii.",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "PLN"
-      },
       "applicationSubCategory": "Restaurant Management Software",
       "keywords": "KSeF, food cost, kontrola kosztów restauracji, OCR faktur, analiza kosztów gastronomii"
     }
@@ -443,9 +438,31 @@
 
         <!-- FOOTER -->
         <footer style="border-top:1px solid rgba(255,255,255,0.08);padding:40px 24px;">
-          <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
-            <span style="font-size:16px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;">SPENDLY<span style="color:#F5F7FA;">.</span></span>
-            <p style="font-size:12px;color:#9BA6B2;margin:0;">Kontrola kosztów restauracji z integracją KSeF i OCR faktur</p>
+          <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:32px;margin-bottom:32px;">
+            <div>
+              <span style="font-size:16px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;">SPENDLY<span style="color:#F5F7FA;">.</span></span>
+              <p style="font-size:12px;color:#9BA6B2;margin:8px 0 0;line-height:1.6;">Kontrola kosztów restauracji z integracją KSeF i OCR faktur.</p>
+            </div>
+            <nav aria-label="Rozwiązania">
+              <p style="font-size:11px;font-weight:700;color:#9BA6B2;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Rozwiązania</p>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <a href="/ksef" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Integracja KSeF</a>
+                <a href="/food-cost" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Kontrola food cost</a>
+                <a href="/ocr-faktur" style="font-size:13px;color:#9BA6B2;text-decoration:none;">OCR faktur</a>
+              </div>
+            </nav>
+            <nav aria-label="Produkt">
+              <p style="font-size:11px;font-weight:700;color:#9BA6B2;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Produkt</p>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <a href="/cennik" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Cennik</a>
+                <a href="/sign-up" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Rejestracja</a>
+                <a href="/sign-in" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Logowanie</a>
+                <a href="mailto:kontakt@spendly.pl" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Kontakt</a>
+              </div>
+            </nav>
+          </div>
+          <div style="max-width:1200px;margin:0 auto;padding-top:20px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+            <span style="font-size:12px;color:#9BA6B2;">&copy; 2025 SPENDLY. Wszelkie prawa zastrzeżone.</span>
           </div>
         </footer>
       </div>

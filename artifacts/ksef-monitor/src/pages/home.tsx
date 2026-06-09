@@ -839,33 +839,57 @@ export default function Home() {
       </section>
 
       {/* ─── FOOTER ───────────────────────────────────────────────────────── */}
-      <footer style={{ borderTop: `1px solid ${C.border}`, padding: "32px 24px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }} className="md:flex-row md:items-center md:justify-between">
+      <footer style={{ borderTop: `1px solid ${C.border}`, padding: "40px 24px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32, marginBottom: 32 }}>
           <div>
             <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: "-0.04em", color: C.accent }}>
               SPENDLY<span style={{ color: C.text }}>.</span>
             </span>
-            <span style={{ fontSize: 12, color: C.muted, marginLeft: 10 }}>— monitoring kosztów dla gastronomii</span>
+            <p style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.6, margin: "8px 0 0" }}>
+              Kontrola kosztów restauracji z integracją KSeF i OCR faktur.
+            </p>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
-            {[
-              { href: "/sign-in", label: "Logowanie" },
-              { href: "/sign-up", label: "Rejestracja" },
-            ].map(({ href, label }) => (
-              <Link key={href} href={href}>
-                <span style={{ fontSize: 13, color: C.muted, cursor: "pointer", textDecoration: "none" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = C.text)}
-                  onMouseLeave={e => (e.currentTarget.style.color = C.muted)}>
-                  {label}
-                </span>
-              </Link>
-            ))}
-            <a href="mailto:kontakt@spendly.pl" style={{ fontSize: 13, color: C.muted, textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}>
-              Kontakt <ArrowUpRight size={12} />
-            </a>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Rozwiązania</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { href: "/ksef", label: "Integracja KSeF" },
+                { href: "/food-cost", label: "Kontrola food cost" },
+                { href: "/ocr-faktur", label: "OCR faktur" },
+              ].map(({ href, label }) => (
+                <Link key={href} href={href}>
+                  <span style={{ fontSize: 13, color: C.muted, cursor: "pointer", textDecoration: "none" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = C.text)}
+                    onMouseLeave={e => (e.currentTarget.style.color = C.muted)}>
+                    {label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Produkt</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { href: "/cennik", label: "Cennik" },
+                { href: "/sign-up", label: "Rejestracja" },
+                { href: "/sign-in", label: "Logowanie" },
+              ].map(({ href, label }) => (
+                <Link key={href} href={href}>
+                  <span style={{ fontSize: 13, color: C.muted, cursor: "pointer", textDecoration: "none" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = C.text)}
+                    onMouseLeave={e => (e.currentTarget.style.color = C.muted)}>
+                    {label}
+                  </span>
+                </Link>
+              ))}
+              <a href="mailto:kontakt@spendly.pl" style={{ fontSize: 13, color: C.muted, textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}>
+                Kontakt <ArrowUpRight size={12} />
+              </a>
+            </div>
           </div>
         </div>
-        <div style={{ maxWidth: 1200, margin: "20px auto 0", paddingTop: 20, borderTop: `1px solid ${C.border}`, textAlign: "center" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", paddingTop: 20, borderTop: `1px solid ${C.border}`, textAlign: "center" }}>
           <span style={{ fontSize: 12, color: C.muted }}>
             &copy; {new Date().getFullYear()} SPENDLY. Wszelkie prawa zastrzeżone.
           </span>

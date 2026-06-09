@@ -9,6 +9,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import KsefPage from "@/pages/ksef";
+import FoodCostPage from "@/pages/food-cost";
+import OcrFakturPage from "@/pages/ocr-faktur";
+import CennikPage from "@/pages/cennik";
 
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Suppliers = lazy(() => import("@/pages/suppliers"));
@@ -216,6 +220,10 @@ function AppRouter() {
           <Suspense fallback={null}>
             <Switch>
               <Route path="/" component={HomeRedirect} />
+              <Route path="/ksef" component={KsefPage} />
+              <Route path="/food-cost" component={FoodCostPage} />
+              <Route path="/ocr-faktur" component={OcrFakturPage} />
+              <Route path="/cennik" component={CennikPage} />
               <Route path="/sign-in/*?" component={SignInPage} />
               <Route path="/sign-up/*?" component={SignUpPage} />
               <Route path="/dashboard">
