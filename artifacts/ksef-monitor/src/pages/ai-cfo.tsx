@@ -85,6 +85,20 @@ type ChatMessage =
   | { id: string; role: "user"; text: string }
   | { id: string; role: "assistant"; data: ChatReply };
 
+type SpendlyProduct = {
+  name: string;
+  price: number;
+  unit: string;
+  supplierName: string;
+  priceChangePct?: number | null;
+};
+
+type FoodCostAlert = {
+  type: "low_margin" | "margin_drop" | "high_margin";
+  dishName: string;
+  value: string;
+};
+
 type FoodCostDish = {
   name: string;
   sales?: number | null;
@@ -93,12 +107,18 @@ type FoodCostDish = {
   marginPct: number;
   grossProfit?: number | null;
   suggestedPrice?: number | null;
+  confidencePct?: number | null;
+  mostExpensiveIngredient?: string | null;
+  priceImpactPct?: number | null;
+  recommendation?: string | null;
+  spendlyProducts?: SpendlyProduct[] | null;
 };
 
 type FoodCostResult = {
   dishes: FoodCostDish[];
   summary?: string;
   avgMarginPct?: number;
+  alerts?: FoodCostAlert[] | null;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1111,12 +1131,151 @@ function marginRowBg(pct: number) {
 
 const ACCEPTED_MENU_FILE_TYPES = "image/jpeg,image/jpg,image/png,image/webp,application/pdf";
 
+// ─── DishCard ─────────────────────────────────────────────────────────────────
+
+function DishCard({
+  dish,
+  expanded,
+  onToggle,
+}: {
+  dish: FoodCostDish;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const fc = dish.salePrice > 0 ? (dish.ingredientCost / dish.salePrice) * 100 : 0;
+  const hasSpendly = (dish.spendlyProducts?.length ?? 0) > 0;
+
+  return (
+    <div className={cn("rounded-xl border border-gray-200 p-4 space-y-3 bg-white shadow-sm", marginRowBg(dish.marginPct))}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <h4 className="text-sm font-semibold text-gray-900 leading-snug">{dish.name}</h4>
+          {dish.suggestedPrice != null && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 mt-1">
+              <ArrowUpRight className="w-2.5 h-2.5" />
+              Sugerowana cena: {PLN(dish.suggestedPrice)}
+            </span>
+          )}
+        </div>
+        {dish.confidencePct != null && (
+          <span className="text-[10px] text-gray-400 shrink-0 mt-0.5 tabular-nums">
+            {dish.confidencePct}% pewności
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="text-center bg-gray-50 rounded-lg px-2 py-2">
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Cena menu</p>
+          <p className="text-sm font-bold text-gray-900">{PLN(dish.salePrice)}</p>
+        </div>
+        <div className="text-center bg-gray-50 rounded-lg px-2 py-2">
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Food Cost</p>
+          <p className="text-sm font-bold text-gray-600">{PLN(dish.ingredientCost)}</p>
+          <p className="text-[9px] text-gray-400 tabular-nums">{fc.toFixed(0)}%</p>
+        </div>
+        <div className={cn("text-center rounded-lg px-2 py-2", marginBg(dish.marginPct))}>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1">Marża</p>
+          <p className={cn("text-sm font-bold", marginColor(dish.marginPct))}>{PCT(dish.marginPct)}</p>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        {dish.mostExpensiveIngredient && (
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-gray-400">Najdroższy składnik:</span>
+            <span className="font-medium text-gray-700">{dish.mostExpensiveIngredient}</span>
+          </div>
+        )}
+        {dish.priceImpactPct != null && Math.abs(dish.priceImpactPct) >= 0.5 && (
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-gray-400">Wpływ zmian cen:</span>
+            <span className={cn("font-semibold", dish.priceImpactPct < 0 ? "text-rose-600" : "text-emerald-600")}>
+              {dish.priceImpactPct > 0 ? "+" : ""}{dish.priceImpactPct.toFixed(1)}% marży
+            </span>
+          </div>
+        )}
+        {dish.recommendation && (
+          <div className="bg-teal-50 border border-teal-100 rounded-lg px-3 py-2 text-[11px] text-teal-700 leading-relaxed">
+            {dish.recommendation}
+          </div>
+        )}
+      </div>
+
+      {hasSpendly && (
+        <div>
+          <button
+            onClick={onToggle}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors"
+          >
+            <PackageSearch className="w-3.5 h-3.5" />
+            Pokaż składniki w Spendly
+            {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+          {expanded && (
+            <div className="mt-2 rounded-lg border border-gray-200 overflow-hidden">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="text-left px-3 py-2 font-semibold text-gray-500">Produkt</th>
+                    <th className="text-right px-3 py-2 font-semibold text-gray-500">Cena</th>
+                    <th className="text-right px-3 py-2 font-semibold text-gray-500">Zmiana</th>
+                    <th className="text-right px-3 py-2 font-semibold text-gray-500 hidden sm:table-cell">Dostawca</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dish.spendlyProducts!.map((p, pi) => (
+                    <tr key={pi} className="border-b border-gray-100 last:border-0">
+                      <td className="px-3 py-2 font-medium text-gray-700 max-w-[140px] truncate">{p.name}</td>
+                      <td className="px-3 py-2 text-right font-mono text-gray-600">{p.price.toFixed(2)} zł/{p.unit || "j."}</td>
+                      <td className="px-3 py-2 text-right">
+                        {p.priceChangePct != null ? (
+                          <span className={cn("font-semibold", p.priceChangePct > 0 ? "text-rose-600" : "text-emerald-600")}>
+                            {p.priceChangePct > 0 ? "+" : ""}{p.priceChangePct.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-500 hidden sm:table-cell max-w-[120px] truncate">{p.supplierName}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── AlertRow ─────────────────────────────────────────────────────────────────
+
+function AlertRow({ alert }: { alert: FoodCostAlert }) {
+  const configs: Record<FoodCostAlert["type"], { dot: string; label: string; cls: string }> = {
+    low_margin: { dot: "bg-rose-500", label: "Niska marża", cls: "border-rose-200 bg-rose-50 text-rose-700" },
+    margin_drop: { dot: "bg-amber-500", label: "Spadek marży", cls: "border-amber-200 bg-amber-50 text-amber-700" },
+    high_margin: { dot: "bg-emerald-500", label: "Wysoka rentowność", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  };
+  const c = configs[alert.type];
+  return (
+    <div className={cn("flex items-center gap-3 rounded-xl border px-4 py-3", c.cls)}>
+      <span className={cn("w-2 h-2 rounded-full shrink-0", c.dot)} />
+      <span className="text-xs font-bold">{c.label}</span>
+      <span className="text-xs">{alert.dishName}</span>
+      <span className="text-xs font-mono ml-auto">{alert.value}</span>
+    </div>
+  );
+}
+
 function FoodCostAi() {
   const [menuText, setMenuText] = useState("");
   const [salesText, setSalesText] = useState("");
   const [result, setResult] = useState<FoodCostResult | null>(null);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extractedPageCount, setExtractedPageCount] = useState<number | null>(null);
+  const [expandedDish, setExpandedDish] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const mutation = usePostAiCfoFoodCost();
@@ -1276,6 +1435,7 @@ function FoodCostAi() {
   function analyze() {
     if (!menuText.trim()) return;
     setResult(null);
+    setExpandedDish(null);
     mutation.mutate(
       { data: { menuText: menuText.trim(), salesText: salesText.trim() } },
       {
@@ -1336,13 +1496,13 @@ function FoodCostAi() {
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
-        <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center">
-          <UtensilsCrossed className="w-4 h-4 text-orange-500" />
+        <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+          <UtensilsCrossed className="w-4 h-4 text-primary" />
         </div>
         <div>
           <h2 className="text-sm font-semibold text-gray-900">Food Cost AI</h2>
           <p className="text-[11px] text-gray-400">
-            Wklej menu z recepturami i dane sprzedaży — AI obliczy marżę
+            Wklej menu — AI oszacuje food cost i rentowność na podstawie zakupów w Spendly
           </p>
         </div>
       </div>
@@ -1363,8 +1523,8 @@ function FoodCostAi() {
             {/* Label row with upload button */}
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                Karta menu / receptury
-                <span className="font-normal text-gray-400">(składniki + ilości)</span>
+                Menu
+                <span className="font-normal text-gray-400">(dania ze składnikami)</span>
               </label>
               <button
                 type="button"
@@ -1389,7 +1549,7 @@ function FoodCostAi() {
             <textarea
               value={menuText}
               onChange={(e) => setMenuText(e.target.value)}
-              placeholder={`np.\nMakaron carbonara (2 porcje):\n- 200g spaghetti\n- 100g boczek wędzony\n- 2 jajka\n- 30g parmezan\nCena menu: 32 zł`}
+              placeholder={`Filet z kurczaka - 54 zł\nfilet z kurczaka,\ngnocchi z batata,\nmus z brokuła,\npomidor koktajlowy,\ndemi-glace\n---\nBurger BBQ - 42 zł\nwołowina,\nser cheddar,\nbekon,\nfrytki`}
               rows={9}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none font-mono bg-gray-50/50"
             />
@@ -1416,13 +1576,13 @@ function FoodCostAi() {
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
-              Sprzedaż tygodniowa
+              Sprzedaż
               <span className="font-normal text-gray-400">(opcjonalnie)</span>
             </label>
             <textarea
               value={salesText}
               onChange={(e) => setSalesText(e.target.value)}
-              placeholder={`np.\nMakaron carbonara: 45 porcji\nBurger wołowy: 62 porcje\nSałatka grecka: 28 porcji`}
+              placeholder={`Filet z kurczaka - 30 szt\nBurger BBQ - 45 szt\nTatar - 12 szt`}
               rows={9}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 resize-none font-mono bg-gray-50/50"
             />
@@ -1437,25 +1597,25 @@ function FoodCostAi() {
           {mutation.isPending ? (
             <>
               <RefreshCw className="w-4 h-4 animate-spin" />
-              Analizuję food cost…
+              Analizuję menu…
             </>
           ) : (
             <>
               <Sparkles className="w-4 h-4" />
-              Analizuj food cost
+              Analizuj menu
             </>
           )}
         </Button>
 
         {mutation.isError && (
           <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm text-rose-700">
-            Nie udało się przetworzyć danych. Sprawdź format receptur i spróbuj ponownie.
+            Nie udało się przetworzyć danych. Sprawdź format menu i spróbuj ponownie.
           </div>
         )}
 
         {result && (
-          <div className="space-y-4 pt-1">
-            {/* Download button */}
+          <div className="space-y-5 pt-1">
+            {/* Download */}
             <div className="flex justify-end">
               <Button
                 variant="outline"
@@ -1468,7 +1628,7 @@ function FoodCostAi() {
               </Button>
             </div>
 
-            {/* Summary row */}
+            {/* Summary */}
             <div className="flex flex-wrap gap-3">
               {result.avgMarginPct != null && (
                 <div
@@ -1485,12 +1645,7 @@ function FoodCostAi() {
                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
                     Średnia marża
                   </p>
-                  <p
-                    className={cn(
-                      "text-3xl font-bold leading-none",
-                      marginColor(result.avgMarginPct),
-                    )}
-                  >
+                  <p className={cn("text-3xl font-bold leading-none", marginColor(result.avgMarginPct))}>
                     {PCT(result.avgMarginPct)}
                   </p>
                 </div>
@@ -1500,114 +1655,130 @@ function FoodCostAi() {
                   <p className="text-[10px] font-bold text-teal-600 uppercase tracking-wider mb-1.5">
                     Ocena AI
                   </p>
-                  <p className="text-sm text-teal-800 leading-relaxed">
-                    {result.summary}
-                  </p>
+                  <p className="text-sm text-teal-800 leading-relaxed">{result.summary}</p>
                 </div>
               )}
             </div>
 
-            {/* Dishes table */}
-            <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
-                      Danie
-                    </th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
-                      Koszt skł.
-                    </th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
-                      Cena menu
-                    </th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
-                      Marża
-                    </th>
-                    {result.dishes.some((d) => d.sales != null) && (
-                      <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
-                        Sprzedaż
+            {/* Ranking table */}
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                Ranking rentowności
+              </p>
+              <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
+                        Danie
                       </th>
-                    )}
-                    {result.dishes.some((d) => d.grossProfit != null) && (
                       <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
-                        Zysk brutto
+                        Cena
                       </th>
-                    )}
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
-                      Sugerowana cena
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {result.dishes.map((d, i) => (
-                    <tr
-                      key={i}
-                      className={cn(
-                        "border-b border-gray-100 last:border-0 transition-colors",
-                        marginRowBg(d.marginPct),
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
+                        Food Cost
+                      </th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
+                        Marża
+                      </th>
+                      {result.dishes.some((d) => d.sales != null) && (
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
+                          Sprzedaż
+                        </th>
                       )}
-                    >
-                      <td className="px-3 py-2.5 font-medium text-gray-800 max-w-[180px] truncate">
-                        {d.name}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-gray-600 font-mono">
-                        {PLN(d.ingredientCost)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-gray-600 font-mono">
-                        {PLN(d.salePrice)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right">
-                        <span
-                          className={cn(
-                            "font-bold",
-                            marginColor(d.marginPct),
-                          )}
-                        >
-                          {PCT(d.marginPct)}
-                        </span>
-                      </td>
-                      {result.dishes.some((x) => x.sales != null) && (
-                        <td className="px-3 py-2.5 text-right text-gray-500">
-                          {d.sales != null ? `${d.sales} szt.` : "—"}
-                        </td>
+                      {result.dishes.some((d) => d.grossProfit != null) && (
+                        <th className="text-right px-3 py-2.5 font-semibold text-gray-500 uppercase tracking-wide text-[10px]">
+                          Zysk brutto
+                        </th>
                       )}
-                      {result.dishes.some((x) => x.grossProfit != null) && (
-                        <td className="px-3 py-2.5 text-right text-gray-600 font-mono">
-                          {d.grossProfit != null ? PLN(d.grossProfit) : "—"}
-                        </td>
-                      )}
-                      <td className="px-3 py-2.5 text-right">
-                        {d.suggestedPrice != null ? (
-                          <span className="inline-flex items-center gap-1 font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200">
-                            {PLN(d.suggestedPrice)}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                            OK
-                          </span>
-                        )}
-                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {result.dishes.map((d, i) => (
+                      <tr
+                        key={i}
+                        className={cn(
+                          "border-b border-gray-100 last:border-0 transition-colors",
+                          marginRowBg(d.marginPct),
+                        )}
+                      >
+                        <td className="px-3 py-2.5 font-medium text-gray-800 max-w-[180px] truncate">
+                          {d.name}
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-gray-600 font-mono">
+                          {PLN(d.salePrice)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-gray-600 font-mono">
+                          {PLN(d.ingredientCost)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <span className={cn("font-bold", marginColor(d.marginPct))}>
+                            {PCT(d.marginPct)}
+                          </span>
+                        </td>
+                        {result.dishes.some((x) => x.sales != null) && (
+                          <td className="px-3 py-2.5 text-right text-gray-500">
+                            {d.sales != null ? `${d.sales} szt.` : "—"}
+                          </td>
+                        )}
+                        {result.dishes.some((x) => x.grossProfit != null) && (
+                          <td className="px-3 py-2.5 text-right text-gray-600 font-mono">
+                            {d.grossProfit != null ? PLN(d.grossProfit) : "—"}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex flex-wrap items-center gap-4 mt-2 text-[10px] text-gray-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-200 shrink-0" />
+                  Marża ≥ 65% — dobra
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-amber-100 border border-amber-200 shrink-0" />
+                  50–65% — do monitorowania
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-rose-100 border border-rose-200 shrink-0" />
+                  {"< 50%"} — niska marża
+                </span>
+              </div>
             </div>
 
-            {/* Legend */}
-            <div className="flex items-center gap-4 text-[10px] text-gray-400">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-emerald-100 border border-emerald-200 shrink-0" />
-                Marża ≥ 65% — dobra
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-amber-100 border border-amber-200 shrink-0" />
-                50–65% — do monitorowania
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm bg-rose-100 border border-rose-200 shrink-0" />
-                {"< 50%"} — niska marża
-              </span>
+            {/* Dish cards */}
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+                Analiza dań
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {result.dishes.map((d, i) => (
+                  <DishCard
+                    key={i}
+                    dish={d}
+                    expanded={expandedDish === i}
+                    onToggle={() => setExpandedDish(expandedDish === i ? null : i)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Alerts */}
+            {result.alerts && result.alerts.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  Alerty
+                </p>
+                {result.alerts.map((alert, i) => (
+                  <AlertRow key={i} alert={alert} />
+                ))}
+              </div>
+            )}
+
+            {/* Disclaimer */}
+            <div className="text-[11px] text-gray-400 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 leading-relaxed">
+              Food Cost AI przedstawia szacunkową analizę opartą na zakupach i cenach w Spendly. Nie zastępuje pełnych receptur technologicznych.
             </div>
           </div>
         )}

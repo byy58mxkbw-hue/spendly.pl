@@ -754,67 +754,118 @@ router.post("/ai-cfo/food-cost", async (req, res): Promise<void> => {
   const { menuText, salesText } = req.body as { menuText: string; salesText: string };
 
   if (!menuText || typeof menuText !== "string") {
-    res.status(400).json({ error: "Brakuje danych menu/receptur." });
+    res.status(400).json({ error: "Brakuje danych menu." });
     return;
   }
 
-  // Try to get relevant ingredient prices from DB
+  // Fetch product prices with month-over-month change from DB
   let dbPrices = "";
   try {
     const priceResult = await db.execute(sql`
-      SELECT DISTINCT ON (p.name)
-        p.name, ROUND(ii.unit_price::numeric, 2) AS unit_price, s.name AS supplier_name
-      FROM invoice_items ii
-      JOIN invoices i ON ii.invoice_id = i.id
-      JOIN products p ON ii.product_id = p.id
-      JOIN suppliers s ON i.supplier_id = s.id
-      WHERE i.user_id = ${userId}
-      ORDER BY p.name, i.invoice_date DESC
-      LIMIT 50
+      WITH ranked AS (
+        SELECT
+          p.name AS product_name,
+          s.name AS supplier_name,
+          ii.unit_price::numeric AS price,
+          ii.unit,
+          ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY i.invoice_date DESC) AS rn
+        FROM invoice_items ii
+        JOIN invoices i ON ii.invoice_id = i.id
+        JOIN products p ON ii.product_id = p.id
+        JOIN suppliers s ON i.supplier_id = s.id
+        WHERE i.user_id = ${userId} AND s.is_active = true
+      )
+      SELECT
+        r1.product_name,
+        r1.supplier_name,
+        ROUND(r1.price, 2) AS current_price,
+        r1.unit,
+        CASE
+          WHEN r2.price IS NOT NULL AND r2.price > 0
+          THEN ROUND((r1.price - r2.price) / r2.price * 100, 1)
+          ELSE NULL
+        END AS price_change_pct
+      FROM ranked r1
+      LEFT JOIN ranked r2
+        ON r1.product_name = r2.product_name AND r2.rn = 2
+      WHERE r1.rn = 1
+      ORDER BY r1.product_name
+      LIMIT 80
     `);
-    const rows = priceResult.rows as Array<{ name: string; unit_price: string; supplier_name: string }>;
+    const rows = priceResult.rows as Array<{
+      product_name: string;
+      supplier_name: string;
+      current_price: string;
+      unit: string;
+      price_change_pct: string | null;
+    }>;
     if (rows.length > 0) {
-      dbPrices = "\n\nCENY SKŁADNIKÓW Z FAKTUR RESTAURACJI:\n" +
-        rows.map(r => `${r.name}: ${r.unit_price} zł/j. (${r.supplier_name})`).join("\n");
+      dbPrices = "\n\nPRODUKTY I CENY ZAKUPOWE Z SPENDLY:\n" +
+        rows.map(r => {
+          const change = r.price_change_pct != null
+            ? ` [zmiana: ${parseFloat(r.price_change_pct) > 0 ? "+" : ""}${r.price_change_pct}%]`
+            : "";
+          return `${r.product_name}: ${r.current_price} zł/${r.unit || "j."} — ${r.supplier_name}${change}`;
+        }).join("\n");
     }
   } catch {
-    // ignore
+    // ignore — proceed without DB prices
   }
 
-  const prompt = `Jesteś AI CFO dla restauracji w Polsce. Na podstawie podanych danych oblicz food cost.
+  const prompt = `Jesteś AI CFO dla restauracji w Polsce. Analizujesz rentowność menu i szacujesz food cost.
+
+WAŻNE ZASADY:
+- NIE potrzebujesz gramatur ani receptur technologicznych
+- Szacujesz typowe porcje na podstawie wiedzy kulinarnej i typu dania
+- Używasz cen zakupowych z Spendly (poniżej) gdy dostępne; jeśli brak — typowe ceny rynkowe dla PL
+- Wynik jest SZACUNKIEM, nie księgowym wyliczeniem
+- confidencePct (0–100): wyższy gdy masz ceny zakupowe dla głównych składników dania
+- priceImpactPct: o ile % zmieniła się marża przez zmiany cen zakupowych (null = brak danych o zmianach)
+- spendlyProducts: lista produktów ze Spendly które zmapowałeś do składników tego dania
+- alerts: generuj dla całego menu — low_margin gdy marża < 50%, high_margin gdy >= 65%, margin_drop gdy priceImpactPct <= -2%
 ${dbPrices}
 
-MENU/RECEPTURY:
+MENU RESTAURACJI:
 ${menuText.slice(0, 3000)}
 
 SPRZEDAŻ TYGODNIOWA:
-${salesText ? salesText.slice(0, 1000) : "(nie podano — przyjmij szacunkowe wartości)"}
+${salesText ? salesText.slice(0, 1000) : "(nie podano)"}
 
-ZADANIE: Dla każdego dania z menu oblicz food cost i marżę. Jeśli znasz ceny składników z faktur, użyj ich. W przeciwnym razie użyj typowych cen rynkowych dla polskich restauracji.
-
-Odpowiedz TYLKO jako JSON (bez tekstu poza JSON):
+Odpowiedz TYLKO jako JSON (bez żadnego tekstu poza JSON):
 {
   "dishes": [
     {
-      "name": "Nazwa dania",
-      "sales": 45,
-      "ingredientCost": 8.50,
-      "salePrice": 28.00,
-      "marginPct": 69.6,
-      "grossProfit": 877.50,
-      "suggestedPrice": null
+      "name": "Filet z kurczaka",
+      "salePrice": 54.00,
+      "ingredientCost": 21.00,
+      "marginPct": 61.1,
+      "sales": 30,
+      "grossProfit": 990.00,
+      "confidencePct": 78,
+      "mostExpensiveIngredient": "Kurczak",
+      "priceImpactPct": -3.0,
+      "suggestedPrice": 57,
+      "recommendation": "Podniesienie ceny do 57 zł zwiększy marżę do ok. 65%",
+      "spendlyProducts": [
+        {"name": "FILET Z KURCZAKA POJEDYNCZY", "price": 22.50, "unit": "kg", "supplierName": "FARUTEX", "priceChangePct": 5.2}
+      ]
     }
   ],
-  "summary": "Ogólny komentarz o food cost restauracji.",
-  "avgMarginPct": 65.2
+  "summary": "Ogólna ocena food cost restauracji (1-2 zdania).",
+  "avgMarginPct": 63.5,
+  "alerts": [
+    {"type": "low_margin", "dishName": "Tatar", "value": "51%"},
+    {"type": "margin_drop", "dishName": "Filet z kurczaka", "value": "-3%"},
+    {"type": "high_margin", "dishName": "Burger BBQ", "value": "74%"}
+  ]
 }
 
-Reguły:
+Reguły obliczeń:
 - marginPct = (salePrice - ingredientCost) / salePrice * 100
-- grossProfit = (salePrice - ingredientCost) * sales
-- suggestedPrice: podaj nową cenę jeśli marża < 65%, w przeciwnym razie null
+- grossProfit = (salePrice - ingredientCost) * sales (null gdy brak sprzedaży)
+- suggestedPrice: nowa cena gdy marża < 65%, w przeciwnym razie null
 - Sortuj dania od najgorszej do najlepszej marży (rosnąco po marginPct)
-- Wszystkie kwoty w PLN, odpowiadaj po polsku`;
+- Odpowiadaj po polsku`;
 
   const resp = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -831,17 +882,22 @@ Reguły:
     parsed = JSON.parse(cleaned);
   } catch {
     req.log.warn({ raw: raw.slice(0, 300) }, "ai-cfo food-cost JSON parse failed");
-    res.status(422).json({ error: "Nie udało się przetworzyć danych. Sprawdź format receptur i spróbuj ponownie." });
+    res.status(422).json({ error: "Nie udało się przetworzyć danych. Sprawdź format menu i spróbuj ponownie." });
     return;
   }
 
-  // Deterministic post-processing: enforce sort and 65% threshold regardless of AI output
+  // Deterministic post-processing
   if (parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).dishes)) {
-    const p = parsed as { dishes: Array<Record<string, unknown>>; summary?: string; avgMarginPct?: number };
+    const p = parsed as {
+      dishes: Array<Record<string, unknown>>;
+      summary?: string;
+      avgMarginPct?: number;
+      alerts?: Array<Record<string, unknown>>;
+    };
+
     p.dishes = p.dishes
       .map((d): Record<string, unknown> => ({
         ...d,
-        // Enforce suggestedPrice threshold: must be null when marginPct >= 65
         suggestedPrice: typeof d.marginPct === "number" && d.marginPct < 65
           ? (d.suggestedPrice ?? null)
           : null,
@@ -849,8 +905,25 @@ Reguły:
       .sort((a, b) => {
         const am = typeof a.marginPct === "number" ? a.marginPct : 999;
         const bm = typeof b.marginPct === "number" ? b.marginPct : 999;
-        return am - bm; // ascending: worst margin first
+        return am - bm;
       });
+
+    // Generate alerts from data if AI didn't return them
+    if (!Array.isArray(p.alerts) || p.alerts.length === 0) {
+      const alerts: Array<Record<string, unknown>> = [];
+      for (const d of p.dishes) {
+        const name = String(d.name ?? "");
+        const margin = typeof d.marginPct === "number" ? d.marginPct : null;
+        const impact = typeof d.priceImpactPct === "number" ? d.priceImpactPct : null;
+        if (margin !== null && margin < 50)
+          alerts.push({ type: "low_margin", dishName: name, value: `${margin.toFixed(0)}%` });
+        if (impact !== null && impact <= -2)
+          alerts.push({ type: "margin_drop", dishName: name, value: `${impact.toFixed(1)}%` });
+        if (margin !== null && margin >= 65)
+          alerts.push({ type: "high_margin", dishName: name, value: `${margin.toFixed(0)}%` });
+      }
+      if (alerts.length > 0) p.alerts = alerts;
+    }
   }
 
   res.json(parsed);
