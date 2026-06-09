@@ -1,9 +1,11 @@
 # SEO Strategy
 
 ## In scope
-- Public landing page (`/`)
+- Public marketing homepage (`/`)
+- Public marketing solution pages (`/ksef`, `/food-cost`, `/ocr-faktur`)
+- Public pricing page (`/cennik`)
 - Public authentication pages (`/sign-in`, `/sign-up`) — audited to ensure they stay `noindex` and return route-correct metadata, not as ranking targets
-- Static SEO-facing assets in the frontend shell (`index.html`, `public/robots.txt`, favicon, OG image)
+- Static SEO-facing assets in the frontend shell (`index.html`, `sign-in.html`, `sign-up.html`, `public/robots.txt`, `public/sitemap.xml`, `public/llms.txt`, favicon, OG image)
 
 ## Out of scope
 - Authenticated application routes (`/dashboard`, `/suppliers`, `/products`, `/invoices`, `/price-alerts`, `/reports`, `/predictive`, `/pending-invoices`, `/ai-cfo`, `/settings/**`, `/admin/**`)
@@ -20,6 +22,7 @@
 - KSeF restauracja
 - analiza faktur gastronomia
 - monitoring cen surowców
+- OCR faktur restauracja
 
 ## Dismissed categories
 - (None yet)
