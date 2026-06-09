@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pl" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#3DDC97" />
+
+    <title>Cennik Spendly — kontrola kosztów restauracji za darmo w okresie testowym</title>
+    <meta name="description" content="Spendly jest bezpłatny w całym okresie testowym. Integracja KSeF, OCR faktur, food cost i alerty cenowe — wszystko bez karty kredytowej, bez umowy długoterminowej." />
+    <meta name="keywords" content="cennik Spendly, koszt systemu restauracja, food cost program cena, ile kosztuje Spendly, system faktur restauracja cena" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://spendly.app/cennik" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://spendly.app/cennik" />
+    <meta property="og:title" content="Cennik Spendly — kontrola kosztów restauracji za darmo w okresie testowym" />
+    <meta property="og:description" content="Spendly jest bezpłatny w całym okresie testowym. Integracja KSeF, OCR faktur, food cost i alerty cenowe — wszystko bez karty kredytowej." />
+    <meta property="og:site_name" content="Spendly" />
+    <meta property="og:locale" content="pl_PL" />
+    <meta property="og:image" content="https://spendly.app/opengraph.jpg" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="720" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Cennik Spendly — kontrola kosztów restauracji za darmo w okresie testowym" />
+    <meta name="twitter:description" content="Spendly jest bezpłatny w całym okresie testowym — bez karty kredytowej, bez umowy." />
+    <meta name="twitter:image" content="https://spendly.app/opengraph.jpg" />
+
+    <!-- Schema.org: WebPage + PriceSpecification -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Cennik Spendly",
+      "url": "https://spendly.app/cennik",
+      "description": "Spendly jest bezpłatny w całym okresie testowym. Regularna cena to 200 zł miesięcznie za pełny dostęp do integracji KSeF, OCR faktur i kontroli food cost.",
+      "inLanguage": "pl-PL",
+      "isPartOf": {
+        "@type": "WebSite",
+        "name": "Spendly",
+        "url": "https://spendly.app"
+      }
+    }
+    </script>
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Ile kosztuje Spendly po okresie testowym?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Regularna cena to 200 zł / miesiąc za nielimitowany dostęp do wszystkich funkcji. W trakcie okresu testowego korzystasz ze wszystkiego bezpłatnie — bez podawania karty kredytowej."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy mogę anulować w dowolnym momencie?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tak. Brak długoterminowych umów ani opłat za rezygnację. Anulujesz kiedy chcesz, bez żadnych konsekwencji."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Jak długo trwa okres testowy?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Obecnie Spendly jest bezpłatny dla wszystkich nowych użytkowników w ramach otwartego okresu testowego. Poinformujemy Cię z wyprzedzeniem, gdy zmienią się warunki."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900&display=swap"></noscript>
+  </head>
+  <body>
+    <div id="root">
+      <!-- Static prerender for crawlers and AI bots — replaced by React on hydration -->
+      <div style="background:#0B0F14;min-height:100vh;font-family:'Inter',system-ui,sans-serif;color:#F5F7FA;">
+
+        <!-- NAV -->
+        <header style="position:sticky;top:0;z-index:50;background:rgba(11,15,20,0.9);border-bottom:1px solid rgba(255,255,255,0.08);">
+          <div style="max-width:1200px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;">
+            <a href="/" style="font-size:18px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;text-decoration:none;">SPENDLY<span style="color:#F5F7FA;">.</span></a>
+            <div style="display:flex;gap:8px;">
+              <a href="/sign-in" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid rgba(255,255,255,0.08);color:#9BA6B2;text-decoration:none;">Zaloguj</a>
+              <a href="/sign-up" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;background:#3DDC97;color:#0B0F14;text-decoration:none;">Rozpocznij za darmo</a>
+            </div>
+          </div>
+        </header>
+
+        <!-- HERO -->
+        <section style="max-width:1200px;margin:0 auto;padding:72px 24px 64px;text-align:center;">
+          <div style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;border:1px solid rgba(61,220,151,0.12);background:rgba(61,220,151,0.12);color:#3DDC97;font-size:12px;font-weight:600;margin-bottom:20px;">
+            Okres testowy — bezpłatnie
+          </div>
+          <h1 style="font-size:clamp(2rem,5vw,3.2rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:16px;color:#F5F7FA;">
+            Prosta cena.<br />
+            <span style="color:#3DDC97;">Pełna kontrola kosztów.</span>
+          </h1>
+          <p style="font-size:17px;color:#9BA6B2;line-height:1.7;max-width:480px;margin:0 auto;">
+            Okres testowy bezpłatny dla każdego. Bez karty kredytowej. Anuluj w dowolnym momencie.
+          </p>
+        </section>
+
+        <!-- PRICING CARD -->
+        <section style="max-width:1200px;margin:0 auto;padding:0 24px 80px;">
+          <div style="max-width:480px;margin:0 auto;">
+            <div style="background:#131A22;border:1px solid rgba(61,220,151,0.25);border-radius:24px;padding:40px 36px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;">
+                <p style="font-size:15px;font-weight:700;color:#F5F7FA;margin:0;">Spendly Pro</p>
+                <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:rgba(61,220,151,0.12);color:#3DDC97;padding:4px 10px;border-radius:999px;">Okres testowy</span>
+              </div>
+              <div style="margin-bottom:8px;">
+                <div style="display:flex;align-items:baseline;gap:8px;">
+                  <span style="font-size:56px;font-weight:800;color:#3DDC97;letter-spacing:-0.03em;line-height:1;">0</span>
+                  <span style="font-size:16px;color:#9BA6B2;">zł / mies.</span>
+                  <span style="font-size:14px;color:#9BA6B2;text-decoration:line-through;align-self:center;margin-left:4px;opacity:0.6;">200 zł</span>
+                </div>
+                <p style="font-size:13px;color:#9BA6B2;margin-top:8px;">Bezpłatnie w całym okresie testowym — dla każdego.</p>
+              </div>
+              <div style="height:1px;background:rgba(255,255,255,0.08);margin:24px 0;"></div>
+              <p style="font-size:11px;font-weight:700;color:#9BA6B2;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px;">Co zawiera plan</p>
+              <ul style="list-style:none;padding:0;margin:0 0 32px;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;">
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Integracja z KSeF</li>
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">OCR faktur (zdjęcie lub PDF)</li>
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Kontrola food cost w czasie rzeczywistym</li>
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Analiza kosztów per-dostawca</li>
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Alerty o zmianach cen surowców</li>
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Dashboard wydatków</li>
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Raporty miesięczne (eksport CSV)</li>
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Obsługa wielu lokali</li>
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">AI CFO — analiza zakupowa</li>
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Bezpieczeństwo AES-256</li>
+              </ul>
+              <a href="/sign-up" style="width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:700;background:#3DDC97;color:#0B0F14;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;">Rozpocznij za darmo</a>
+              <p style="text-align:center;font-size:12px;color:#9BA6B2;margin:12px 0 0;">Bez umowy. Bez wdrożenia. Bez ukrytych kosztów.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- FAQ -->
+        <section style="border-top:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.015);">
+          <div style="max-width:760px;margin:0 auto;padding:80px 24px;">
+            <div style="text-align:center;margin-bottom:48px;">
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#3DDC97;text-transform:uppercase;margin-bottom:12px;">FAQ</p>
+              <h2 style="font-size:clamp(1.6rem,3vw,2.4rem);font-weight:600;letter-spacing:-0.025em;color:#F5F7FA;margin:0;">Pytania o cennik i warunki</h2>
+            </div>
+            <div style="border-top:1px solid rgba(255,255,255,0.08);">
+              <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
+                <p style="font-size:15px;font-weight:500;color:#F5F7FA;margin-bottom:10px;">Ile kosztuje Spendly po okresie testowym?</p>
+                <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Regularna cena to 200 zł / miesiąc za nielimitowany dostęp do wszystkich funkcji. W trakcie okresu testowego korzystasz ze wszystkiego bezpłatnie — bez podawania karty kredytowej.</p>
+              </div>
+              <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
+                <p style="font-size:15px;font-weight:500;color:#F5F7FA;margin-bottom:10px;">Czy mogę anulować w dowolnym momencie?</p>
+                <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Tak. Brak długoterminowych umów ani opłat za rezygnację. Anulujesz kiedy chcesz, bez żadnych konsekwencji.</p>
+              </div>
+              <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
+                <p style="font-size:15px;font-weight:500;color:#F5F7FA;margin-bottom:10px;">Jak długo trwa okres testowy?</p>
+                <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Obecnie Spendly jest bezpłatny dla wszystkich nowych użytkowników w ramach otwartego okresu testowego. Poinformujemy Cię z wyprzedzeniem, gdy zmienią się warunki.</p>
+              </div>
+              <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
+                <p style="font-size:15px;font-weight:500;color:#F5F7FA;margin-bottom:10px;">Czy jest możliwość dostosowania planu dla sieci restauracji?</p>
+                <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Tak. Skontaktuj się z nami pod adresem <a href="mailto:kontakt@spendly.pl" style="color:#3DDC97;text-decoration:none;">kontakt@spendly.pl</a> — przygotujemy ofertę dedykowaną dla sieci lokali gastronomicznych.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer style="border-top:1px solid rgba(255,255,255,0.08);padding:40px 24px;">
+          <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:32px;margin-bottom:32px;">
+            <div>
+              <span style="font-size:16px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;">SPENDLY<span style="color:#F5F7FA;">.</span></span>
+              <p style="font-size:12px;color:#9BA6B2;margin-top:8px;line-height:1.6;">Kontrola kosztów restauracji z integracją KSeF i OCR faktur.</p>
+            </div>
+            <div>
+              <p style="font-size:11px;font-weight:700;color:#9BA6B2;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Rozwiązania</p>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <a href="/ksef" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Integracja KSeF</a>
+                <a href="/food-cost" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Kontrola food cost</a>
+                <a href="/ocr-faktur" style="font-size:13px;color:#9BA6B2;text-decoration:none;">OCR faktur</a>
+              </div>
+            </div>
+            <div>
+              <p style="font-size:11px;font-weight:700;color:#9BA6B2;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Firma</p>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <a href="/cennik" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Cennik</a>
+                <a href="/sign-up" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Rejestracja</a>
+                <a href="mailto:kontakt@spendly.pl" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Kontakt</a>
+              </div>
+            </div>
+          </div>
+          <div style="max-width:1200px;margin:0 auto;padding-top:20px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+            <span style="font-size:12px;color:#9BA6B2;">&copy; 2025 SPENDLY. Wszelkie prawa zastrzeżone.</span>
+          </div>
+        </footer>
+
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

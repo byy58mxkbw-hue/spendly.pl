@@ -44,6 +44,22 @@ from = "/sign-up/*"
 to = "/sign-up.html"
 
 [[services.production.rewrites]]
+from = "/ksef"
+to = "/ksef.html"
+
+[[services.production.rewrites]]
+from = "/food-cost"
+to = "/food-cost.html"
+
+[[services.production.rewrites]]
+from = "/ocr-faktur"
+to = "/ocr-faktur.html"
+
+[[services.production.rewrites]]
+from = "/cennik"
+to = "/cennik.html"
+
+[[services.production.rewrites]]
 from = "/clerk/*"
 to = "/index.html"
 
