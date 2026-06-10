@@ -44,6 +44,9 @@ router.get("/invoices", async (req, res): Promise<void> => {
       costCenterId: invoicesTable.costCenterId,
       costCenterName: costCentersTable.name,
       costCenterColor: costCentersTable.color,
+      invoiceType: invoicesTable.invoiceType,
+      parentInvoiceId: invoicesTable.parentInvoiceId,
+      correctedInvoiceNumber: invoicesTable.correctedInvoiceNumber,
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
@@ -79,6 +82,9 @@ router.get("/invoices", async (req, res): Promise<void> => {
         costCenterId: inv.costCenterId ?? null,
         costCenterName: inv.costCenterName ?? null,
         costCenterColor: inv.costCenterColor ?? null,
+        invoiceType: inv.invoiceType ?? null,
+        parentInvoiceId: inv.parentInvoiceId ?? null,
+        correctedInvoiceNumber: inv.correctedInvoiceNumber ?? null,
       };
     }),
   );
@@ -417,6 +423,8 @@ function parseKSeFXml(xml: string): {
   invoiceNumber: string | null;
   invoiceDate: string | null;
   totalGross: number | null;
+  invoiceType: string | null;
+  correctedInvoiceNumber: string | null;
 } {
   const items: Array<{
     productName: string;
@@ -446,6 +454,14 @@ function parseKSeFXml(xml: string): {
   const totalNetRaw = extractTag(stripped, "P_13_1");
   const totalNet = totalNetRaw ? parseNum(totalNetRaw) : null;
   const invoiceType = extractTag(stripped, "RodzajFaktury")?.trim().toUpperCase() ?? null;
+
+  // Extract corrected invoice number from KOR (correction) invoices.
+  // In KSeF FA(3) XML the corrected invoice number lives inside <FaKorygowana>
+  // as <NrFaKorygowanej> or as the P_3C field.
+  const correctedInvoiceNumber =
+    extractTag(stripped, "NrFaKorygowanej") ??
+    extractTag(stripped, "P_3C") ??
+    null;
 
   const headerIsNegative =
     invoiceType === "KOR" &&
@@ -504,7 +520,7 @@ function parseKSeFXml(xml: string): {
     }
   }
 
-  return { items, invoiceNumber: invoiceNumber?.trim() ?? null, invoiceDate, totalGross };
+  return { items, invoiceNumber: invoiceNumber?.trim() ?? null, invoiceDate, totalGross, invoiceType, correctedInvoiceNumber: correctedInvoiceNumber?.trim() ?? null };
 }
 
 async function findOrCreateProduct(
@@ -576,12 +592,14 @@ router.post("/invoices/scan-receipt", async (req, res): Promise<void> => {
 
   const prompt = `Analyze this receipt or invoice image and extract the data as JSON. Be precise with numbers.
 
-Return ONLY a JSON object with this exact structure (all fields optional except items):
+Return ONLY a JSON object with this exact structure (all fields optional except items and isCorrection):
 {
   "supplierNip": "string or null — NIP number (10 digits, may appear as 'NIP: XXXXXXXXXX' or similar)",
   "supplierName": "string or null — name of the seller/supplier (not the buyer)",
   "invoiceNumber": "string or null — invoice or receipt number",
   "invoiceDate": "string or null — date in YYYY-MM-DD format",
+  "isCorrection": boolean — true if this is a correction/corrective invoice (faktura korygująca, KOR, or similar),
+  "correctedInvoiceNumber": "string or null — the invoice number being corrected (only when isCorrection is true)",
   "items": [
     {
       "productName": "exact product name",
@@ -599,7 +617,10 @@ Important:
 - If only gross prices are visible, use those
 - quantity should be a number (e.g. 1, 2.5, 0.5)
 - Return empty items array if no line items are visible
-- invoiceDate must be YYYY-MM-DD format`;
+- invoiceDate must be YYYY-MM-DD format
+- isCorrection must always be present (true or false)
+- Correction invoices often have words like "KOREKTA", "KOR", "korygująca", "KORYGUJACA" in the title or number
+- correctedInvoiceNumber is the original invoice number this correction refers to (look for "do faktury", "koryguje fakturę", "Nr faktury korygowanej" labels)`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -630,6 +651,8 @@ Important:
       supplierName?: string | null;
       invoiceNumber?: string | null;
       invoiceDate?: string | null;
+      isCorrection?: boolean;
+      correctedInvoiceNumber?: string | null;
       items?: Array<{ productName: string; quantity: number; unit: string; unitPrice: number; totalPrice: number }>;
     };
     try {
@@ -647,6 +670,8 @@ Important:
       supplierName: extracted.supplierName ?? null,
       invoiceNumber: extracted.invoiceNumber ?? null,
       invoiceDate: extracted.invoiceDate ?? null,
+      isCorrection: extracted.isCorrection === true,
+      correctedInvoiceNumber: extracted.correctedInvoiceNumber ?? null,
       items: Array.isArray(extracted.items) ? extracted.items : [],
     });
   } catch (err) {
@@ -663,7 +688,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, xmlContent, invoiceNumber, invoiceDate, force, items: manualItems, paymentMethod, paymentDueDate } = parsed.data;
+  const { supplierId, xmlContent, invoiceNumber, invoiceDate, force, items: manualItems, paymentMethod, paymentDueDate, correctedInvoiceNumber: manualCorrectedNumber } = parsed.data;
 
   const [supplier] = await db
     .select()
@@ -708,7 +733,27 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   }
 
   const calculatedTotal = parsedItems.reduce((sum, item) => sum + item.totalPrice, 0);
-  const totalAmount = calculatedTotal > 0 ? calculatedTotal : (parsed2?.totalGross ?? 0);
+  const totalAmount = calculatedTotal !== 0 ? calculatedTotal : (parsed2?.totalGross ?? 0);
+
+  // Determine invoice type and corrected invoice number
+  const finalInvoiceType = parsed2?.invoiceType ?? null;
+  const finalCorrectedNumber = (parsed2?.correctedInvoiceNumber ?? manualCorrectedNumber ?? null)?.trim() || null;
+
+  // For correction invoices (KOR), find and link the parent invoice
+  let parentInvoiceId: number | null = null;
+  if (finalCorrectedNumber) {
+    const [parent] = await db
+      .select({ id: invoicesTable.id })
+      .from(invoicesTable)
+      .where(
+        and(
+          eq(invoicesTable.userId, userId),
+          eq(invoicesTable.invoiceNumber, finalCorrectedNumber),
+        ),
+      )
+      .limit(1);
+    if (parent) parentInvoiceId = parent.id;
+  }
 
   // Cash/card payments are auto-marked as paid
   const isImmediatePayment = paymentMethod === "gotowka" || paymentMethod === "karta";
@@ -727,6 +772,9 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
       isPaid: isImmediatePayment,
       paidAt: isImmediatePayment ? new Date() : null,
       costCenterId: supplier.defaultCostCenterId ?? null,
+      invoiceType: finalInvoiceType,
+      parentInvoiceId,
+      correctedInvoiceNumber: finalCorrectedNumber,
     })
     .returning();
 
@@ -798,6 +846,9 @@ router.get("/invoices/:id", async (req, res): Promise<void> => {
       paymentDueDate: invoicesTable.paymentDueDate,
       isPaid: invoicesTable.isPaid,
       paidAt: invoicesTable.paidAt,
+      invoiceType: invoicesTable.invoiceType,
+      parentInvoiceId: invoicesTable.parentInvoiceId,
+      correctedInvoiceNumber: invoicesTable.correctedInvoiceNumber,
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))

@@ -1276,8 +1276,18 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                     </div>
 
                     <div className="min-w-0 cursor-pointer" onClick={() => setViewInvoiceId(inv.id)}>
-                      <p className="text-sm font-medium truncate text-white">{inv.supplierName}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-sm font-medium truncate text-white">{inv.supplierName}</p>
+                        {inv.invoiceType === "KOR" && (
+                          <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded text-orange-300 leading-none" style={{ background: "rgba(251,146,60,0.18)" }}>
+                            KOREKTA
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-white/50 truncate">{inv.invoiceNumber}</p>
+                      {inv.correctedInvoiceNumber && (
+                        <p className="text-[10px] text-orange-400/70 truncate">do: {inv.correctedInvoiceNumber}</p>
+                      )}
                       {inv.paymentMethod === "przelew" && inv.paymentDueDate && !inv.isPaid && (
                         <p className="text-xs text-orange-400">termin: {formatDate(inv.paymentDueDate)}</p>
                       )}
@@ -1484,6 +1494,8 @@ function ImportInvoiceDialog({
   const [showAddSupplier, setShowAddSupplier] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
   const [newSupplierNip, setNewSupplierNip] = useState("");
+  const [isCorrection, setIsCorrection] = useState(false);
+  const [correctedInvoiceNumber, setCorrectedInvoiceNumber] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createSupplierMutation = useCreateSupplier();
@@ -1542,6 +1554,10 @@ function ImportInvoiceDialog({
           setShowAddSupplier(true);
         }
       }
+      if (data.isCorrection) {
+        setIsCorrection(true);
+        setCorrectedInvoiceNumber(data.correctedInvoiceNumber ?? "");
+      }
       toast({ title: "Skan gotowy", description: `Rozpoznano ${data.items.length} pozycji.` });
     } catch {
       toast({ variant: "destructive", title: "Błąd skanowania", description: "Nie udało się przetworzyć obrazu." });
@@ -1590,6 +1606,7 @@ function ImportInvoiceDialog({
           items,
           paymentMethod: values.paymentMethod as "gotowka" | "karta" | "przelew" | undefined,
           paymentDueDate: values.paymentMethod === "przelew" ? (values.paymentDueDate || undefined) : undefined,
+          correctedInvoiceNumber: isCorrection && correctedInvoiceNumber.trim() ? correctedInvoiceNumber.trim() : undefined,
         },
       });
       queryClient.invalidateQueries();
@@ -1597,6 +1614,7 @@ function ImportInvoiceDialog({
       form.reset({ supplierId: "", invoiceNumber: "", invoiceDate: new Date().toISOString().split("T")[0], xmlContent: "", paymentMethod: undefined, paymentDueDate: "" });
       setXmlPreview(null); setScannedData(null); setReceiptPreviewUrl(null);
       setShowAddSupplier(false); setNewSupplierName(""); setNewSupplierNip("");
+      setIsCorrection(false); setCorrectedInvoiceNumber("");
       onClose();
     } catch (err: unknown) {
       const body = err as { status?: number; message?: string };
@@ -1702,6 +1720,39 @@ function ImportInvoiceDialog({
                   </FormItem>
                 )} />
               </div>
+
+              {isCorrection ? (
+                <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-orange-600">Faktura korygująca</p>
+                    <button
+                      type="button"
+                      onClick={() => { setIsCorrection(false); setCorrectedInvoiceNumber(""); }}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Numer korygowanej faktury *</label>
+                    <Input
+                      placeholder="np. FV/2024/001"
+                      value={correctedInvoiceNumber}
+                      onChange={(e) => setCorrectedInvoiceNumber(e.target.value)}
+                      className="h-8 text-sm font-mono"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsCorrection(true)}
+                  className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  To jest faktura korygująca
+                </button>
+              )}
 
               <FormField control={form.control} name="paymentMethod" render={({ field }) => (
                 <FormItem>

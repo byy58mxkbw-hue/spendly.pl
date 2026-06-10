@@ -220,6 +220,21 @@ export interface Invoice {
   costCenterName?: string | null;
   /** @nullable */
   costCenterColor?: string | null;
+  /**
+   * Invoice type from KSeF: VAT, KOR, etc.
+   * @nullable
+   */
+  invoiceType?: string | null;
+  /**
+   * ID of the parent invoice that this correction corrects
+   * @nullable
+   */
+  parentInvoiceId?: number | null;
+  /**
+   * Invoice number being corrected (KOR invoices)
+   * @nullable
+   */
+  correctedInvoiceNumber?: string | null;
 }
 
 export interface InvoiceItem {
@@ -252,6 +267,21 @@ export interface InvoiceWithItems {
   isPaid: boolean;
   /** @nullable */
   paidAt?: string | null;
+  /**
+   * Invoice type from KSeF: VAT, KOR, etc.
+   * @nullable
+   */
+  invoiceType?: string | null;
+  /**
+   * ID of the parent invoice that this correction corrects
+   * @nullable
+   */
+  parentInvoiceId?: number | null;
+  /**
+   * Invoice number being corrected (KOR invoices)
+   * @nullable
+   */
+  correctedInvoiceNumber?: string | null;
   items: InvoiceItem[];
 }
 
@@ -279,6 +309,13 @@ export interface ScannedReceiptData {
   invoiceNumber?: string | null;
   /** @nullable */
   invoiceDate?: string | null;
+  /** True if the scanned invoice is a correction (KOR type) */
+  isCorrection: boolean;
+  /**
+   * Invoice number being corrected, if this is a correction invoice
+   * @nullable
+   */
+  correctedInvoiceNumber?: string | null;
   items: ScannedReceiptItem[];
 }
 
@@ -303,6 +340,8 @@ export interface ImportInvoiceBody {
   paymentMethod?: string;
   /** Payment due date in YYYY-MM-DD format (for bank transfers) */
   paymentDueDate?: string;
+  /** Invoice number being corrected (for KOR invoices — read from XML or entered manually) */
+  correctedInvoiceNumber?: string;
 }
 
 export interface InvoiceTimelineDayCategory {

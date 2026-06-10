@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { toNum } from "../lib/parse";
-import { eq, sql, desc, and, inArray } from "drizzle-orm";
+import { eq, sql, desc, and, inArray, isNull } from "drizzle-orm";
 import { db, productsTable, invoiceItemsTable, invoicesTable, suppliersTable } from "@workspace/db";
 import { userCategoriesTable } from "@workspace/db/schema";
 import {
@@ -65,10 +65,13 @@ router.get("/products", async (req, res): Promise<void> => {
   const enriched = await Promise.all(
     products.map(async (product) => {
       // Build the shared base WHERE condition for price history queries.
+      // Correction invoices (parentInvoiceId IS NOT NULL) are excluded so they
+      // don't inject negative unit-prices into price history.
       const baseItemWhere = and(
         eq(invoiceItemsTable.productId, product.id),
         eq(invoicesTable.userId, userId),
         eq(invoicesTable.excluded, false),
+        isNull(invoicesTable.parentInvoiceId),
         ccFilter,
         supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
       );
@@ -213,6 +216,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
         eq(invoiceItemsTable.productId, product.id),
         eq(invoicesTable.userId, userId),
         eq(invoicesTable.excluded, false),
+        isNull(invoicesTable.parentInvoiceId),
         ccFilter,
       );
 
@@ -361,7 +365,7 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(and(eq(invoiceItemsTable.productId, params.data.id), eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false)))
+    .where(and(eq(invoiceItemsTable.productId, params.data.id), eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false), isNull(invoicesTable.parentInvoiceId)))
     .groupBy(invoicesTable.supplierId, suppliersTable.name)
     .orderBy(sql`max(${invoicesTable.invoiceDate}) desc`);
 
@@ -380,6 +384,7 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
             eq(invoicesTable.supplierId, s.supplierId),
             eq(invoicesTable.userId, userId),
             eq(invoicesTable.excluded, false),
+            isNull(invoicesTable.parentInvoiceId),
           ),
         )
         .orderBy(invoicesTable.invoiceDate);
@@ -454,6 +459,7 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
         eq(invoiceItemsTable.productId, params.data.id),
         eq(invoicesTable.userId, userId),
         eq(invoicesTable.excluded, false),
+        isNull(invoicesTable.parentInvoiceId),
         supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
       ),
     )

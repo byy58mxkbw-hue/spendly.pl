@@ -2389,6 +2389,15 @@ components:
           type: ["string", "null"]
         costCenterColor:
           type: ["string", "null"]
+        invoiceType:
+          type: ["string", "null"]
+          description: "Invoice type from KSeF: VAT, KOR, etc."
+        parentInvoiceId:
+          type: ["integer", "null"]
+          description: "ID of the parent invoice that this correction corrects"
+        correctedInvoiceNumber:
+          type: ["string", "null"]
+          description: "Invoice number being corrected (KOR invoices)"
       required:
         - id
         - supplierId
@@ -2458,6 +2467,15 @@ components:
           type: boolean
         paidAt:
           type: ["string", "null"]
+        invoiceType:
+          type: ["string", "null"]
+          description: "Invoice type from KSeF: VAT, KOR, etc."
+        parentInvoiceId:
+          type: ["integer", "null"]
+          description: "ID of the parent invoice that this correction corrects"
+        correctedInvoiceNumber:
+          type: ["string", "null"]
+          description: "Invoice number being corrected (KOR invoices)"
         items:
           type: array
           items:
@@ -2518,12 +2536,19 @@ components:
           type: ["string", "null"]
         invoiceDate:
           type: ["string", "null"]
+        isCorrection:
+          type: boolean
+          description: "True if the scanned invoice is a correction (KOR type)"
+        correctedInvoiceNumber:
+          type: ["string", "null"]
+          description: "Invoice number being corrected, if this is a correction invoice"
         items:
           type: array
           items:
             $ref: "#/components/schemas/ScannedReceiptItem"
       required:
         - items
+        - isCorrection
 
     ManualInvoiceItem:
       type: object
@@ -2570,6 +2595,9 @@ components:
         paymentDueDate:
           type: string
           description: Payment due date in YYYY-MM-DD format (for bank transfers)
+        correctedInvoiceNumber:
+          type: string
+          description: "Invoice number being corrected (for KOR invoices — read from XML or entered manually)"
       required:
         - supplierId
         - invoiceDate

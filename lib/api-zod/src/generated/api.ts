@@ -444,6 +444,18 @@ export const SetInvoiceCostCenterResponse = zod.object({
   costCenterId: zod.number().nullish(),
   costCenterName: zod.string().nullish(),
   costCenterColor: zod.string().nullish(),
+  invoiceType: zod
+    .string()
+    .nullish()
+    .describe("Invoice type from KSeF: VAT, KOR, etc."),
+  parentInvoiceId: zod
+    .number()
+    .nullish()
+    .describe("ID of the parent invoice that this correction corrects"),
+  correctedInvoiceNumber: zod
+    .string()
+    .nullish()
+    .describe("Invoice number being corrected (KOR invoices)"),
 });
 
 /**
@@ -976,6 +988,18 @@ export const ListInvoicesResponseItem = zod.object({
   costCenterId: zod.number().nullish(),
   costCenterName: zod.string().nullish(),
   costCenterColor: zod.string().nullish(),
+  invoiceType: zod
+    .string()
+    .nullish()
+    .describe("Invoice type from KSeF: VAT, KOR, etc."),
+  parentInvoiceId: zod
+    .number()
+    .nullish()
+    .describe("ID of the parent invoice that this correction corrects"),
+  correctedInvoiceNumber: zod
+    .string()
+    .nullish()
+    .describe("Invoice number being corrected (KOR invoices)"),
 });
 export const ListInvoicesResponse = zod.array(ListInvoicesResponseItem);
 
@@ -1012,6 +1036,15 @@ export const ScanReceiptResponse = zod.object({
   supplierName: zod.string().nullish(),
   invoiceNumber: zod.string().nullish(),
   invoiceDate: zod.string().nullish(),
+  isCorrection: zod
+    .boolean()
+    .describe("True if the scanned invoice is a correction (KOR type)"),
+  correctedInvoiceNumber: zod
+    .string()
+    .nullish()
+    .describe(
+      "Invoice number being corrected, if this is a correction invoice",
+    ),
   items: zod.array(
     zod.object({
       productName: zod.string(),
@@ -1059,6 +1092,12 @@ export const ImportInvoiceBody = zod.object({
     .string()
     .optional()
     .describe("Payment due date in YYYY-MM-DD format (for bank transfers)"),
+  correctedInvoiceNumber: zod
+    .string()
+    .optional()
+    .describe(
+      "Invoice number being corrected (for KOR invoices — read from XML or entered manually)",
+    ),
 });
 
 /**
@@ -1081,6 +1120,18 @@ export const GetInvoiceResponse = zod.object({
   paymentDueDate: zod.string().nullish(),
   isPaid: zod.boolean(),
   paidAt: zod.string().nullish(),
+  invoiceType: zod
+    .string()
+    .nullish()
+    .describe("Invoice type from KSeF: VAT, KOR, etc."),
+  parentInvoiceId: zod
+    .number()
+    .nullish()
+    .describe("ID of the parent invoice that this correction corrects"),
+  correctedInvoiceNumber: zod
+    .string()
+    .nullish()
+    .describe("Invoice number being corrected (KOR invoices)"),
   items: zod.array(
     zod.object({
       id: zod.number(),
@@ -1170,6 +1221,18 @@ export const GetInvoicesTimelineResponse = zod.object({
           costCenterId: zod.number().nullish(),
           costCenterName: zod.string().nullish(),
           costCenterColor: zod.string().nullish(),
+          invoiceType: zod
+            .string()
+            .nullish()
+            .describe("Invoice type from KSeF: VAT, KOR, etc."),
+          parentInvoiceId: zod
+            .number()
+            .nullish()
+            .describe("ID of the parent invoice that this correction corrects"),
+          correctedInvoiceNumber: zod
+            .string()
+            .nullish()
+            .describe("Invoice number being corrected (KOR invoices)"),
         }),
       ),
     }),
@@ -1967,6 +2030,18 @@ export const AcceptKsefPendingResponse = zod.object({
   paymentDueDate: zod.string().nullish(),
   isPaid: zod.boolean(),
   paidAt: zod.string().nullish(),
+  invoiceType: zod
+    .string()
+    .nullish()
+    .describe("Invoice type from KSeF: VAT, KOR, etc."),
+  parentInvoiceId: zod
+    .number()
+    .nullish()
+    .describe("ID of the parent invoice that this correction corrects"),
+  correctedInvoiceNumber: zod
+    .string()
+    .nullish()
+    .describe("Invoice number being corrected (KOR invoices)"),
   items: zod.array(
     zod.object({
       id: zod.number(),

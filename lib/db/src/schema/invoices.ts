@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, numeric, timestamp, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, numeric, timestamp, boolean, index, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { suppliersTable } from "./suppliers";
@@ -20,6 +20,9 @@ export const invoicesTable = pgTable("invoices", {
   isPaid: boolean("is_paid").notNull().default(false),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   costCenterId: integer("cost_center_id").references(() => costCentersTable.id, { onDelete: "set null" }),
+  invoiceType: text("invoice_type"),
+  parentInvoiceId: integer("parent_invoice_id").references((): AnyPgColumn => invoicesTable.id, { onDelete: "set null" }),
+  correctedInvoiceNumber: text("corrected_invoice_number"),
 }, (t) => [
   index("invoices_user_id_idx").on(t.userId),
   uniqueIndex("invoices_user_ksef_number_uniq").on(t.userId, t.ksefNumber),
