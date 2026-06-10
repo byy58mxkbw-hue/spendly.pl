@@ -24,6 +24,8 @@ import {
   getGetInvoicesCalendarQueryKey,
   getGetInvoicesPaymentsQueryKey,
   type ScannedReceiptData,
+  useCreateSupplier,
+  getListSuppliersQueryKey,
 } from "@workspace/api-client-react";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { useSyncKsefProgress, syncPhaseProgress, type SyncPhase } from "@/hooks/use-sync-progress";
@@ -1479,7 +1481,12 @@ function ImportInvoiceDialog({
   const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
   const [scannedData, setScannedData] = useState<ScannedReceiptData | null>(null);
   const [duplicateConflict, setDuplicateConflict] = useState<{ message: string; values: ImportFormValues } | null>(null);
+  const [showAddSupplier, setShowAddSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [newSupplierNip, setNewSupplierNip] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const createSupplierMutation = useCreateSupplier();
 
   const form = useForm<ImportFormValues>({
     resolver: zodResolver(importSchema),
@@ -1522,10 +1529,50 @@ function ImportInvoiceDialog({
       setScannedData(data);
       if (data.invoiceNumber && !form.getValues("invoiceNumber")) form.setValue("invoiceNumber", data.invoiceNumber);
       if (data.invoiceDate) form.setValue("invoiceDate", data.invoiceDate);
+      if (data.supplierName) {
+        const needle = data.supplierName.toLowerCase().trim();
+        const match = suppliers.find(
+          (s) => s.name.toLowerCase().includes(needle) || needle.includes(s.name.toLowerCase()),
+        );
+        if (match) {
+          form.setValue("supplierId", String(match.id));
+        } else {
+          setNewSupplierName(data.supplierName);
+          setNewSupplierNip(data.supplierNip ?? "");
+          setShowAddSupplier(true);
+        }
+      }
       toast({ title: "Skan gotowy", description: `Rozpoznano ${data.items.length} pozycji.` });
     } catch {
       toast({ variant: "destructive", title: "Błąd skanowania", description: "Nie udało się przetworzyć obrazu." });
     }
+  }
+
+  function handleAddSupplier() {
+    if (!newSupplierName.trim()) return;
+    createSupplierMutation.mutate(
+      {
+        data: {
+          name: newSupplierName.trim(),
+          taxId: newSupplierNip.trim(),
+          email: null,
+          phone: null,
+        },
+      },
+      {
+        onSuccess: (newS) => {
+          queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() });
+          form.setValue("supplierId", String(newS.id));
+          setShowAddSupplier(false);
+          setNewSupplierName("");
+          setNewSupplierNip("");
+          toast({ title: "Dostawca dodany", description: newS.name });
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "Błąd", description: "Nie udało się dodać dostawcy." });
+        },
+      },
+    );
   }
 
   async function handleSubmit(values: ImportFormValues, force = false) {
@@ -1549,6 +1596,7 @@ function ImportInvoiceDialog({
       toast({ title: "Dodano zakup" });
       form.reset({ supplierId: "", invoiceNumber: "", invoiceDate: new Date().toISOString().split("T")[0], xmlContent: "", paymentMethod: undefined, paymentDueDate: "" });
       setXmlPreview(null); setScannedData(null); setReceiptPreviewUrl(null);
+      setShowAddSupplier(false); setNewSupplierName(""); setNewSupplierNip("");
       onClose();
     } catch (err: unknown) {
       const body = err as { status?: number; message?: string };
@@ -1581,7 +1629,19 @@ function ImportInvoiceDialog({
             <form onSubmit={form.handleSubmit((v) => handleSubmit(v))} className="space-y-4">
               <FormField control={form.control} name="supplierId" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Dostawca</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Dostawca</FormLabel>
+                    {!showAddSupplier && (
+                      <button
+                        type="button"
+                        onClick={() => { setShowAddSupplier(true); setNewSupplierName(""); setNewSupplierNip(""); }}
+                        className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Nowy dostawca
+                      </button>
+                    )}
+                  </div>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Wybierz dostawcę" /></SelectTrigger></FormControl>
                     <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent>
@@ -1589,6 +1649,42 @@ function ImportInvoiceDialog({
                   <FormMessage />
                 </FormItem>
               )} />
+
+              {showAddSupplier && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-primary">Nowy dostawca</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddSupplier(false)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <Input
+                    placeholder="Nazwa dostawcy *"
+                    value={newSupplierName}
+                    onChange={(e) => setNewSupplierName(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                  <Input
+                    placeholder="NIP (opcjonalnie)"
+                    value={newSupplierNip}
+                    onChange={(e) => setNewSupplierNip(e.target.value)}
+                    className="h-8 text-sm font-mono"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!newSupplierName.trim() || createSupplierMutation.isPending}
+                    onClick={handleAddSupplier}
+                    className="h-7 text-xs w-full"
+                  >
+                    {createSupplierMutation.isPending ? "Dodawanie..." : "Dodaj dostawcę"}
+                  </Button>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
