@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { toNum } from "../lib/parse";
-import { eq, sql, desc, and, inArray, isNull } from "drizzle-orm";
+import { eq, sql, desc, and, inArray, isNull, ne } from "drizzle-orm";
 import { db, productsTable, invoiceItemsTable, invoicesTable, suppliersTable } from "@workspace/db";
 import { userCategoriesTable } from "@workspace/db/schema";
 import {
@@ -65,13 +65,18 @@ router.get("/products", async (req, res): Promise<void> => {
   const enriched = await Promise.all(
     products.map(async (product) => {
       // Build the shared base WHERE condition for price history queries.
-      // Correction invoices (parentInvoiceId IS NOT NULL) are excluded so they
-      // don't inject negative unit-prices into price history.
+      // Correction invoices are excluded via three belt-and-suspenders conditions:
+      //   1. parentInvoiceId IS NULL  — linked corrections (new imports)
+      //   2. invoiceType IS DISTINCT FROM 'KOR'  — explicitly labelled KOR invoices
+      //   3. quantity > 0  — old-style corrections with negative quantity
       const baseItemWhere = and(
         eq(invoiceItemsTable.productId, product.id),
         eq(invoicesTable.userId, userId),
         eq(invoicesTable.excluded, false),
         isNull(invoicesTable.parentInvoiceId),
+        sql`${invoicesTable.invoiceType} IS DISTINCT FROM 'KOR'`,
+        sql`${invoiceItemsTable.quantity}::numeric > 0`,
+        sql`${invoiceItemsTable.unitPrice}::numeric > 0`,
         ccFilter,
         supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
       );
@@ -217,6 +222,9 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
         eq(invoicesTable.userId, userId),
         eq(invoicesTable.excluded, false),
         isNull(invoicesTable.parentInvoiceId),
+        sql`${invoicesTable.invoiceType} IS DISTINCT FROM 'KOR'`,
+        sql`${invoiceItemsTable.quantity}::numeric > 0`,
+        sql`${invoiceItemsTable.unitPrice}::numeric > 0`,
         ccFilter,
       );
 
@@ -365,7 +373,15 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(and(eq(invoiceItemsTable.productId, params.data.id), eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false), isNull(invoicesTable.parentInvoiceId)))
+    .where(and(
+      eq(invoiceItemsTable.productId, params.data.id),
+      eq(invoicesTable.userId, userId),
+      eq(invoicesTable.excluded, false),
+      isNull(invoicesTable.parentInvoiceId),
+      sql`${invoicesTable.invoiceType} IS DISTINCT FROM 'KOR'`,
+      sql`${invoiceItemsTable.quantity}::numeric > 0`,
+      sql`${invoiceItemsTable.unitPrice}::numeric > 0`,
+    ))
     .groupBy(invoicesTable.supplierId, suppliersTable.name)
     .orderBy(sql`max(${invoicesTable.invoiceDate}) desc`);
 
@@ -385,6 +401,9 @@ router.get("/products/:id/supplier-comparison", async (req, res): Promise<void> 
             eq(invoicesTable.userId, userId),
             eq(invoicesTable.excluded, false),
             isNull(invoicesTable.parentInvoiceId),
+            sql`${invoicesTable.invoiceType} IS DISTINCT FROM 'KOR'`,
+            sql`${invoiceItemsTable.quantity}::numeric > 0`,
+            sql`${invoiceItemsTable.unitPrice}::numeric > 0`,
           ),
         )
         .orderBy(invoicesTable.invoiceDate);
@@ -442,37 +461,60 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
     return;
   }
 
-  const history = await db
-    .select({
-      date: invoicesTable.invoiceDate,
-      price: invoiceItemsTable.unitPrice,
-      invoiceId: invoicesTable.id,
-      invoiceNumber: invoicesTable.invoiceNumber,
-      supplierId: invoicesTable.supplierId,
-      supplierName: suppliersTable.name,
-    })
-    .from(invoiceItemsTable)
-    .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-    .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-    .where(
-      and(
-        eq(invoiceItemsTable.productId, params.data.id),
-        eq(invoicesTable.userId, userId),
-        eq(invoicesTable.excluded, false),
-        isNull(invoicesTable.parentInvoiceId),
-        supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
-      ),
-    )
-    .orderBy(invoicesTable.invoiceDate);
+  // Raw SQL: compute effective unit price = main unit_price + SUM of corrections
+  // linked via parent_invoice_id (for the same product). Corrections with negative
+  // quantities or 'KOR' invoice type are excluded from the main result set.
+  const productId = params.data.id;
+  const supplierFilter = supplierId ? `AND inv.supplier_id = ${supplierId}` : "";
+
+  const { rows: history } = await db.execute<{
+    date: string;
+    price: string;
+    invoice_id: number;
+    invoice_number: string;
+    supplier_id: number;
+    supplier_name: string;
+  }>(sql.raw(`
+    SELECT
+      inv.invoice_date                                  AS date,
+      (
+        ii.unit_price::numeric
+        + COALESCE((
+            SELECT SUM(ii2.unit_price::numeric)
+            FROM invoice_items ii2
+            JOIN invoices cor ON ii2.invoice_id = cor.id
+            WHERE ii2.product_id = ${productId}
+              AND cor.parent_invoice_id = inv.id
+              AND cor.user_id = '${userId}'
+              AND cor.excluded = false
+          ), 0)
+      )::text                                           AS price,
+      inv.id                                            AS invoice_id,
+      inv.invoice_number                                AS invoice_number,
+      inv.supplier_id                                   AS supplier_id,
+      s.name                                            AS supplier_name
+    FROM invoice_items ii
+    JOIN invoices inv ON ii.invoice_id = inv.id
+    JOIN suppliers s  ON inv.supplier_id = s.id
+    WHERE ii.product_id = ${productId}
+      AND inv.user_id   = '${userId}'
+      AND inv.excluded  = false
+      AND inv.parent_invoice_id IS NULL
+      AND (inv.invoice_type IS DISTINCT FROM 'KOR')
+      AND ii.quantity::numeric > 0
+      AND ii.unit_price::numeric > 0
+      ${supplierFilter}
+    ORDER BY inv.invoice_date
+  `));
 
   res.json(
     history.map((h) => ({
       date: h.date,
       price: toNum(h.price),
-      invoiceId: h.invoiceId,
-      invoiceNumber: h.invoiceNumber,
-      supplierId: h.supplierId,
-      supplierName: h.supplierName,
+      invoiceId: h.invoice_id,
+      invoiceNumber: h.invoice_number,
+      supplierId: h.supplier_id,
+      supplierName: h.supplier_name,
     })),
   );
 });
