@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { db, dishesTable, dishIngredientsTable, productsTable, invoiceItemsTable, invoicesTable } from "@workspace/db";
 import { CreateDishBody, UpdateDishBody, GetDishParams, UpdateDishParams, DeleteDishParams } from "@workspace/api-zod";
 
@@ -35,7 +35,7 @@ async function getLatestPrices(userId: string, productIds: number[]): Promise<Ma
     .select({
       productId: invoiceItemsTable.productId,
       unitPrice: invoiceItemsTable.unitPrice,
-      unit: productsTable.unit,
+      unit: invoiceItemsTable.unit,
     })
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
@@ -48,6 +48,7 @@ async function getLatestPrices(userId: string, productIds: number[]): Promise<Ma
         sql`(${invoicesTable.invoiceType}) IS DISTINCT FROM 'KOR'`,
         sql`${invoiceItemsTable.quantity}::numeric > 0`,
         sql`${invoiceItemsTable.unitPrice}::numeric > 0`,
+        inArray(invoiceItemsTable.productId, productIds),
       ),
     )
     .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id));
@@ -55,9 +56,8 @@ async function getLatestPrices(userId: string, productIds: number[]): Promise<Ma
   const map = new Map<number, { unitPrice: number; unit: string }>();
   for (const row of rows) {
     if (!map.has(row.productId!)) {
-      map.set(row.productId!, { unitPrice: parseFloat(row.unitPrice as string), unit: row.unit });
+      map.set(row.productId!, { unitPrice: parseFloat(row.unitPrice as string), unit: row.unit ?? "szt" });
     }
-    if (map.size === productIds.length) break;
   }
   return map;
 }

@@ -132,7 +132,8 @@ function DishFormDialog({
 
   function addIngredient(productId: number, productName: string, productUnit: string) {
     if (ingredients.find((i) => i.productId === productId)) return;
-    const defaultUnit = ["kg", "g", "dag"].includes(productUnit) ? "g" : productUnit;
+    const u = (productUnit ?? "").toLowerCase().trim();
+    const defaultUnit = (u === "ml" || u === "l" || u === "litr") ? "ml" : "g";
     setIngredients((prev) => [
       ...prev,
       { _key: String(Date.now()), productId, productName, quantity: 100, unit: defaultUnit },
