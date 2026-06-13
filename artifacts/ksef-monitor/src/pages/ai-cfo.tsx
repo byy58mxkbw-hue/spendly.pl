@@ -1791,8 +1791,6 @@ function FoodCostAi() {
 
 export default function AiCfoPage() {
   const insightsQuery = useGetAiCfoInsights();
-  const [tab, setTab] = useState<"chat" | "food-cost">("chat");
-
   const cards = (insightsQuery.data ?? []) as InsightCardData[];
 
   return (
@@ -1800,7 +1798,7 @@ export default function AiCfoPage() {
       <div className="px-4 py-5 md:px-6 md:py-6 max-w-6xl mx-auto">
         <PageHeader
           title="AI CFO"
-          subtitle="Kluczowe sygnały, chat z danymi i kalkulator food cost"
+          subtitle="Kluczowe sygnały i chat z danymi"
           action={
             <Button
               variant="outline"
@@ -1841,37 +1839,9 @@ export default function AiCfoPage() {
             )}
           </section>
 
-          {/* ── Tab section ── */}
+          {/* ── Chat ── */}
           <section>
-            {/* Tab switcher */}
-            <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl w-fit mb-5">
-              <button
-                onClick={() => setTab("chat")}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  tab === "chat"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700",
-                )}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Chat CFO
-              </button>
-              <button
-                onClick={() => setTab("food-cost")}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  tab === "food-cost"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700",
-                )}
-              >
-                <UtensilsCrossed className="w-3.5 h-3.5" />
-                Food Cost AI
-              </button>
-            </div>
-
-            {tab === "chat" ? <ChatCfo /> : <FoodCostAi />}
+            <ChatCfo />
           </section>
         </div>
       </div>
