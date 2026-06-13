@@ -901,18 +901,34 @@ function ProductsTable({ products }: { products: ProductWithImpact[] }) {
           <option value="qty">Wg zmiany ilości</option>
         </select>
       </div>
-      <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-        <div>Produkt</div>
-        <div className="text-right w-16">Ilość</div>
-        <div className="text-right w-24">Śr. cena</div>
-        <div className="text-right w-14">Zmiana ceny</div>
-        <div className="text-right w-24">Łącznie</div>
-      </div>
+      {sortBy === "qty" ? (
+        <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+          <div>Produkt</div>
+          <div className="text-right w-20">Poprz. mies.</div>
+          <div className="text-right w-16">Ten mies.</div>
+          <div className="text-right w-16">Zmiana il.</div>
+          <div className="text-right w-24">Śr. cena</div>
+          <div className="text-right w-24">Łącznie</div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+          <div>Produkt</div>
+          <div className="text-right w-16">Ilość</div>
+          <div className="text-right w-24">Śr. cena</div>
+          <div className="text-right w-14">Zmiana ceny</div>
+          <div className="text-right w-24">Łącznie</div>
+        </div>
+      )}
       <div className="divide-y divide-border max-h-[60vh] overflow-y-auto">
         {filtered.slice(0, 50).map((p, i) => (
           <div
             key={i}
-            className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2.5 items-center"
+            className={cn(
+              "grid gap-2 px-4 md:px-5 py-2.5 items-center",
+              sortBy === "qty"
+                ? "grid-cols-[1fr_auto_auto_auto_auto_auto]"
+                : "grid-cols-[1fr_auto_auto_auto_auto]",
+            )}
           >
             <div className="min-w-0">
               <p className="text-sm text-foreground truncate">{p.productName}</p>
@@ -920,25 +936,62 @@ function ProductsTable({ products }: { products: ProductWithImpact[] }) {
                 <p className="text-[10px] text-muted-foreground truncate">{p.supplierName}</p>
               )}
             </div>
-            <p className="text-xs text-muted-foreground text-right w-16 tabular-nums">
-              {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(1)} {p.unit}
-            </p>
-            <p className="text-xs text-foreground text-right w-24 tabular-nums">
-              {formatPrice(p.avgPrice)}/{p.unit}
-            </p>
-            {p.prevMonthAvgPrice != null && p.prevMonthAvgPrice > 0 ? (
-              <span
-                className={cn(
-                  "text-xs font-bold text-right w-14 tabular-nums flex items-center justify-end gap-0.5",
-                  p.pricePct > 0 ? "text-red-500" : p.pricePct < 0 ? "text-emerald-600" : "text-muted-foreground",
+
+            {sortBy === "qty" ? (
+              <>
+                {/* Previous month quantity */}
+                <p className="text-xs text-muted-foreground text-right w-20 tabular-nums">
+                  {p.prevMonthTotalQuantity != null
+                    ? `${p.prevMonthTotalQuantity % 1 === 0 ? p.prevMonthTotalQuantity : p.prevMonthTotalQuantity.toFixed(1)} ${p.unit}`
+                    : "—"}
+                </p>
+                {/* Current month quantity */}
+                <p className="text-xs text-foreground text-right w-16 tabular-nums font-medium">
+                  {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(1)} {p.unit}
+                </p>
+                {/* Quantity % change */}
+                {p.prevMonthTotalQuantity != null && p.prevMonthTotalQuantity > 0 ? (
+                  <span
+                    className={cn(
+                      "text-xs font-bold text-right w-16 tabular-nums flex items-center justify-end gap-0.5",
+                      p.qtyPct > 0 ? "text-amber-500" : p.qtyPct < 0 ? "text-blue-500" : "text-muted-foreground",
+                    )}
+                  >
+                    {p.qtyPct > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : p.qtyPct < 0 ? <ArrowDown className="w-2.5 h-2.5" /> : null}
+                    {p.qtyPct !== 0 ? (p.qtyPct > 0 ? "+" : "") + p.qtyPct.toFixed(1) + "%" : "—"}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground text-right w-16">—</span>
                 )}
-              >
-                {p.pricePct > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : p.pricePct < 0 ? <ArrowDown className="w-2.5 h-2.5" /> : null}
-                {p.pricePct !== 0 ? Math.abs(p.pricePct).toFixed(1) + "%" : "—"}
-              </span>
+                {/* Avg price */}
+                <p className="text-xs text-muted-foreground text-right w-24 tabular-nums">
+                  {formatPrice(p.avgPrice)}/{p.unit}
+                </p>
+              </>
             ) : (
-              <span className="text-xs text-muted-foreground text-right w-14">—</span>
+              <>
+                <p className="text-xs text-muted-foreground text-right w-16 tabular-nums">
+                  {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(1)} {p.unit}
+                </p>
+                <p className="text-xs text-foreground text-right w-24 tabular-nums">
+                  {formatPrice(p.avgPrice)}/{p.unit}
+                </p>
+                {p.prevMonthAvgPrice != null && p.prevMonthAvgPrice > 0 ? (
+                  <span
+                    className={cn(
+                      "text-xs font-bold text-right w-14 tabular-nums flex items-center justify-end gap-0.5",
+                      p.pricePct > 0 ? "text-red-500" : p.pricePct < 0 ? "text-emerald-600" : "text-muted-foreground",
+                    )}
+                  >
+                    {p.pricePct > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : p.pricePct < 0 ? <ArrowDown className="w-2.5 h-2.5" /> : null}
+                    {p.pricePct !== 0 ? Math.abs(p.pricePct).toFixed(1) + "%" : "—"}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground text-right w-14">—</span>
+                )}
+              </>
             )}
+
             <p className="text-sm font-semibold text-foreground text-right w-24 tabular-nums">
               {formatPrice(p.totalCost)}
             </p>
