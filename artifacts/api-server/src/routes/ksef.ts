@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { toNum, toNumOrNull } from "../lib/parse";
-import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { categorizeProductWithAI } from "../lib/categorize-ai.js";
 import {
   db,
@@ -137,19 +137,78 @@ router.put("/ksef/config", async (req, res): Promise<void> => {
 
   const last4 = token.slice(-4);
 
+  // Load the user's existing config early so we know whether the NIP is changing.
   const existing = await loadConfig(userId);
+  const nipIsNew = !existing || existing.nip !== nip;
+
+  if (nipIsNew) {
+    // Claiming a new or changed NIP: prove the token is valid for it before
+    // reserving ownership. This prevents NIP squatting — an attacker who
+    // registers an arbitrary NIP with a junk token and then blocks the
+    // legitimate owner via the 409 ownership check below.
+    try {
+      const client = new KsefClient({ logger: req.log });
+      await client.authenticate(nip, token);
+      // Session expires naturally; no terminate call needed.
+    } catch (err) {
+      if (err instanceof KsefAuthError) {
+        req.log.warn({ nip }, "KSeF token validation failed during config save");
+        res.status(401).json({
+          error: "Token KSeF jest nieprawidłowy dla podanego NIP. Sprawdź dane i spróbuj ponownie.",
+        });
+        return;
+      }
+      // Network errors or KSeF server errors: do not block the save — the
+      // token may be valid but KSeF is temporarily unavailable. Fall through
+      // and let the ownership check guard against obvious squatting.
+      req.log.warn({ nip, err: String(err) }, "KSeF validation unavailable during config save, proceeding with ownership check only");
+    }
+
+    // Enforce NIP tenancy: a NIP may only be registered by one Spendly account.
+    // If a different user already owns this NIP, reject the request. This prevents
+    // a disgruntled employee or attacker from registering the same company NIP
+    // under their own Spendly account and deliberately triggering KSeF rate limits
+    // that would block the legitimate owner's account via the per-NIP cooldown.
+    const [nipOwner] = await db
+      .select({ id: ksefConfigTable.id })
+      .from(ksefConfigTable)
+      .where(and(eq(ksefConfigTable.nip, nip), ne(ksefConfigTable.userId, userId)))
+      .limit(1);
+    if (nipOwner) {
+      req.log.warn({ nip, requestingUserId: userId }, "NIP already registered by a different account, rejecting config update");
+      res.status(409).json({
+        error: "Ten NIP jest już przypisany do innego konta Spendly. Skontaktuj się z administratorem.",
+      });
+      return;
+    }
+  }
+
   let saved;
-  if (existing) {
-    [saved] = await db
-      .update(ksefConfigTable)
-      .set({ nip, encryptedToken: encrypted, tokenLast4: last4, environment: "production" })
-      .where(eq(ksefConfigTable.id, existing.id))
-      .returning();
-  } else {
-    [saved] = await db
-      .insert(ksefConfigTable)
-      .values({ userId, nip, encryptedToken: encrypted, tokenLast4: last4, environment: "production" })
-      .returning();
+  try {
+    if (existing) {
+      [saved] = await db
+        .update(ksefConfigTable)
+        .set({ nip, encryptedToken: encrypted, tokenLast4: last4, environment: "production" })
+        .where(eq(ksefConfigTable.id, existing.id))
+        .returning();
+    } else {
+      [saved] = await db
+        .insert(ksefConfigTable)
+        .values({ userId, nip, encryptedToken: encrypted, tokenLast4: last4, environment: "production" })
+        .returning();
+    }
+  } catch (err) {
+    // Unique constraint violation on nip (race condition: another account claimed
+    // the NIP between our ownership check and the insert/update).
+    const pgCode = (err as { code?: string })?.code;
+    if (pgCode === "23505") {
+      req.log.warn({ nip, requestingUserId: userId }, "NIP uniqueness conflict during config save (race)");
+      res.status(409).json({
+        error: "Ten NIP jest już przypisany do innego konta Spendly. Skontaktuj się z administratorem.",
+      });
+      return;
+    }
+    throw err;
   }
 
   req.log.info({ nip, tokenMasked: maskToken(token) }, "KSeF config updated");
@@ -389,10 +448,14 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
     req.log.info({ userId }, "KSeF sync reset: lastSyncedAt cleared");
   }
 
-  const lock = await AdvisoryLock.tryAcquire("ksef_sync", userId);
+  // Lock per NIP, not per user: accounts sharing the same company NIP must
+  // serialize their syncs so they cannot run concurrently and jointly exhaust
+  // the KSeF rate limit for that NIP, which would block every Spendly account
+  // configured with that NIP.
+  const lock = await AdvisoryLock.tryAcquire("ksef_sync", cfg.nip);
   if (!lock) {
     res.status(409).json({
-      error: "Synchronizacja KSeF już trwa. Poczekaj na jej zakończenie.",
+      error: "Synchronizacja KSeF już trwa dla tego NIP. Poczekaj na jej zakończenie.",
     });
     return;
   }

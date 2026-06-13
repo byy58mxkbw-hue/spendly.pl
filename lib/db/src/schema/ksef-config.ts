@@ -16,7 +16,13 @@ export const ksefConfigTable = pgTable("ksef_config", {
   syncFromDate: text("sync_from_date"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-}, (t) => [uniqueIndex("ksef_config_user_id_uniq").on(t.userId)]);
+}, (t) => [
+  uniqueIndex("ksef_config_user_id_uniq").on(t.userId),
+  // One NIP per Spendly account enforced at the DB level to close race conditions.
+  // Application-level ownership check in PUT /ksef/config is authoritative;
+  // this constraint is a safety net for concurrent requests.
+  uniqueIndex("ksef_config_nip_uniq").on(t.nip),
+]);
 
 export const insertKsefConfigSchema = createInsertSchema(ksefConfigTable).omit({
   id: true,
