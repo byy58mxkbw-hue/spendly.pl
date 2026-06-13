@@ -1,0 +1,158 @@
+Patrząc na ten ekran, powiedziałbym, że nie potrzebujesz rewolucji. Potrzebujesz 10 małych poprawek, które sprawią, że całość będzie wyglądała jak produkt Apple/Linear, a nie panel administracyjny.
+
+1. Zmień KPI na bardziej kompaktowe
+
+Obecnie cztery duże kafelki zabierają za dużo miejsca.
+
+Proponuję:
+
+🍽️ 12 dań     💰 Śr. marża 81.6%
+⚠️ 2 do uwagi  📉 Śr. Food Cost 18.4%
+
+Jedna sekcja, dwa rzędy, mniejsze karty z większym oddechem.
+
+⸻
+
+2. Zamień tabelę na listę kart
+
+Zamiast:
+
+DANIE | CENA | KOSZT | MARŻA
+
+zrób:
+
+🍸 Pornstar Martini
+37,00 zł        6,79 zł
+Sprzedaż        Koszt porcji
+🟢 Marża 81.6%    Food Cost 18.4%
+>
+
+Na mobile będzie wyglądało dużo nowocześniej.
+
+⸻
+
+3. Szczegóły dania jako „bottom sheet”
+
+Zamiast ciemnego modala na środku, otwieraj panel wysuwany od dołu (jak w iOS).
+
+Nagłówek:
+
+🍸 Pornstar Martini
+37,00 zł • 81.6% marży
+
+Potem małe KPI i lista składników.
+
+⸻
+
+4. Lista składników
+
+Każdy składnik jako osobna, lekka karta:
+
+🥭 Puree marakuja
+50 ml
+57,42 zł/kg
+Koszt:
+2,87 zł
+
+Bez procentów po prawej stronie – tylko koszt.
+
+⸻
+
+5. Dodaj mały pasek udziału kosztów
+
+Pod kosztem:
+
+████████░░ 42%
+
+To czytelniejsze niż liczba „42%”.
+
+⸻
+
+6. Kliknięcie w składnik
+
+Po kliknięciu pokaż mały popup:
+
+Puree Marakuja
+Aktualna cena:
+57,42 zł
+Ostatni zakup:
+12 dni temu
+Średnia 90 dni:
+55,80 zł
+
+Nie otwieraj nowej strony.
+
+⸻
+
+7. W edycji dania
+
+Przy każdym składniku:
+
+Puree marakuja
+[ 50 ] [ ml ]
+
+Po zmianie liczby koszt przelicza się natychmiast.
+
+Bez przycisku „Zapisz”.
+
+⸻
+
+8. Dodawanie składnika
+
+Przycisk:
+
++ Dodaj produkt ze Spendly
+
+Po kliknięciu wyszukiwarka z autouzupełnianiem.
+
+Nie pozwalaj wpisywać własnych nazw – tylko wybór z istniejącej bazy produktów.
+
+⸻
+
+9. Kolory
+
+Trzymaj się palety Spendly:
+
+* 🟢 zielony = dobra marża / niski food cost,
+* 🟠 pomarańczowy = średnio,
+* 🔴 czerwony = niska marża,
+* ⚪ reszta neutralna.
+
+Unikaj wielu różnych odcieni i gradientów.
+
+⸻
+
+10. Jedna rzecz, która zrobi największą różnicę
+
+Na górze szczegółów dania dodaj prosty blok:
+
+Pornstar Martini
+Cena sprzedaży: 37,00 zł
+Koszt porcji:   6,79 zł
+══════════════════
+Marża:     81.6%
+Food Cost: 18.4%
+
+Dopiero pod tym pokazuj składniki.
+
+⸻
+
+Jedna zmiana funkcjonalna, którą polecam już teraz
+
+Zrezygnuj z półproduktów w MVP.
+
+Model:
+
+Danie
+ ├── Produkt ze Spendly
+ ├── Produkt ze Spendly
+ ├── Produkt ze Spendly
+ └── Produkt ze Spendly
+
+Każdy produkt ma:
+
+* ilość (200)
+* jednostkę (g, ml, szt.)
+* automatycznie pobieraną cenę z bazy Spendly.
+
+To będzie prostsze dla użytkownika, łatwiejsze do utrzymania i wystarczające dla 90% restauracji. Półprodukty możesz dodać dopiero w wersji V2 jako opcjonalną funkcję dla bardziej zaawansowanych lokali.
