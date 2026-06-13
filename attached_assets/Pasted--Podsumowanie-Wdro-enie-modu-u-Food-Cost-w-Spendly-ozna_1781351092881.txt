@@ -1,0 +1,395 @@
+# Podsumowanie
+
+Wdrożenie modułu **Food Cost** w Spendly oznacza wprowadzenie pełnej funkcjonalności do zarządzania recepturami i analizą kosztów dań restauracyjnych, wykorzystując istniejącą bazę zakupów. Zamiast polegać wyłącznie na estymacjach AI, proponujemy **kompletny moduł receptur** („Food Cost” w menu). Umożliwi on definiowanie dań, składników (produkty i półprodukty), automatyczne wyliczanie kosztu porcji i marży oraz generowanie list priorytetów (najniższa marża, największe ryzyka cenowe). Interfejs będzie wzorowany na nowoczesnych SaaS (Apple/Stripe style): czytelny, z wyraźnymi nagłówkami, dużą typografią i odpowiednim odstępem (np. `p-4`/`p-6` w Tailwind) oraz kontrastowymi akcentami (brandowy fiolet Spendly, zieleń = oszczędności, czerwień = ryzyko). Wysoki priorytet to responsywność i dostępność – elementy dotykowe min. 44×44px, tekst ≥16px, odpowiednie alt-teksty i role ARIA. Dane napędzane będą istniejącymi rekordami produktów i faktur: po dodaniu faktury aktualizujemy ceny produktów (z użyciem uśredniania ważonego lub ostatniej ceny), co natychmiast przelicza koszty dań (np. przez trigger bazy lub kolejkę zdarzeń). Możliwe będzie też importowanie sprzedaży POS (CSV lub GoPOS API), co pozwoli łączyć sprzedaż dań z ich analizą kosztów. Przedstawimy szczegółowy model danych (tabele SQL), RESTowe API (przykładowe endpointy i payload), projekt UI/UX (szkic strony, komponenty React + klasy Tailwind) oraz logikę kalkulacji (formuły, zaokrąglenia, scoring pewności). Dodatkowo zawarte zostaną: checklista testów/QC, uwagi dot. wydajności i bezpieczeństwa, kryteria akceptacji i plan migracji. Porównamy też alternatywy (estymator AI vs moduł receptur, import CSV vs synchronizacja API) w tabelach plus zamieścimy ERD i harmonogram wdrożenia w postaci diagramów mermaid.
+
+## 1. Model danych
+
+Główne tabele obejmują **Danue (Dishes)**, **Półprodukty (SemiProducts)**, **Produkty (Products)**, **Dostawców (Suppliers)**, **Faktury (Invoices)**, **Wiersze faktur (InvoiceLines)**, **Składniki dań (DishIngredients)**, **Składniki półproduktów (SemiProductIngredients)**, **Wersje receptur (DishVersions)** oraz **Sprzedaż (Sales)**. Poniżej przykład schematów SQL:
+
+- **Products** – słownik pozycji zakupowych:
+  - `product_id` (PK), `name`, `unit` (jedn. miary: g, ml itp.), `category`, `current_price` (np. zł/1kg), `last_updated`.
+- **Suppliers** – firmy dostarczające:
+  - `supplier_id` (PK), `name`, `contact`.
+- **Invoices** – dokumenty zakupu:
+  - `invoice_id` (PK), `supplier_id` (FK → Suppliers), `invoice_date`, `total_amount`.
+- **InvoiceLines** – pozycje z faktur:
+  - `invoice_line_id` (PK), `invoice_id` (FK → Invoices), `product_id` (FK → Products), `quantity`, `unit`, `unit_price` (zł w tej fakturze).
+- **Dishes (Menu Items)** – definicje dań:
+  - `dish_id` (PK), `name`, `sell_price` (cena w menu), `category`, `created_at`, `updated_at`.
+- **SemiProducts** – gotowe półprodukty (np. sosy):
+  - `semi_id` (PK), `name`, `yield_percentage` (np. 80% – ile produktu zostaje po obróbce), `unit`.
+- **SemiProductIngredients** – skład półproduktów:
+  - `semi_id` (FK → SemiProducts), `product_id` (FK → Products), `quantity`, `unit`.
+- **DishIngredients** – przypisanie składników do dania:
+  - `dish_id` (FK → Dishes), **OR** `semi_id` (FK → SemiProducts), **lub** `product_id` (FK → Products), plus `quantity`, `unit`. 
+  - *Uwaga:* Można rozważyć dwa rodzaje wierszy lub pole wskazujące typ składnika (produkt vs półprodukt).
+- **DishVersions** – historia zmian receptur:
+  - `version_id` (PK), `dish_id` (FK → Dishes), `created_at`, `note` (opis zmiany).
+- **DishVersionIngredients** – składniki w konkretnej wersji:
+  - `version_id` (FK → DishVersions), *(podobnie jak DishIngredients)* `product_id` lub `semi_id`, `quantity`, `unit`.
+- **Sales** – ewidencja sprzedaży dań (z POS):
+  - `sale_id` (PK), `dish_id` (FK → Dishes), `sale_date`, `quantity`, `revenue` (opcjonalnie).
+
+Przykładowe tabele:
+
+```sql
+CREATE TABLE Suppliers (
+  supplier_id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL
+  -- ...
+);
+
+CREATE TABLE Products (
+  product_id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  unit VARCHAR(10) NOT NULL,      -- np. 'g', 'ml'
+  current_price DECIMAL(8,2),     -- np. zł na jednostkę
+  last_updated TIMESTAMP
+);
+
+CREATE TABLE Invoices (
+  invoice_id SERIAL PRIMARY KEY,
+  supplier_id INT REFERENCES Suppliers(supplier_id),
+  invoice_date DATE NOT NULL,
+  total_amount DECIMAL(10,2)
+);
+
+CREATE TABLE InvoiceLines (
+  invoice_line_id SERIAL PRIMARY KEY,
+  invoice_id INT REFERENCES Invoices(invoice_id),
+  product_id INT REFERENCES Products(product_id),
+  quantity DECIMAL(8,3) NOT NULL,
+  unit VARCHAR(10),
+  unit_price DECIMAL(8,3) NOT NULL  -- cena za 1 'unit'
+);
+
+CREATE TABLE Dishes (
+  dish_id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  sell_price DECIMAL(8,2) NOT NULL,
+  category VARCHAR(50),
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+
+CREATE TABLE SemiProducts (
+  semi_id SERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  yield_percentage DECIMAL(5,2),  -- np. 80.00 dla 80%
+  unit VARCHAR(10)
+);
+
+CREATE TABLE SemiProductIngredients (
+  semi_id INT REFERENCES SemiProducts(semi_id),
+  product_id INT REFERENCES Products(product_id),
+  quantity DECIMAL(8,3) NOT NULL,
+  unit VARCHAR(10) NOT NULL,
+  PRIMARY KEY (semi_id, product_id)
+);
+
+-- Składniki dania (można też oddzielić na dwa rodzaje wierszy)
+CREATE TABLE DishIngredients (
+  dish_id INT REFERENCES Dishes(dish_id),
+  product_id INT REFERENCES Products(product_id),
+  semi_id INT REFERENCES SemiProducts(semi_id),
+  quantity DECIMAL(8,3) NOT NULL,
+  unit VARCHAR(10) NOT NULL,
+  PRIMARY KEY (dish_id, product_id, semi_id)
+);
+
+CREATE TABLE DishVersions (
+  version_id SERIAL PRIMARY KEY,
+  dish_id INT REFERENCES Dishes(dish_id),
+  created_at TIMESTAMP NOT NULL,
+  note TEXT
+);
+
+CREATE TABLE DishVersionIngredients (
+  version_id INT REFERENCES DishVersions(version_id),
+  product_id INT REFERENCES Products(product_id),
+  semi_id INT REFERENCES SemiProducts(semi_id),
+  quantity DECIMAL(8,3) NOT NULL,
+  unit VARCHAR(10) NOT NULL,
+  PRIMARY KEY (version_id, product_id, semi_id)
+);
+
+CREATE TABLE Sales (
+  sale_id SERIAL PRIMARY KEY,
+  dish_id INT REFERENCES Dishes(dish_id),
+  sale_date DATE NOT NULL,
+  quantity INT NOT NULL,
+  revenue DECIMAL(10,2)
+);
+```
+
+**Relacje kluczy:** Każda faktura *należy do* dostawcy, zawiera wiele pozycji (InvoiceLines) powiązanych z produktami. Danie może zawierać zarówno produkty (np. filet z kurczaka) jak i półprodukty (np. sos). Tabela `DishIngredients` łączy się z `Products` lub `SemiProducts`. Opcjonalnie można prowadzić dwie różne tabele (np. `DishProductIngredients` i `DishSemiIngredients`) lub użyć kolumn typu polimorficznego (jak powyżej). Wersje receptur (`DishVersions`) umożliwiają śledzenie zmian – każda wersja ma swoje składniki w `DishVersionIngredients`. Sprzedaż (`Sales`) linkuje dania z ilością sprzedanych porcji. Poniższy ERD ilustruje główne związki:
+
+```mermaid
+erDiagram
+    SUPPLIER ||--o{ INVOICE : "wystawia"
+    INVOICE ||--o{ INVOICE_LINE : "zawiera"
+    PRODUCT ||--o{ INVOICE_LINE : "produkt"
+    SEMI_PRODUCT ||--o{ SEMI_PRODUCT_INGREDIENT : "sk\u0142adnik"
+    PRODUCT ||--o{ SEMI_PRODUCT_INGREDIENT : "sk\u0142adnik"
+    DISH ||--o{ DISH_INGREDIENT : "sk\u0142adnik"
+    PRODUCT ||--o{ DISH_INGREDIENT : "sk\u0142adnik"
+    DISH ||--o{ SALES : "sprzedano"
+```
+
+Każdy produkt przechowywany jest w **Products** (z aktualną ceną), półprodukt – w **SemiProducts** (z procentowym wydajnością), a **DishIngredients** łączy danie z odpowiednimi składnikami.  
+
+## 2. Interfejsy API (REST)
+
+Zapewniamy pełne CRUD dla wszystkich zasobów. Każdy endpoint bazuje na rzeczowniku: np. **GET /api/dishes** (lista dań), **POST /api/dishes** (dodaj danie), **GET /api/dishes/{id}** (szczegóły), **PUT/PATCH /api/dishes/{id}** (edytuj), **DELETE /api/dishes/{id}**. Podobnie **/api/semi-products**, **/api/products**, **/api/suppliers**, **/api/invoices**, **/api/sales**. Wzorujemy się na dobrych praktykach REST – nazwy w liczbie mnogiej, operacje określa metoda HTTP. Np.:
+
+- **GET /api/dishes** – zwróć listę dań (możliwość filtrowania po kategorii, marży itd.).
+- **POST /api/dishes** – stwórz nowe danie. Przykład payload JSON:
+  ```json
+  {
+    "name": "Filet z kurczaka",
+    "sell_price": 54.00,
+    "category": "Mięso",
+    "ingredients": [
+      { "product_id": 101, "quantity": 200, "unit": "g" },
+      { "semi_id": 10, "quantity": 150, "unit": "g" }
+    ]
+  }
+  ```
+- **GET /api/dishes/{id}** – pobierz szczegóły dania (w tym składniki, półprodukty).
+- **PUT /api/dishes/{id}** – aktualizuj nazwę, cenę, składniki (nadpisuje wszystkie).
+- **PATCH /api/dishes/{id}** – częściowa aktualizacja (np. zmiana ceny).
+- **DELETE /api/dishes/{id}** – usuń danie.
+  
+Podobnie dla półproduktów: **/api/semi-products** CRUD. Produkty i dostawcy mają głównie GET/PUT (dostępny słownik z faktur), albo tworzone przy imporcie. Endpoints `Invoices` służą do przesyłania faktur, np.:
+
+- **POST /api/invoices** – dodaj fakturę (wraz z pozycjami). Payload JSON zawiera `supplier_id`, `invoice_date` i tablicę linii `{product_id, quantity, unit, unit_price}`. Dodanie faktury od razu aktualizuje średnią cenę produktu. 
+
+Do integracji POS proponujemy:
+- **POST /api/sales/import** – przyjmij plik CSV lub JSON ze sprzedażą (np. kolumny: `dish_id, quantity, date`). Po wgraniu uaktualnia tabelę **Sales**. 
+- **POST /api/webhooks/gopos** – (opcjonalnie) odbieraj dane w czasie rzeczywistym, jeśli GoPOS udostępni webhook. 
+
+Wszystkie nowe zasoby zwracają kod **201 Created** z lokalizacją nowego rekordu (np. `{location: "/api/dishes/123"}`). Błędy walidacji dają **400**, próba dostępu bez uprawnień – **401/403**, brak rekordu – **404**. 
+
+Tabela przykładów endpointów:
+
+| Endpoint                   | Metoda | Opis                                       | Przykład zapytania/payload                    |
+|----------------------------|--------|--------------------------------------------|-----------------------------------------------|
+| `/api/dishes`              | GET    | Pobierz wszystkie dania                     | –                                             |
+| `/api/dishes`              | POST   | Dodaj nowe danie                            | JSON jak wyżej                                |
+| `/api/dishes/{id}`         | GET    | Pobierz danie o danym ID                    | –                                             |
+| `/api/dishes/{id}`         | PUT    | Zaktualizuj danie (wszystkie pola)          | { "sell_price": 57.00, "ingredients": [...] } |
+| `/api/dishes/{id}`         | DELETE | Usuń danie                                  | –                                             |
+| `/api/semi-products`       | GET/POST/PUT/DELETE | Podobnie dla półproduktów        | –                                             |
+| `/api/invoices`            | POST   | Dodaj fakturę z pozycjami                   | { "supplier_id":5, "date":"2026-06-10", "lines":[...] } |
+| `/api/sales/import`        | POST   | Import sprzedaży (CSV/JSON)                 | Plik CSV lub JSON z transakcjami              |
+| `/api/gopos/webhook`       | POST   | (Opcjonalnie) Webhook od GoPOS             | JSON danych o sprzedaży                       |
+
+Przygotowując API, kierujemy się zaleceniami Stoplight: każdy zasób (dish, invoice itp.) używa zasobowych ścieżek, unika się czasowników w URL, a operacje określają metody HTTP. Na przykład, analogicznie do przepisu (recipe) pokazanym w literaturze, `POST /api/recipe` tworzy nowy przepis.  
+
+## 3. Specyfikacja UI/UX
+
+Strona **Food Cost** powinna być nazwana „Food Cost” w głównym menu (np. obok **AI CFO**). Layout inspirowany jest **Apple/Stripe**: jasna paleta, dużo przestrzeni, typografia bezszeryfowa i czytelna (systemowa czcionka UI). Główne kolory: **fiolet Spendly** (przykładowo `bg-purple-600`), zieleń (`text-green-600`) na dobre wyniki (oszczędności), czerwień (`text-red-600`) na problemy (wzrosty cen). Używamy „lekko zwiększonej” interlinii (`leading-relaxed`) i odstępów (`p-4`/`p-6`) dla komfortu.
+
+### Układ strony
+
+1. **Nagłówek i KPI**: U góry strony duży nagłówek „Food Cost”. Pod nim skrótowe KPI w formie kafelków/karty: np. *Średni Food Cost* (procent), *Niskomarżowe dania* (liczba i lista symboli 🔴), *Wpływ zmian* (zł), *Nowe alerty* (np. czerwone etykiety). Przykład: `<div class="flex space-x-4 p-4">` zawiera cztery karty w tle szarym (`bg-gray-50`) z ikoną i wartościami.  
+
+2. **Lista dań (Dashboard)**: Tabela lub siatka po lewej stronie:
+   - Kolumny: *Nazwa dania*, *Cena sprzedaży*, *Koszt porcji*, *Marża (%)*
+   - Cała tabela responsywna (`<table class="min-w-full table-auto">`). Nagłówki pogrubione (`font-semibold`), wiersze z `border-b`.
+   - Dla urządzeń mobilnych tabela w obrębie `<div class="overflow-x-auto">` lub jako karty z flex dla lepszej czytelności.   
+
+   Przykład wiersza:
+   ```html
+   <tr class="hover:bg-gray-100">
+     <td class="py-2 px-4">Burger BBQ</td>
+     <td class="py-2 px-4">42.00 zł</td>
+     <td class="py-2 px-4">11.00 zł</td>
+     <td class="py-2 px-4">74%</td>
+   </tr>
+   ```
+   Kolory: dobrze, gdy bardzo niskie marże są czerwone (`text-red-500`), wysokie – zielone (`text-green-500`).
+
+3. **Panel szczegółów (Drawer)**: Kliknięcie dania otwiera boczne okno (drawer) z dokładnymi detalami:
+   - Panel wysuwany z prawej: `<div class="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-lg p-6 transform translate-x-full transition-transform">` (zmienia `translate-x-0` przy otwarciu). Bez ciemnego overlay, by interfejs pozostał lekki.
+   - **Danie**: Nagłówek z nazwą dania (duży font: `text-xl font-semibold`) i „X” do zamknięcia (przycisk obok).
+   - **Cena sprzedaży** i **Szacowany food cost** i **Marża** – duże wartości (`text-lg font-medium`), np.: 
+     ```
+     Cena: 54.00 zł
+     Food Cost: 21.00 zł
+     Marża: 61%
+     ```
+     oznaczone ikonami ⬆️ lub ⬇️, gdy wzrost/spadek względem poprzedniego okresu.
+   - **Pewność estymacji**: obok marży wskaźnik paska lub etykieta: np. „Pewność: 🟢 Wysoka (82%)” lub kolorowy kółko + procent.
+   - **Składniki**: Lista składników w czytelnych blokach. Każdy wiersz z ikoną (🐔, 🥔), nazwą produktu i ilością:
+     ```
+     🐔 Filet z kurczaka — 200g
+     🥔 Puree ziemniaczane — 150g
+     🥗 Surówka — 100g
+     ```
+     Składniki główne (Produkty) wyróżnione np. pogrubieniem; półprodukty kursywą. Jeśli półprodukt ma własną recepturę, wiersz klikalny.
+   - **Półprodukty**: Kliknięcie nazwy półproduktu otwiera kolejny panel niżej (lub nowy drawer): szczegóły półproduktu ze składnikami. Można to zorganizować jako podrozdział draweru.
+   - **Najdroższy składnik**: ikona 🔥 i tekst: np. „Najdroższy składnik: Filet z kurczaka (42% koszty)”.
+   - **Alerty**: W sekcji lub jako badge’y, np. „⚠️ Cena kurczaka wzrosła 14% w ciągu ostatniego miesiąca”.
+   - **Rekomendacje**: np. „🔺 Zwiększ cenę do 57 zł, by osiągnąć ~65% marży”. Przyciski akcji (np. *Zapisz*, *Odrzuć alert*).
+   
+4. **Interakcje i edycja**:
+   - Dodawanie składników: przycisk `+ Dodaj składnik` (klasa `bg-gray-200 text-gray-700 px-3 py-1 rounded`), otwiera modal lub drop-down z autouzupełnianiem (typeahead) istniejących produktów/spółproduktów. Np. komponent React `<AutoComplete placeholder="Szukaj produktu..." />`.
+   - Edycja ilości: pole liczby (`<input type="number">`) z klasa `border rounded w-16 text-right`. Zmiana wartości automatycznie (onChange) aktualizuje kalkulacje. Możliwy też tryb procentowy: przełącznik „%” po której stronie wprowadzać wartość (np. udział składnika w półprodukcie).
+   - Real-time recalculation: używamy React do natychmiastowego przeliczania kosztu. Na zdarzenie zmiany stanu składników wywołujemy ponowną walidację i przeliczenie (może z debounce 200ms). Dzięki re-renderowi `cost` i `margin` odświeżają się natychmiast (zielony lub czerwony flash).
+   - Dostępność: przyciski i linki mają `aria-label`, pola formularzy `label`. Tab order logiczny. Kolory kontrastowe (tekst na białym tle min. #000 vs #FFF).
+   - Responsywność: Layout zmienia się CSS: np. na małych ekranach tabela staje się pojedynczym przewijalnym blokiem (`<div class="overflow-x-auto">`). Drawer na komórce zajmuje cały ekran z `w-full`.
+   - **Przykładowe klasy Tailwind**: 
+     - Kontener: `<div class="p-6 bg-gray-50 min-h-screen font-sans">`  
+     - Nagłówek: `<h1 class="text-2xl font-bold mb-4">Food Cost AI</h1>`  
+     - Kafelek KPI: `<div class="bg-white p-4 rounded shadow flex items-center">`  
+     - Tabela: `<table class="min-w-full divide-y divide-gray-200">`  
+     - Przycisk: `<button class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded">Dodaj</button>`  
+     - Input number: `<input type="number" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded" />`  
+     - Drawer: `<div class="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-xl p-6 overflow-auto">`.
+   
+5. **Styl Apple/Stripe**: Duże marginesy (`m-4, m-6`), spójny grid (8px lub 16px kroki), cienie dla kart (`shadow`), proste ikony (np. SF Symbols). Przykład: Apple rekomenduje elementy dotykowe min. 44×44px i tekst co najmniej 11pt. Dlatego używamy większych czcionek (`text-base`/`text-lg`) i odstępów między elementami (`gap-4`, `mt-4`). Unikamy nagromadzenia: obok pola etykieta z małym opisem poniżej (`text-sm text-gray-500`).
+
+6. **Ostrzeżenia i etykiety**: Używamy barwnych badge’y (np. `<span class="text-red-600 font-semibold">Wzrost</span>`). Dla niskiej marży czerwony krąg (🔴). Dla wysokiej marży zielony (🟢). Scoring pewności: ocena „Wysoka/Średnia/Niska” wraz z kolorem (zielony/żółty/czerwony) w narzędziu typu progress bar lub ikona 🔰.
+
+7. **Podsumowanie UI**: Główny widok to dashboard z tabelą dań i KPI na górze. Drawer z prawej pokazuje detale dania. Interfejs reaguje w czasie rzeczywistym na zmiany. Przykład klasy dla responsywnego pojemnika: `<div class="flex flex-col sm:flex-row">`, by na szerokim ekranie mieć kolumny.
+
+## 4. Logika obliczeń
+
+- **Koszt porcji**: Sumujemy koszty wszystkich składników w daniu, uwzględniając półprodukty. Jeśli półprodukt składa się z kilku produktów, jego udział bierze się ze zsumowanych kosztów składników półproduktu. Przykładowo: jeśli do dania potrzebne jest 150g pure’u (który zawiera 120g ziemniaków @8,42zł/10kg i 30g masła @34,20zł/kg), to **koszt puree** = (0,12 kg * (8,42 zł/10kg *10) + 0,015 kg * 34,20) = 2,14 zł (przykład z MarketMan). Następnie sumujemy z kurczakiem itp.
+
+- **Marża (%)**: `(sell_price – cost) / sell_price * 100`. Albo równoważnie: `cost% = cost/sell_price * 100`. Np. jeżeli danie kosztuje 21 zł, a cena sprzedaży 54 zł, to marża ≈61% (jak w przykładzie). Szacujemy do 1-2 miejsc po przecinku.
+
+- **Yield (wydajność)**: Jeśli produkt ma określoną wydajność (np. po obróbce zostaje 80%), można dostosować ilość. Formuła: `EP_weight = AP_weight – waste`, `yield% = EP/AP * 100`. Przykład: 10kg ziemniaków → 8kg frytek (80%), wtedy koszt porcji obliczamy na podstawie ceny 10kg ale rozkładamy na 8kg użytecznych. Ostatecznie `koszt_porcy = (raw_qty * price_raw) / portion_count`.
+
+- **Konwersje jednostek**: Automatycznie przeliczamy jednostki: jeśli cena w zł/kg a składnik podany w gramach, konwertujemy (1000g=1kg). Używamy spójnych jednostek (np. `unit` w tabeli). W razie braku zdefiniowanego unit, przyjmujemy gramy.
+
+- **Zaokrąglenia**: Wewnątrz obliczeń przechowujemy ceny w groszach (np. DECIMAL, braku float). Finalne wartości (koszt, marża) zaokrąglamy do 2 miejsc dziesiętnych (groszy) aby uniknąć błędów. Można stosować zasadę „round half away” (zaokrąglanie komercyjne).
+
+- **Braki danych**: Jeśli któregoś produktu nie ma w bazie cenowej (brak faktur), oznaczamy jego udział jako niepewny (np. *–* lub **0zł** i generujemy obniżoną pewność). Nie pozwalamy na dokładne policzenie; zaznaczamy alert („Brak danych o składniku X”).
+
+- **Scoring pewności**: Liczymy procent składników posiadających cenę vs wszystkich składników: `confidence = 100% * (znanych / wszystkich)`. Na tej podstawie wskaźnik: 🟢>80% (wysoka), 🟡50–80% (średnia), 🔴<50% (niska). Np. jeśli mamy ceny 4 z 5 składników, pewność ≈80%. Informujemy: „Pewność ~80%”.
+
+- **Wpływ zmian cen**: Przy nowej cenie składnika przepuszczamy powyższe formuły ponownie. Przykład: jeśli kurczak +14%, nowy koszt dania = 13,84 zł → 14,62 zł. Nowa marża = `(54 – 14,62)/54≈73%`. Zmiana = -3 punktów procentowych. Pokazujemy: „Marża miesiąc temu: 64%, dziś: 61% (spadek 3%)” i „Za duża zmiana cen: kurczak +14%” jako alert. Dzięki temu widać, które dania traciły na inflacji.
+
+- **Formuły kluczowe (cytat)**:
+  - MarketMan: „EP cost = (koszt 10lb / 16 porcji) = $0.53 za porcję” – przykład liczenia kosztu porcji z surowca.
+  - TouchBistro: „Food cost % = portion cost / selling price” – ustalanie marży procentowej.
+
+Ogólna zasada: **Food Cost %** powinien być w przedziale ~25–35% (wytyczne branżowe), co wpisujemy jako oczekiwany poziom.
+
+## 5. Przepływ danych i synchronizacja
+
+- **Aktualizacja cen z faktur**: Każdorazowy import faktury („Invoices”) aktualizuje ceny w tabeli Products. Możemy użyć średniej ważonej:  
+  `new_avg = (old_qty*old_avg + new_qty*new_price) / (old_qty+new_qty)`.  
+  Ten proces (np. triggerem po INSERT w `InvoiceLines`) natychmiast uaktualnia `Products.current_price`.  
+  W konsekwencji uruchamia się recalkulacja kosztu w odpowiednich daniach (zmiana generuje event, który oznacza receptury wymagające odświeżenia).
+
+- **Cache i wydajność**: Aby przyspieszyć wyświetlanie, można cachować gotowy wynik `food_cost` i `margin` w tabeli `Dishes` (kolumny `last_cost, last_margin`) i aktualizować je przy zmianie danych. Alternatywnie: wyliczać przy każdym żądaniu, co może być wolniejsze przy wielu składnikach. Wybór zależy od wielkości menu. Caching eliminuje powtarzane skomplikowane zapytania.
+
+- **Import sprzedaży (CSV)**: System umożliwia ręczny upload pliku CSV z danymi sprzedaży (kolumny: `dish_name`, `qty`, `date`). Po zaimportowaniu tworzymy rekordy w `Sales` albo aktualizujemy tabele w prosty sposób. Później można łączyć raporty sprzedaży z wydajnością receptur. Przy imporcie stosujemy walidację (poprawność formatów, istnienie dania).
+
+- **Integracja GoPOS (API / Webhook)**: Jeśli GoPOS ma REST API, można utworzyć synchronizator: np. endpoint **`/api/sync/gopos`** lub planową usługę, która pobiera dane sprzedaży i uaktualnia tabelę Sales. Webhook: GoPOS wysyła `POST` do **`/api/gopos/webhook`** z JSON-em (np. `{"dishId": 3, "quantity": 15, "date": "2026-06-10"}`). Dzięki temu współdzielenie danych jest „real-time”. [Przykład podejścia Apicbase: partnerzy POS przesyłają dane sprzedaży poprzez API, co wzbogaca analizę zapasów i kosztów.]
+
+- **Synchronizacja cen**: Jeżeli zewnętrzny system (np. magazyn) zmienia ceny produktów, można to odzwierciedlić webhookiem/REST: *“PriceUpdate”*. Endpoint **`/api/products/{id}/price`** (PATCH) z nową ceną spowoduje przeliczenie kosztów dań. Taka automatyczna kaskada zapewni, że UI zawsze pokazuje aktualne liczby.
+
+Podsumowując: przepływy danych bazują na zdarzeniach (faktura lub POS) do aktualizacji bazy Spendly. Automatyczna kalkulacja bazuje na powiązanych danych (produkty z faktur). **Apicbase** podobnie integruje POS z modułem recepcji – sugeruje, że pełne dane katalogu POS mogą być przesyłane, a dopiero Spendly „sparuje” je z własną bazą receptur. 
+
+## 6. Testy i zapewnienie jakości
+
+Zespół QA powinien przygotować: 
+- **Testy jednostkowe**: walidacja funkcji obliczających koszt i marżę przy różnych zestawach danych (w tym niepełne dane, niezerowe ilości, różne jednostki). Pokrycie testami przypadków krawędziowych (np. zero wagi, bardzo duże liczby).
+- **Testy integracyjne API**: 
+  - Sprawdź poprawność działania endpointów (statusy 200/201/400/404, autentykacja). 
+  - Autoryzacja: zasoby FoodCost wymagają scope `read:foodcost`, `write:foodcost`. Użytkownik bez uprawnień zwraca **401/403**.
+  - Walidacja payload: brak wymaganych pól → błąd 400 + informacja (zwraca JSON z opisem).
+- **Testy UI/e2e** (Cypress/TestCafe): przechodzenie przez widok, dodawanie/edycja składnika, zamykanie draweru, responsywność (przełączanie rozmiaru).
+  - Accessibility checks (np. axe): kontrast tekstu, czy wszystkie interaktywne elementy są focusowane klawiaturą.
+- **Performance**: 
+  - Testy obciążeniowe przy dużej liczbie dań/składników. 
+  - Sprawdzanie czasu reakcji API i zapytań DB (dodaj 100 dań po 10 składników).
+  - Wydajność recalculacji: czy liczenie w locie jest akceptowalne, czy potrzebny cache.
+- **Bezpieczeństwo**:
+  - Autoryzacja JWT (Access Token) w każdym żądaniu.
+  - Upewnić się, że zwykły użytkownik nie może usuwać dań innych restauracji.
+  - Walidacja input (ochrona przed injection, limit wielkości uploadu CSV).
+  - Ograniczenia rate limiting na endpointy „import” (CSV/GoPOS) – np. max 1000 wierszy jednorazowo.
+- **Migracja danych**: (jeśli istniejące menu lub dane z innych systemów)
+  - Sprawdź procedury migracji: mapowanie starych dań/składników do nowej bazy (np. za pomocą skryptów), zachowanie historii.
+- **Kryteria akceptacji**:
+  - *Funkcjonalne*: Użytkownik może wprowadzić danie ze składnikami i zobaczyć policzone `food cost` oraz `marża`, zgadzające się z oczekiwanym ręcznym wynikiem. 
+  - *UX*: Po zmianie ilości składnika UI natychmiast odświeża wartości (bez ponownego ładowania strony). 
+  - *Alerty*: Po aktualizacji ceny produktu pokazywane są alerty o spadku marży (pomiar Δ%).
+  - *Niezawodność*: Próba przesłania błędnego CSV zwraca czytelną wiadomość o błędach.
+  - *Bezpieczeństwo*: Dostęp tylko po zalogowaniu, brak możliwości SQL-injection przez żadne pole.
+
+## 7. Wdrożenie i Roadmapa
+
+**Wydania i kamienie milowe:** Proponujemy fazy MVP, V2, V3.
+
+- **MVP (1 miesiąc)**: Implementacja podstawowych funkcji. Wymagania: 
+  - *Baza danych:* stworzyć tabele i migracje (Dishes, DishIngredients itp.). 
+  - *API CRUD:* endpointy dań, półproduktów, faktur, cen. 
+  - *UI:* widok listy dań, dodawanie/edycja dania z polami składników, automatyczne obliczanie kosztu. 
+  - *Logika:* implementacja formuł obliczeniowych i wyświetlanie marży. 
+  - *Testy:* podstawowe testy jednostkowe i integracyjne.
+  - *Akceptacja:* użytkownik tworzy danie z kilkoma składnikami i widzi poprawne obliczenia (np. jak w TouchBistro).
+  - Szacunkowy wysiłek: 4–6 tygodni (zespół 2-3 devs).
+
+- **V2 (2 miesiące)**: Rozszerzenia funkcjonalne.
+  - *Półprodukty i wersjonowanie:* Możliwość definiowania półproduktów (gdy kilka dań dzieli składniki) oraz przechowywanie historii zmian. UI pozwoli edytować recepturę i zapisywać nowe wersje.
+  - *Import sprzedaży (CSV):* Okno do załadowania pliku sprzedaży; zapisywanie do tabeli Sales. 
+  - *Ranking dań:* Widok tabelaryczny wszystkich dań z sortowaniem po najgorszej marży. Filtry na kategorię dania.
+  - *Scoring i alerty:* Wskaźniki pewności i automatyczne alerty („wysoka inflacja składników”).
+  - *Ulepszenia UI:* np. dynamiczne wykresy (trend cen), draggable („przeciągnij półprodukt”), dodatkowe animacje.
+  - *Akceptacja:* poprawne kalkulacje przy użyciu półproduktu (np. jak w Vesper – modele kostowalne), działający import CSV. 
+  - Czas: ~6–8 tygodni.
+
+- **V3 (3 miesiąc i dalej)**: Integracje i rozszerzenia.
+  - *Integracja GoPOS:* pełna synchronizacja z systemem POS (webhooki lub API klienta). 
+  - *Raporty:* dodatkowe raporty (np. *Menu Engineering* – zestawienie sprzedaż/marża). 
+  - *API do automatycznego pobierania cen:* okresowe skanowanie faktur lub cenników dostawców.
+  - *Optymalizacja:* cache’owanie, analiza wydajności (pamięć podręczna, indeksy DB), skalowalność. 
+  - *Bezpieczeństwo:* audyt kodu, testy penetracyjne.
+  - Czas: ~6–8 tygodni.
+
+### Tabela ramowa (przykładowa):
+| Faza     | Funkcje główne                                     | Czas (tyg.) | Odpowiedzialność     |
+|----------|----------------------------------------------------|-------------|---------------------|
+| **MVP**  | Baza danych, CRUD API, UI listy/edycji dań, kalkulacje | 4-6        | Development, QA    |
+| **V2**   | Półprodukty, wersjonowanie receptur, import CSV, ranking, scoring | 6-8     | Dev, Designer, QA  |
+| **V3**   | Integracja POS (API/Webhook), raporty, optymalizacja  | 6-8        | Dev Ops, Integrator |
+
+```mermaid
+gantt
+    title Harmonogram wdrożenia modułu Food Cost
+    dateFormat  YYYY-MM-DD
+    section MVP
+    Model danych, API CRUD        :a1, 2026-06-10, 14d
+    UI podstawowe (lista dań)    :a2, after a1, 21d
+    Obliczenia i testy           :a3, after a2, 14d
+    section Wersja 2
+    Półprodukty i wersjonowanie   :a4, 2026-07-24, 14d
+    Import sprzedaży (CSV)       :a5, after a4, 14d
+    Ulepszenia UI (scoring, alerty) :a6, after a5, 14d
+    section Wersja 3
+    Integracja GoPOS (API/Webhooks) :a7, 2026-08-14, 21d
+    Optymalizacja i bezpieczeństwo   :a8, after a7, 14d
+    Dodatkowe raporty i funkcje      :a9, after a8, 21d
+```
+
+**Dostarczenia i kryteria akceptacji:** Kompletne modele baz danych, specyfikacje API, frontend (React + Tailwind) i testy. Akceptacja etapów opiera się na demosie funkcji (np. dodanie dania → poprawne liczby, import CSV → widoczna sprzedaż, itp.).  
+
+## 8. Alternatywne podejścia
+
+| **Podejście**        | **Wymagania danych**    | **Dokładność**         | **Zaangażowanie użytk.** | **Przejrzystość**       | **Wartość dla użytk.**       |
+|----------------------|------------------------|------------------------|--------------------------|-------------------------|------------------------------|
+| **AI-estymator**     | Min. nazwa i opis dania | Średnia (szacunkowa)   | Niskie (wystarczy opis)  | Niska (trudno zweryfikować) | Szybkie wyniki, ale mniej precyzyjne; *“Black box”* |
+| **Moduł receptur**   | Szczegółowe receptury  | Wysoka (obliczany)     | Wysokie (należy wprowadzić) | Wysoka (widać każdy składnik) | Bardzo precyzyjne, pełna kontrola (zalecane)  |
+
+| **Import CSV**      | Ręczne przygotowanie pliku, tylko sprzedaż | *+ prostszy start*  | + szybki (jednorazowy upload)    | ⚠️ podatny na błąd człowieka | Umożliwia częste aktualizacje, ale zależy od użytkownika    |
+| **Synchronizacja API/GoPOS** | Połączenie z POS, kodowanie integracji | **+ automatyzacja** | – praca po stronie dev (raz)      | + stabilniejsze, nie wymaga ręcznej pracy  | Real-time, zautomatyzowane, mniej błędów, ale droższe we wdrożeniu |
+
+W powyższych tabelach wykorzystujemy zasady z branży: MarketMan podkreśla wartość *yield* i obliczeń opartych na danych, a TouchBistro formułuje proporcje koszt/cena. Wg nich ręczne podawanie składników (moduł receptur) daje najbardziej wiarygodny wynik, choć wymaga pracy szefa kuchni. Automatyczne estymacje AI mogą być szybkie, ale stanowią „czarną skrzynkę” bez przejrzystych danych. Import CSV jest najprostszy do implementacji (brak kodowania real-time), zaś pełna integracja przez API daje ciągły przepływ danych (zgodnie z podejściem Apicbase) i najwyższą wartość operacyjną.  
+
+**Podsumowując:** Spendly powinno inwestować w **rozbudowany moduł receptur** wykorzystujący istniejące dane zakupowe, uzupełniany automatyzmem (import/faktury) oraz wsparty AI w rekomendacjach (opcjonalnie). Taki system przewyższy możliwości prostego estymatora AI i przyniesie realne oszczędności restauracjom. Źródła: Apple HIG (dobre praktyki UI), apicbase (integracja POS), oraz artykuły branżowe MarketMan i TouchBistro (formuły kosztów).

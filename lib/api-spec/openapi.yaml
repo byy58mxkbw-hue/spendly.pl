@@ -32,8 +32,103 @@ tags:
     description: Cost center management
   - name: admin
     description: Admin panel — users, stats, account management
+  - name: food-cost
+    description: Food Cost — dish recipes and margin analysis
 
 paths:
+  /food-cost/dishes:
+    get:
+      operationId: listDishes
+      tags: [food-cost]
+      summary: List all dishes with computed cost and margin
+      responses:
+        "200":
+          description: List of dishes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DishSummary"
+    post:
+      operationId: createDish
+      tags: [food-cost]
+      summary: Create a new dish with ingredients
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDishBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                required: [id]
+
+  /food-cost/dishes/{id}:
+    get:
+      operationId: getDish
+      tags: [food-cost]
+      summary: Get dish detail with ingredients and cost breakdown
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Dish detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DishDetail"
+        "404":
+          description: Not found
+    put:
+      operationId: updateDish
+      tags: [food-cost]
+      summary: Update dish and replace all ingredients
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDishBody"
+      responses:
+        "204":
+          description: Updated
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteDish
+      tags: [food-cost]
+      summary: Delete a dish
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
   /admin/users:
     get:
       operationId: getAdminUsers
@@ -4052,3 +4147,143 @@ components:
         - latestPrice
         - totalSpend
         - purchaseCount
+
+    # ─── Food Cost ────────────────────────────────────────────────────────────
+
+    DishIngredientInput:
+      type: object
+      properties:
+        productId:
+          type: integer
+        quantity:
+          type: number
+        unit:
+          type: string
+      required:
+        - productId
+        - quantity
+        - unit
+
+    CreateDishBody:
+      type: object
+      properties:
+        name:
+          type: string
+        sellPrice:
+          type: number
+        category:
+          type: ["string", "null"]
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/DishIngredientInput"
+      required:
+        - name
+        - sellPrice
+        - ingredients
+
+    UpdateDishBody:
+      type: object
+      properties:
+        name:
+          type: string
+        sellPrice:
+          type: number
+        category:
+          type: ["string", "null"]
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/DishIngredientInput"
+
+    DishIngredientDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        productId:
+          type: integer
+        productName:
+          type: string
+        productUnit:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+        unitPrice:
+          type: ["number", "null"]
+        ingredientCost:
+          type: ["number", "null"]
+      required:
+        - id
+        - productId
+        - productName
+        - productUnit
+        - quantity
+        - unit
+
+    DishDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        sellPrice:
+          type: number
+        category:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/DishIngredientDetail"
+        portionCost:
+          type: ["number", "null"]
+        marginPct:
+          type: ["number", "null"]
+        confidencePct:
+          type: number
+      required:
+        - id
+        - name
+        - sellPrice
+        - ingredients
+        - confidencePct
+        - createdAt
+
+    DishSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        sellPrice:
+          type: number
+        category:
+          type: ["string", "null"]
+        portionCost:
+          type: ["number", "null"]
+        marginPct:
+          type: ["number", "null"]
+        confidencePct:
+          type: number
+        ingredientCount:
+          type: integer
+      required:
+        - id
+        - name
+        - sellPrice
+        - confidencePct
+        - ingredientCount
+
+    DishParams:
+      type: object
+      properties:
+        id:
+          type: integer
+      required:
+        - id

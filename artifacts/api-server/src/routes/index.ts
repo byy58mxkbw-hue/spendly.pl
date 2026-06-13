@@ -34,4 +34,7 @@ router.use(aiCfoRouter);
 import adminRouter from "./admin";
 router.use(adminRouter);
 
+import foodCostRouter from "./food-cost";
+router.use(foodCostRouter);
+
 export default router;

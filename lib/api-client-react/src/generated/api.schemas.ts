@@ -1057,6 +1057,78 @@ export interface SupplierTopProduct {
   purchaseCount: number;
 }
 
+export interface DishIngredientInput {
+  productId: number;
+  quantity: number;
+  unit: string;
+}
+
+export interface CreateDishBody {
+  name: string;
+  sellPrice: number;
+  /** @nullable */
+  category?: string | null;
+  ingredients: DishIngredientInput[];
+}
+
+export interface UpdateDishBody {
+  name?: string;
+  sellPrice?: number;
+  /** @nullable */
+  category?: string | null;
+  ingredients?: DishIngredientInput[];
+}
+
+export interface DishIngredientDetail {
+  id: number;
+  productId: number;
+  productName: string;
+  productUnit: string;
+  quantity: number;
+  unit: string;
+  /** @nullable */
+  unitPrice?: number | null;
+  /** @nullable */
+  ingredientCost?: number | null;
+}
+
+export interface DishDetail {
+  id: number;
+  name: string;
+  sellPrice: number;
+  /** @nullable */
+  category?: string | null;
+  createdAt: string;
+  ingredients: DishIngredientDetail[];
+  /** @nullable */
+  portionCost?: number | null;
+  /** @nullable */
+  marginPct?: number | null;
+  confidencePct: number;
+}
+
+export interface DishSummary {
+  id: number;
+  name: string;
+  sellPrice: number;
+  /** @nullable */
+  category?: string | null;
+  /** @nullable */
+  portionCost?: number | null;
+  /** @nullable */
+  marginPct?: number | null;
+  confidencePct: number;
+  ingredientCount: number;
+}
+
+export interface DishParams {
+  id: number;
+}
+
+export type CreateDish201 = {
+  id: number;
+};
+
 export type PatchAdminUserBlockBody = {
   blocked: boolean;
 };

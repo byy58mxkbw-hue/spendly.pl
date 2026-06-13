@@ -10,7 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import KsefPage from "@/pages/ksef";
-import FoodCostPage from "@/pages/food-cost";
+const FoodCostPage = lazy(() => import("@/pages/food-cost"));
 import OcrFakturPage from "@/pages/ocr-faktur";
 import CennikPage from "@/pages/cennik";
 
@@ -221,7 +221,9 @@ function AppRouter() {
             <Switch>
               <Route path="/" component={HomeRedirect} />
               <Route path="/ksef" component={KsefPage} />
-              <Route path="/food-cost" component={FoodCostPage} />
+              <Route path="/food-cost">
+                <ProtectedRoute><FoodCostPage /></ProtectedRoute>
+              </Route>
               <Route path="/ocr-faktur" component={OcrFakturPage} />
               <Route path="/cennik" component={CennikPage} />
               <Route path="/sign-in/*?" component={SignInPage} />

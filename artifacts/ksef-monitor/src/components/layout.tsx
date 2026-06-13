@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Check,
   Plus,
+  UtensilsCrossed,
 } from "lucide-react";
 import { useUser, useClerk, useAuth } from "@clerk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +39,7 @@ const coreNavItems: NavItem[] = [
 ];
 
 const analyticsNavItems: NavItem[] = [
+  { path: "/food-cost", label: "Food Cost", icon: UtensilsCrossed },
   { path: "/reports", label: "Raporty", icon: BarChart2 },
   { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
   { path: "/ai-cfo", label: "AI CFO", icon: Sparkles },

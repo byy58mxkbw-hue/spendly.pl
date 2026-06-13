@@ -8,6 +8,96 @@
 import * as zod from "zod";
 
 /**
+ * @summary List all dishes with computed cost and margin
+ */
+export const ListDishesResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  sellPrice: zod.number(),
+  category: zod.string().nullish(),
+  portionCost: zod.number().nullish(),
+  marginPct: zod.number().nullish(),
+  confidencePct: zod.number(),
+  ingredientCount: zod.number(),
+});
+export const ListDishesResponse = zod.array(ListDishesResponseItem);
+
+/**
+ * @summary Create a new dish with ingredients
+ */
+export const CreateDishBody = zod.object({
+  name: zod.string(),
+  sellPrice: zod.number(),
+  category: zod.string().nullish(),
+  ingredients: zod.array(
+    zod.object({
+      productId: zod.number(),
+      quantity: zod.number(),
+      unit: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get dish detail with ingredients and cost breakdown
+ */
+export const GetDishParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetDishResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  sellPrice: zod.number(),
+  category: zod.string().nullish(),
+  createdAt: zod.string(),
+  ingredients: zod.array(
+    zod.object({
+      id: zod.number(),
+      productId: zod.number(),
+      productName: zod.string(),
+      productUnit: zod.string(),
+      quantity: zod.number(),
+      unit: zod.string(),
+      unitPrice: zod.number().nullish(),
+      ingredientCost: zod.number().nullish(),
+    }),
+  ),
+  portionCost: zod.number().nullish(),
+  marginPct: zod.number().nullish(),
+  confidencePct: zod.number(),
+});
+
+/**
+ * @summary Update dish and replace all ingredients
+ */
+export const UpdateDishParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateDishBody = zod.object({
+  name: zod.string().optional(),
+  sellPrice: zod.number().optional(),
+  category: zod.string().nullish(),
+  ingredients: zod
+    .array(
+      zod.object({
+        productId: zod.number(),
+        quantity: zod.number(),
+        unit: zod.string(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Delete a dish
+ */
+export const DeleteDishParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List all users with per-user stats and blocked status
  */
 export const GetAdminUsersResponse = zod.object({
