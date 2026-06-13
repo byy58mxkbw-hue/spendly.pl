@@ -26,7 +26,7 @@ function parsePackageSize(productName: string): { valueInBase: number; base: str
     const num = parseFloat(match[1].replace(",", "."));
     const converted = toBase(num, match[2]);
     // prefer the largest sensible value (skip single-digit grams that are just specs)
-    if (!best || converted.valueInBase > best.valueInBase) {
+    if (!best || converted.value > best.valueInBase) {
       best = { valueInBase: converted.value, base: converted.base };
     }
   }
@@ -201,7 +201,10 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
       unit: dishIngredientsTable.unit,
     })
     .from(dishIngredientsTable)
-    .innerJoin(productsTable, eq(dishIngredientsTable.productId, productsTable.id))
+    .innerJoin(
+      productsTable,
+      and(eq(dishIngredientsTable.productId, productsTable.id), eq(productsTable.userId, userId)),
+    )
     .where(eq(dishIngredientsTable.dishId, dish.id))
     .orderBy(productsTable.name);
 
@@ -245,6 +248,18 @@ router.post("/food-cost/dishes", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const body = CreateDishBody.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.message }); return; }
+
+  if (body.data.ingredients.length > 0) {
+    const requestedIds = body.data.ingredients.map((ing) => ing.productId);
+    const ownedProducts = await db
+      .select({ id: productsTable.id })
+      .from(productsTable)
+      .where(and(inArray(productsTable.id, requestedIds), eq(productsTable.userId, userId)));
+    if (ownedProducts.length !== requestedIds.length) {
+      res.status(400).json({ error: "One or more products not found" });
+      return;
+    }
+  }
 
   const [dish] = await db
     .insert(dishesTable)
@@ -298,6 +313,17 @@ router.put("/food-cost/dishes/:id", async (req, res): Promise<void> => {
     .where(eq(dishesTable.id, params.data.id));
 
   if (body.data.ingredients !== undefined) {
+    if (body.data.ingredients.length > 0) {
+      const requestedIds = body.data.ingredients.map((ing) => ing.productId);
+      const ownedProducts = await db
+        .select({ id: productsTable.id })
+        .from(productsTable)
+        .where(and(inArray(productsTable.id, requestedIds), eq(productsTable.userId, userId)));
+      if (ownedProducts.length !== requestedIds.length) {
+        res.status(400).json({ error: "One or more products not found" });
+        return;
+      }
+    }
     await db.delete(dishIngredientsTable).where(eq(dishIngredientsTable.dishId, params.data.id));
     if (body.data.ingredients.length > 0) {
       await db.insert(dishIngredientsTable).values(
