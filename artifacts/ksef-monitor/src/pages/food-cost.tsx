@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,6 +100,16 @@ function EditIngredientRow({
   onChange: (u: IngredientRow) => void;
   onRemove: () => void;
 }) {
+  const [raw, setRaw] = useState(String(ing.quantity));
+
+  // Sync raw when parent resets (e.g. on load)
+  useEffect(() => {
+    setRaw((prev) => {
+      const parsed = parseFloat(prev.replace(",", "."));
+      return parsed === ing.quantity ? prev : String(ing.quantity);
+    });
+  }, [ing.quantity]);
+
   const liveCost =
     ing.unitPrice && ing.invoiceUnit
       ? calcIngredientCost(ing.quantity, ing.unit, ing.invoiceUnit, ing.unitPrice, ing.productName ?? "")
@@ -115,11 +125,21 @@ function EditIngredientRow({
       </div>
       <div className="flex items-center gap-2">
         <Input
-          type="number"
-          min={0}
-          step="any"
-          value={ing.quantity}
-          onChange={(e) => onChange({ ...ing, quantity: parseFloat(e.target.value) || 0 })}
+          type="text"
+          inputMode="decimal"
+          value={raw}
+          onChange={(e) => {
+            const val = e.target.value;
+            setRaw(val);
+            const parsed = parseFloat(val.replace(",", "."));
+            if (!isNaN(parsed) && parsed >= 0) onChange({ ...ing, quantity: parsed });
+          }}
+          onBlur={() => {
+            const parsed = parseFloat(raw.replace(",", "."));
+            const final = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+            setRaw(String(final));
+            onChange({ ...ing, quantity: final });
+          }}
           className="w-24 h-8 text-sm text-right bg-white/5 border-white/10"
         />
         <select
