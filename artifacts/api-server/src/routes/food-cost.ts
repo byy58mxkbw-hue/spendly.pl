@@ -16,19 +16,56 @@ function toBase(qty: number, unit: string): { value: number; base: string } {
   return { value: qty, base: u }; // szt, opak, etc. — keep as-is
 }
 
-function convertIngredientCost(qty: number, recipeUnit: string, productUnit: string, unitPrice: number): number {
-  const recipe = toBase(qty, recipeUnit);
-  const product = toBase(1, productUnit);
-
-  if (recipe.base === product.base) {
-    // same family — safe ratio
-    return (recipe.value / product.value) * unitPrice;
+// Parse package size from product name, e.g. "Monin Vanilla 0.7l" → { valueInBase: 700, base: "ml" }
+// Supports: 0.7l / 700ml / 1kg / 500g / 0.5kg / 250dag etc.
+function parsePackageSize(productName: string): { valueInBase: number; base: string } | null {
+  const re = /(\d+[.,]\d+|\d+)\s*(ml|l|litr|g|kg|dag)\b/gi;
+  let best: { valueInBase: number; base: string } | null = null;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(productName)) !== null) {
+    const num = parseFloat(match[1].replace(",", "."));
+    const converted = toBase(num, match[2]);
+    // prefer the largest sensible value (skip single-digit grams that are just specs)
+    if (!best || converted.valueInBase > best.valueInBase) {
+      best = { valueInBase: converted.value, base: converted.base };
+    }
   }
-  // incompatible units — assume 1:1 (e.g. szt <-> szt)
+  return best;
+}
+
+function convertIngredientCost(
+  qty: number,
+  recipeUnit: string,
+  invoiceUnit: string,
+  unitPrice: number,
+  productName: string,
+): number {
+  const recipe = toBase(qty, recipeUnit);
+  const invoice = toBase(1, invoiceUnit);
+
+  if (recipe.base === invoice.base) {
+    // same family (g/ml) — direct ratio
+    return (recipe.value / invoice.value) * unitPrice;
+  }
+
+  // Invoice is per-piece (szt/opak) but recipe is in g/ml —
+  // try to extract package size from product name to bridge the gap.
+  const isPiece = invoice.base !== "g" && invoice.base !== "ml";
+  const isWeightOrVolume = recipe.base === "g" || recipe.base === "ml";
+  if (isPiece && isWeightOrVolume) {
+    const pkg = parsePackageSize(productName);
+    if (pkg && pkg.base === recipe.base) {
+      // e.g. recipe: 50ml, package: 700ml, price: 25 zł/szt
+      // cost = (50 / 700) * 25 = 1.79 zł
+      return (recipe.value / pkg.valueInBase) * unitPrice;
+    }
+  }
+
+  // incompatible and no parse fallback — use qty directly (szt <-> szt)
   return qty * unitPrice;
 }
 
-async function getLatestPrices(userId: string, productIds: number[]): Promise<Map<number, { unitPrice: number; unit: string }>> {
+async function getLatestPrices(userId: string, productIds: number[]): Promise<Map<number, { unitPrice: number; unit: string; productName: string }>> {
   if (productIds.length === 0) return new Map();
 
   const rows = await db
@@ -36,6 +73,7 @@ async function getLatestPrices(userId: string, productIds: number[]): Promise<Ma
       productId: invoiceItemsTable.productId,
       unitPrice: invoiceItemsTable.unitPrice,
       unit: invoiceItemsTable.unit,
+      productName: productsTable.name,
     })
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
@@ -53,10 +91,14 @@ async function getLatestPrices(userId: string, productIds: number[]): Promise<Ma
     )
     .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id));
 
-  const map = new Map<number, { unitPrice: number; unit: string }>();
+  const map = new Map<number, { unitPrice: number; unit: string; productName: string }>();
   for (const row of rows) {
     if (!map.has(row.productId!)) {
-      map.set(row.productId!, { unitPrice: parseFloat(row.unitPrice as string), unit: row.unit ?? "szt" });
+      map.set(row.productId!, {
+        unitPrice: parseFloat(row.unitPrice as string),
+        unit: row.unit ?? "szt",
+        productName: row.productName ?? "",
+      });
     }
   }
   return map;
@@ -64,7 +106,7 @@ async function getLatestPrices(userId: string, productIds: number[]): Promise<Ma
 
 function computeDishCost(
   ingredients: Array<{ productId: number; quantity: number; unit: string }>,
-  prices: Map<number, { unitPrice: number; unit: string }>,
+  prices: Map<number, { unitPrice: number; unit: string; productName: string }>,
 ): { portionCost: number | null; marginPct: number | null; confidencePct: number; ingredientCosts: Map<number, number | null> } {
   let totalCost = 0;
   let known = 0;
@@ -73,7 +115,7 @@ function computeDishCost(
   for (const ing of ingredients) {
     const price = prices.get(ing.productId);
     if (price) {
-      const cost = convertIngredientCost(ing.quantity, ing.unit, price.unit, price.unitPrice);
+      const cost = convertIngredientCost(ing.quantity, ing.unit, price.unit, price.unitPrice, price.productName);
       ingredientCosts.set(ing.productId, cost);
       totalCost += cost;
       known++;
