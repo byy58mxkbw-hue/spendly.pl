@@ -701,10 +701,17 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   }
 
   const parsed2 = xmlContent ? parseKSeFXml(xmlContent) : null;
+  const MAX_INVOICE_ITEMS = 200;
+
   const parsedItems: Array<{ productName: string; quantity: number; unit: string; unitPrice: number; totalPrice: number; vatRate?: number | null }> =
     manualItems && manualItems.length > 0
       ? manualItems
       : (parsed2?.items ?? []);
+
+  if (parsedItems.length > MAX_INVOICE_ITEMS) {
+    res.status(400).json({ error: `Faktura zawiera zbyt wiele pozycji (${parsedItems.length}). Maksymalnie dozwolone: ${MAX_INVOICE_ITEMS}.` });
+    return;
+  }
 
   const hasExplicitNumber = Boolean(invoiceNumber || parsed2?.invoiceNumber);
   const finalInvoiceNumber = invoiceNumber || parsed2?.invoiceNumber || `FV/${Date.now()}`;

@@ -1038,13 +1038,15 @@ async function processPdfFile(
     return { text: menuText || rawText.slice(0, 6000), pageCount: nativePageCount };
   }
 
-  // Scanned PDF — convert every page to PNG and process with vision
+  // Scanned PDF — convert pages to PNG and process with vision (capped to avoid runaway cost)
+  const MAX_PDF_PAGES = 20;
   try {
     const { pdf: pdfToImg } = await import("pdf-to-img");
     const doc = await pdfToImg(buffer, { scale: 2 });
     const totalPages = doc.length;
+    const pagesToProcess = Math.min(totalPages, MAX_PDF_PAGES);
     const pageTexts: string[] = [];
-    for (let i = 1; i <= totalPages; i++) {
+    for (let i = 1; i <= pagesToProcess; i++) {
       const pageBuffer = await doc.getPage(i);
       const pageText = await extractViaVision(pageBuffer, "image/png");
       if (pageText && pageText.length >= 5) {
