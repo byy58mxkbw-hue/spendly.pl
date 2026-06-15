@@ -352,14 +352,24 @@ async function fetchInvoiceCompareData(userId: string, question: string): Promis
   if (invoiceTokens.length >= 1) {
     for (const token of invoiceTokens.slice(0, 4)) {
       if (invoiceIds.length >= 2) break;
-      const res = await db.execute(sql`
+      // Try exact match first, then LIKE — LIMIT 1 per token so each token adds at most one invoice
+      const exactRes = await db.execute(sql`
         SELECT id FROM invoices
-        WHERE user_id = ${userId} AND LOWER(invoice_number) LIKE LOWER(${`%${token}%`})
-        ORDER BY invoice_date DESC, id DESC LIMIT 2
+        WHERE user_id = ${userId} AND LOWER(invoice_number) = LOWER(${token})
+        ORDER BY invoice_date DESC, id DESC LIMIT 1
       `);
-      for (const r of (res.rows as Array<{ id: number }>)) {
-        if (!invoiceIds.includes(r.id)) invoiceIds.push(r.id);
-        if (invoiceIds.length >= 2) break;
+      const exactRows = exactRes.rows as Array<{ id: number }>;
+      if (exactRows.length > 0) {
+        if (!invoiceIds.includes(exactRows[0].id)) invoiceIds.push(exactRows[0].id);
+      } else {
+        const likeRes = await db.execute(sql`
+          SELECT id FROM invoices
+          WHERE user_id = ${userId} AND LOWER(invoice_number) LIKE LOWER(${`%${token}%`})
+          ORDER BY invoice_date DESC, id DESC LIMIT 1
+        `);
+        for (const r of (likeRes.rows as Array<{ id: number }>)) {
+          if (!invoiceIds.includes(r.id)) invoiceIds.push(r.id);
+        }
       }
     }
   }
@@ -675,12 +685,14 @@ ZASADY TABEL — dla porównania dostawców zawsze pokazuj obie kolumny:
 INSTRUKCJA DLA PORÓWNANIA FAKTUR (type: "invoice_comparison"):
 Gdy kontekst zawiera blok "DANE FAKTUR DO PORÓWNANIA":
 - Użyj type: "invoice_comparison"
-- table.headers: ["Produkt", "Ilość A ({nr_faktury_A} — {data_A})", "Cena A", "Ilość B ({nr_faktury_B} — {data_B})", "Cena B", "Zmiana ceny"]
+- OBOWIĄZKOWO pokazuj pełną tabelę pozycja po pozycji — NIE streszczaj do samych sum, nawet jeśli sumy są podobne lub równe
+- table.headers: ["Produkt", "Ilość A ({nr_faktury_A} — {data_A})", "Cena jedn. A", "Ilość B ({nr_faktury_B} — {data_B})", "Cena jedn. B", "Zmiana ceny"]
 - Zastąp {nr_faktury_A}/{nr_faktury_B} skróconymi numerami (max 15 znaków), {data_A}/{data_B} datą w formacie DD.MM.YYYY
-- table.rows: każda pozycja jako ["nazwa produktu", "X,XX jed.", "X,XX zł", "Y,YY jed." lub "—", "Y,YY zł" lub "—", "+X,X%" lub "-X,X%" lub "0%" lub "—"]
+- table.rows: KAŻDA pozycja z obu faktur jako osobny wiersz: ["nazwa produktu", "X,XX jed.", "X,XX zł/jed.", "Y,YY jed." lub "—", "Y,YY zł/jed." lub "—", "+X,X%" lub "-X,X%" lub "0%" lub "—"]
 - Jeśli produkt jest tylko w jednej fakturze: ilość i cena drugiej = "—", zmiana = "—"
-- Delta obliczana z cen jednostkowych: (cena_B - cena_A) / cena_A * 100, format z plusem dla wzrostu (np. "+5,2%"), minusem dla spadku (np. "-3,1%")
-- kpiCards: kwota faktury A, kwota faktury B, różnica PLN (B - A), różnica %
+- Delta obliczana z cen jednostkowych: (cena_B - cena_A) / cena_A * 100, format z plusem dla wzrostu (np. "+5,2%"), minusem dla spadku (np. "-3,1%"), "0%" jeśli identyczna
+- kpiCards: ["Faktura A (łącznie)", "Faktura B (łącznie)", "Różnica (B-A)", "Zmiana %"] — oblicz różnicę samodzielnie z danych (B_total - A_total), NIE zakładaj że są równe
+- summary: podaj rzeczywiste kwoty obu faktur (np. "Faktura A: 9 303 zł, Faktura B: 8 750 zł, różnica: -553 zł")
 - Jeśli danych faktur brak — type: "general" i poinformuj że nie znaleziono faktur
 
 WAŻNE — zasady tworzenia href w actions:
