@@ -1009,21 +1009,10 @@ function ProductsTable({ products }: { products: ProductWithImpact[] }) {
 
 // ─── CategoryBarChart (horizontal bar chart for Kategorie tab) ────────────────
 
-function CategoryBarChart({ month }: { month: string }) {
-  const { selectedId: costCenterId } = useCostCenter();
-  const ccParam = costCenterId != null ? { costCenterId } : {};
-  const prevMonthStr = prevMonth(month);
+// ─── Category spend grouping hook ───────────────────────────────────────────
 
-  const { data: currentData, isLoading } = useGetCategorySpend(
-    { month, ...ccParam },
-    { query: { queryKey: ["category-spend", month, costCenterId] } },
-  );
-  const { data: prevData } = useGetCategorySpend(
-    { month: prevMonthStr, ...ccParam },
-    { query: { queryKey: ["category-spend", prevMonthStr, costCenterId] } },
-  );
-
-  const groups = useMemo(() => {
+function useCategoryGroupData(currentData: any[] | undefined, prevData: any[] | undefined) {
+  return useMemo(() => {
     if (!currentData) return [];
     const map = new Map<string, number>();
     for (const item of currentData) {
@@ -1054,6 +1043,90 @@ function CategoryBarChart({ month }: { month: string }) {
       })
       .sort((a, b) => b.spend - a.spend);
   }, [currentData, prevData]);
+}
+
+// ─── Category Bar Chart Tooltip ────────────────────────────────────────────────
+
+function CategoryBarChartTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: any[];
+}) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload as any;
+  return (
+    <div className="bg-card border border-border rounded-lg px-3 py-2 text-xs shadow-sm min-w-[160px]">
+      <p className="font-semibold mb-1.5 text-foreground">{d.label}</p>
+      <p className="tabular-nums text-foreground font-bold text-sm">{formatPrice(d.spend)}</p>
+      <p className="text-muted-foreground mt-0.5">{d.pct.toFixed(1)}% budżetu</p>
+      {d.trend != null && (
+        <p className={cn("mt-1 font-semibold", d.trend > 0 ? "text-red-500" : "text-emerald-600")}>
+          {d.trend > 0 ? "+" : ""}{d.trend.toFixed(1)}% vs poprz. miesiąc
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── Category Spend Comparison Table ───────────────────────────────────────────
+
+function CategoryComparisonTable({
+  groups,
+  total,
+}: {
+  groups: any[];
+  total: number;
+}) {
+  return (
+    <div className="border-t border-border">
+      <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+        <span>Kategoria</span>
+        <span className="text-right">Udział</span>
+        <span className="text-right w-16">vs poprz.</span>
+      </div>
+      <div className="divide-y divide-border/50">
+        {groups.map((g, i) => {
+          const pct = total > 0 ? (g.spend / total) * 100 : 0;
+          return (
+            <div key={g.id} className="flex items-center px-5 py-2 gap-3">
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+              <span className="text-xs text-foreground flex-1 truncate">{g.label}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">{pct.toFixed(1)}%</span>
+              {g.trend != null ? (
+                <span className={cn("text-xs font-bold tabular-nums flex items-center gap-0.5 w-16 justify-end", g.trend > 0 ? "text-red-500" : "text-emerald-600")}>
+                  {g.trend > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                  {Math.abs(g.trend).toFixed(1)}%
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground/40 w-16 text-right">—</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Category Bar Chart ────────────────────────────────────────────────────────
+
+function CategoryBarChart({ month }: { month: string }) {
+  const { selectedId: costCenterId } = useCostCenter();
+  const ccParam = costCenterId != null ? { costCenterId } : {};
+  const prevMonthStr = prevMonth(month);
+
+  const { data: currentData, isLoading } = useGetCategorySpend(
+    { month, ...ccParam },
+    { query: { queryKey: ["category-spend", month, costCenterId] } },
+  );
+  const { data: prevData } = useGetCategorySpend(
+    { month: prevMonthStr, ...ccParam },
+    { query: { queryKey: ["category-spend", prevMonthStr, costCenterId] } },
+  );
+
+  const groups = useCategoryGroupData(currentData, prevData);
 
   const total = groups.reduce((s, g) => s + g.spend, 0);
 
@@ -1121,24 +1194,7 @@ function CategoryBarChart({ month }: { month: string }) {
               tickLine={false}
               axisLine={false}
             />
-            <Tooltip
-              content={({ active, payload }) => {
-                if (!active || !payload?.length) return null;
-                const d = payload[0]?.payload as typeof barData[0];
-                return (
-                  <div className="bg-card border border-border rounded-lg px-3 py-2 text-xs shadow-sm min-w-[160px]">
-                    <p className="font-semibold mb-1.5 text-foreground">{d.label}</p>
-                    <p className="tabular-nums text-foreground font-bold text-sm">{formatPrice(d.spend)}</p>
-                    <p className="text-muted-foreground mt-0.5">{d.pct.toFixed(1)}% budżetu</p>
-                    {d.trend != null && (
-                      <p className={cn("mt-1 font-semibold", d.trend > 0 ? "text-red-500" : "text-emerald-600")}>
-                        {d.trend > 0 ? "+" : ""}{d.trend.toFixed(1)}% vs poprz. miesiąc
-                      </p>
-                    )}
-                  </div>
-                );
-              }}
-            />
+            <Tooltip content={CategoryBarChartTooltip} />
             <Bar dataKey="spend" radius={[0, 4, 4, 0]}>
               {barData.map((entry) => (
                 <Cell key={entry.id} fill={entry.fill} />
@@ -1154,34 +1210,7 @@ function CategoryBarChart({ month }: { month: string }) {
         </ResponsiveContainer>
       </div>
 
-      {/* MoM comparison strip */}
-      <div className="border-t border-border">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-          <span>Kategoria</span>
-          <span className="text-right">Udział</span>
-          <span className="text-right w-16">vs poprz.</span>
-        </div>
-        <div className="divide-y divide-border/50">
-          {groups.map((g, i) => {
-            const pct = total > 0 ? (g.spend / total) * 100 : 0;
-            return (
-              <div key={g.id} className="flex items-center px-5 py-2 gap-3">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                <span className="text-xs text-foreground flex-1 truncate">{g.label}</span>
-                <span className="text-xs text-muted-foreground tabular-nums">{pct.toFixed(1)}%</span>
-                {g.trend != null ? (
-                  <span className={cn("text-xs font-bold tabular-nums flex items-center gap-0.5 w-16 justify-end", g.trend > 0 ? "text-red-500" : "text-emerald-600")}>
-                    {g.trend > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                    {Math.abs(g.trend).toFixed(1)}%
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground/40 w-16 text-right">—</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <CategoryComparisonTable groups={groups} total={total} />
     </div>
   );
 }

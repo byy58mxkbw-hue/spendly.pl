@@ -288,9 +288,16 @@ export default function Suppliers() {
                   </button>
                 )}
 
-                <button
-                  className={cn("w-full text-left", tab === "deleted" && "cursor-default")}
+                <div
+                  className={cn("w-full text-left", tab === "active" && "cursor-pointer")}
                   onClick={() => tab === "active" && setLocation(`/suppliers/${supplier.id}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && tab === "active") {
+                      setLocation(`/suppliers/${supplier.id}`);
+                    }
+                  }}
                 >
                   <div className="flex items-start gap-3 mb-4">
                     <div className={cn(
@@ -463,7 +470,7 @@ export default function Suppliers() {
                       <RotateCcw className="w-3 h-3" /> Przywróć dostawcę
                     </button>
                   )}
-                </button>
+                </div>
               </div>
             ))}
           </div>

@@ -166,6 +166,11 @@ export async function categorizeProductWithAI(
     };
   }
 
+  if (!openai) {
+    logger?.info({ productName }, "categorize: AI not configured, using keyword match fallback");
+    return { category: "inne", subcategory: null, confidence: 0.7, canonicalName };
+  }
+
   // Step 3: AI classification — returns JSON with subcategory + confidence
   const builtinIds = Object.keys(BUILTIN_CATEGORY_DEFS);
   const categoryList = Object.entries(BUILTIN_CATEGORY_DEFS)

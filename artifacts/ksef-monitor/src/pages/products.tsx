@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { useQueryClient } from "@tanstack/react-query";
@@ -137,13 +137,13 @@ function KeywordComparisonModal({
     {}
   );
 
-  const supplierGroups = Object.values(bySupplier).sort(
-    (a, b) => {
-      const aMin = Math.min(...a.products.map((p) => p.latestPrice ?? Infinity));
-      const bMin = Math.min(...b.products.map((p) => p.latestPrice ?? Infinity));
-      return aMin - bMin;
-    }
-  );
+  // Pre-calculate minPrice for each supplier to avoid O(N²) Math.min in sort
+  const supplierGroups = Object.values(bySupplier)
+    .map(group => ({
+      ...group,
+      minPrice: Math.min(...group.products.map((p) => p.latestPrice ?? Infinity))
+    }))
+    .sort((a, b) => a.minPrice - b.minPrice);
 
   // Find overall cheapest single product
   const allWithPrice = matched.filter((p) => p.latestPrice != null);
@@ -210,7 +210,7 @@ function KeywordComparisonModal({
             {/* Supplier groups */}
             {supplierGroups.map((group, gi) => {
               const color = SUPPLIER_COLORS[gi % SUPPLIER_COLORS.length];
-              const groupMinPrice = Math.min(...group.products.map((p) => p.latestPrice ?? Infinity));
+              const groupMinPrice = (group as any).minPrice;
               const isCheapestSupplier = hasMultipleSuppliers && cheapest?.supplierName === group.supplierName;
 
               return (
@@ -447,7 +447,7 @@ export function PriceHistoryModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {[...history!].reverse().map((h, i) => (
+                  {history?.slice().reverse().map((h, i) => (
                     <tr key={i} className="border-b border-border last:border-0 hover:bg-secondary/40 transition-colors">
                       <td className="px-4 py-2.5">{formatDate(h.date)}</td>
                       <td className="px-4 py-2.5 text-muted-foreground">{h.supplierName}</td>
@@ -1087,18 +1087,24 @@ export default function Products() {
     setSelectedIds(new Set());
   }
 
-  const filtered = sortProducts(
-    products?.filter((p) => {
-      const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-      const effectiveCategory = p.category ?? categorizeProduct(p.name);
-      const matchesCategory = categoryFilter === "all" || effectiveCategory === categoryFilter;
-      const matchesReview = !showNeedsReview || p.needsReview === true;
-      return matchesSearch && matchesCategory && matchesReview;
-    }) ?? [],
-    sort
-  );
+  const filtered = useMemo(() => {
+    if (!products) return [];
+    return sortProducts(
+      products.filter((p) => {
+        const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+        const effectiveCategory = p.category ?? categorizeProduct(p.name);
+        const matchesCategory = categoryFilter === "all" || effectiveCategory === categoryFilter;
+        const matchesReview = !showNeedsReview || p.needsReview === true;
+        return matchesSearch && matchesCategory && matchesReview;
+      }),
+      sort
+    );
+  }, [products, search, categoryFilter, showNeedsReview, sort]);
 
-  const reviewableIds = filtered.filter((p) => p.needsReview === true).map((p) => p.id);
+  const reviewableIds = useMemo(() =>
+    filtered.filter((p) => p.needsReview === true).map((p) => p.id),
+    [filtered]
+  );
 
   async function handleBulkVerify() {
     const ids = Array.from(selectedIds);
@@ -1107,17 +1113,19 @@ export default function Products() {
     queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
   }
 
-  // Compute which categories actually have products (before category filter, after other filters)
-  const productsBeforeCategoryFilter = products?.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
-    return matchesSearch;
-  }) ?? [];
-
-  const categoryCountMap = productsBeforeCategoryFilter.reduce<Record<string, number>>((acc, p) => {
-    const cat = p.category ?? categorizeProduct(p.name);
-    acc[cat] = (acc[cat] ?? 0) + 1;
-    return acc;
-  }, {});
+  // Compute which categories actually have products (search-filtered, before category filter)
+  const categoryCountMap = useMemo(() => {
+    if (!products) return {};
+    const searchFiltered = products.filter((p) =>
+      p.name.toLowerCase().includes(search.toLowerCase())
+    );
+    const map: Record<string, number> = {};
+    for (const p of searchFiltered) {
+      const cat = p.category ?? categorizeProduct(p.name);
+      map[cat] = (map[cat] ?? 0) + 1;
+    }
+    return map;
+  }, [products, search]);
 
   const availableCategories = [
     ...(categories ?? []).filter((c) => c.id !== "inne" && (categoryCountMap[c.id] ?? 0) > 0),
@@ -1125,7 +1133,7 @@ export default function Products() {
   ];
 
   // Aggregate spending from API by effective category (explicit from DB or auto-detected by name)
-  const categorySpend = (() => {
+  const categorySpend = useMemo(() => {
     if (!spendItems || spendItems.length === 0) return [];
     const map: Record<string, number> = {};
     for (const item of spendItems) {
@@ -1145,7 +1153,7 @@ export default function Products() {
         pct: totalSpend > 0 ? (spend / totalSpend) * 100 : 0,
       }))
       .sort((a, b) => b.spend - a.spend);
-  })();
+  }, [spendItems, categories]);
 
   function openHistory(id: number, name: string) {
     setSelectedProduct({ id, name });

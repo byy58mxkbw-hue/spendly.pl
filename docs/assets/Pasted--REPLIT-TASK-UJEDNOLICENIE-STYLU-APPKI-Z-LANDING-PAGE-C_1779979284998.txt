@@ -1,0 +1,457 @@
+# REPLIT TASK — UJEDNOLICENIE STYLU APPKI Z LANDING PAGE
+
+## CEL
+
+Dashboard po zalogowaniu ma wyglądać jak naturalne rozwinięcie landing page.
+
+Obecnie:
+
+* landing = premium AI SaaS,
+* appka = admin panel / ERP.
+
+Trzeba zunifikować styl.
+
+---
+
+# GŁÓWNY KIERUNEK
+
+## APP STYLE:
+
+* dark-first,
+* Apple + Linear + Stripe vibe,
+* mniej ERP,
+* mniej białego tła,
+* więcej depth,
+* większy kontrast,
+* większe hierarchy.
+
+---
+
+# 1. GLOBAL DARK MODE (NAJWAŻNIEJSZE)
+
+## Obecnie:
+
+za dużo białego.
+
+Produkt wygląda:
+
+* księgowo,
+* legacy,
+* spreadsheet vibe.
+
+---
+
+# ZMIEŃ GLOBAL STYL
+
+## Background
+
+```css
+#0B0F14
+```
+
+## Surface
+
+```css
+#131A22
+```
+
+## Elevated cards
+
+```css
+#171F2B
+```
+
+## Borders
+
+```css
+rgba(255,255,255,0.06)
+```
+
+## Text primary
+
+```css
+#F5F7FA
+```
+
+## Text muted
+
+```css
+#9AA4B2
+```
+
+## Accent
+
+```css
+#4ADEB3
+```
+
+---
+
+# 2. SIDEBAR REDESIGN
+
+## Obecnie:
+
+template dashboard vibe.
+
+---
+
+# ZRÓB:
+
+## Sidebar:
+
+* floating,
+* darker,
+* blur background,
+* softer borders,
+* premium spacing.
+
+---
+
+## Sidebar width:
+
+```css
+260px
+```
+
+---
+
+## Active item:
+
+* subtle mint glow,
+* darker background,
+* rounded-xl.
+
+---
+
+## Hover:
+
+```css
+background: rgba(255,255,255,0.04)
+```
+
+---
+
+## Usuń:
+
+* ostre separatory,
+* cienkie szare linie,
+* ERP feeling.
+
+---
+
+# 3. DASHBOARD HEADER
+
+## Obecnie:
+
+za mały i pusty.
+
+---
+
+# NOWY UKŁAD
+
+## LEFT:
+
+* title,
+* subtitle.
+
+## RIGHT:
+
+* KSeF sync button,
+* period selector,
+* profile/avatar.
+
+---
+
+## TITLE STYLE
+
+```css
+font-size: 36px;
+font-weight: 700;
+letter-spacing: -0.04em;
+```
+
+---
+
+## Subtitle:
+
+muted smaller text.
+
+---
+
+# 4. KPI CARDS REDESIGN
+
+## Obecnie:
+
+za małe,
+za płaskie,
+za spreadsheetowe.
+
+---
+
+# NOWY STYL
+
+## Cards:
+
+```css
+background: #131A22;
+border: 1px solid rgba(255,255,255,0.05);
+border-radius: 24px;
+padding: 28px;
+```
+
+---
+
+## Numbers:
+
+bardzo duże.
+
+```css
+font-size: 42px;
+font-weight: 700;
+letter-spacing: -0.05em;
+```
+
+---
+
+## Labels:
+
+small muted.
+
+---
+
+## Dodaj:
+
+* subtle glow,
+* mini trend line,
+* AI note.
+
+---
+
+# 5. WYKRESY
+
+## Obecnie:
+
+wyglądają jak placeholder.
+
+---
+
+# ZMIEŃ:
+
+## Charts:
+
+* dark transparent background,
+* smooth curves,
+* gradient fills,
+* animated transitions.
+
+---
+
+## Usuń:
+
+* cienkie szare gridy,
+* Excel vibe.
+
+---
+
+## Inspiracja:
+
+* Stripe
+* Vercel analytics
+* Linear analytics
+
+---
+
+# 6. TABLES → SMART LISTS
+
+## Obecnie:
+
+ERP table vibe.
+
+---
+
+# Zmień:
+
+na:
+
+* softer lists,
+* more spacing,
+* grouped items,
+* hover states.
+
+---
+
+## Każdy item:
+
+powinien wyglądać bardziej jak:
+
+* AI feed,
+* insight list.
+
+---
+
+# 7. AI CFO SECTION
+
+## To ma być HERO produktu.
+
+---
+
+# Styl:
+
+* cinematic dark card,
+* glow subtle,
+* gradient background,
+* huge numbers,
+* more whitespace.
+
+---
+
+## 4956 zł:
+
+ma być ogromne.
+
+---
+
+# Style:
+
+```css
+font-size: 64px;
+font-weight: 800;
+letter-spacing: -0.06em;
+```
+
+---
+
+# 8. SPACING
+
+## Obecnie:
+
+za ciasno i za dużo cienkich sekcji.
+
+---
+
+# Zwiększ:
+
+```css
+gap: 24px;
+padding: 32px;
+section spacing: 48px;
+```
+
+---
+
+# 9. BORDER CLEANUP
+
+## Usuń:
+
+* większość szarych borderów,
+* cienkie separator lines,
+* hard outlines.
+
+---
+
+# Zastąp:
+
+* tonal surfaces,
+* soft shadows,
+* subtle contrast.
+
+---
+
+# 10. TYPOGRAPHY
+
+## Font:
+
+Inter
+lub
+Geist.
+
+---
+
+## Headings:
+
+```css
+font-weight: 700;
+tracking: -0.04em;
+```
+
+---
+
+## Numbers:
+
+bold + tight tracking.
+
+---
+
+## Muted text:
+
+mniejszy kontrast.
+
+---
+
+# 11. BUTTONS
+
+## Primary:
+
+mint glow.
+
+```css
+background: linear-gradient(...)
+box-shadow: subtle mint glow
+```
+
+---
+
+## Secondary:
+
+ghost dark button.
+
+---
+
+# 12. ANIMATIONS
+
+## Dodać:
+
+* fade in,
+* hover elevation,
+* animated counters,
+* smooth page transitions.
+
+---
+
+## Nie dodawać:
+
+* flashy animations,
+* neon effects,
+* gaming vibe.
+
+---
+
+# 13. APP FEEL
+
+Produkt ma wyglądać jak:
+
+# AI financial operating system.
+
+Nie:
+
+* księgowość,
+* ERP,
+* panel administracyjny.
+
+---
+
+# 14. NAJWAŻNIEJSZE
+
+## Landing page i dashboard muszą wyglądać jak:
+
+# jeden produkt.
+
+---
+
+## Czyli:
+
+* ten sam dark palette,
+* ten sam glow,
+* ten sam spacing,
+* ten sam typography system,
+* ten sam premium feel.

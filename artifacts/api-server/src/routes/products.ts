@@ -41,157 +41,176 @@ router.get("/products", async (req, res): Promise<void> => {
   }
 
   const { supplierId, category, days, month, needsReview, costCenterId } = queryParams.data;
-  const ccFilter = costCenterId != null
+
+  // Build optional SQL fragments for dynamic filters
+  const ccSql = costCenterId != null
     ? costCenterId === 0
-      ? sql`${invoicesTable.costCenterId} IS NULL`
-      : eq(invoicesTable.costCenterId, costCenterId)
-    : undefined;
+      ? sql` AND i.cost_center_id IS NULL`
+      : sql` AND i.cost_center_id = ${costCenterId}`
+    : sql``;
+  const supplierSql = supplierId ? sql` AND i.supplier_id = ${supplierId}` : sql``;
+  const daysSql = days ? sql` AND i.invoice_date >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')` : sql``;
+  const categorySql = category ? sql` AND p.category = ${category}` : sql``;
+  const needsReviewSql = needsReview ? sql` AND p.needs_review = true` : sql``;
 
-  const products = await db
-    .select({
-      id: productsTable.id,
-      name: productsTable.name,
-      unit: productsTable.unit,
-      category: productsTable.category,
-      subcategory: productsTable.subcategory,
-      classificationConfidence: productsTable.classificationConfidence,
-      canonicalName: productsTable.canonicalName,
-      needsReview: productsTable.needsReview,
-    })
-    .from(productsTable)
-    .where(eq(productsTable.userId, userId))
-    .orderBy(productsTable.name);
+  // Single CTE query replaces N×3 per-product round-trips
+  type ProductRow = {
+    id: number; name: string; unit: string; category: string | null; subcategory: string | null;
+    classificationConfidence: number | null; canonicalName: string | null; needsReview: boolean;
+    latestPrice: string | null; lastPurchaseDate: string | null;
+    supplierId: string | null; supplierName: string | null;
+    previousPrice: string | null; supplierCount: string | null; totalQuantity: string | null;
+  };
 
-  const enriched = await Promise.all(
-    products.map(async (product) => {
-      // Build the shared base WHERE condition for price history queries.
-      // Correction invoices are excluded via three belt-and-suspenders conditions:
-      //   1. parentInvoiceId IS NULL  — linked corrections (new imports)
-      //   2. invoiceType IS DISTINCT FROM 'KOR'  — explicitly labelled KOR invoices
-      //   3. quantity > 0  — old-style corrections with negative quantity
-      const baseItemWhere = and(
-        eq(invoiceItemsTable.productId, product.id),
-        eq(invoicesTable.userId, userId),
-        eq(invoicesTable.excluded, false),
-        isNull(invoicesTable.parentInvoiceId),
-        sql`${invoicesTable.invoiceType} IS DISTINCT FROM 'KOR'`,
-        sql`${invoiceItemsTable.quantity}::numeric > 0`,
-        sql`${invoiceItemsTable.unitPrice}::numeric > 0`,
-        ccFilter,
-        supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
-      );
+  let rows: ProductRow[];
 
-      type PriceRow = { unitPrice: string; invoiceDate: string; supplierId: number; supplierName: string };
-      let latest: PriceRow | undefined;
-      let previous: PriceRow | undefined;
+  if (month) {
+    const mStart = monthStart(month);
+    const mEnd = monthEnd(month);
+    const result = await db.execute(sql`
+      WITH
+      latest_base AS (
+        SELECT DISTINCT ON (ii.product_id)
+          ii.product_id, ii.unit_price::numeric AS latest_price,
+          i.invoice_date AS last_purchase_date, i.supplier_id, s.name AS supplier_name
+        FROM invoice_items ii
+        JOIN invoices i ON ii.invoice_id = i.id
+        JOIN suppliers s ON i.supplier_id = s.id
+        WHERE i.user_id = ${userId} AND i.excluded = false
+          AND i.parent_invoice_id IS NULL AND i.invoice_type IS DISTINCT FROM 'KOR'
+          AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+          AND i.invoice_date >= ${mStart} AND i.invoice_date < ${mEnd}
+          ${supplierSql}${ccSql}
+        ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+      ),
+      prev_base AS (
+        SELECT DISTINCT ON (ii.product_id)
+          ii.product_id, ii.unit_price::numeric AS previous_price
+        FROM invoice_items ii
+        JOIN invoices i ON ii.invoice_id = i.id
+        WHERE i.user_id = ${userId} AND i.excluded = false
+          AND i.parent_invoice_id IS NULL AND i.invoice_type IS DISTINCT FROM 'KOR'
+          AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+          AND i.invoice_date < ${mStart}
+          ${supplierSql}${ccSql}
+        ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+      ),
+      sup_counts AS (
+        SELECT ii.product_id, COUNT(DISTINCT i.supplier_id)::int AS supplier_count
+        FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
+        WHERE i.user_id = ${userId} AND i.excluded = false ${ccSql}
+        GROUP BY ii.product_id
+      ),
+      qty_sums AS (
+        SELECT ii.product_id, SUM(ii.quantity::numeric) AS total_quantity
+        FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
+        WHERE i.user_id = ${userId} AND i.excluded = false
+          AND i.invoice_date >= ${mStart} AND i.invoice_date < ${mEnd} ${ccSql}
+        GROUP BY ii.product_id
+      )
+      SELECT
+        p.id, p.name, p.unit, p.category, p.subcategory,
+        p.classification_confidence AS "classificationConfidence",
+        p.canonical_name AS "canonicalName",
+        p.needs_review AS "needsReview",
+        lb.latest_price::text AS "latestPrice",
+        lb.last_purchase_date AS "lastPurchaseDate",
+        lb.supplier_id::text AS "supplierId",
+        lb.supplier_name AS "supplierName",
+        pb.previous_price::text AS "previousPrice",
+        sc.supplier_count::text AS "supplierCount",
+        qs.total_quantity::text AS "totalQuantity"
+      FROM products p
+      LEFT JOIN latest_base lb ON p.id = lb.product_id
+      LEFT JOIN prev_base pb ON p.id = pb.product_id
+      LEFT JOIN sup_counts sc ON p.id = sc.product_id
+      LEFT JOIN qty_sums qs ON p.id = qs.product_id
+      WHERE p.user_id = ${userId}${categorySql}${needsReviewSql}
+      ORDER BY p.name
+    `);
+    rows = result.rows as ProductRow[];
+  } else {
+    const result = await db.execute(sql`
+      WITH
+      date_deduped AS (
+        SELECT DISTINCT ON (ii.product_id, i.invoice_date)
+          ii.product_id, ii.unit_price::numeric AS unit_price,
+          i.invoice_date, i.id AS invoice_id, i.supplier_id, s.name AS supplier_name
+        FROM invoice_items ii
+        JOIN invoices i ON ii.invoice_id = i.id
+        JOIN suppliers s ON i.supplier_id = s.id
+        WHERE i.user_id = ${userId} AND i.excluded = false
+          AND i.parent_invoice_id IS NULL AND i.invoice_type IS DISTINCT FROM 'KOR'
+          AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+          ${daysSql}${supplierSql}${ccSql}
+        ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+      ),
+      ranked AS (
+        SELECT *,
+          ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY invoice_date DESC, invoice_id DESC) AS rn
+        FROM date_deduped
+      ),
+      sup_counts AS (
+        SELECT ii.product_id, COUNT(DISTINCT i.supplier_id)::int AS supplier_count
+        FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
+        WHERE i.user_id = ${userId} AND i.excluded = false ${ccSql}
+        GROUP BY ii.product_id
+      ),
+      qty_sums AS (
+        SELECT ii.product_id, SUM(ii.quantity::numeric) AS total_quantity
+        FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
+        WHERE i.user_id = ${userId} AND i.excluded = false ${daysSql}${ccSql}
+        GROUP BY ii.product_id
+      )
+      SELECT
+        p.id, p.name, p.unit, p.category, p.subcategory,
+        p.classification_confidence AS "classificationConfidence",
+        p.canonical_name AS "canonicalName",
+        p.needs_review AS "needsReview",
+        MAX(CASE WHEN r.rn = 1 THEN r.unit_price END)::text AS "latestPrice",
+        MAX(CASE WHEN r.rn = 1 THEN r.invoice_date END) AS "lastPurchaseDate",
+        MAX(CASE WHEN r.rn = 1 THEN r.supplier_id::text END) AS "supplierId",
+        MAX(CASE WHEN r.rn = 1 THEN r.supplier_name END) AS "supplierName",
+        MAX(CASE WHEN r.rn = 2 THEN r.unit_price END)::text AS "previousPrice",
+        sc.supplier_count::text AS "supplierCount",
+        qs.total_quantity::text AS "totalQuantity"
+      FROM products p
+      LEFT JOIN ranked r ON p.id = r.product_id AND r.rn <= 2
+      LEFT JOIN sup_counts sc ON p.id = sc.product_id
+      LEFT JOIN qty_sums qs ON p.id = qs.product_id
+      WHERE p.user_id = ${userId}${categorySql}${needsReviewSql}
+      GROUP BY p.id, p.name, p.unit, p.category, p.subcategory,
+               p.classification_confidence, p.canonical_name, p.needs_review,
+               sc.supplier_count, qs.total_quantity
+      ORDER BY p.name
+    `);
+    rows = result.rows as ProductRow[];
+  }
 
-      if (month) {
-        // When a month is selected: "latest" = most recent purchase within the month,
-        // "previous" = most recent purchase BEFORE the month. This mirrors the
-        // top-price-changes logic and correctly shows month-over-month changes.
-        const mStart = monthStart(month);
-        const mEnd = monthEnd(month);
-        const [latestRows, previousRows] = await Promise.all([
-          db
-            .select({ unitPrice: invoiceItemsTable.unitPrice, invoiceDate: invoicesTable.invoiceDate, supplierId: invoicesTable.supplierId, supplierName: suppliersTable.name })
-            .from(invoiceItemsTable)
-            .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-            .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-            .where(and(baseItemWhere, sql`${invoicesTable.invoiceDate} >= ${mStart} AND ${invoicesTable.invoiceDate} < ${mEnd}`))
-            .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
-            .limit(1),
-          db
-            .select({ unitPrice: invoiceItemsTable.unitPrice, invoiceDate: invoicesTable.invoiceDate, supplierId: invoicesTable.supplierId, supplierName: suppliersTable.name })
-            .from(invoiceItemsTable)
-            .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-            .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-            .where(and(baseItemWhere, sql`${invoicesTable.invoiceDate} < ${mStart}`))
-            .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
-            .limit(1),
-        ]);
-        latest = latestRows[0];
-        previous = previousRows[0];
-      } else {
-        // No month filter: compare the last 2 distinct purchase DATES globally.
-        // Fetch up to 50 rows and deduplicate by date so that multiple invoices on
-        // the same day or multiple line-items on the same invoice do not skew the result.
-        const priceHistoryRaw = await db
-          .select({ unitPrice: invoiceItemsTable.unitPrice, invoiceDate: invoicesTable.invoiceDate, invoiceId: invoicesTable.id, supplierId: invoicesTable.supplierId, supplierName: suppliersTable.name })
-          .from(invoiceItemsTable)
-          .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-          .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-          .where(and(
-            baseItemWhere,
-            days ? sql`${invoicesTable.invoiceDate} >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')` : undefined,
-          ))
-          .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
-          .limit(50);
+  const enriched = rows.map(row => {
+    const latestPrice = row.latestPrice != null ? toNum(row.latestPrice) : null;
+    const previousPrice = row.previousPrice != null ? toNum(row.previousPrice) : null;
+    return {
+      id: row.id,
+      name: row.name,
+      unit: row.unit,
+      category: row.category,
+      subcategory: row.subcategory,
+      classificationConfidence: row.classificationConfidence,
+      canonicalName: row.canonicalName,
+      needsReview: row.needsReview,
+      latestPrice,
+      previousPrice,
+      priceChangePercent: latestPrice && previousPrice ? ((latestPrice - previousPrice) / previousPrice) * 100 : null,
+      supplierId: row.supplierId != null ? Number(row.supplierId) : null,
+      supplierName: row.supplierName ?? null,
+      lastPurchaseDate: row.lastPurchaseDate ?? null,
+      supplierCount: row.supplierCount != null ? toNum(row.supplierCount) : 0,
+      totalQuantity: row.totalQuantity != null ? toNum(row.totalQuantity) : null,
+    };
+  });
 
-        const seenDates = new Set<string>();
-        const priceHistory: typeof priceHistoryRaw = [];
-        for (const row of priceHistoryRaw) {
-          if (!seenDates.has(row.invoiceDate)) {
-            seenDates.add(row.invoiceDate);
-            priceHistory.push(row);
-            if (priceHistory.length === 2) break;
-          }
-        }
-        latest = priceHistory[0];
-        previous = priceHistory[1];
-      }
-
-      const supplierCountResult = await db
-        .select({ cnt: sql<number>`count(distinct ${invoicesTable.supplierId})` })
-        .from(invoiceItemsTable)
-        .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-        .where(and(eq(invoiceItemsTable.productId, product.id), eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false), ccFilter));
-
-      const quantityResult = await db
-        .select({ total: sql<string>`sum(${invoiceItemsTable.quantity})` })
-        .from(invoiceItemsTable)
-        .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-        .where(
-          and(
-            eq(invoiceItemsTable.productId, product.id),
-            eq(invoicesTable.userId, userId),
-            eq(invoicesTable.excluded, false),
-            ccFilter,
-            month
-              ? sql`${invoicesTable.invoiceDate} >= ${month + "-01"} AND ${invoicesTable.invoiceDate} < ${(() => { const [y, m2] = month.split("-").map(Number); return new Date(y, m2, 1).toISOString().split("T")[0]; })()}`
-              : days
-              ? sql`${invoicesTable.invoiceDate} >= to_char(now() - interval '1 day' * ${days}, 'YYYY-MM-DD')`
-              : undefined,
-          ),
-        );
-
-      const latestPrice = latest ? toNum(latest.unitPrice) : null;
-      const previousPrice = previous ? toNum(previous.unitPrice) : null;
-      const changePercent =
-        latestPrice && previousPrice
-          ? ((latestPrice - previousPrice) / previousPrice) * 100
-          : null;
-
-      return {
-        ...product,
-        latestPrice,
-        previousPrice,
-        priceChangePercent: changePercent,
-        supplierId: latest?.supplierId ?? null,
-        supplierName: latest?.supplierName ?? null,
-        lastPurchaseDate: latest?.invoiceDate ?? null,
-        supplierCount: toNum(supplierCountResult[0]?.cnt ?? 0),
-        totalQuantity: toNum(quantityResult[0]?.total ?? null),
-      };
-    }),
-  );
-
-  res.json(
-    enriched.filter((p) =>
-      p.supplierName != null &&
-      (!category || p.category === category) &&
-      (!needsReview || p.needsReview === true)
-    )
-  );
+  res.json(enriched.filter(p => p.supplierName != null));
 });
 
 router.get("/products/top-price-changes", async (req, res): Promise<void> => {
@@ -205,127 +224,116 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
   const limit = queryParams.data.limit ?? 10;
   const topMonth = queryParams.data.month;
   const costCenterId = queryParams.data.costCenterId;
-  const ccFilter = costCenterId != null ? eq(invoicesTable.costCenterId, costCenterId) : undefined;
+  const ccSql = costCenterId != null
+    ? costCenterId === 0
+      ? sql` AND i.cost_center_id IS NULL`
+      : sql` AND i.cost_center_id = ${costCenterId}`
+    : sql``;
 
-  const products = await db
-    .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit })
-    .from(productsTable)
-    .where(eq(productsTable.userId, userId));
+  type ChangeRow = {
+    product_id: number; product_name: string; unit: string;
+    current_price: string | null; previous_price: string | null;
+    supplier_name: string | null; last_date: string | null;
+  };
 
-  const mStart = topMonth ? monthStart(topMonth) : null;
-  const mEnd = topMonth ? monthEnd(topMonth) : null;
+  let rows: ChangeRow[];
 
-  const changes = await Promise.all(
-    products.map(async (product) => {
-      const baseWhere = and(
-        eq(invoiceItemsTable.productId, product.id),
-        eq(invoicesTable.userId, userId),
-        eq(invoicesTable.excluded, false),
-        isNull(invoicesTable.parentInvoiceId),
-        sql`${invoicesTable.invoiceType} IS DISTINCT FROM 'KOR'`,
-        sql`${invoiceItemsTable.quantity}::numeric > 0`,
-        sql`${invoiceItemsTable.unitPrice}::numeric > 0`,
-        ccFilter,
-      );
+  if (topMonth) {
+    const mStart = monthStart(topMonth);
+    const mEnd = monthEnd(topMonth);
+    const result = await db.execute(sql`
+      WITH
+      current_prices AS (
+        SELECT DISTINCT ON (ii.product_id)
+          ii.product_id, ii.unit_price::numeric AS current_price,
+          i.invoice_date AS last_date, s.name AS supplier_name
+        FROM invoice_items ii
+        JOIN invoices i ON ii.invoice_id = i.id
+        JOIN suppliers s ON i.supplier_id = s.id
+        WHERE i.user_id = ${userId} AND i.excluded = false
+          AND i.parent_invoice_id IS NULL AND i.invoice_type IS DISTINCT FROM 'KOR'
+          AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+          AND i.invoice_date >= ${mStart} AND i.invoice_date < ${mEnd}
+          ${ccSql}
+        ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+      ),
+      previous_prices AS (
+        SELECT DISTINCT ON (ii.product_id)
+          ii.product_id, ii.unit_price::numeric AS previous_price
+        FROM invoice_items ii
+        JOIN invoices i ON ii.invoice_id = i.id
+        WHERE i.user_id = ${userId} AND i.excluded = false
+          AND i.parent_invoice_id IS NULL AND i.invoice_type IS DISTINCT FROM 'KOR'
+          AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+          AND i.invoice_date < ${mStart}
+          ${ccSql}
+        ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+      )
+      SELECT
+        p.id AS product_id, p.name AS product_name, p.unit,
+        cp.current_price::text, pp.previous_price::text,
+        cp.supplier_name, cp.last_date
+      FROM products p
+      JOIN current_prices cp ON p.id = cp.product_id
+      JOIN previous_prices pp ON p.id = pp.product_id
+      WHERE p.user_id = ${userId}
+    `);
+    rows = result.rows as ChangeRow[];
+  } else {
+    const result = await db.execute(sql`
+      WITH
+      date_deduped AS (
+        SELECT DISTINCT ON (ii.product_id, i.invoice_date)
+          ii.product_id, ii.unit_price::numeric AS unit_price,
+          i.invoice_date, i.id AS invoice_id, s.name AS supplier_name
+        FROM invoice_items ii
+        JOIN invoices i ON ii.invoice_id = i.id
+        JOIN suppliers s ON i.supplier_id = s.id
+        WHERE i.user_id = ${userId} AND i.excluded = false
+          AND i.parent_invoice_id IS NULL AND i.invoice_type IS DISTINCT FROM 'KOR'
+          AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+          ${ccSql}
+        ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+      ),
+      ranked AS (
+        SELECT *,
+          ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY invoice_date DESC, invoice_id DESC) AS rn
+        FROM date_deduped
+      )
+      SELECT
+        p.id AS product_id, p.name AS product_name, p.unit,
+        MAX(CASE WHEN r.rn = 1 THEN r.unit_price END)::text AS current_price,
+        MAX(CASE WHEN r.rn = 2 THEN r.unit_price END)::text AS previous_price,
+        MAX(CASE WHEN r.rn = 1 THEN r.supplier_name END) AS supplier_name,
+        MAX(CASE WHEN r.rn = 1 THEN r.invoice_date END) AS last_date
+      FROM products p
+      JOIN ranked r ON p.id = r.product_id AND r.rn <= 2
+      WHERE p.user_id = ${userId}
+      GROUP BY p.id, p.name, p.unit
+      HAVING COUNT(DISTINCT CASE WHEN r.rn <= 2 THEN r.rn END) = 2
+    `);
+    rows = result.rows as ChangeRow[];
+  }
 
-      if (mStart && mEnd) {
-        // "current" = latest entry within the selected month
-        const currentRows = await db
-          .select({
-            unitPrice: invoiceItemsTable.unitPrice,
-            invoiceDate: invoicesTable.invoiceDate,
-            supplierName: suppliersTable.name,
-          })
-          .from(invoiceItemsTable)
-          .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-          .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-          .where(and(baseWhere, sql`${invoicesTable.invoiceDate} >= ${mStart} AND ${invoicesTable.invoiceDate} < ${mEnd}`))
-          .orderBy(desc(invoicesTable.invoiceDate))
-          .limit(1);
-
-        if (!currentRows.length) return null;
-
-        // "previous" = latest entry BEFORE the selected month
-        const previousRows = await db
-          .select({
-            unitPrice: invoiceItemsTable.unitPrice,
-            invoiceDate: invoicesTable.invoiceDate,
-            supplierName: suppliersTable.name,
-          })
-          .from(invoiceItemsTable)
-          .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-          .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-          .where(and(baseWhere, sql`${invoicesTable.invoiceDate} < ${mStart}`))
-          .orderBy(desc(invoicesTable.invoiceDate))
-          .limit(1);
-
-        if (!previousRows.length) return null;
-
-        const current = toNum(currentRows[0].unitPrice);
-        const previous = toNum(previousRows[0].unitPrice);
-        const changePercent = ((current - previous) / previous) * 100;
-
-        return {
-          productId: product.id,
-          productName: product.name,
-          unit: product.unit,
-          currentPrice: current,
-          previousPrice: previous,
-          changePercent: Math.abs(changePercent),
-          changeDirection: changePercent >= 0 ? "up" : "down",
-          supplierName: currentRows[0].supplierName,
-          lastDate: currentRows[0].invoiceDate,
-        };
-      } else {
-        // No month filter — compare last 2 distinct invoices globally
-        const historyRaw = await db
-          .select({
-            unitPrice: invoiceItemsTable.unitPrice,
-            invoiceDate: invoicesTable.invoiceDate,
-            invoiceId: invoicesTable.id,
-            supplierName: suppliersTable.name,
-          })
-          .from(invoiceItemsTable)
-          .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-          .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
-          .where(baseWhere)
-          .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
-          .limit(50);
-
-        // Deduplicate by invoice date so we compare two distinct purchase dates
-        const seenDates = new Set<string>();
-        const history: typeof historyRaw = [];
-        for (const row of historyRaw) {
-          if (!seenDates.has(row.invoiceDate)) {
-            seenDates.add(row.invoiceDate);
-            history.push(row);
-            if (history.length === 2) break;
-          }
-        }
-
-        if (history.length < 2) return null;
-
-        const current = toNum(history[0].unitPrice);
-        const previous = toNum(history[1].unitPrice);
-        const changePercent = ((current - previous) / previous) * 100;
-
-        return {
-          productId: product.id,
-          productName: product.name,
-          unit: product.unit,
-          currentPrice: current,
-          previousPrice: previous,
-          changePercent: Math.abs(changePercent),
-          changeDirection: changePercent >= 0 ? "up" : "down",
-          supplierName: history[0].supplierName,
-          lastDate: history[0].invoiceDate,
-        };
-      }
-    }),
-  );
-
-  const filtered = changes
-    .filter((c): c is NonNullable<typeof c> => c !== null && c.changePercent != null && !isNaN(c.changePercent) && c.changePercent >= 0.05)
+  const filtered = rows
+    .map(row => {
+      const current = toNum(row.current_price ?? "0");
+      const previous = toNum(row.previous_price ?? "0");
+      if (!current || !previous) return null;
+      const changePercent = ((current - previous) / previous) * 100;
+      return {
+        productId: row.product_id,
+        productName: row.product_name,
+        unit: row.unit,
+        currentPrice: current,
+        previousPrice: previous,
+        changePercent: Math.abs(changePercent),
+        changeDirection: changePercent >= 0 ? "up" : "down",
+        supplierName: row.supplier_name,
+        lastDate: row.last_date,
+      };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null && c.changePercent >= 0.05)
     .sort((a, b) => b.changePercent - a.changePercent)
     .slice(0, limit);
 

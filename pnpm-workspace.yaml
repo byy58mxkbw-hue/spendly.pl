@@ -163,3 +163,9 @@ overrides:
   path-to-regexp: ">=8.4.0"
   lodash: ">=4.18.0"
   fast-uri: ">=3.1.2"
+
+allowBuilds:
+  '@clerk/shared': false
+  browser-tabs-lock: false
+  core-js: false
+  esbuild: false
