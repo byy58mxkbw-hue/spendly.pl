@@ -868,19 +868,27 @@ function CategoryBadge({
   const queryClient = useQueryClient();
   const correctMutation = useCorrectProductCategory();
   const deleteMutation = useDeleteCategory();
-  const effectiveId = category ?? categorizeProduct(productName);
+  const [optimisticCategory, setOptimisticCategory] = useState<string | null | undefined>(category);
+  const effectiveId = optimisticCategory ?? categorizeProduct(productName);
   const def = categories?.find((c) => c.id === effectiveId);
-  const isAuto = category == null;
+  const isAuto = optimisticCategory == null;
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [renameCategory, setRenameCategory] = useState<CategoryItem | null>(null);
 
   const handleSelect = (newCategoryId: string | null) => {
+    // Optimistic update - change immediately
+    setOptimisticCategory(newCategoryId);
+
     correctMutation.mutate(
       { id: productId, data: { category: newCategoryId ?? "inne" } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
           onChanged();
+        },
+        onError: () => {
+          // Rollback on error
+          setOptimisticCategory(category);
         },
       },
     );
@@ -1043,9 +1051,18 @@ export default function Products() {
   const { data: suppliers } = useListSuppliers();
   const { data: spendItems } = useGetCategorySpend({ month, ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}) });
   const { data: categories } = useListCategories();
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortKey>("name-asc");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [search, setSearch] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("search") || "";
+  });
+  const [sort, setSort] = useState<SortKey>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (params.get("sort") || "name-asc") as SortKey;
+  });
+  const [categoryFilter, setCategoryFilter] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("category") || "all";
+  });
   const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
   const [modalMode, setModalMode] = useState<ModalMode>("history");
   const [autoOpenId] = useState<number | null>(() => {
@@ -1056,7 +1073,10 @@ export default function Products() {
   const [showNeedsReview, setShowNeedsReview] = useState(false);
   const [categorySpendOpen, setCategorySpendOpen] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkCategoryModalOpen, setBulkCategoryModalOpen] = useState(false);
+  const [bulkCategorySelection, setBulkCategorySelection] = useState<string | null>(null);
   const bulkVerify = useBulkVerifyProducts();
+  const bulkAssignCategory = useCorrectProductCategory();
 
   useEffect(() => {
     if (autoOpenId == null || !products) return;
@@ -1066,6 +1086,20 @@ export default function Products() {
       setModalMode("history");
     }
   }, [autoOpenId, products]);
+
+  // Sync filters to URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (sort !== "name-asc") params.set("sort", sort);
+    if (categoryFilter !== "all") params.set("category", categoryFilter);
+
+    const newUrl = params.toString()
+      ? `${window.location.pathname}?${params.toString()}`
+      : window.location.pathname;
+
+    window.history.replaceState({}, "", newUrl);
+  }, [search, sort, categoryFilter]);
 
   const needsReviewCount = products?.filter((p) => p.needsReview === true).length ?? 0;
 
@@ -1113,6 +1147,29 @@ export default function Products() {
     queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
   }
 
+  async function handleBulkCategoryAssign() {
+    if (!bulkCategorySelection) return;
+    const ids = Array.from(selectedIds);
+    try {
+      await Promise.all(
+        ids.map(id => {
+          const product = products?.find(p => p.id === id);
+          if (!product) return Promise.resolve();
+          return bulkAssignCategory.mutateAsync({
+            productId: id,
+            data: { category: bulkCategorySelection }
+          });
+        })
+      );
+      setBulkCategoryModalOpen(false);
+      setBulkCategorySelection(null);
+      clearSelection();
+      queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+    } catch (error) {
+      console.error("Failed to assign category:", error);
+    }
+  }
+
   // Compute which categories actually have products (search-filtered, before category filter)
   const categoryCountMap = useMemo(() => {
     if (!products) return {};
@@ -1126,6 +1183,8 @@ export default function Products() {
     }
     return map;
   }, [products, search]);
+
+  const searchFilteredCount = Object.values(categoryCountMap).reduce((sum, count) => sum + count, 0);
 
   const availableCategories = [
     ...(categories ?? []).filter((c) => c.id !== "inne" && (categoryCountMap[c.id] ?? 0) > 0),
@@ -1482,7 +1541,7 @@ export default function Products() {
                 "text-xs rounded-full px-1.5 py-0.5 font-semibold",
                 categoryFilter === "all" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-border text-muted-foreground"
               )}>
-                {productsBeforeCategoryFilter.length}
+                {searchFilteredCount}
               </span>
             </button>
             {availableCategories.map((cat) => (
@@ -1809,6 +1868,15 @@ export default function Products() {
             </span>
             <Button
               size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setBulkCategoryModalOpen(true)}
+            >
+              <Layers className="w-4 h-4" />
+              Przypisz kategorię
+            </Button>
+            <Button
+              size="sm"
               className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border-0"
               onClick={handleBulkVerify}
               disabled={bulkVerify.isPending}
@@ -1849,6 +1917,49 @@ export default function Products() {
             onClose={() => setShowKeywordComparison(false)}
           />
         )}
+
+        {/* Bulk category assignment modal */}
+        <Dialog open={bulkCategoryModalOpen} onOpenChange={setBulkCategoryModalOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Layers className="w-5 h-5 text-primary" />
+                Przypisz kategorię
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground mb-4">
+              Przypisz wybraną kategorię do {selectedIds.size} zaznaczonych produktów
+            </p>
+            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+              {(categories ?? []).map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setBulkCategorySelection(cat.id)}
+                  className={cn(
+                    "p-3 rounded-lg border-2 transition-colors text-left text-sm",
+                    bulkCategorySelection === cat.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <span className="text-lg mr-1">{cat.emoji}</span>
+                  <span className="font-medium">{cat.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 justify-end pt-4">
+              <Button variant="outline" onClick={() => setBulkCategoryModalOpen(false)}>
+                Anuluj
+              </Button>
+              <Button
+                onClick={handleBulkCategoryAssign}
+                disabled={!bulkCategorySelection || bulkAssignCategory.isPending}
+              >
+                Przypisz
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
