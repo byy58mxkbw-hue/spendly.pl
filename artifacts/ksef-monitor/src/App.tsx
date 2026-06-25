@@ -162,10 +162,8 @@ function ClerkQueryClientCacheInvalidator() {
   // Wire the API client's auth token getter to Clerk's active session.
   // Re-registers when `clerk` is ready so every API call gets a fresh bearer.
   useEffect(() => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL;
-    if (baseUrl) {
-      setBaseUrl(baseUrl);
-    }
+    const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api";
+    setBaseUrl(baseUrl);
     setAuthTokenGetter(async () => {
       try {
         return (await clerk.session?.getToken()) ?? null;

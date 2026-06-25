@@ -29,6 +29,7 @@ import {
   KsefParseError,
   KsefRateLimitError,
   KsefServerError,
+  KSEF_PRODUCTION_BASE_URL,
   parseFA3Xml,
   type KsefSession,
   type ParsedFa3,
@@ -49,8 +50,6 @@ function decryptXml(enc: string | null | undefined): string | null {
 
 const router: IRouter = Router();
 
-// Small delay between per-invoice XML fetches to stay below KSeF's rate limit.
-const PER_INVOICE_DELAY_MS = 400;
 // Delay between listInvoices window queries (metadata). KSeF rate-limits aggressively
 // on metadata queries — 600ms was too short for 20+ windows (triggered 1-hour ban).
 // 2 500ms gives ~62s total for 25 windows, well within observed rate limits.
@@ -112,8 +111,8 @@ router.put("/ksef/config", async (req, res): Promise<void> => {
   }
 
   const nip = parsed.data.nip.replace(/\D/g, "");
-  if (nip.length !== 10) {
-    res.status(400).json({ error: "NIP musi składać się z 10 cyfr." });
+  if (nip.length !== 10 && nip.length !== 11) {
+    res.status(400).json({ error: "NIP musi składać się z 10 cyfr, PESEL z 11." });
     return;
   }
 
@@ -404,6 +403,253 @@ async function markNipRateLimited(nip: string, retryAfterSeconds: number): Promi
     .where(eq(ksefConfigTable.nip, nip));
 }
 
+// ─── Session reuse ───────────────────────────────────────────────────────────
+
+// Reuse a cached KSeF access token while it is comfortably valid, so repeat syncs
+// (which are common because rate limits force partial imports) skip the multi-call
+// auth handshake. Only trusted when KSeF gave us an explicit expiry.
+const SESSION_SAFETY_MARGIN_MS = 5 * 60 * 1000;
+
+async function acquireSession(
+  cfg: NonNullable<Awaited<ReturnType<typeof loadConfig>>>,
+  token: string,
+  client: KsefClient,
+  req: Request,
+): Promise<KsefSession> {
+  if (
+    cfg.sessionToken &&
+    cfg.sessionValidUntil &&
+    cfg.sessionValidUntil.getTime() - Date.now() > SESSION_SAFETY_MARGIN_MS
+  ) {
+    try {
+      const cached = decryptSecret(cfg.sessionToken);
+      req.log.info({ validUntil: cfg.sessionValidUntil.toISOString() }, "KSeF reusing cached session");
+      return {
+        sessionToken: cached,
+        nip: cfg.nip,
+        baseUrl: KSEF_PRODUCTION_BASE_URL,
+        issuedAt: Date.now(),
+        validUntil: cfg.sessionValidUntil.getTime(),
+      };
+    } catch {
+      // Decrypt failed (e.g. key rotated) — fall through to a fresh authentication.
+    }
+  }
+
+  const session = await client.authenticate(cfg.nip, token);
+  // Persist for reuse only when KSeF returned an expiry we can trust.
+  if (session.validUntil) {
+    try {
+      await db
+        .update(ksefConfigTable)
+        .set({ sessionToken: encryptSecret(session.sessionToken), sessionValidUntil: new Date(session.validUntil) })
+        .where(eq(ksefConfigTable.id, cfg.id));
+    } catch (err) {
+      req.log.warn({ err: String(err) }, "Failed to persist KSeF session cache");
+    }
+  }
+  return session;
+}
+
+async function clearCachedSession(cfgId: number): Promise<void> {
+  await db
+    .update(ksefConfigTable)
+    .set({ sessionToken: null, sessionValidUntil: null })
+    .where(eq(ksefConfigTable.id, cfgId))
+    .catch(() => {});
+}
+
+// ─── Shared ingest (bulk export + per-invoice) ───────────────────────────────
+
+type SyncSummary = { imported: number; pending: number; failed: number; errors: string[] };
+
+// Insert a matched invoice straight into `invoices` (+ items), creating any missing
+// products by name. Returns true when a new invoice row was created. Does not touch
+// the pending queue.
+async function importMatchedInvoice(
+  userId: string,
+  parsed: ParsedFa3,
+  rawXml: string,
+  ksefNumber: string,
+  match: MatchResult,
+  now: Date,
+): Promise<boolean> {
+  const supplier = match.supplier!;
+  const resolvedProductIds: number[] = [];
+  for (let i = 0; i < parsed.items.length; i++) {
+    let pid = match.itemProductIds[i];
+    if (pid == null) pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit);
+    resolvedProductIds.push(pid);
+  }
+  const totalAmount = parsed.header.totalGross ?? parsed.items.reduce((s, it) => s + it.gross, 0);
+  const invNum = parsed.header.invoiceNumber ?? ksefNumber;
+  const invDate = parsed.header.invoiceDate ?? isoDate(now);
+  const payMethod = (parsed.header.paymentMethod as "gotowka" | "przelew" | "karta" | null | undefined) ?? null;
+  const payDue = payMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
+
+  return await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: invoicesTable.id })
+      .from(invoicesTable)
+      .where(and(eq(invoicesTable.userId, userId), eq(invoicesTable.supplierId, supplier.id), eq(invoicesTable.invoiceNumber, invNum)))
+      .limit(1);
+    if (existing) {
+      await tx
+        .update(invoicesTable)
+        .set({
+          ksefNumber,
+          xmlContent: encryptXml(rawXml),
+          totalAmount: totalAmount.toFixed(2),
+          invoiceDate: invDate,
+          ...(payMethod != null ? { paymentMethod: payMethod, paymentDueDate: payDue } : {}),
+        })
+        .where(eq(invoicesTable.id, existing.id));
+      return false;
+    }
+    const insertedRows = await tx
+      .insert(invoicesTable)
+      .values({
+        userId,
+        supplierId: supplier.id,
+        invoiceNumber: invNum,
+        invoiceDate: invDate,
+        totalAmount: totalAmount.toFixed(2),
+        xmlContent: encryptXml(rawXml),
+        ksefNumber,
+        paymentMethod: payMethod,
+        paymentDueDate: payDue,
+        isPaid: payMethod === "gotowka" || payMethod === "karta",
+        paidAt: payMethod === "gotowka" || payMethod === "karta" ? new Date() : null,
+        costCenterId: supplier.defaultCostCenterId ?? null,
+      })
+      .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
+      .returning();
+    const inv = insertedRows[0];
+    if (!inv) return false;
+    for (let i = 0; i < parsed.items.length; i++) {
+      const item = parsed.items[i];
+      await tx.insert(invoiceItemsTable).values({
+        invoiceId: inv.id,
+        productId: resolvedProductIds[i],
+        productName: item.name,
+        quantity: item.quantity.toString(),
+        unit: item.unit,
+        unitPrice: item.unitPrice.toString(),
+        totalPrice: item.net.toString(),
+        vatRate: item.vatRate != null ? item.vatRate.toString() : null,
+      });
+    }
+    return true;
+  });
+}
+
+// Route a freshly fetched invoice: a KNOWN supplier (matched by NIP) with line items
+// imports straight away (skips review); anything else lands in the pending queue.
+async function ingestInvoiceXml(
+  userId: string,
+  ksefNumber: string,
+  xml: string,
+  now: Date,
+  summary: SyncSummary,
+): Promise<void> {
+  const parsed = parseFA3Xml(xml, ksefNumber);
+  const match = await tryMatch(userId, parsed);
+
+  if (match.supplier && parsed.items.length > 0) {
+    const created = await importMatchedInvoice(userId, parsed, xml, ksefNumber, match, now);
+    if (created) summary.imported++;
+    return;
+  }
+
+  const reasons: string[] = [];
+  if (!match.supplier) {
+    reasons.push(`nieznany dostawca${parsed.header.sellerNip ? ` (NIP ${parsed.header.sellerNip})` : ""}`);
+  }
+  if (match.missingProducts.length > 0) {
+    const sample = match.missingProducts.slice(0, 3).join(", ");
+    const extra = match.missingProducts.length > 3 ? ` i ${match.missingProducts.length - 3} innych` : "";
+    reasons.push(`brak produktów: ${sample}${extra}`);
+  }
+  if (parsed.items.length === 0) reasons.push("brak pozycji w XML");
+
+  await db
+    .insert(ksefPendingInvoicesTable)
+    .values({
+      userId,
+      ksefNumber,
+      sellerNip: parsed.header.sellerNip,
+      sellerName: parsed.header.sellerName,
+      invoiceNumber: parsed.header.invoiceNumber,
+      invoiceDate: parsed.header.invoiceDate,
+      totalGross: parsed.header.totalGross != null ? parsed.header.totalGross.toString() : null,
+      rawXml: xml,
+      parsedJson: parsed,
+      reason: reasons.join("; ") || "wymaga ręcznego przeglądu",
+      status: "pending",
+    })
+    .onConflictDoNothing({ target: [ksefPendingInvoicesTable.userId, ksefPendingInvoicesTable.ksefNumber] });
+  summary.pending++;
+}
+
+// Bulk-export fast path: pull every invoice in [from, now] in one encrypted package
+// and ingest each. Returns true if the export ran (caller then skips per-invoice
+// fetching); throws to trigger the per-invoice fallback.
+async function ingestViaExport(
+  req: Request,
+  userId: string,
+  cfg: NonNullable<Awaited<ReturnType<typeof loadConfig>>>,
+  client: KsefClient,
+  session: KsefSession,
+  overallFrom: Date,
+  now: Date,
+  summary: SyncSummary,
+  onProgress: (event: Record<string, unknown>) => void,
+): Promise<boolean> {
+  const exported = await client.exportInvoices(
+    session,
+    { subjectType: "buyer", dateFrom: isoDate(overallFrom), dateTo: isoDate(now) },
+    (p) => {
+      if (p.phase === "preparing") {
+        onProgress({ type: "scanning", windowsDone: 0, windowsTotal: 1 });
+      } else if (p.phase === "downloading") {
+        onProgress({ type: "fetching", fetched: p.partsDone ?? 0, total: p.partsTotal ?? 0 });
+      }
+    },
+  );
+
+  const refNumbers = exported.map((e) => e.ksefReferenceNumber).filter(Boolean);
+  if (refNumbers.length === 0) {
+    onProgress({ type: "fetching", fetched: 0, total: 0 });
+    return true;
+  }
+
+  const [existingImported, existingPending] = await Promise.all([
+    db.select({ k: invoicesTable.ksefNumber }).from(invoicesTable)
+      .where(and(eq(invoicesTable.userId, userId), inArray(invoicesTable.ksefNumber, refNumbers))),
+    db.select({ k: ksefPendingInvoicesTable.ksefNumber }).from(ksefPendingInvoicesTable)
+      .where(and(eq(ksefPendingInvoicesTable.userId, userId), inArray(ksefPendingInvoicesTable.ksefNumber, refNumbers))),
+  ]);
+  const seen = new Set<string>([
+    ...existingImported.map((r) => r.k!).filter(Boolean),
+    ...existingPending.map((r) => r.k),
+  ]);
+  const fresh = exported.filter((e) => !seen.has(e.ksefReferenceNumber));
+
+  req.log.info({ exported: exported.length, fresh: fresh.length, nip: cfg.nip }, "KSeF bulk export downloaded");
+  onProgress({ type: "fetching", fetched: 0, total: fresh.length });
+  for (let i = 0; i < fresh.length; i++) {
+    try {
+      await ingestInvoiceXml(userId, fresh[i].ksefReferenceNumber, fresh[i].xml, now, summary);
+    } catch (err) {
+      summary.failed++;
+      summary.errors.push(`Faktura ${fresh[i].ksefReferenceNumber}: ${describeDbErr(err)}`);
+      req.log.error({ ksefRef: fresh[i].ksefReferenceNumber, err: describeDbErr(err) }, "KSeF export ingest failed");
+    }
+    onProgress({ type: "fetching", fetched: i + 1, total: fresh.length });
+  }
+  return true;
+}
+
 // ─── Sync ────────────────────────────────────────────────────────────────────
 
 router.post("/ksef/sync", async (req, res): Promise<void> => {
@@ -505,8 +751,9 @@ async function runSync(
 
   let session: KsefSession;
   try {
-    session = await client.authenticate(cfg.nip, token);
+    session = await acquireSession(cfg, token, client, req);
   } catch (err) {
+    if (err instanceof KsefAuthError) await clearCachedSession(cfg.id);
     const m = mapKsefError(err);
     req.log.warn({ err: String(err) }, "KSeF authenticate failed");
     onProgress({ type: "error", status: m.status, message: m.message });
@@ -542,6 +789,22 @@ async function runSync(
   // instead of aborting, and let the user re-sync after the cooldown expires.
   let scanRateLimited = false;
   let scanRateLimitRetryAfterSecs = 0;
+
+  // ── Bulk export fast-path ──────────────────────────────────────────────────
+  // One encrypted package instead of one request per invoice — avoids KSeF's
+  // per-invoice download rate limit / hour ban. On ANY failure, fall back to the
+  // per-invoice scan + fetch below (the unchanged, proven path).
+  let exportHandled = false;
+  try {
+    exportHandled = await ingestViaExport(req, userId, cfg, client, session, overallFrom, now, summary, onProgress);
+  } catch (err) {
+    if (err instanceof KsefAuthError) await clearCachedSession(cfg.id);
+    req.log.warn({ err: describeDbErr(err) }, "KSeF bulk export failed — falling back to per-invoice sync");
+  }
+
+  if (exportHandled) {
+    lastSuccessfulWinEnd = now;
+  } else {
 
   for (let winStart = new Date(overallFrom); winStart < now && !scanRateLimited; winStart = new Date(winStart.getTime() + WINDOW_MS)) {
     // Throttle metadata queries: wait between windows (except the very first).
@@ -580,6 +843,8 @@ async function runSync(
             "KSeF rate-limited during scan, will do partial import",
           );
         } else {
+          // A cached session rejected mid-scan → drop it so the next sync re-auths.
+          if (err instanceof KsefAuthError) await clearCachedSession(cfg.id);
           const m = mapKsefError(err);
           req.log.warn({ err: String(err), dateFrom, dateTo }, "KSeF listInvoices failed, aborting sync");
           onProgress({ type: "error", status: m.status, message: m.message });
@@ -588,6 +853,7 @@ async function runSync(
         break;
       }
 
+      req.log.info({ windowsDone, dateFrom, dateTo, invoiceCount: page!.invoices.length, hasMore: page!.hasMore }, "KSeF listInvoices response");
       for (const inv of page!.invoices) {
         if (inv.ksefReferenceNumber) {
           allRefsMap.set(inv.ksefReferenceNumber, inv);
@@ -633,6 +899,7 @@ async function runSync(
   }
 
   const allRefs = Array.from(allRefsMap.values());
+  req.log.info({ totalScanned: allRefs.length, nip: cfg.nip }, "KSeF scan complete - invoices found");
 
   // Filter out invoices we already have for this user.
   let newRefs: typeof allRefs = [];
@@ -662,28 +929,38 @@ async function runSync(
     newRefs = allRefs.filter((r) => !seen.has(r.ksefReferenceNumber));
   }
 
-  // Retry short 429s (≤120s retryAfter) with backoff. Long 429s mean a NIP-level
-  // cooldown — don't retry them, just rethrow so the outer loop can stop cleanly.
-  const RETRY_DELAYS_MS = [1000, 3000];
+  // Adaptive per-invoice pacing. KSeF throttles XML downloads and will temp-ban the
+  // NIP (~1h) if hammered, so we start gently, back off on every 429, and cautiously
+  // speed back up on sustained success — keeping a 100+ invoice batch under the limit
+  // without a manual re-sync per throttle. `fetchDelayMs` is shared with the loop's
+  // inter-invoice sleep so one throttled fetch slows its neighbours too.
+  const MIN_FETCH_DELAY_MS = 1000;
+  const MAX_FETCH_DELAY_MS = 8000;
+  const MAX_SOFT_WAIT_S = 30;
+  let fetchDelayMs = 1500;
+
   async function fetchXmlWithRetry(ksefRef: string): Promise<string> {
-    let lastErr: unknown;
-    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    for (let attempt = 0; ; attempt++) {
       try {
-        return await client.getInvoiceXml(session, ksefRef);
+        const xml = await client.getInvoiceXml(session, ksefRef);
+        // Sustained success → cautiously speed back up.
+        fetchDelayMs = Math.max(MIN_FETCH_DELAY_MS, Math.round(fetchDelayMs * 0.85));
+        return xml;
       } catch (err) {
-        lastErr = err;
         if (err instanceof KsefRateLimitError) {
-          // Long cooldown → stop fetching immediately, don't keep hammering the API.
+          // Back off globally so neighbouring fetches slow down too.
+          fetchDelayMs = Math.min(MAX_FETCH_DELAY_MS, Math.round(fetchDelayMs * 2));
+          // Long cooldown → NIP-level ban; rethrow so the outer loop stops cleanly.
           if (err.retryAfterSeconds > 120) throw err;
-          if (attempt < RETRY_DELAYS_MS.length) {
-            await sleep(RETRY_DELAYS_MS[attempt]);
+          // Soft throttle → honour the server-suggested wait once (bounded), then retry.
+          if (attempt < 2 && err.retryAfterSeconds <= MAX_SOFT_WAIT_S) {
+            await sleep(Math.max(1000, err.retryAfterSeconds * 1000));
             continue;
           }
         }
         throw err;
       }
     }
-    throw lastErr;
   }
 
   onProgress({ type: "fetching", fetched: 0, total: newRefs.length });
@@ -693,138 +970,45 @@ async function runSync(
   for (let idx = 0; idx < newRefs.length; idx++) {
     if (fetchHardRateLimit) break;
     const ref = newRefs[idx];
-    if (idx > 0) await sleep(PER_INVOICE_DELAY_MS);
+    if (idx > 0) await sleep(fetchDelayMs);
     try {
       const xml = await fetchXmlWithRetry(ref.ksefReferenceNumber);
       const parsed = parseFA3Xml(xml, ref.ksefReferenceNumber);
 
       const match = await tryMatch(userId, parsed);
-      const canAutoImport =
-        match.supplier !== null && parsed.items.length > 0;
-
-      if (canAutoImport && match.supplier) {
-        const resolvedProductIds: number[] = [];
-        for (let i = 0; i < parsed.items.length; i++) {
-          let pid = match.itemProductIds[i];
-          if (pid == null) {
-            pid = await findOrCreateProductByName(
-              userId,
-              parsed.items[i].name,
-              parsed.items[i].unit,
-            );
-          }
-          resolvedProductIds.push(pid);
-        }
-
-        const totalAmount =
-          parsed.header.totalGross ??
-          parsed.items.reduce((s, i) => s + i.gross, 0);
-        const invNum =
-          parsed.header.invoiceNumber ?? ref.ksefReferenceNumber;
-        const invDate = parsed.header.invoiceDate ?? isoDate(now);
-
-        const wasImported = await db.transaction(async (tx) => {
-          const xmlPayMethod = parsed.header.paymentMethod ?? null;
-          const xmlPayDue = xmlPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
-          const isImmediatePayment = xmlPayMethod === "gotowka" || xmlPayMethod === "karta";
-
-          const [existing] = await tx
-            .select({ id: invoicesTable.id })
-            .from(invoicesTable)
-            .where(
-              and(
-                eq(invoicesTable.userId, userId),
-                eq(invoicesTable.supplierId, match.supplier!.id),
-                eq(invoicesTable.invoiceNumber, invNum),
-              ),
-            )
-            .limit(1);
-          if (existing) {
-            await tx
-              .update(invoicesTable)
-              .set({
-                ksefNumber: ref.ksefReferenceNumber,
-                xmlContent: encryptXml(xml),
-                totalAmount: totalAmount.toFixed(2),
-                invoiceDate: invDate,
-                ...(xmlPayMethod != null ? { paymentMethod: xmlPayMethod, paymentDueDate: xmlPayDue } : {}),
-              })
-              .where(eq(invoicesTable.id, existing.id));
-            return false;
-          }
-
-          const inserted = await tx
-            .insert(invoicesTable)
-            .values({
-              userId,
-              supplierId: match.supplier!.id,
-              invoiceNumber: invNum,
-              invoiceDate: invDate,
-              totalAmount: totalAmount.toFixed(2),
-              xmlContent: encryptXml(xml),
-              ksefNumber: ref.ksefReferenceNumber,
-              paymentMethod: xmlPayMethod,
-              paymentDueDate: xmlPayDue,
-              isPaid: isImmediatePayment,
-              paidAt: isImmediatePayment ? new Date() : null,
-              costCenterId: match.supplier!.defaultCostCenterId ?? null,
-            })
-            .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
-            .returning();
-          const inv = inserted[0];
-          if (!inv) return false;
-
-          for (let i = 0; i < parsed.items.length; i++) {
-            const item = parsed.items[i];
-            await tx.insert(invoiceItemsTable).values({
-              invoiceId: inv.id,
-              productId: resolvedProductIds[i],
-              productName: item.name,
-              quantity: item.quantity.toString(),
-              unit: item.unit,
-              unitPrice: item.unitPrice.toString(),
-              totalPrice: item.net.toString(),
-              vatRate: item.vatRate != null ? item.vatRate.toString() : null,
-            });
-          }
-          return true;
-        });
-        if (wasImported) summary.imported++;
-      } else {
-        const reasons: string[] = [];
-        if (!match.supplier) {
-          reasons.push(
-            `nieznany dostawca${parsed.header.sellerNip ? ` (NIP ${parsed.header.sellerNip})` : ""}`,
-          );
-        }
-        if (match.missingProducts.length > 0) {
-          const sample = match.missingProducts.slice(0, 3).join(", ");
-          const extra =
-            match.missingProducts.length > 3
-              ? ` i ${match.missingProducts.length - 3} innych`
-              : "";
-          reasons.push(`brak produktów: ${sample}${extra}`);
-        }
-        if (parsed.items.length === 0) reasons.push("brak pozycji w XML");
-
-        await db
-          .insert(ksefPendingInvoicesTable)
-          .values({
-            userId,
-            ksefNumber: ref.ksefReferenceNumber,
-            sellerNip: parsed.header.sellerNip,
-            sellerName: parsed.header.sellerName,
-            invoiceNumber: parsed.header.invoiceNumber,
-            invoiceDate: parsed.header.invoiceDate,
-            totalGross: parsed.header.totalGross != null ? parsed.header.totalGross.toString() : null,
-            rawXml: xml,
-            parsedJson: parsed,
-            reason: reasons.join("; ") || "wymaga ręcznego przeglądu",
-            status: "pending",
-          })
-          .onConflictDoNothing({ target: [ksefPendingInvoicesTable.userId, ksefPendingInvoicesTable.ksefNumber] });
-        summary.pending++;
+      const reasons: string[] = [];
+      if (!match.supplier) {
+        reasons.push(
+          `nieznany dostawca${parsed.header.sellerNip ? ` (NIP ${parsed.header.sellerNip})` : ""}`,
+        );
       }
+      if (match.missingProducts.length > 0) {
+        const sample = match.missingProducts.slice(0, 3).join(", ");
+        const extra =
+          match.missingProducts.length > 3
+            ? ` i ${match.missingProducts.length - 3} innych`
+            : "";
+        reasons.push(`brak produktów: ${sample}${extra}`);
+      }
+      if (parsed.items.length === 0) reasons.push("brak pozycji w XML");
+
+      await db
+        .insert(ksefPendingInvoicesTable)
+        .values({
+          userId,
+          ksefNumber: ref.ksefReferenceNumber,
+          sellerNip: parsed.header.sellerNip,
+          sellerName: parsed.header.sellerName,
+          invoiceNumber: parsed.header.invoiceNumber,
+          invoiceDate: parsed.header.invoiceDate,
+          totalGross: parsed.header.totalGross != null ? parsed.header.totalGross.toString() : null,
+          rawXml: xml,
+          parsedJson: parsed,
+          reason: reasons.join("; ") || "wymaga ręcznego przeglądu",
+          status: "pending",
+        })
+        .onConflictDoNothing({ target: [ksefPendingInvoicesTable.userId, ksefPendingInvoicesTable.ksefNumber] });
+      summary.pending++;
     } catch (err) {
       if (err instanceof KsefRateLimitError && err.retryAfterSeconds > 120) {
         // Hard NIP-level cooldown — stop fetching to avoid further 429s.
@@ -845,6 +1029,7 @@ async function runSync(
     }
     onProgress({ type: "fetching", fetched: idx + 1, total: newRefs.length });
   }
+  } // end per-invoice fallback (else !exportHandled)
 
   // Retry existing pending invoices for this user.
   const stillPending = await db

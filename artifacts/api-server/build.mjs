@@ -113,10 +113,26 @@ async function buildAll() {
       js: `import { createRequire as __bannerCrReq } from 'node:module';
 import __bannerPath from 'node:path';
 import __bannerUrl from 'node:url';
+import __bannerFs from 'node:fs';
 
 globalThis.require = __bannerCrReq(import.meta.url);
 globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);
 globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
+
+// Load .env file before any code executes
+try {
+  const __envPath = __bannerPath.resolve(__bannerPath.dirname(__bannerUrl.fileURLToPath(import.meta.url)), '..', '.env');
+  const __envContent = __bannerFs.readFileSync(__envPath, 'utf-8');
+  __envContent.split('\\n').forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const [key, ...valueParts] = trimmed.split('=');
+      if (key) process.env[key] = valueParts.join('=');
+    }
+  });
+} catch (e) {
+  // .env file not found, continue with system env vars
+}
     `,
     },
   });

@@ -14,6 +14,10 @@ export const ksefConfigTable = pgTable("ksef_config", {
   // attempt so users don't burn retries against an active cooldown.
   rateLimitedUntil: timestamp("rate_limited_until", { withTimezone: true }),
   syncFromDate: text("sync_from_date"),
+  // Cached KSeF access token (AES-encrypted) + its expiry, so repeat syncs reuse
+  // a still-valid session instead of running the multi-call auth handshake each time.
+  sessionToken: text("session_token"),
+  sessionValidUntil: timestamp("session_valid_until", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

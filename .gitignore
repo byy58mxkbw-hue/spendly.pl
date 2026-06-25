@@ -47,3 +47,11 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Secrets — never commit real env files, only .env.example templates
+.env
+.env.local
+.env.*.local
+
+# Local debug/session artifacts
+__server.log

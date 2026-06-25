@@ -17,7 +17,6 @@ import {
   useMarkInvoicePaid,
   useSetInvoiceCostCenter,
   useListCostCenters,
-  useBulkAssignCostCenter,
   getGetInvoiceQueryKey,
   getListInvoicesQueryKey,
   getGetInvoicesTimelineQueryKey,
@@ -983,7 +982,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     );
   }
 
-  const bulkAssign = useBulkAssignCostCenter();
+  const [isBulkAssigningCc, setIsBulkAssigningCc] = useState(false);
   const markPaid = useMarkInvoicePaid();
   const [searchQuery, setSearchQuery] = useState("");
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
@@ -1001,7 +1000,9 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     return inv.supplierName.toLowerCase().includes(q) || inv.invoiceNumber.toLowerCase().includes(q);
   });
 
-  const selectableIds = filtered.filter((inv) => !inv.isPaid).map((inv) => inv.id);
+  // All invoices are selectable — cost-center assignment applies regardless of payment
+  // status. handleBulkMarkPaid filters out already-paid invoices on its own before running.
+  const selectableIds = filtered.map((inv) => inv.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
 
   function toggleSelect(id: number) {
@@ -1071,22 +1072,26 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
   }
 
-  function handleBulkAssignConfirm() {
+  // Assigns the chosen cost center to ONLY the selected invoices (Promise.all over the
+  // per-invoice endpoint), mirroring handleBulkMarkPaid above. Deliberately does not use
+  // the all-invoices bulk endpoint — a single click must never touch unselected invoices.
+  async function handleBulkAssignConfirm() {
     const ccId = bulkAssignCcId === "" ? null : parseInt(bulkAssignCcId, 10);
-    bulkAssign.mutate(
-      { data: { costCenterId: ccId } },
-      {
-        onSuccess: (data) => {
-          queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
-          setShowBulkAssign(false);
-          setBulkAssignCcId("");
-          toast({ title: "Gotowe", description: `Zaktualizowano ${data.updated} ${data.updated === 1 ? "fakturę" : data.updated < 5 ? "faktury" : "faktur"}.` });
-        },
-        onError: () => {
-          toast({ variant: "destructive", title: "Błąd", description: "Nie udało się przypisać centrum kosztów." });
-        },
-      }
-    );
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setIsBulkAssigningCc(true);
+    try {
+      await Promise.all(ids.map((id) => setCostCenter.mutateAsync({ id, data: { costCenterId: ccId } })));
+      await queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+      setShowBulkAssign(false);
+      setBulkAssignCcId("");
+      setSelectedIds(new Set());
+      toast({ title: "Gotowe", description: `Przypisano ${ids.length} ${ids.length === 1 ? "fakturę" : ids.length < 5 ? "faktury" : "faktur"}.` });
+    } catch {
+      toast({ variant: "destructive", title: "Błąd", description: "Nie udało się przypisać centrum kosztów." });
+    } finally {
+      setIsBulkAssigningCc(false);
+    }
   }
 
   return (
@@ -1126,12 +1131,6 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
             <span className="hidden sm:inline">Nieprzypisane</span>
           </Button>
         )}
-        {costCenters.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => { setBulkAssignCcId(""); setShowBulkAssign(true); }} className="gap-1.5 shrink-0">
-            <Layers className="w-4 h-4" />
-            <span className="hidden sm:inline">Przypisz do centrum</span>
-          </Button>
-        )}
         <Button variant="outline" size="icon" onClick={handleExport} title="Eksportuj CSV">
           <Download className="w-4 h-4" />
         </Button>
@@ -1143,10 +1142,10 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
       <Dialog open={showBulkAssign} onOpenChange={setShowBulkAssign}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Przypisz wszystkie faktury do centrum kosztów</DialogTitle>
+            <DialogTitle>Przypisz {selectedIds.size} {selectedIds.size === 1 ? "zaznaczoną fakturę" : "zaznaczonych faktur"} do centrum kosztów</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Wszystkie faktury zostaną przypisane do wybranego centrum. Tej operacji nie można cofnąć automatycznie.
+            Centrum zostanie przypisane wyłącznie do faktur zaznaczonych na liście.
           </p>
           <div className="space-y-3 pt-1">
             <Select value={bulkAssignCcId} onValueChange={setBulkAssignCcId}>
@@ -1167,11 +1166,11 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowBulkAssign(false)}>Anuluj</Button>
               <Button
-                disabled={!bulkAssignCcId || bulkAssign.isPending}
+                disabled={!bulkAssignCcId || isBulkAssigningCc || selectedIds.size === 0}
                 onClick={handleBulkAssignConfirm}
               >
-                {bulkAssign.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Przypisz wszystkie
+                {isBulkAssigningCc ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Przypisz zaznaczone
               </Button>
             </div>
           </div>
@@ -1215,6 +1214,16 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                   {isMarkingPaid ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                   Oznacz jako zapłacone
                 </button>
+                {costCenters.length > 0 && (
+                  <button
+                    onClick={() => { setBulkAssignCcId(""); setShowBulkAssign(true); }}
+                    className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
+                    style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.15)" }}
+                  >
+                    <Layers className="w-3 h-3" />
+                    Przypisz do centrum
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1260,15 +1269,15 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                     {/* Checkbox */}
                     <div
                       className="flex items-center justify-center cursor-pointer"
-                      onClick={() => { if (!inv.isPaid) toggleSelect(inv.id); }}
+                      onClick={() => toggleSelect(inv.id)}
                     >
-                      {inv.isPaid ? (
-                        <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: "rgba(52,211,153,0.15)", border: "1px solid rgba(52,211,153,0.35)" }}>
-                          <Check className="w-2.5 h-2.5 text-emerald-400" />
-                        </div>
-                      ) : isSelected ? (
+                      {isSelected ? (
                         <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: "rgba(20,184,166,0.3)", border: "1px solid rgba(20,184,166,0.6)" }}>
                           <Check className="w-2.5 h-2.5 text-teal-300" />
+                        </div>
+                      ) : inv.isPaid ? (
+                        <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: "rgba(52,211,153,0.15)", border: "1px solid rgba(52,211,153,0.35)" }}>
+                          <Check className="w-2.5 h-2.5 text-emerald-400" />
                         </div>
                       ) : (
                         <div className="w-4 h-4 rounded transition-colors hover:border-white/40" style={{ border: "1px solid rgba(255,255,255,0.18)" }} />

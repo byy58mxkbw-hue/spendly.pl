@@ -9,11 +9,21 @@ export const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.
     })
   : null;
 
+function getOpenAIClient() {
+  if (!openai) {
+    throw new Error(
+      "OpenAI client not configured: set AI_INTEGRATIONS_OPENAI_API_KEY and AI_INTEGRATIONS_OPENAI_BASE_URL"
+    );
+  }
+  return openai;
+}
+
 export async function generateImageBuffer(
   prompt: string,
   size: "1024x1024" | "512x512" | "256x256" = "1024x1024"
 ): Promise<Buffer> {
-  const response = await openai.images.generate({
+  const client = getOpenAIClient();
+  const response = await client.images.generate({
     model: "gpt-image-1",
     prompt,
     size,
@@ -27,6 +37,7 @@ export async function editImages(
   prompt: string,
   outputPath?: string
 ): Promise<Buffer> {
+  const client = getOpenAIClient();
   const images = await Promise.all(
     imageFiles.map((file) =>
       toFile(fs.createReadStream(file), file, {
@@ -35,7 +46,7 @@ export async function editImages(
     )
   );
 
-  const response = await openai.images.edit({
+  const response = await client.images.edit({
     model: "gpt-image-1",
     image: images,
     prompt,

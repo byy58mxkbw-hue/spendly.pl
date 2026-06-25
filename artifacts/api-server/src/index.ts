@@ -25,5 +25,6 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
 
   // Run in background — never blocks startup, never crashes the process
-  runCategoryBackfill().catch(() => {});
+  // Disabled for dev - database endpoint may be disabled
+  // runCategoryBackfill().catch(() => {});
 });
