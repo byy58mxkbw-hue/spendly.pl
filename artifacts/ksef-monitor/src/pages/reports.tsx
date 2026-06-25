@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useGetMonthlyReport,
@@ -1394,6 +1394,33 @@ function CostCenterComparisonSection({ month }: { month: string }) {
 
 export default function Reports() {
   const [month, setMonth] = useState(currentMonth);
+  // On first load, default the view to the month where the user's data actually is —
+  // the month with the highest spend. Freshly imported invoices are usually from a
+  // prior month, so defaulting to the (near-empty) current calendar month made the
+  // reports look broken / "out of sync". In steady use this converges to the current
+  // month once it accumulates the most spend.
+  const [autoMonthDone, setAutoMonthDone] = useState(false);
+  const { data: trendForDefault } = useGetCategorySpendTrend(
+    { months: 12 },
+    { query: { queryKey: ["reports-default-trend"] } },
+  );
+  useEffect(() => {
+    if (autoMonthDone || !trendForDefault) return;
+    const spendByMonth = new Map<string, number>();
+    for (const r of trendForDefault) {
+      spendByMonth.set(r.month, (spendByMonth.get(r.month) ?? 0) + (r.totalSpend ?? 0));
+    }
+    let best: string | null = null;
+    let bestSpend = 0;
+    for (const [m, s] of spendByMonth) {
+      if (s > bestSpend) {
+        bestSpend = s;
+        best = m;
+      }
+    }
+    if (best && best !== currentMonth()) setMonth(best);
+    setAutoMonthDone(true);
+  }, [trendForDefault, autoMonthDone]);
   const [tab, setTab] = useState("podsumowanie");
   const [trendMonths, setTrendMonths] = useState(6);
   const { selectedId: costCenterId } = useCostCenter();

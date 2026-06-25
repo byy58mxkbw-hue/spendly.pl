@@ -25,16 +25,9 @@ router.get("/cost-centers", async (req, res): Promise<void> => {
       userId: costCentersTable.userId,
       name: costCentersTable.name,
       color: costCentersTable.color,
-      invoiceCount: sql<number>`count(${invoicesTable.id})::int`,
-      supplierCount: sql<number>`count(distinct ${invoicesTable.supplierId})::int`,
     })
     .from(costCentersTable)
-    .leftJoin(
-      invoicesTable,
-      and(eq(invoicesTable.costCenterId, costCentersTable.id), eq(invoicesTable.userId, userId)),
-    )
     .where(eq(costCentersTable.userId, userId))
-    .groupBy(costCentersTable.id, costCentersTable.userId, costCentersTable.name, costCentersTable.color)
     .orderBy(costCentersTable.name);
   res.json(rows);
 });
@@ -202,6 +195,10 @@ router.patch("/suppliers/:id/default-cost-center", async (req, res): Promise<voi
     .returning();
 
   if (!updated) { res.status(404).json({ error: "Supplier not found" }); return; }
+
+  // Note: setting a supplier's default cost center applies only to FUTURE imports.
+  // Existing invoices are left untouched so the user keeps full manual control over
+  // which cost center each invoice belongs to.
   res.json(updated);
 });
 

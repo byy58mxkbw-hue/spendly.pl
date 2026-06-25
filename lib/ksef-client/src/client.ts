@@ -1,4 +1,11 @@
-import { createPublicKey, publicEncrypt, constants as cryptoConstants } from "node:crypto";
+import {
+  createPublicKey,
+  publicEncrypt,
+  createDecipheriv,
+  randomBytes,
+  constants as cryptoConstants,
+} from "node:crypto";
+import { unzipSync } from "fflate";
 
 import {
   KsefAuthError,
@@ -19,6 +26,8 @@ export interface KsefSession {
   baseUrl: string;
   /** Issuance timestamp (ms). */
   issuedAt: number;
+  /** Access-token expiry (ms epoch), when KSeF provides it — enables session reuse across syncs. */
+  validUntil?: number;
 }
 
 export interface KsefInvoiceListItem {
@@ -45,6 +54,25 @@ export interface ListInvoicesResult {
   hasMore: boolean;
   nextOffset: number;
   isTruncated: boolean;
+}
+
+export interface ExportInvoicesParams {
+  subjectType: "buyer" | "seller";
+  dateFrom: string; // YYYY-MM-DD or full ISO
+  dateTo: string;
+}
+
+export interface ExportedInvoice {
+  /** KSeF reference number — taken from the package entry's filename. */
+  ksefReferenceNumber: string;
+  xml: string;
+}
+
+export interface ExportProgress {
+  phase: "starting" | "preparing" | "downloading" | "done";
+  invoiceCount?: number;
+  partsDone?: number;
+  partsTotal?: number;
 }
 
 type Logger = {
@@ -88,9 +116,26 @@ function normalizeCertificatePem(raw: string): string {
   return `-----BEGIN CERTIFICATE-----\n${wrapped}\n-----END CERTIFICATE-----`;
 }
 
+/** RSA-OAEP (SHA-256) encrypt — wraps the export's symmetric AES key for KSeF. */
+function rsaOaepEncryptSha256(pem: string, data: Buffer): Buffer {
+  const key = createPublicKey({ key: pem, format: "pem" });
+  return publicEncrypt(
+    { key, padding: cryptoConstants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" },
+    data,
+  );
+}
+
+/** AES-256-CBC decrypt — the KSeF invoice export package is AES-256-CBC encrypted. */
+function aes256CbcDecrypt(key: Buffer, iv: Buffer, data: Buffer): Buffer {
+  const decipher = createDecipheriv("aes-256-cbc", key, iv);
+  return Buffer.concat([decipher.update(data), decipher.final()]);
+}
+
 interface PublicKeyCertificate {
   certificate?: string;
   publicKey?: string;
+  publicKeyId?: string;
+  certificateId?: string;
   usage?: string | string[];
   purpose?: string | string[];
   type?: string | string[];
@@ -184,14 +229,18 @@ export class KsefClient {
         }
 
         if (res.status === 429) {
-          // KSeF may return very large Retry-After values (minutes). Use a small
-          // cap for per-invoice XML fetches so one throttled invoice can't
-          // exhaust the whole sync budget, and a larger cap for the (rare)
-          // metadata listing calls which we really need to succeed.
-          const isPerInvoiceFetch = /^\/invoices\/ksef\//.test(path);
-          const maxWaitS = isPerInvoiceFetch ? 10 : 60;
           const requested = Number(res.headers.get("Retry-After")) || 2 ** attempt;
-          if (attempt < this.maxRetries && requested <= maxWaitS) {
+          // Per-invoice XML fetches: surface the throttle immediately so the sync
+          // loop's adaptive pacing owns the back-off/retry decision (single owner —
+          // avoids this client and the caller both waiting and stacking delays).
+          const isPerInvoiceFetch = /^\/invoices\/ksef\//.test(path);
+          if (isPerInvoiceFetch) {
+            this.logger.warn({ url: path, retryAfter: requested }, "KSeF 429 (per-invoice), surfacing to caller");
+            throw new KsefRateLimitError(requested);
+          }
+          // Metadata/auth calls: we really need these to succeed, so retry in-client
+          // up to a larger cap.
+          if (attempt < this.maxRetries && requested <= 60) {
             this.logger.warn({ url: path, attempt, retryAfter: requested }, "KSeF 429, retrying");
             await sleep(requested * 1000);
             continue;
@@ -458,11 +507,16 @@ export class KsefClient {
       throw new KsefAuthError("KSeF nie zwrócił finalnego tokena dostępu.");
     }
 
+    const validUntilRaw =
+      typeof redeem.accessToken === "object" ? redeem.accessToken?.validUntil : undefined;
+    const validUntilMs = validUntilRaw ? Date.parse(validUntilRaw) : NaN;
+
     return {
       sessionToken: accessToken,
       nip,
       baseUrl: this.baseUrl,
       issuedAt: Date.now(),
+      validUntil: Number.isFinite(validUntilMs) ? validUntilMs : undefined,
     };
   }
 
@@ -547,5 +601,162 @@ export class KsefClient {
       },
       responseType: "text",
     });
+  }
+
+  // ─── Bulk invoice export (KSeF v2 async package) ──────────────────────────────
+
+  /** Fetch the cert used to wrap the export's symmetric key (usage: SymmetricKeyEncryption). */
+  private async fetchSymmetricKeyCertificate(): Promise<{ pem: string; publicKeyId: string }> {
+    const res = await this.request<PublicKeyCertificatesResponse | PublicKeyCertificate[]>(
+      `/security/public-key-certificates`,
+      { method: "GET" },
+    );
+    const list: PublicKeyCertificate[] = Array.isArray(res)
+      ? res
+      : (res.publicKeyCertificates ?? res.certificates ?? []);
+    const now = Date.now();
+    const isValid = (c: PublicKeyCertificate) => {
+      const from = c.validFrom ? Date.parse(c.validFrom) : 0;
+      const to = c.validTo ? Date.parse(c.validTo) : Number.MAX_SAFE_INTEGER;
+      return now >= from && now <= to;
+    };
+    const usagesOf = (c: PublicKeyCertificate): string[] => {
+      const raw = c.usage ?? c.purpose ?? c.type;
+      if (raw == null) return [];
+      const arr = Array.isArray(raw) ? raw : [raw];
+      return arr.filter((u): u is string => typeof u === "string").map((u) => u.toLowerCase());
+    };
+    const pick =
+      list.find((c) => usagesOf(c).includes("symmetrickeyencryption") && isValid(c)) ??
+      list.find((c) => usagesOf(c).some((u) => u.includes("symmetric")) && isValid(c)) ??
+      list.find((c) => usagesOf(c).length === 0 && isValid(c));
+    const cert = pick?.certificate ?? pick?.publicKey;
+    if (!cert) {
+      throw new KsefError(
+        "Nie znaleziono certyfikatu SymmetricKeyEncryption do eksportu paczki faktur z KSeF.",
+      );
+    }
+    return {
+      pem: normalizeCertificatePem(cert),
+      publicKeyId: pick?.publicKeyId ?? pick?.certificateId ?? "",
+    };
+  }
+
+  private async downloadExportPart(url: string, session: KsefSession): Promise<Buffer> {
+    const isAbsolute = /^https?:\/\//i.test(url);
+    const fullUrl = isAbsolute ? url : `${this.baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+    const headers: Record<string, string> = { Accept: "application/octet-stream" };
+    // Pre-signed blob URLs authorise themselves; a relative API path still needs the Bearer.
+    if (!isAbsolute) headers.Authorization = `Bearer ${session.sessionToken}`;
+    const res = await this.fetchImpl(fullUrl, { method: "GET", headers });
+    if (!res.ok) {
+      throw new KsefError(`Pobieranie części paczki nie powiodło się (HTTP ${res.status}).`);
+    }
+    return Buffer.from(await res.arrayBuffer());
+  }
+
+  /**
+   * Bulk-export invoices via the KSeF v2 async package API — one job instead of one
+   * request per invoice, sidestepping the per-invoice download rate limit.
+   *
+   * Flow: pick SymmetricKeyEncryption cert → generate AES-256 key+IV → RSA-OAEP-SHA256
+   * wrap the key → POST /invoices/exports → poll GET /invoices/exports/{ref} until the
+   * package is ready → download parts → concat → AES-256-CBC decrypt → unzip → XMLs.
+   * Each invoice's KSeF reference number is taken from its filename inside the ZIP.
+   */
+  async exportInvoices(
+    session: KsefSession,
+    params: ExportInvoicesParams,
+    onProgress?: (p: ExportProgress) => void,
+    opts: { pollDelayMs?: number; maxPolls?: number } = {},
+  ): Promise<ExportedInvoice[]> {
+    const pollDelayMs = opts.pollDelayMs ?? 2500;
+    const maxPolls = opts.maxPolls ?? 120; // ~5 min ceiling
+
+    const { pem, publicKeyId } = await this.fetchSymmetricKeyCertificate();
+    const aesKey = randomBytes(32);
+    const iv = randomBytes(16);
+    const encryptedSymmetricKey = rsaOaepEncryptSha256(pem, aesKey).toString("base64");
+    const subjectType = params.subjectType === "buyer" ? "Subject2" : "Subject1";
+
+    onProgress?.({ phase: "starting" });
+    const start = await this.request<{ referenceNumber?: string }>(`/invoices/exports`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.sessionToken}`,
+      },
+      body: JSON.stringify({
+        encryption: {
+          encryptedSymmetricKey,
+          initializationVector: iv.toString("base64"),
+          ...(publicKeyId ? { publicKeyId } : {}),
+        },
+        onlyMetadata: false,
+        filters: {
+          subjectType,
+          dateRange: {
+            dateType: "Invoicing",
+            from: params.dateFrom.includes("T") ? params.dateFrom : `${params.dateFrom}T00:00:00+00:00`,
+            to: params.dateTo.includes("T") ? params.dateTo : `${params.dateTo}T23:59:59+00:00`,
+          },
+        },
+        compressionType: "Zip",
+      }),
+    });
+    const referenceNumber = start.referenceNumber;
+    if (!referenceNumber) {
+      throw new KsefError("KSeF nie zwrócił numeru referencyjnego eksportu.");
+    }
+
+    interface ExportStatus {
+      status?: { code?: number; description?: string };
+      package?: {
+        invoiceCount?: number;
+        isTruncated?: boolean;
+        parts?: Array<{ ordinalNumber: number; partName: string; method?: string; url: string }>;
+      };
+    }
+
+    let pkg: NonNullable<ExportStatus["package"]> | undefined;
+    for (let i = 0; i < maxPolls; i++) {
+      await sleep(pollDelayMs);
+      const status = await this.request<ExportStatus>(
+        `/invoices/exports/${encodeURIComponent(referenceNumber)}`,
+        { method: "GET", headers: { Authorization: `Bearer ${session.sessionToken}` } },
+      );
+      if (status.package?.parts && status.package.parts.length > 0) {
+        pkg = status.package;
+        break;
+      }
+      const code = status.status?.code;
+      if (typeof code === "number" && code >= 400) {
+        throw new KsefError(`Eksport KSeF nie powiódł się: ${status.status?.description ?? code}`);
+      }
+      onProgress?.({ phase: "preparing", invoiceCount: status.package?.invoiceCount });
+    }
+    if (!pkg) {
+      throw new KsefError("Eksport KSeF nie został przygotowany w wyznaczonym czasie.");
+    }
+
+    const parts = [...(pkg.parts ?? [])].sort((a, b) => a.ordinalNumber - b.ordinalNumber);
+    const encryptedChunks: Buffer[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      onProgress?.({ phase: "downloading", partsDone: i, partsTotal: parts.length });
+      encryptedChunks.push(await this.downloadExportPart(parts[i].url, session));
+    }
+
+    // Parts are byte-chunks of one AES-256-CBC encrypted ZIP — concat then decrypt.
+    const zipBytes = aes256CbcDecrypt(aesKey, iv, Buffer.concat(encryptedChunks));
+    const files = unzipSync(new Uint8Array(zipBytes));
+
+    const out: ExportedInvoice[] = [];
+    for (const name of Object.keys(files)) {
+      if (!name.toLowerCase().endsWith(".xml")) continue;
+      const ref = name.split(/[\\/]/).pop()!.replace(/\.xml$/i, "");
+      out.push({ ksefReferenceNumber: ref, xml: Buffer.from(files[name]).toString("utf8") });
+    }
+    onProgress?.({ phase: "done", invoiceCount: out.length });
+    return out;
   }
 }

@@ -873,6 +873,9 @@ importers:
 
   lib/ksef-client:
     dependencies:
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       zod:
         specifier: 'catalog:'
         version: 3.25.76

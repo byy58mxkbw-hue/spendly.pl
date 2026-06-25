@@ -1156,7 +1156,7 @@ export default function Products() {
           const product = products?.find(p => p.id === id);
           if (!product) return Promise.resolve();
           return bulkAssignCategory.mutateAsync({
-            productId: id,
+            id,
             data: { category: bulkCategorySelection }
           });
         })

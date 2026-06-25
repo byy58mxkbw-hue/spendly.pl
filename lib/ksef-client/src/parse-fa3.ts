@@ -51,6 +51,27 @@ function extractTag(xml: string, tag: string): string | null {
   const m = xml.match(re);
   return m ? m[1].trim() : null;
 }
+function extractTagAny(xml: string, tags: string[]): string | null {
+  for (const tag of tags) {
+    const value = extractTag(xml, tag);
+    if (value != null) return value;
+  }
+  return null;
+}
+
+function extractLineBlocks(xml: string): string[] {
+  const tags = ["FaWiersz", "Wiersz", "Pozycja", "PozycjaFaktury", "WierszFaktury"];
+  const blocks: string[] = [];
+  for (const tag of tags) {
+    const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "gi");
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(xml)) !== null) {
+      blocks.push(m[1]);
+    }
+    if (blocks.length > 0) break;
+  }
+  return blocks;
+}
 
 function parseNum(s: string | null | undefined): number {
   if (!s) return 0;
@@ -90,9 +111,19 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
     const invoiceNumber = extractTag(stripped, "P_2") ?? extractTag(stripped, "NrFa");
     const invoiceDate = normalizeDate(extractTag(stripped, "P_1") ?? extractTag(stripped, "DataWystawienia"));
 
-    const totalNetRaw = extractTag(stripped, "P_13_1") ?? extractTag(stripped, "WartoscNetto");
+    // KSeF FA(3) splits the net base across VAT-rate groups: P_13_1 (23%),
+    // P_13_2 (8%), P_13_3 (5%), P_13_4..P_13_7 (0%/zw/np/odwrotne obciążenie).
+    // Reading only P_13_1 yields null/zero for any invoice whose goods sit at
+    // a reduced rate (e.g. food at 5%), so we sum every present base.
+    const netBases: number[] = [];
+    for (let i = 1; i <= 7; i++) {
+      const raw = extractTag(stripped, `P_13_${i}`);
+      if (raw != null) netBases.push(parseNum(raw));
+    }
+    const totalNet = netBases.length
+      ? netBases.reduce((a, b) => a + b, 0)
+      : (extractTag(stripped, "WartoscNetto") ? parseNum(extractTag(stripped, "WartoscNetto")) : null);
     const totalGrossRaw = extractTag(stripped, "P_15") ?? extractTag(stripped, "WartoscBrutto");
-    const totalNet = totalNetRaw ? parseNum(totalNetRaw) : null;
     const totalGross = totalGrossRaw ? parseNum(totalGrossRaw) : null;
     const invoiceType = extractTag(stripped, "RodzajFaktury")?.trim().toUpperCase() ?? null;
 
@@ -138,23 +169,45 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
       ((totalNet != null && totalNet < 0) || (totalGross != null && totalGross < 0));
 
     const rawItems: ParsedFa3Item[] = [];
-    const wierszeRe = /<FaWiersz>([\s\S]*?)<\/FaWiersz>/g;
-    let m: RegExpExecArray | null;
-    while ((m = wierszeRe.exec(stripped)) !== null) {
-      const block = m[1];
-      const name = extractTag(block, "P_7");
-      if (!name) continue;
-      const gtin = extractTag(block, "GTIN") ?? extractTag(block, "P_6A");
-      const unit = extractTag(block, "P_8A") ?? "szt";
-      const qty = parseNum(extractTag(block, "P_8B")) || 1;
-      const unitPrice = parseNum(extractTag(block, "P_9A") ?? extractTag(block, "P_9B"));
-      const net = parseNum(extractTag(block, "P_11") ?? extractTag(block, "P_11A")) || unitPrice * qty;
-      const vatRaw = extractTag(block, "P_12");
+    const lineBlocks = extractLineBlocks(stripped);
+    for (const block of lineBlocks) {
+      const name =
+        extractTagAny(block, [
+          "P_7",
+          "P_7A",
+          "NazwaTowaru",
+          "NazwaPelna",
+          "Nazwa",
+          "Opis",
+        ]) ?? "";
+      if (!name.trim()) continue;
+      const gtin = extractTagAny(block, ["GTIN", "P_6A"]);
+      const unit = extractTagAny(block, ["P_8A", "Jednostka", "Jm"])
+        ?? "szt";
+      const qty = parseNum(
+        extractTagAny(block, ["P_8B", "Ilosc", "IloscBrutto", "IloscNetto"]),
+      ) || 1;
+      const unitPrice = parseNum(
+        extractTagAny(block, ["P_9A", "P_9B", "CenaJednostkowa", "CenaNetto"]),
+      );
+      const net = parseNum(
+        extractTagAny(block, ["P_11", "P_11A", "WartoscNetto", "WartoscBruttoNetto"]),
+      ) || unitPrice * qty;
+      const vatRaw = extractTagAny(block, ["P_12", "StawkaVat", "Vat"]);
       const vatRate = vatRaw && /^\d+(\.\d+)?$/.test(vatRaw.trim()) ? parseFloat(vatRaw.trim()) : null;
-      const grossRaw = extractTag(block, "P_11B");
+      const grossRaw = extractTagAny(block, ["P_11B", "WartoscBrutto", "WartoscBruttoPozycji"]);
       const gross = grossRaw ? parseNum(grossRaw) : (vatRate != null ? net * (1 + vatRate / 100) : net);
 
-      rawItems.push({ name, gtin: gtin?.trim() || null, quantity: qty, unit, unitPrice, net, vatRate, gross });
+      rawItems.push({
+        name: name.trim(),
+        gtin: gtin?.trim() || null,
+        quantity: qty,
+        unit,
+        unitPrice,
+        net,
+        vatRate,
+        gross,
+      });
     }
 
     // Guard against double-negation: only flip when header is negative AND

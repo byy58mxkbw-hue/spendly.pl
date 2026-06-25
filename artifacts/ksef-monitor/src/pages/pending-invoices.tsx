@@ -125,6 +125,8 @@ interface SupplierGroupData {
     createdAt: string;
   }[];
   totalGross: number;
+  // Most recent fetch time across the group's invoices — drives newest-first ordering.
+  latestCreatedAt: string;
 }
 
 function SupplierTile({
@@ -134,6 +136,8 @@ function SupplierTile({
   onOpenInvoice,
   onDeleteInvoice,
   onRejectGroup,
+  onImportGroup,
+  importing,
 }: {
   group: SupplierGroupData;
   expanded: boolean;
@@ -141,6 +145,8 @@ function SupplierTile({
   onOpenInvoice: (id: number) => void;
   onDeleteInvoice: (id: number, label: string) => void;
   onRejectGroup?: (ids: number[], supplierName: string) => void;
+  onImportGroup?: (group: SupplierGroupData) => void;
+  importing?: boolean;
 }) {
   const initials =
     group.sellerName
@@ -227,6 +233,32 @@ function SupplierTile({
         </div>
       </div>
 
+      {onImportGroup && (
+        <div className="px-5 pb-4 -mt-1">
+          <Button
+            size="sm"
+            className="w-full gap-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              onImportGroup(group);
+            }}
+            disabled={importing}
+            data-testid={`btn-import-group-${group.key}`}
+          >
+            {importing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4" />
+            )}
+            {importing
+              ? "Importuję…"
+              : group.isKnown
+                ? `Zaimportuj wszystkie (${group.invoices.length})`
+                : `Utwórz dostawcę i zaimportuj (${group.invoices.length})`}
+          </Button>
+        </div>
+      )}
+
       {expanded && (
         <div className="border-t border-border divide-y divide-border">
           {group.invoices.map((row) => (
@@ -284,6 +316,10 @@ export default function PendingInvoices() {
   const { toast } = useToast();
   const [status, setStatus] = useState<"pending" | "accepted" | "rejected">("pending");
   const { data: pending, isLoading } = useListKsefPending({ status });
+  // Dedicated pending query so the "Oczekujące (N)" badge stays accurate even while
+  // viewing the accepted/rejected tabs. Dedupes with `pending` when status==="pending".
+  const { data: pendingForCount } = useListKsefPending({ status: "pending" });
+  const pendingCount = pendingForCount?.length ?? 0;
   const { data: suppliers } = useListSuppliers();
   const [openId, setOpenId] = useState<number | null>(null);
   const [showDeleteAll, setShowDeleteAll] = useState(false);
@@ -294,6 +330,9 @@ export default function PendingInvoices() {
   const deleteAll = useDeleteAllKsefPending();
   const deleteSingle = useDeleteKsefPending();
   const rejectSingle = useRejectKsefPending();
+  const createSupplier = useCreateSupplier();
+  const retryPending = useRetryKsefPending();
+  const [importingKey, setImportingKey] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<{ id: number; label: string } | null>(null);
   const [groupRejectTarget, setGroupRejectTarget] = useState<{ ids: number[]; supplierName: string } | null>(null);
   const [groupRejectPending, setGroupRejectPending] = useState(false);
@@ -345,16 +384,27 @@ export default function PendingInvoices() {
           isKnown: nip ? knownNips.has(nip) : false,
           invoices: [],
           totalGross: 0,
+          latestCreatedAt: row.createdAt,
         });
       }
       const g = map.get(key)!;
       g.invoices.push(row);
       g.totalGross += row.totalGross ?? 0;
+      if (row.createdAt > g.latestCreatedAt) g.latestCreatedAt = row.createdAt;
     }
-    return Array.from(map.values()).sort((a, b) => {
-      if (a.isKnown !== b.isKnown) return a.isKnown ? 1 : -1;
-      return a.sellerName.localeCompare(b.sellerName, "pl");
-    });
+    // Newest first: groups with the most recently synced invoice float to the top,
+    // so freshly imported suppliers appear immediately. Within a group, invoices
+    // are ordered newest-first too.
+    for (const g of map.values()) {
+      g.invoices.sort((a, b) =>
+        b.createdAt.localeCompare(a.createdAt) ||
+        (b.invoiceDate ?? "").localeCompare(a.invoiceDate ?? ""),
+      );
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      b.latestCreatedAt.localeCompare(a.latestCreatedAt) ||
+      a.sellerName.localeCompare(b.sellerName, "pl"),
+    );
   }, [filteredPending, knownNips]);
 
   const totalAmount = useMemo(
@@ -446,25 +496,77 @@ export default function PendingInvoices() {
     );
   }
 
+  // One-click import of every pending invoice from a supplier: create the supplier
+  // first if it's new (prefilled from the invoice), then run the backend retry which
+  // auto-creates missing products and imports all matchable invoices at once.
+  async function handleImportGroup(group: SupplierGroupData) {
+    setImportingKey(group.key);
+    try {
+      if (!group.isKnown) {
+        try {
+          await createSupplier.mutateAsync({
+            data: { name: group.sellerName, taxId: group.sellerNip ?? "" },
+          });
+        } catch (e) {
+          const code = (e as { response?: { status?: number } })?.response?.status;
+          if (code !== 409) throw e; // 409 = already registered → fine, go import
+        }
+      }
+      const result = await retryPending.mutateAsync(undefined);
+      queryClient.invalidateQueries();
+      const imported = (result as { imported?: number } | undefined)?.imported ?? 0;
+      if (imported > 0) {
+        const w = imported === 1 ? "fakturę" : imported < 5 ? "faktury" : "faktur";
+        toast({ title: "Zaimportowano", description: `Dodano ${imported} ${w} do bazy.` });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Nie udało się automatycznie",
+          description: "Otwórz fakturę i dopasuj produkty ręcznie.",
+        });
+      }
+    } catch (err) {
+      const e = err as { response?: { data?: { error?: string } }; message?: string };
+      toast({
+        variant: "destructive",
+        title: "Błąd importu",
+        description: e?.response?.data?.error ?? e?.message ?? "Nie udało się zaimportować.",
+      });
+    } finally {
+      setImportingKey(null);
+    }
+  }
+
   return (
     <Layout>
       <div className="px-4 py-5 md:px-8 md:py-8">
         <PageHeader
           title="Faktury do przeglądu"
-          subtitle="Faktury pobrane z KSeF, dla których brakuje dopasowania dostawcy lub produktów"
+          subtitle="Potwierdź dostawcę — faktury i produkty dodadzą się do aplikacji automatycznie. Pełna kontrola jest pod „Dopasuj ręcznie”."
           action={
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-muted-foreground">Status:</span>
-              <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
-                <SelectTrigger className="w-40" data-testid="select-pending-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Oczekujące</SelectItem>
-                  <SelectItem value="accepted">Zaakceptowane</SelectItem>
-                  <SelectItem value="rejected">Odrzucone</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
+                {([
+                  ["pending", `Oczekujące${pendingCount > 0 ? ` (${pendingCount})` : ""}`],
+                  ["accepted", "Zaakceptowane"],
+                  ["rejected", "Odrzucone"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setStatus(value)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-sm transition-colors",
+                      status === value
+                        ? "bg-card shadow-sm text-foreground font-medium"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                    data-testid={`tab-pending-${value}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               {(pending?.length ?? 0) > 0 && (
                 <Button
                   variant="outline"
@@ -577,6 +679,8 @@ export default function PendingInvoices() {
                         ? (ids, supplierName) => setGroupRejectTarget({ ids, supplierName })
                         : undefined
                     }
+                    onImportGroup={status === "pending" ? handleImportGroup : undefined}
+                    importing={importingKey === group.key}
                   />
                 ))}
               </div>
@@ -753,6 +857,8 @@ function PendingDetailDialog({
   const [showNewProduct, setShowNewProduct] = useState<Record<number, boolean>>({});
   const [newProductData, setNewProductData] = useState<Record<number, { name: string; unit: string }>>({});
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
+  const [showManual, setShowManual] = useState(false);
+  const [autoImporting, setAutoImporting] = useState(false);
 
   function skipItem(index: number) {
     setSkipped((prev) => new Set(prev).add(index));
@@ -785,6 +891,57 @@ function PendingDetailDialog({
     if (activeItems.length === 0) return false;
     return detail.items.every((_, i) => skipped.has(i) || !!mapping[i]);
   }, [detail, supplierId, mapping, skipped]);
+
+  const supplierKnown = detail?.suggestedSupplierId != null;
+  const newProductCount = detail
+    ? detail.items.filter((it) => it.suggestedProductId == null).length
+    : 0;
+
+  // Primary one-click path: create the supplier if it's new (prefilled from the
+  // invoice), then run the backend retry which auto-creates missing products by name
+  // and imports every now-matchable invoice. Falls back to manual on no-op.
+  async function onAutoImport() {
+    if (!detail) return;
+    setAutoImporting(true);
+    try {
+      if (!supplierKnown) {
+        try {
+          await createSupplier.mutateAsync({
+            data: {
+              name: (detail.sellerName ?? "").trim() || detail.ksefNumber,
+              taxId: (detail.sellerNip ?? "").trim(),
+            },
+          });
+        } catch (e) {
+          const code = (e as { response?: { status?: number } })?.response?.status;
+          if (code !== 409) throw e; // 409 = already registered → proceed to import
+        }
+      }
+      const result = await retryPending.mutateAsync(undefined);
+      queryClient.invalidateQueries();
+      const imported = (result as { imported?: number } | undefined)?.imported ?? 0;
+      if (imported > 0) {
+        toast({ title: "Faktura zaimportowana", description: "Dostawca i produkty utworzone automatycznie." });
+        onActionDone();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Nie udało się automatycznie",
+          description: "Dopasuj produkty ręcznie poniżej.",
+        });
+        setShowManual(true);
+        setAutoImporting(false);
+      }
+    } catch (err) {
+      const e = err as { response?: { data?: { error?: string } }; message?: string };
+      toast({
+        variant: "destructive",
+        title: "Błąd importu",
+        description: e?.response?.data?.error ?? e?.message ?? "Nie udało się zaimportować.",
+      });
+      setAutoImporting(false);
+    }
+  }
 
   function onAccept() {
     if (!detail || !supplierId) return;
@@ -951,9 +1108,64 @@ function PendingDetailDialog({
               </div>
             </div>
 
-            <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
-              <strong>Powód:</strong> {detail.reason}
+            {/* Plain-language status: what import will do, instead of the raw reason */}
+            <div className="rounded-lg bg-secondary/40 border border-border px-4 py-3 space-y-1.5">
+              {!supplierKnown && (
+                <p className="text-sm text-foreground flex items-center gap-2">
+                  <span>🆕</span> Nowy dostawca — utworzymy go automatycznie
+                </p>
+              )}
+              {newProductCount > 0 && (
+                <p className="text-sm text-foreground flex items-center gap-2">
+                  <span>📦</span> {newProductCount}{" "}
+                  {newProductCount === 1 ? "nowy produkt" : newProductCount < 5 ? "nowe produkty" : "nowych produktów"}{" "}
+                  — utworzymy je automatycznie
+                </p>
+              )}
+              {supplierKnown && newProductCount === 0 && (
+                <p className="text-sm text-foreground flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-primary" /> Gotowe do importu
+                </p>
+              )}
             </div>
+
+            {/* Primary one-click action */}
+            <div className="space-y-1.5">
+              <Button
+                className="w-full gap-2"
+                onClick={onAutoImport}
+                disabled={autoImporting || detail.status !== "pending"}
+                data-testid="btn-auto-import-pending"
+              >
+                {autoImporting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4" />
+                )}
+                {autoImporting
+                  ? "Importuję…"
+                  : supplierKnown
+                    ? "Zaimportuj automatycznie"
+                    : "Utwórz dostawcę i zaimportuj"}
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Dostawca i produkty utworzą się automatycznie na podstawie faktury.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowManual((v) => !v)}
+              className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="btn-toggle-manual"
+            >
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showManual && "rotate-180")} />
+              {showManual ? "Ukryj ręczne dopasowanie" : "Dopasuj ręcznie (zaawansowane)"}
+            </button>
+
+            {showManual && (
+            <div className="space-y-5 pt-1">
+            <p className="text-xs text-muted-foreground">Powód: {detail.reason}</p>
 
             <div>
               <label className="text-sm font-medium mb-1.5 block">Dopasuj dostawcę</label>
@@ -1207,6 +1419,8 @@ function PendingDetailDialog({
                 })}
               </div>
             </div>
+            </div>
+            )}
           </div>
         )}
 
@@ -1219,14 +1433,16 @@ function PendingDetailDialog({
           >
             <X className="w-4 h-4 mr-1" /> Odrzuć
           </Button>
-          <Button
-            onClick={onAccept}
-            disabled={!allMapped || accept.isPending || detail?.status !== "pending"}
-            data-testid="btn-accept-pending"
-          >
-            <CheckCircle2 className="w-4 h-4 mr-1" />
-            {accept.isPending ? "Importuję..." : "Zaakceptuj i zaimportuj"}
-          </Button>
+          {showManual && (
+            <Button
+              onClick={onAccept}
+              disabled={!allMapped || accept.isPending || detail?.status !== "pending"}
+              data-testid="btn-accept-pending"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-1" />
+              {accept.isPending ? "Importuję..." : "Zaakceptuj i zaimportuj (ręcznie)"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

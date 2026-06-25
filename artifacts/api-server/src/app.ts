@@ -55,7 +55,30 @@ app.use(
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-app.use(cors({ credentials: true, origin: true }));
+// Production origins come from ALLOWED_ORIGIN (comma-separated). Local dev origins
+// stay hardcoded so `pnpm dev` keeps working without any env setup.
+const envOrigins = (process.env.ALLOWED_ORIGIN ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  credentials: true,
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3001",
+      ...envOrigins,
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, process.env.NODE_ENV === "development");
+    }
+  },
+}));
 app.use((req, res, next) => {
   const limit = req.path.includes("/invoices/scan-receipt") ? "15mb" : "2mb";
   express.json({ limit })(req, res, next);
