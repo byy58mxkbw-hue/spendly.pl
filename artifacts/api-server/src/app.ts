@@ -28,7 +28,7 @@ const limiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { error: "Za dużo żądań. Spróbuj ponownie za chwilę." },
-  skip: (req) => req.path === "/api/health",
+  skip: (req) => req.path === "/api/healthz",
 });
 
 app.use(limiter);
