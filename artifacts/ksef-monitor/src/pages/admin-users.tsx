@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout, PageHeader } from "@/components/layout";
+import { apiUrl } from "@/lib/api-base";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -83,7 +84,7 @@ interface AdminUserDetails {
 
 async function authFetch(session: ReturnType<typeof useClerk>["session"], url: string, options?: RequestInit) {
   const token = await session?.getToken();
-  return fetch(url, {
+  return fetch(apiUrl(url), {
     ...options,
     headers: {
       ...(options?.headers ?? {}),
