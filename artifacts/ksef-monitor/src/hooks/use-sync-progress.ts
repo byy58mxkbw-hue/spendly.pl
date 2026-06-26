@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useClerk } from "@clerk/react";
 import type { KsefSyncResult } from "@workspace/api-client-react";
+import { apiUrl } from "@/lib/api-base";
 
 export type SyncPhase =
   | { type: "idle" }
@@ -21,7 +22,7 @@ export function useSyncKsefProgress() {
 
       try {
         const token = await session?.getToken();
-        const response = await fetch("/api/ksef/sync", {
+        const response = await fetch(apiUrl("/api/ksef/sync"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

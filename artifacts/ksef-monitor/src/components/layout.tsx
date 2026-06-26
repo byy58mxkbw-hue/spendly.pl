@@ -23,6 +23,7 @@ import {
 import { useUser, useClerk, useAuth } from "@clerk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { apiUrl } from "@/lib/api-base";
 import { useListKsefPending, useGetDashboardActiveAlerts, useCreateCostCenter, getListCostCentersQueryKey } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -487,7 +488,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     queryKey: ["admin-check"],
     queryFn: async () => {
       const token = await getToken();
-      const res = await fetch("/api/admin/check", {
+      const res = await fetch(apiUrl("/api/admin/check"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.ok;
