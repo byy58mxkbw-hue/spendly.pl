@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { toNum, toNumOrNull } from "../lib/parse";
+import { aiCostLimiter } from "../lib/rate-limiters";
 import { eq, desc, and, isNull, sql, gte, lte, lt } from "drizzle-orm";
 import { db, invoicesTable, invoiceItemsTable, suppliersTable, productsTable, costCentersTable } from "@workspace/db";
 import {
@@ -575,7 +576,7 @@ async function findOrCreateProduct(
   return created.id;
 }
 
-router.post("/invoices/scan-receipt", async (req, res): Promise<void> => {
+router.post("/invoices/scan-receipt", aiCostLimiter, async (req, res): Promise<void> => {
   const parsed = ScanReceiptBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
