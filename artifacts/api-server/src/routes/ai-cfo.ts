@@ -3,6 +3,7 @@ import { db, aiCfoSessionsTable } from "@workspace/db";
 import { sql, eq, and, desc } from "drizzle-orm";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import multer from "multer";
+import { aiCostLimiter } from "../lib/rate-limiters";
 
 const router: IRouter = Router();
 
@@ -629,7 +630,7 @@ PRODUKTY I CENY SZCZEGÓŁOWO (format [ID:X] nazwa [kategoria] @ [ID:Y] dostawca
 ${products}`;
 }
 
-router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
+router.post("/ai-cfo/chat", aiCostLimiter, async (req, res): Promise<void> => {
   const userId = req.userId!;
   const { question, history = [] } = req.body as {
     question: string;
@@ -761,7 +762,7 @@ Odpowiadaj wyłącznie po polsku.`;
 
 // ─── Route: POST /ai-cfo/food-cost ───────────────────────────────────────────
 
-router.post("/ai-cfo/food-cost", async (req, res): Promise<void> => {
+router.post("/ai-cfo/food-cost", aiCostLimiter, async (req, res): Promise<void> => {
   const userId = req.userId!;
   const { menuText, salesText } = req.body as { menuText: string; salesText: string };
 
@@ -1077,7 +1078,7 @@ async function processPdfFile(
   }
 }
 
-router.post("/ai-cfo/extract-menu", menuUpload.array("files", 5), async (req, res): Promise<void> => {
+router.post("/ai-cfo/extract-menu", aiCostLimiter, menuUpload.array("files", 5), async (req, res): Promise<void> => {
   const files = req.files as Express.Multer.File[] | undefined;
   if (!files || files.length === 0) {
     res.status(400).json({ error: "Brakuje pliku. Prześlij obraz lub PDF jako pole 'files'." });
