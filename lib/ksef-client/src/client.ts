@@ -545,7 +545,9 @@ export class KsefClient {
       body: JSON.stringify({
         subjectType,
         dateRange: {
-          dateType: "Invoicing",
+          // See exportInvoices: window by KSeF permanent-storage (acquisition)
+          // date, not issue date, so late-submitted invoices aren't skipped.
+          dateType: "PermanentStorage",
           from: params.dateFrom.includes("T")
             ? params.dateFrom
             : `${params.dateFrom}T00:00:00+00:00`,
@@ -696,7 +698,13 @@ export class KsefClient {
         filters: {
           subjectType,
           dateRange: {
-            dateType: "Invoicing",
+            // Filter by the date the invoice entered KSeF permanent storage,
+            // NOT its issue date ("Invoicing"). Sellers often submit to KSeF
+            // days after issuing, so windowing by issue date permanently skips
+            // late-submitted invoices whose issue date precedes our sync cursor.
+            // PermanentStorage is monotonic, so incremental [from,to] windows
+            // catch every invoice that arrived since the last sync.
+            dateType: "PermanentStorage",
             from: params.dateFrom.includes("T") ? params.dateFrom : `${params.dateFrom}T00:00:00+00:00`,
             to: params.dateTo.includes("T") ? params.dateTo : `${params.dateTo}T23:59:59+00:00`,
           },

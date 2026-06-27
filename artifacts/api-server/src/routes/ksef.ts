@@ -768,8 +768,13 @@ async function runSync(
   const KSEF_MANDATORY_START = new Date(
     cfg.syncFromDate ? `${cfg.syncFromDate}T00:00:00.000Z` : "2026-02-01T00:00:00.000Z"
   );
+  // Re-scan a short trailing overlap on every incremental sync. KSeF's
+  // permanent-storage index is eventually consistent, so an invoice can surface
+  // with a timestamp just below our previous cursor; without overlap it would
+  // fall in the gap forever. Dedup by ksefNumber makes the re-scan duplicate-free.
+  const SYNC_OVERLAP_MS = 2 * 24 * 60 * 60 * 1000;
   const overallFrom = cfg.lastSyncedAt
-    ? cfg.lastSyncedAt
+    ? new Date(Math.max(KSEF_MANDATORY_START.getTime(), cfg.lastSyncedAt.getTime() - SYNC_OVERLAP_MS))
     : KSEF_MANDATORY_START;
 
   // 30-day windows instead of 7-day windows → ~12 API calls/year instead of ~52.
