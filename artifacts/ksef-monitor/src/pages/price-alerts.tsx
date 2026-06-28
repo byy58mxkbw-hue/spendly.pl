@@ -682,7 +682,7 @@ export default function PriceAlerts() {
                             <SelectValue placeholder="Wszyscy dostawcy" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="max-h-60 overflow-y-auto">
                           <SelectItem value=" ">Wszyscy dostawcy</SelectItem>
                           {suppliers?.map((s) => (
                             <SelectItem key={s.id} value={String(s.id)}>
@@ -775,7 +775,7 @@ export default function PriceAlerts() {
                                 <SelectValue placeholder="Wszyscy dostawcy" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent className="max-h-60 overflow-y-auto">
                               <SelectItem value=" ">Wszyscy dostawcy</SelectItem>
                               {suppliers?.map((s) => (
                                 <SelectItem key={s.id} value={String(s.id)}>
