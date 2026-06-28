@@ -1170,11 +1170,15 @@ export default function Products() {
     }
   }
 
-  // Compute which categories actually have products (search-filtered, before category filter)
+  // Compute which categories actually have products (search-filtered, before category filter).
+  // Respect the "Do przeglądu" toggle so chip counts match the list the user will see —
+  // otherwise a category whose products are all verified (needs_review=false) shows a
+  // count but clicking it yields an empty list.
   const categoryCountMap = useMemo(() => {
     if (!products) return {};
     const searchFiltered = products.filter((p) =>
-      p.name.toLowerCase().includes(search.toLowerCase())
+      p.name.toLowerCase().includes(search.toLowerCase()) &&
+      (!showNeedsReview || p.needsReview === true)
     );
     const map: Record<string, number> = {};
     for (const p of searchFiltered) {
@@ -1182,7 +1186,7 @@ export default function Products() {
       map[cat] = (map[cat] ?? 0) + 1;
     }
     return map;
-  }, [products, search]);
+  }, [products, search, showNeedsReview]);
 
   const searchFilteredCount = Object.values(categoryCountMap).reduce((sum, count) => sum + count, 0);
 
