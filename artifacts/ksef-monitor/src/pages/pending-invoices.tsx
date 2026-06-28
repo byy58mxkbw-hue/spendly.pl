@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Dialog,
   DialogContent,
@@ -1169,26 +1170,22 @@ function PendingDetailDialog({
 
             <div>
               <label className="text-sm font-medium mb-1.5 block">Dopasuj dostawcę</label>
-              <Select
+              <Combobox
                 value={supplierId}
-                onValueChange={(v) => {
+                onChange={(v) => {
                   setSupplierId(v);
                   setShowNewSupplier(false);
                 }}
-              >
-                <SelectTrigger data-testid="select-pending-supplier">
-                  <SelectValue placeholder="Wybierz dostawcę z bazy" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60 overflow-y-auto">
-                  {suppliers?.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name}
-                      {s.taxId ? ` · NIP ${s.taxId}` : ""}
-                      {detail.suggestedSupplierId === s.id ? " (sugerowany)" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                className="w-full"
+                placeholder="Wybierz dostawcę z bazy"
+                searchPlaceholder="Szukaj dostawcy..."
+                emptyText="Brak dostawców."
+                data-testid="select-pending-supplier"
+                options={(suppliers ?? []).map((s) => ({
+                  value: String(s.id),
+                  label: `${s.name}${s.taxId ? ` · NIP ${s.taxId}` : ""}${detail.suggestedSupplierId === s.id ? " (sugerowany)" : ""}`,
+                }))}
+              />
 
               <button
                 type="button"
@@ -1310,28 +1307,22 @@ function PendingDetailDialog({
                         ) : (
                         <div className="flex flex-col gap-1.5 items-end">
                           <div className="flex items-center gap-1.5">
-                            <Select
+                            <Combobox
                               value={mapping[i] ?? ""}
-                              onValueChange={(v) => {
+                              onChange={(v) => {
                                 setMapping((m) => ({ ...m, [i]: v }));
                                 setShowNewProduct((prev) => ({ ...prev, [i]: false }));
                               }}
-                            >
-                              <SelectTrigger
-                                className={cn("w-52", !isMapped && "border-amber-300")}
-                                data-testid={`select-product-${i}`}
-                              >
-                                <SelectValue placeholder="Wybierz produkt" />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-60 overflow-y-auto">
-                                {products?.map((p) => (
-                                  <SelectItem key={p.id} value={String(p.id)}>
-                                    {p.name}
-                                    {item.suggestedProductId === p.id ? " (sugerowany)" : ""}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              className={cn("w-52", !isMapped && "border-amber-300")}
+                              placeholder="Wybierz produkt"
+                              searchPlaceholder="Szukaj produktu..."
+                              emptyText="Brak produktów."
+                              data-testid={`select-product-${i}`}
+                              options={(products ?? []).map((p) => ({
+                                value: String(p.id),
+                                label: `${p.name}${item.suggestedProductId === p.id ? " (sugerowany)" : ""}`,
+                              }))}
+                            />
                             <button
                               type="button"
                               onClick={() => skipItem(i)}
