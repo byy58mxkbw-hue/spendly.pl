@@ -1696,7 +1696,7 @@ export default function Products() {
               <p className="text-sm text-muted-foreground">
                 {search || supplierFilter !== "all" || categoryFilter !== "all"
                   ? "Nie znaleziono produktów pasujących do filtrów."
-                  : "Brak produktów. Zaimportuj faktury, aby zobaczyć produkty."}
+                  : "Produkty pojawią się po imporcie pierwszej faktury."}
               </p>
             </div>
           )}
@@ -1858,7 +1858,7 @@ export default function Products() {
               <p className="text-sm text-muted-foreground">
                 {search || supplierFilter !== "all"
                   ? "Nie znaleziono produktów pasujących do filtrów."
-                  : "Brak produktów. Zaimportuj faktury, aby zobaczyć produkty."}
+                  : "Produkty pojawią się po imporcie pierwszej faktury."}
               </p>
             </div>
           )}
