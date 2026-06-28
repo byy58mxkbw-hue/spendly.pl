@@ -429,7 +429,7 @@ function DayDrawer({
       </Sheet>
 
       {viewInvoiceId && (
-        <InvoiceDetailModal invoiceId={viewInvoiceId} onClose={() => setViewInvoiceId(null)} />
+        <InvoiceDetailModal invoiceId={viewInvoiceId} onClose={() => setViewInvoiceId(null)} onOpenInvoice={setViewInvoiceId} />
       )}
     </>
   );
@@ -801,7 +801,7 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
 
 // ─── Invoice detail modal ──────────────────────────────────────────────────────
 
-function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose: () => void }) {
+function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invoiceId: number; onClose: () => void; onOpenInvoice?: (id: number) => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data, isLoading } = useGetInvoice(invoiceId, {
@@ -1022,6 +1022,7 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
         productId={historyProduct.id}
         productName={historyProduct.name}
         onClose={() => setHistoryProduct(null)}
+        onSelectInvoice={onOpenInvoice ? (id) => { setHistoryProduct(null); onOpenInvoice(id); } : undefined}
       />
     )}
     </>
@@ -1523,7 +1524,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
         </>
       )}
 
-      {viewInvoiceId && <InvoiceDetailModal invoiceId={viewInvoiceId} onClose={() => setViewInvoiceId(null)} />}
+      {viewInvoiceId && <InvoiceDetailModal invoiceId={viewInvoiceId} onClose={() => setViewInvoiceId(null)} onOpenInvoice={setViewInvoiceId} />}
 
       <AlertDialog open={!!deleteId} onOpenChange={(o) => { if (!o) setDeleteId(null); }}>
         <AlertDialogContent>

@@ -359,12 +359,15 @@ export function PriceHistoryModal({
   onClose,
   focusSupplierId,
   focusSupplierName,
+  onSelectInvoice,
 }: {
   productId: number;
   productName: string;
   onClose: () => void;
   focusSupplierId?: number;
   focusSupplierName?: string;
+  /** When provided, history rows link to their source invoice. */
+  onSelectInvoice?: (invoiceId: number) => void;
 }) {
   const params = focusSupplierId != null ? { supplierId: focusSupplierId } : undefined;
   const { data: history, isLoading } = useGetProductPriceHistory(productId, params, {
@@ -382,6 +385,18 @@ export function PriceHistoryModal({
     supplier: h.supplierName,
   }));
 
+  // Cheapest supplier — each supplier's most recent price, then the lowest.
+  const latestBySupplier = new Map<number, { name: string; price: number; date: string }>();
+  for (const h of history ?? []) {
+    const prev = latestBySupplier.get(h.supplierId);
+    if (!prev || h.date > prev.date) latestBySupplier.set(h.supplierId, { name: h.supplierName, price: h.price, date: h.date });
+  }
+  const supplierPrices = [...latestBySupplier.values()];
+  const cheapest = supplierPrices.length > 1
+    ? supplierPrices.reduce((min, s) => (s.price < min.price ? s : min), supplierPrices[0])
+    : null;
+  const priciest = cheapest ? supplierPrices.reduce((max, s) => (s.price > max.price ? s : max), supplierPrices[0]) : null;
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col overflow-hidden" data-testid="dialog-price-history">
@@ -398,6 +413,19 @@ export function PriceHistoryModal({
           <Skeleton className="h-56 w-full rounded-lg" />
         ) : chartData && chartData.length > 0 ? (
           <div className="flex flex-col min-h-0 gap-4">
+            {cheapest && (
+              <div className="shrink-0 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 flex-wrap">
+                <Building2 className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-xs text-muted-foreground">Najtaniej u</span>
+                <span className="text-sm font-semibold text-foreground">{cheapest.name}</span>
+                <span className="text-sm font-bold text-primary tabular-nums">{formatPrice(cheapest.price)}</span>
+                {priciest && priciest.price > cheapest.price && (
+                  <span className="ml-auto text-[11px] text-emerald-600 font-medium">
+                    taniej o {formatPrice(priciest.price - cheapest.price)} niż {priciest.name}
+                  </span>
+                )}
+              </div>
+            )}
             {/* Chart — fixed, always visible */}
             <div className="shrink-0">
               <ResponsiveContainer width="100%" height={220}>
@@ -450,9 +478,24 @@ export function PriceHistoryModal({
                 </thead>
                 <tbody>
                   {history?.slice().reverse().map((h, i) => (
-                    <tr key={i} className="border-b border-border last:border-0 hover:bg-secondary/40 transition-colors">
+                    <tr
+                      key={i}
+                      onClick={onSelectInvoice ? () => onSelectInvoice(h.invoiceId) : undefined}
+                      className={cn(
+                        "border-b border-border last:border-0 hover:bg-secondary/40 transition-colors",
+                        onSelectInvoice && "cursor-pointer",
+                      )}
+                      title={onSelectInvoice ? `Otwórz fakturę ${h.invoiceNumber}` : undefined}
+                    >
                       <td className="px-4 py-2.5">{formatDate(h.date)}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{h.supplierName}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="truncate">{h.supplierName}</span>
+                          {onSelectInvoice && (
+                            <span className="text-[10px] text-primary/70 truncate shrink-0">· {h.invoiceNumber}</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-2.5 text-right font-semibold">{formatPrice(h.price)}</td>
                     </tr>
                   ))}
