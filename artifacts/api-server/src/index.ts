@@ -24,7 +24,13 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
 
-  // Run in background — never blocks startup, never crashes the process
-  // Disabled for dev - database endpoint may be disabled
-  // runCategoryBackfill().catch(() => {});
+  // Run in background — never blocks startup, never crashes the process.
+  // Production only: on dev the database endpoint may be disabled. On prod this
+  // clears the "do przeglądu" queue on every deploy (deterministic keyword pass
+  // first, then AI only for still-unclassified products). Fully idempotent.
+  if (process.env.NODE_ENV === "production") {
+    runCategoryBackfill().catch((err) => {
+      logger.warn({ err }, "runCategoryBackfill failed on startup (non-fatal)");
+    });
+  }
 });
