@@ -7,11 +7,11 @@
  */
 
 import { isNull, sql } from "drizzle-orm";
-import { db, productsTable, userCategoriesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, productsTable, userCategoriesTable, productCorrectionsTable } from "@workspace/db";
+import { eq, and } from "drizzle-orm";
 import { categorizeProductWithAI, normalizeProductName } from "../lib/categorize-ai.js";
 import { logger } from "../lib/logger.js";
-import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
+import { BUILTIN_CATEGORY_DEFS, categorizeProduct } from "../lib/categorize.js";
 
 /**
  * Cleanup step: reset classification_confidence to NULL for products whose
@@ -59,6 +59,89 @@ async function cleanupInvalidCategories(): Promise<void> {
   }
 }
 
+/**
+ * Deterministic (zero-AI) reclassification of review-queue leftovers.
+ *
+ * Products sitting in the "do przeglądu" queue (needs_review = true) that still
+ * land in "inne" are re-run through the keyword rules ONLY. With the expanded
+ * CATEGORY_RULES (koszty stałe, marki, opakowania, środki czystości…) most of
+ * them now match a real category, so we move them out of the queue without any
+ * OpenAI calls — exactly like the local cleanup that took the queue 277 → 24.
+ *
+ * Safe by design:
+ *  - only touches products still in the queue (needs_review = true),
+ *  - never overrides an explicit user correction,
+ *  - idempotent: a second run matches 0 rows because items are no longer "inne".
+ */
+async function reclassifyQueuedInneByKeywords(): Promise<void> {
+  try {
+    const queued = await db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        userId: productsTable.userId,
+      })
+      .from(productsTable)
+      .where(
+        and(
+          eq(productsTable.needsReview, true),
+          eq(productsTable.category, "inne"),
+        ),
+      );
+
+    if (queued.length === 0) {
+      logger.info("backfill-categories: no queued 'inne' products to reclassify");
+      return;
+    }
+
+    // Load user corrections once so we never override an explicit manual choice.
+    const corrections = await db
+      .select({
+        userId: productCorrectionsTable.userId,
+        normalizedName: productCorrectionsTable.normalizedName,
+      })
+      .from(productCorrectionsTable);
+    const correctedKeys = new Set(
+      corrections.map((c) => `${c.userId}::${c.normalizedName}`),
+    );
+
+    let moved = 0;
+    for (const product of queued) {
+      const canonicalName =
+        normalizeProductName(product.name) || product.name.toLowerCase().trim();
+
+      // Respect manual corrections — leave the user's choice untouched.
+      if (correctedKeys.has(`${product.userId}::${canonicalName}`)) continue;
+
+      const keywordCategory =
+        categorizeProduct(canonicalName) !== "inne"
+          ? categorizeProduct(canonicalName)
+          : categorizeProduct(product.name.toLowerCase());
+
+      if (keywordCategory === "inne") continue;
+
+      await db
+        .update(productsTable)
+        .set({
+          category: keywordCategory,
+          subcategory: null,
+          classificationConfidence: 0.9,
+          canonicalName,
+          needsReview: false,
+        })
+        .where(eq(productsTable.id, product.id));
+      moved++;
+    }
+
+    logger.info(
+      { moved, scanned: queued.length, remaining: queued.length - moved },
+      "backfill-categories: deterministic keyword reclassification of queued 'inne' done",
+    );
+  } catch (err) {
+    logger.warn({ err }, "backfill-categories: reclassifyQueuedInneByKeywords failed (non-fatal)");
+  }
+}
+
 const BATCH_SIZE = 10;
 const BATCH_DELAY_MS = 300;
 
@@ -94,6 +177,10 @@ async function processBatch(
 export async function runCategoryBackfill(): Promise<void> {
   // Step 1: Reset products with categories that aren't builtin or user-created
   await cleanupInvalidCategories();
+
+  // Step 2: Deterministic, zero-AI keyword reclassification of queued "inne"
+  // products — clears most of the review queue before paying for any AI calls.
+  await reclassifyQueuedInneByKeywords();
 
   try {
     const products = await db

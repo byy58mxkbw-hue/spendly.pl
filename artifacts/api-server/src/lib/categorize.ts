@@ -12,6 +12,39 @@
 export type CategoryRule = { id: string; keywords: string[] };
 
 export const CATEGORY_RULES: CategoryRule[] = [
+  // ── 0. Koszty stałe (media, paliwo, najem, abonamenty) ──────────────────────
+  // WAŻNE: pierwsze w kolejności. Pozycje z faktur za prąd/gaz/internet/najem to
+  // NIE są składniki — łapiemy je tu, żeby nie zaśmiecały kolejki „do przeglądu".
+  // Słowa kluczowe są specyficzne i nie kolidują z produktami spożywczymi.
+  {
+    id: "koszty_stale",
+    keywords: [
+      // Energia i media
+      "elektryczn", "energii czynnej", "energii biernej", "pobór energii",
+      "rozliczenie energii", "dystrybucj", "opłata mocowa", "kogeneracyjn",
+      "opłata oze", "oze szczyt", "oze pozostał", "sieciow", "stawka jakościow",
+      "składnik stały", "składnik zmienny", "opłata handlowa", "opłata przejściow",
+      "opłata abonamentow", "opłata jakościow",
+      // Telekomunikacja i internet
+      "internet", "światłowod", "abonament", "pakiet usługi", "usługi bez limitu",
+      "opłata za sim", "karta sim",
+      // Najem i dzierżawa
+      "dzierżawa", "najem", "wynajem", "czynsz", "leasing",
+      // Paliwo i opał
+      "paliwo", "diesel", "benzyn", "napędowy", "efecta", "adblue", "ad blue",
+      "tankowanie", "gaz ziemny", "gazu ziemnego", "opał", "pellet", "węgiel drzewny",
+      // Usługi i biuro
+      "monitorowania", "monitoring", "interwencji", "wywóz odpad", "wywóz śmieci",
+      "papier ksero", "toner", "tusz do drukarki", "koperta",
+      "opłata za udostępnienie", "opłata serwisow",
+      // Usługi, prowizje, paliwo, leasing (uzup. 2 — z realnych faktur)
+      "przejściow", "moc pobrana", "usługa ", "prowizja", "obsługę transakcji",
+      "cashback", "kaucja", "transportow", "kurier", "szkolenie", "bhp",
+      "leasingow", "rolka termiczna", "verva", "fuelsave", "pb 95", "pb95",
+      "administracji skarbow", "raportowanie do",
+    ],
+  },
+
   // ── 1. Alkohole ─────────────────────────────────────────────────────────────
   {
     id: "alkohole",
@@ -45,6 +78,8 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "cydr", "cyder", "cider",
       // Ogólne
       "alkohol", "alcopop",
+      // Marki (uzup. z realnych faktur)
+      "bacardi", "jameson", "pirosmani", "carta blanca",
     ],
   },
 
@@ -69,6 +104,10 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "rękawice lateksow", "rękawice gumow", "rękawice jednorazow",
       "worki na śmieci", "worki na odpad",
       "płyn do wc", "wc net", "domestos",
+      // Marki i środki owadobójcze (uzup. z realnych faktur)
+      "ajax", "cif ", "cilit", "clinex", "ecoshine", "bref", "astonish",
+      "czyściwo", "na muchy", "muchospray", "lep na", "owadobójcz", "purox",
+      "vizir", "prań", "bros", "ręcznik składany",
     ],
   },
 
@@ -95,6 +134,10 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "rękaw cukierniczy", "worek cukierniczy",
       "podstawki pod napoje", "podstawka pod szklankę",
       "etykiety", "naklejki", "tasma klejąca", "taśma do pakowania",
+      // Pojemniki do zgrzewu i tacki (uzup. z realnych faktur)
+      "do zgrzewu", "pojemnik", "styropianow", "menubox", "papier jumbo",
+      "tacka", "taca ", "miska do zgrzewu", "opakowanie hamburger", "opakowanie gastro",
+      "opak ", "reklamówka", "pakowania próżni", "pap jumbo", "worki do pakowania",
     ],
   },
 
@@ -218,6 +261,9 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "nabiał",
       "jajk", "jaja ", "jaj ", "jajec",
       "jajko", "jajka",
+      // Sery markowe i pleśniowe (uzup. z realnych faktur)
+      "formagio", "pleśniow", "cremefine",
+      "mix serów", "serek", "fellada",
     ],
   },
 
@@ -318,6 +364,8 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "skrobia", "mąka ryżowa",
       "krem cukierniczy", "krem patissier", "krem budyniowy",
       "masa kajmakow", "dulce de leche",
+      // Uzup. z realnych faktur
+      "nutella", "lava cake", "suflet",
     ],
   },
 
@@ -346,6 +394,8 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "panierka bułczana", "panierka",
       "nachos", "tortilla chip",
       "croissant",
+      // Kluski i pieczywo długie (uzup. z realnych faktur)
+      "kluski", "paluch", "kopytka",
     ],
   },
 
@@ -387,6 +437,8 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "puree marakuj", "puree owocowe",
       "pasta miso", "pasta curry", "pasta paprykow",
       "guacamole mieszanka",
+      // Tłuszcze do smażenia (uzup. z realnych faktur)
+      "margaryna", "frytura",
     ],
   },
 ];
@@ -409,6 +461,7 @@ export const BUILTIN_CATEGORY_DEFS: Record<string, { label: string; emoji: strin
   slodycze: { label: "Słodycze / Cukiernia", emoji: "🍰" },
   pieczywo: { label: "Pieczywo / Makarony / Zboża", emoji: "🍞" },
   przyprawy: { label: "Przyprawy / Sosy / Oleje", emoji: "🧂" },
+  koszty_stale: { label: "Koszty stałe", emoji: "🧾" },
   inne: { label: "Inne", emoji: "📦" },
 };
 

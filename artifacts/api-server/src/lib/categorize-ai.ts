@@ -140,18 +140,10 @@ export async function categorizeProductWithAI(
     };
   }
 
-  // Step 2: Supplier default category — if the supplier has a category override, use it for all its products
-  if (supplierDefaultCategory) {
-    logger?.info({ productName, canonicalName, category: supplierDefaultCategory }, "categorize: using supplier default category");
-    return {
-      category: supplierDefaultCategory,
-      subcategory: null,
-      confidence: 1.0,
-      canonicalName,
-    };
-  }
-
-  // Step 3: Fast keyword matching on normalized + original
+  // Step 2: Fast keyword matching on normalized + original.
+  // Runs BEFORE the supplier default so a reliable keyword hit (e.g. "płyn do naczyń"
+  // → środki czystości, "energia elektryczna" → koszty stałe) wins even when the
+  // supplier has a default category set for a mixed assortment.
   const keywordResult =
     categorizeProduct(canonicalName) !== "inne"
       ? categorizeProduct(canonicalName)
@@ -162,6 +154,18 @@ export async function categorizeProductWithAI(
       category: keywordResult,
       subcategory: null,
       confidence: 0.9,
+      canonicalName,
+    };
+  }
+
+  // Step 3: Supplier default category — keyword missed, so fall back to the
+  // supplier's configured category (if any) before paying for an AI call.
+  if (supplierDefaultCategory) {
+    logger?.info({ productName, canonicalName, category: supplierDefaultCategory }, "categorize: using supplier default category");
+    return {
+      category: supplierDefaultCategory,
+      subcategory: null,
+      confidence: 1.0,
       canonicalName,
     };
   }
