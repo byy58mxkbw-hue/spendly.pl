@@ -19,12 +19,21 @@ import {
   Check,
   Plus,
   UtensilsCrossed,
+  Search,
 } from "lucide-react";
 import { useUser, useClerk, useAuth } from "@clerk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { apiUrl } from "@/lib/api-base";
-import { useListKsefPending, useGetDashboardActiveAlerts, useCreateCostCenter, getListCostCentersQueryKey } from "@workspace/api-client-react";
+import { useListKsefPending, useGetDashboardActiveAlerts, useCreateCostCenter, getListCostCentersQueryKey, useListSuppliers, useListProducts, getListSuppliersQueryKey, getListProductsQueryKey } from "@workspace/api-client-react";
+import {
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useCostCenter } from "@/contexts/cost-center-context";
@@ -362,6 +371,7 @@ function SidebarContent({
   alertCount,
   pendingCount,
   isAdmin,
+  onOpenSearch,
 }: {
   location: string;
   onNavigate?: () => void;
@@ -370,6 +380,7 @@ function SidebarContent({
   alertCount: number;
   pendingCount: number;
   isAdmin: boolean;
+  onOpenSearch?: () => void;
 }) {
   return (
     <>
@@ -379,6 +390,20 @@ function SidebarContent({
           SPENDLY<span className="text-sidebar-foreground/40">.</span>
         </span>
       </div>
+
+      {/* Search trigger */}
+      {onOpenSearch && (
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => { onOpenSearch(); onNavigate?.(); }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/50 bg-sidebar-accent/40 hover:bg-sidebar-accent transition-colors"
+          >
+            <Search className="w-4 h-4" />
+            <span className="flex-1 text-left">Szukaj…</span>
+            <kbd className="hidden md:inline text-[10px] font-mono px-1.5 py-0.5 rounded bg-sidebar-foreground/10 text-sidebar-foreground/50">⌘K</kbd>
+          </button>
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 px-3 overflow-y-auto">
@@ -474,7 +499,80 @@ function SidebarContent({
   );
 }
 
+function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const [, navigate] = useLocation();
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        onOpenChange(!open);
+      }
+    };
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, [open, onOpenChange]);
+
+  // Fetch only while the palette is open — avoids loading all products on every page.
+  const { data: suppliers } = useListSuppliers(undefined, { query: { queryKey: getListSuppliersQueryKey(), enabled: open } });
+  const { data: products } = useListProducts({}, { query: { queryKey: getListProductsQueryKey({}), enabled: open } });
+
+  const q = search.trim().toLowerCase();
+  const supplierMatches = (suppliers ?? [])
+    .filter((s) => !q || s.name.toLowerCase().includes(q))
+    .slice(0, 6);
+  // Pre-filter + cap the 900+ products before handing them to cmdk.
+  const productMatches = (products ?? [])
+    .filter((p) => !q || p.name.toLowerCase().includes(q))
+    .slice(0, 8);
+
+  const go = (path: string) => { onOpenChange(false); setSearch(""); navigate(path); };
+
+  return (
+    <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <CommandInput
+        placeholder="Szukaj stron, produktów, dostawców…"
+        value={search}
+        onValueChange={setSearch}
+      />
+      <CommandList>
+        <CommandEmpty>Brak wyników.</CommandEmpty>
+        <CommandGroup heading="Nawigacja">
+          {navItems.map((item) => (
+            <CommandItem key={item.path} value={`nav ${item.label}`} onSelect={() => go(item.path)}>
+              <item.icon className="mr-2 h-4 w-4" />
+              {item.label}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+        {supplierMatches.length > 0 && (
+          <CommandGroup heading="Dostawcy">
+            {supplierMatches.map((s) => (
+              <CommandItem key={`s-${s.id}`} value={`supplier ${s.name}`} onSelect={() => go(`/suppliers/${s.id}`)}>
+                <Users className="mr-2 h-4 w-4" />
+                <span className="truncate">{s.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+        {productMatches.length > 0 && (
+          <CommandGroup heading="Produkty">
+            {productMatches.map((p) => (
+              <CommandItem key={`p-${p.id}`} value={`product ${p.name}`} onSelect={() => go(`/products?id=${p.id}`)}>
+                <Package className="mr-2 h-4 w-4" />
+                <span className="truncate">{p.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+      </CommandList>
+    </CommandDialog>
+  );
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
+  const [cmdOpen, setCmdOpen] = useState(false);
   const [location] = useLocation();
   const { user } = useUser();
   const { signOut } = useClerk();
@@ -532,6 +630,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           alertCount={alertCount}
           pendingCount={pendingCount}
           isAdmin={isAdmin}
+          onOpenSearch={() => setCmdOpen(true)}
         />
       </aside>
 
@@ -608,6 +707,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               alertCount={alertCount}
               pendingCount={pendingCount}
               isAdmin={isAdmin}
+              onOpenSearch={() => setCmdOpen(true)}
             />
           </aside>
         </div>
@@ -620,6 +720,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       >
         {children}
       </main>
+
+      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
 
       <CostCenterOnboardingModal userSignedIn={!!user} />
 
