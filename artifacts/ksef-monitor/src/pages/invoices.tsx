@@ -1152,7 +1152,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz centrum kosztów..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-60 overflow-y-auto">
                 {costCenters.map((cc) => (
                   <SelectItem key={cc.id} value={String(cc.id)}>
                     <span className="flex items-center gap-2">

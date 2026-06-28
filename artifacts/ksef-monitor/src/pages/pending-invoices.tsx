@@ -1179,7 +1179,7 @@ function PendingDetailDialog({
                 <SelectTrigger data-testid="select-pending-supplier">
                   <SelectValue placeholder="Wybierz dostawcę z bazy" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-60 overflow-y-auto">
                   {suppliers?.map((s) => (
                     <SelectItem key={s.id} value={String(s.id)}>
                       {s.name}
@@ -1323,7 +1323,7 @@ function PendingDetailDialog({
                               >
                                 <SelectValue placeholder="Wybierz produkt" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="max-h-60 overflow-y-auto">
                                 {products?.map((p) => (
                                   <SelectItem key={p.id} value={String(p.id)}>
                                     {p.name}
