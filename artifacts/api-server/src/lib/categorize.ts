@@ -447,7 +447,23 @@ export const CATEGORY_RULES: CategoryRule[] = [
     ],
   },
 
-  // ── 14. Orzechy / Bakalie ───────────────────────────────────────────────────
+  // ── 14. Sprzęt / Wyposażenie ────────────────────────────────────────────────
+  // Nie-surowce: naczynia kuchenne, narzędzia, drobne AGD, części/żarówki.
+  // Słowa kluczowe są specyficzne, żeby nie kolidować ze składnikami.
+  {
+    id: "sprzet",
+    keywords: [
+      "patelni", "patelnia", "garnek", "garnk", "rondel", "rondl",
+      "szczypce", " czypce", "termometr", "deska do kroj", "deski do kroj",
+      "chochla", "cedzak", "durszlak", "sitko ", "tarka kuch", "trzepaczka",
+      "wałek do", "łopatka kuch", "blacha do piecz", "blacha piekarn",
+      "forma do piecz", "forma do tort", "naczynie żarood", "garnki",
+      "żarówka", "świetlówka", "bosma", "px26d", " h7 ", "akumulator",
+      "sprzęt", "wyposażenie",
+    ],
+  },
+
+  // ── 15. Orzechy / Bakalie ───────────────────────────────────────────────────
   // OSTATNIA reguła: bare "orzech" łapie też kremy/syropy orzechowe (Nutella,
   // syrop laskowy), więc musi być PO słodyczach/przyprawach/napojach — tu zostają
   // tylko czyste orzechy i bakalie, których nie złapała żadna wcześniejsza reguła.
@@ -481,6 +497,7 @@ export const BUILTIN_CATEGORY_DEFS: Record<string, { label: string; emoji: strin
   przyprawy: { label: "Przyprawy / Sosy / Oleje", emoji: "🧂" },
   koszty_stale: { label: "Koszty stałe", emoji: "🧾" },
   orzechy: { label: "Orzechy / Bakalie", emoji: "🥜" },
+  sprzet: { label: "Sprzęt / Wyposażenie", emoji: "🧰" },
   inne: { label: "Inne", emoji: "📦" },
 };
 

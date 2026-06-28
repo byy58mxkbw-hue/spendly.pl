@@ -551,7 +551,24 @@ export const CATEGORIES: Category[] = [
     ],
   },
 
-  // ── 14. Orzechy / Bakalie ───────────────────────────────────────────────────
+  // ── 14. Sprzęt / Wyposażenie ────────────────────────────────────────────────
+  // Nie-surowce: naczynia, narzędzia, drobne AGD, części/żarówki.
+  {
+    id: "sprzet",
+    label: "Sprzęt / Wyposażenie",
+    emoji: "🧰",
+    keywords: [
+      "patelni", "patelnia", "garnek", "garnk", "rondel", "rondl",
+      "szczypce", " czypce", "termometr", "deska do kroj", "deski do kroj",
+      "chochla", "cedzak", "durszlak", "sitko ", "tarka kuch", "trzepaczka",
+      "wałek do", "łopatka kuch", "blacha do piecz", "blacha piekarn",
+      "forma do piecz", "forma do tort", "naczynie żarood", "garnki",
+      "żarówka", "świetlówka", "bosma", "px26d", " h7 ", "akumulator",
+      "sprzęt", "wyposażenie",
+    ],
+  },
+
+  // ── 15. Orzechy / Bakalie ───────────────────────────────────────────────────
   // OSTATNIA reguła — patrz komentarz w backendowym categorize.ts.
   {
     id: "orzechy",
