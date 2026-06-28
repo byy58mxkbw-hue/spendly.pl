@@ -145,7 +145,7 @@ export const CATEGORY_RULES: CategoryRule[] = [
   {
     id: "mrozonki",
     keywords: [
-      "mrożon", "mrozon", "frozen", "deep frozen", "iqf",
+      "mrożon", "mrozon", "frozen", "deep frozen", "mccain",
       "lody ", "lodu ", "lodów", "lód ", "ice cream", "sorbet", "gelato",
       "lody kulki", "lody gałki", "wafelek lodowy", "rożek lodowy",
       "frytki", "frytek", "frytka",
@@ -230,8 +230,8 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "wołow", "wołowina", "wołowe", "cielę", "cielęc",
       "rostbef", "befsztyk", "antrykot", "ligawa",
       "jagnięcin", "baranin", "dziczyzn", "sarni", "jeleni",
-      "dzik", "dzika",
-      "mielon", "wędlin", "kabanos", "parówk",
+      " dzik",
+      "mielon", "wędlin", "kabanos", "parówk", "kiszka",
       "salami", "salceson", "baleron", "pasztet",
       "kiełbas", "szynka", "szynki", "ham ",
       "jamon", "chorizo", "mortadela", "cervelat",
@@ -310,6 +310,7 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "mieszanka chińsk", "mieszanka meksyk",
       "mieszanka euro", "sombrero",
       "guacamole",
+      "salsefia", "botwina", "kwiat jadaln",
       "warzywa", "owoce", "owoc", "warzywo",
       "ogórek", "ogórk",
     ],
@@ -321,7 +322,7 @@ export const CATEGORY_RULES: CategoryRule[] = [
     keywords: [
       "woda ", "wody ", "sok ", "soku ", "sokow", "napój", "napoje",
       "nektar ", "nektaru",
-      "kawa", "kawow", "kawi", "espresso", "cappuccino", "latte",
+      "kawa ", "kawy", "kawą", "kawow", "espresso", "cappuccino", "latte",
       "herbata", "herbat", "herbatk",
       "matcha", "yerba mate", "rooibos",
       "lemoniada", "shake", "syrop napojowy", "syrop do kawy",
@@ -333,6 +334,7 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "powerade", "gatorade", "tiger ", "burn ",
       "milk shake", "mleko smakowe",
       "rgb x24", "0,25 rgb", "butelka szk", "but szk", "drs ",
+      "tonic", "kinletonic",
     ],
   },
 
@@ -349,7 +351,7 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "syrop cukrowy", "syrop klonowy", "syrop agawe",
       "tort", "tortu", "torcik",
       "ciasto", "ciastko", "ciastek", "ciastka",
-      "muffin", "brownie", "cheesecake", "tarta ",
+      "muffin", "brownie", "cheesecake",
       "makaronik", "macaron",
       "beza", "bezowy", "pavlova",
       "sernik", "sernika",
@@ -396,6 +398,7 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "croissant",
       // Kluski i pieczywo długie (uzup. z realnych faktur)
       "kluski", "paluch", "kopytka",
+      "rigatoni", "paccheri",
     ],
   },
 
@@ -439,6 +442,21 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "guacamole mieszanka",
       // Tłuszcze do smażenia (uzup. z realnych faktur)
       "margaryna", "frytura",
+      // Uzup. 3 — z audytu realnych faktur
+      "sambal", "nori", "glony", "żurek", "zakwas",
+    ],
+  },
+
+  // ── 14. Orzechy / Bakalie ───────────────────────────────────────────────────
+  // OSTATNIA reguła: bare "orzech" łapie też kremy/syropy orzechowe (Nutella,
+  // syrop laskowy), więc musi być PO słodyczach/przyprawach/napojach — tu zostają
+  // tylko czyste orzechy i bakalie, których nie złapała żadna wcześniejsza reguła.
+  {
+    id: "orzechy",
+    keywords: [
+      "orzech", "orzeszk", "migdał", "migdal", "pistacj", "nerkowiec",
+      "rodzynk", "bakali", "laskow", "włoskie orzech", "nerkowca",
+      "ziemne solone", "płatki słodkie",
     ],
   },
 ];
@@ -462,6 +480,7 @@ export const BUILTIN_CATEGORY_DEFS: Record<string, { label: string; emoji: strin
   pieczywo: { label: "Pieczywo / Makarony / Zboża", emoji: "🍞" },
   przyprawy: { label: "Przyprawy / Sosy / Oleje", emoji: "🧂" },
   koszty_stale: { label: "Koszty stałe", emoji: "🧾" },
+  orzechy: { label: "Orzechy / Bakalie", emoji: "🥜" },
   inne: { label: "Inne", emoji: "📦" },
 };
 

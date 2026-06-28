@@ -166,7 +166,7 @@ export const CATEGORIES: Category[] = [
     emoji: "❄️",
     keywords: [
       // Ogólne słowa kluczowe mrożonek
-      "mrożon", "mrozon", "frozen", "deep frozen", "iqf",
+      "mrożon", "mrozon", "frozen", "deep frozen", "mccain",
       // Lody i desery mrożone
       "lody ", "lodu ", "lodów", "lód ", "ice cream", "sorbet", "gelato",
       "lody kulki", "lody gałki", "wafelek lodowy", "rożek lodowy",
@@ -275,9 +275,9 @@ export const CATEGORIES: Category[] = [
       "rostbef", "befsztyk", "antrykot", "ligawa",
       // Jagnięcina i dziczyzna
       "jagnięcin", "baranin", "dziczyzn", "sarni", "jeleni",
-      "dzik", "dzika",
+      " dzik",
       // Wędliny i wyroby mięsne
-      "mielon", "wędlin", "kabanos", "parówk",
+      "mielon", "wędlin", "kabanos", "parówk", "kiszka",
       "salami", "salceson", "baleron", "pasztet",
       "kiełbas", "szynka", "szynki", "ham ",
       "jamon", "chorizo", "mortadela", "cervelat",
@@ -376,6 +376,7 @@ export const CATEGORIES: Category[] = [
       "mieszanka chińsk", "mieszanka meksyk",
       "mieszanka euro", "sombrero",
       "guacamole",
+      "salsefia", "botwina", "kwiat jadaln",
       // Ogólne
       "warzywa", "owoce", "owoc", "warzywo",
       "ogórek", "ogórk",
@@ -392,7 +393,7 @@ export const CATEGORIES: Category[] = [
       "woda ", "wody ", "sok ", "soku ", "sokow", "napój", "napoje",
       "nektar ", "nektaru",
       // Kawa i herbata
-      "kawa", "kawow", "kawi", "espresso", "cappuccino", "latte",
+      "kawa ", "kawy", "kawą", "kawow", "espresso", "cappuccino", "latte",
       "herbata", "herbat", "herbatk",
       "matcha", "yerba mate", "rooibos",
       // Lemoniady i syropy
@@ -409,6 +410,7 @@ export const CATEGORIES: Category[] = [
       "milk shake", "mleko smakowe",
       // Opisy opakowań napojowych
       "rgb x24", "0,25 rgb", "butelka szk", "but szk", "drs ",
+      "tonic", "kinletonic",
     ],
   },
 
@@ -430,7 +432,7 @@ export const CATEGORIES: Category[] = [
       // Wyroby cukiernicze
       "tort", "tortu", "torcik",
       "ciasto", "ciastko", "ciastek", "ciastka",
-      "muffin", "brownie", "cheesecake", "tarta ",
+      "muffin", "brownie", "cheesecake",
       "makaronik", "macaron",
       "beza", "bezowy", "pavlova",
       "sernik", "sernika",
@@ -493,6 +495,7 @@ export const CATEGORIES: Category[] = [
       "croissant",
       // Kluski i pieczywo długie (uzup. z realnych faktur)
       "kluski", "paluch", "kopytka",
+      "rigatoni", "paccheri",
     ],
   },
 
@@ -544,6 +547,20 @@ export const CATEGORIES: Category[] = [
       "guacamole mieszanka",
       // Tłuszcze do smażenia (uzup. z realnych faktur)
       "margaryna", "frytura",
+      "sambal", "nori", "glony", "żurek", "zakwas",
+    ],
+  },
+
+  // ── 14. Orzechy / Bakalie ───────────────────────────────────────────────────
+  // OSTATNIA reguła — patrz komentarz w backendowym categorize.ts.
+  {
+    id: "orzechy",
+    label: "Orzechy / Bakalie",
+    emoji: "🥜",
+    keywords: [
+      "orzech", "orzeszk", "migdał", "migdal", "pistacj", "nerkowiec",
+      "rodzynk", "bakali", "laskow", "włoskie orzech", "nerkowca",
+      "ziemne solone", "płatki słodkie",
     ],
   },
 ];
