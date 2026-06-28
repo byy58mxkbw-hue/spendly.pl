@@ -1112,7 +1112,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
             <SelectTrigger className="w-full sm:w-44">
               <SelectValue placeholder="Wszyscy dostawcy" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-60 overflow-y-auto">
               <SelectItem value="all">Wszyscy dostawcy</SelectItem>
               {(suppliers ?? []).map((s) => (
                 <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
@@ -1184,12 +1184,17 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
       ) : filtered.length === 0 ? (
         <div className="py-16 text-center text-white/50">
           <FileText className="w-10 h-10 mx-auto mb-2 text-white/20" />
-          <p className="font-medium">Brak faktur w archiwum</p>
-          {!invoices?.length && (
-            <Button className="mt-4" onClick={onImportClick}>
-              <Plus className="w-4 h-4 mr-2" />
-              Importuj pierwszą fakturę
-            </Button>
+          {!invoices?.length ? (
+            <>
+              <p className="font-medium">Nie masz jeszcze żadnych faktur</p>
+              <p className="text-sm text-white/40 mt-1">Dodaj pierwszy zakup albo zsynchronizuj KSeF.</p>
+              <Button className="mt-4" onClick={onImportClick}>
+                <Plus className="w-4 h-4 mr-2" />
+                Dodaj zakup
+              </Button>
+            </>
+          ) : (
+            <p className="font-medium">Brak faktur pasujących do filtrów</p>
           )}
         </div>
       ) : (
@@ -1294,6 +1299,15 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                         )}
                       </div>
                       <p className="text-xs text-white/50 truncate">{inv.invoiceNumber}</p>
+                      {/* Mobile-only meta: data + status (kolumny ukryte na <sm) */}
+                      <div className="flex items-center gap-2 mt-0.5 sm:hidden">
+                        <span className="text-xs text-white/50 tabular-nums">{formatDate(inv.invoiceDate)}</span>
+                        {inv.isPaid ? (
+                          <span className="text-[10px] text-emerald-400 px-1.5 py-0.5 rounded-full font-medium" style={{ background: "rgba(52,211,153,0.12)" }}>Opłacone</span>
+                        ) : inv.paymentMethod === "przelew" ? (
+                          <span className="text-[10px] text-orange-400 px-1.5 py-0.5 rounded-full font-medium" style={{ background: "rgba(251,146,60,0.12)" }}>Oczekuje</span>
+                        ) : null}
+                      </div>
                       {inv.correctedInvoiceNumber && (
                         <p className="text-[10px] text-orange-400/70 truncate">do: {inv.correctedInvoiceNumber}</p>
                       )}
@@ -1671,7 +1685,7 @@ function ImportInvoiceDialog({
                   </div>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Wybierz dostawcę" /></SelectTrigger></FormControl>
-                    <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent>
+                    <SelectContent className="max-h-60 overflow-y-auto">{suppliers.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}</SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
