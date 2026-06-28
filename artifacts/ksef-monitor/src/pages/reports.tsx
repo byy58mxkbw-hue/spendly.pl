@@ -54,6 +54,7 @@ import {
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/categories";
+import { Link } from "wouter";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 
 // ─── Month helpers ─────────────────────────────────────────────────────────────
@@ -1090,7 +1091,12 @@ function CategoryComparisonTable({
         {groups.map((g, i) => {
           const pct = total > 0 ? (g.spend / total) * 100 : 0;
           return (
-            <div key={g.id} className="flex items-center px-5 py-2 gap-3">
+            <Link
+              key={g.id}
+              href={`/products?category=${g.id}`}
+              className="flex items-center px-5 py-2 gap-3 hover:bg-secondary/40 transition-colors"
+              title={`Pokaż produkty: ${g.label}`}
+            >
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
               <span className="text-xs text-foreground flex-1 truncate">{g.label}</span>
               <span className="text-xs text-muted-foreground tabular-nums">{pct.toFixed(1)}%</span>
@@ -1102,7 +1108,7 @@ function CategoryComparisonTable({
               ) : (
                 <span className="text-xs text-muted-foreground/40 w-16 text-right">—</span>
               )}
-            </div>
+            </Link>
           );
         })}
       </div>
