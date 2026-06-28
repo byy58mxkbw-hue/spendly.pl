@@ -9,10 +9,13 @@ import {
   useGetPriceAlertsHistory,
   useGetDashboardActiveAlerts,
   useListSuppliers,
+  useListProducts,
   getListPriceAlertsQueryKey,
   getGetDashboardActiveAlertsQueryKey,
   getGetPriceAlertsHistoryQueryKey,
+  getListProductsQueryKey,
 } from "@workspace/api-client-react";
+import { PriceHistoryModal } from "./products";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +56,7 @@ import {
   Search,
   History,
   Check,
+  LineChart,
 } from "lucide-react";
 import { formatDate, formatPercent, formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -106,6 +110,16 @@ export default function PriceAlerts() {
   const { data: triggered } = useGetDashboardActiveAlerts();
   const { data: history } = useGetPriceAlertsHistory();
   const { data: suppliers } = useListSuppliers();
+  const { data: products } = useListProducts({}, { query: { queryKey: getListProductsQueryKey({}) } });
+
+  // Alerts store product name (no FK) — resolve name -> id to open the price chart.
+  const productIdByName = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of products ?? []) m.set(p.name.toLowerCase().trim(), p.id);
+    return m;
+  }, [products]);
+  const resolveProductId = (name: string) => productIdByName.get(name.toLowerCase().trim()) ?? null;
+  const [historyProduct, setHistoryProduct] = useState<{ id: number; name: string } | null>(null);
 
   const createAlert = useCreatePriceAlert();
   const deleteAlert = useDeletePriceAlert();
@@ -414,13 +428,24 @@ export default function PriceAlerts() {
                         <p className="text-xs text-muted-foreground">
                           Próg: {alert.thresholdPercent}%
                         </p>
-                        <button
-                          className="text-xs font-medium px-2.5 py-1 rounded-md bg-foreground/8 hover:bg-primary hover:text-primary-foreground transition-colors flex items-center gap-1 border border-border hover:border-primary"
-                          onClick={() => handleDismiss(alert)}
-                        >
-                          <Check className="w-3 h-3" />
-                          Sprawdzono
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {resolveProductId(alert.productName) != null && (
+                            <button
+                              className="text-xs font-medium px-2.5 py-1 rounded-md bg-foreground/8 hover:bg-primary hover:text-primary-foreground transition-colors flex items-center gap-1 border border-border hover:border-primary"
+                              onClick={() => setHistoryProduct({ id: resolveProductId(alert.productName)!, name: alert.productName })}
+                            >
+                              <LineChart className="w-3 h-3" />
+                              Wykres
+                            </button>
+                          )}
+                          <button
+                            className="text-xs font-medium px-2.5 py-1 rounded-md bg-foreground/8 hover:bg-primary hover:text-primary-foreground transition-colors flex items-center gap-1 border border-border hover:border-primary"
+                            onClick={() => handleDismiss(alert)}
+                          >
+                            <Check className="w-3 h-3" />
+                            Sprawdzono
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -509,6 +534,17 @@ export default function PriceAlerts() {
                           {alert.supplierName ?? "Wszyscy dostawcy"}
                         </p>
                       </button>
+
+                      {/* Price-history chart */}
+                      {resolveProductId(alert.productName) != null && (
+                        <button
+                          onClick={() => setHistoryProduct({ id: resolveProductId(alert.productName)!, name: alert.productName })}
+                          className="shrink-0 p-1.5 rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                          title="Historia cen"
+                        >
+                          <LineChart className="w-4 h-4" />
+                        </button>
+                      )}
 
                       {/* Threshold badge — also clickable to edit */}
                       <button
@@ -827,6 +863,14 @@ export default function PriceAlerts() {
             )}
           </DialogContent>
         </Dialog>
+
+        {historyProduct && (
+          <PriceHistoryModal
+            productId={historyProduct.id}
+            productName={historyProduct.name}
+            onClose={() => setHistoryProduct(null)}
+          />
+        )}
       </div>
     </Layout>
   );
