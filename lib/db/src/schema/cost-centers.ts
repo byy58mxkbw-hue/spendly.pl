@@ -7,6 +7,9 @@ export const costCentersTable = pgTable("cost_centers", {
   userId: text("user_id").notNull(),
   name: text("name").notNull(),
   color: text("color").notNull().default("#14B8A6"),
+  // Skróty/kody jakimi dostawcy podpisują tę jednostkę na fakturach (KSeF
+  // Podmiot3, opisy itp.). Służą do auto-sugerowania centrum przy imporcie.
+  aliases: text("aliases").array().notNull().default([]),
 }, (t) => [index("cost_centers_user_id_idx").on(t.userId)]);
 
 export const insertCostCenterSchema = createInsertSchema(costCentersTable).omit({ id: true, userId: true });

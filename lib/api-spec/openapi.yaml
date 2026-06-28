@@ -576,6 +576,40 @@ paths:
                   deleted:
                     type: boolean
 
+  /cost-centers/resuggest:
+    post:
+      operationId: resuggestCostCenters
+      tags: [cost-centers]
+      summary: Recompute cost-center suggestions for all invoices with stored XML (backfill)
+      responses:
+        "200":
+          description: Number of invoices that received a suggestion
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [suggested]
+                properties:
+                  suggested:
+                    type: integer
+
+  /invoices/apply-cost-center-suggestions:
+    post:
+      operationId: applyCostCenterSuggestions
+      tags: [cost-centers]
+      summary: Accept all pending suggestions (set cost center = suggestion) for unassigned invoices
+      responses:
+        "200":
+          description: Number of invoices updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [applied]
+                properties:
+                  applied:
+                    type: integer
+
   /invoices/{id}/cost-center:
     patch:
       operationId: setInvoiceCostCenter
@@ -2119,6 +2153,11 @@ components:
           type: string
         color:
           type: string
+        aliases:
+          type: array
+          items:
+            type: string
+          description: "Skróty/kody jakimi dostawcy podpisują tę jednostkę na fakturach"
         invoiceCount:
           type: integer
         supplierCount:
@@ -2128,6 +2167,7 @@ components:
         - userId
         - name
         - color
+        - aliases
         - invoiceCount
         - supplierCount
 
@@ -2138,6 +2178,10 @@ components:
           type: string
         color:
           type: string
+        aliases:
+          type: array
+          items:
+            type: string
       required:
         - name
 
@@ -2148,6 +2192,10 @@ components:
           type: string
         color:
           type: string
+        aliases:
+          type: array
+          items:
+            type: string
 
     SetInvoiceCostCenterBody:
       type: object
@@ -2483,6 +2531,12 @@ components:
         costCenterName:
           type: ["string", "null"]
         costCenterColor:
+          type: ["string", "null"]
+        suggestedCostCenterId:
+          type: ["integer", "null"]
+        suggestedCostCenterName:
+          type: ["string", "null"]
+        suggestedCostCenterColor:
           type: ["string", "null"]
         invoiceType:
           type: ["string", "null"]

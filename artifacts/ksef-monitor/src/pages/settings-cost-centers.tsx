@@ -24,10 +24,12 @@ import {
   useCreateCostCenter,
   useUpdateCostCenter,
   useDeleteCostCenter,
+  useResuggestCostCenters,
   getListCostCentersQueryKey,
+  getListInvoicesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Layers } from "lucide-react";
+import { Plus, Pencil, Trash2, Layers, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +63,46 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
 
 const PRESET_NAMES = ["Restauracja Centrum", "Bar", "Catering", "Kuchnia", "Ogródek", "Dostawa"];
 
-type CostCenter = { id: number; name: string; color: string; userId: string; invoiceCount: number; supplierCount: number };
+type CostCenter = { id: number; name: string; color: string; userId: string; aliases: string[]; invoiceCount: number; supplierCount: number };
+
+/** Edytor listy aliasów (skrótów/kodów) — chipy + dodawanie. */
+function AliasEditor({ aliases, onChange }: { aliases: string[]; onChange: (a: string[]) => void }) {
+  const [input, setInput] = useState("");
+  function add() {
+    const v = input.trim();
+    if (!v) return;
+    if (!aliases.some((a) => a.toLowerCase() === v.toLowerCase())) onChange([...aliases, v]);
+    setInput("");
+  }
+  return (
+    <div>
+      <label className="text-sm font-medium block mb-1.5">Skróty / kody dostawców</label>
+      <p className="text-xs text-muted-foreground mb-2">
+        Jak dostawcy podpisują tę jednostkę na fakturach (np. <span className="font-mono">R1</span>, <span className="font-mono">D2</span>, „sala", „restauracja"). Faktury z tym kodem dostaną sugestię tego centrum.
+      </p>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {aliases.map((a) => (
+          <span key={a} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-secondary text-xs font-medium">
+            <span className="font-mono">{a}</span>
+            <button type="button" onClick={() => onChange(aliases.filter((x) => x !== a))} className="text-muted-foreground hover:text-destructive">
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        {aliases.length === 0 && <span className="text-xs text-muted-foreground/60">Brak skrótów</span>}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          placeholder="Dodaj skrót i Enter"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); } }}
+        />
+        <Button type="button" variant="outline" onClick={add} disabled={!input.trim()}>Dodaj</Button>
+      </div>
+    </div>
+  );
+}
 
 function OnboardingWizard({ onCreated, onOpenAdd }: { onCreated: () => void; onOpenAdd: () => void }) {
   const create = useCreateCostCenter();
@@ -156,6 +197,7 @@ export default function SettingsCostCenters() {
   const create = useCreateCostCenter();
   const update = useUpdateCostCenter();
   const deleteMut = useDeleteCostCenter();
+  const resuggest = useResuggestCostCenters();
 
   const [showAdd, setShowAdd] = useState(false);
   const [editItem, setEditItem] = useState<CostCenter | null>(null);
@@ -165,6 +207,7 @@ export default function SettingsCostCenters() {
   const [addColor, setAddColor] = useState(PRESET_COLORS[0]);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
+  const [editAliases, setEditAliases] = useState<string[]>([]);
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: getListCostCentersQueryKey() });
@@ -191,17 +234,25 @@ export default function SettingsCostCenters() {
     setEditItem(c);
     setEditName(c.name);
     setEditColor(c.color);
+    setEditAliases(c.aliases ?? []);
   }
 
   function handleEdit() {
     if (!editItem || !editName.trim()) return;
     update.mutate(
-      { id: editItem.id, data: { name: editName.trim(), color: editColor } },
+      { id: editItem.id, data: { name: editName.trim(), color: editColor, aliases: editAliases } },
       {
         onSuccess: () => {
           invalidate();
           setEditItem(null);
           toast({ title: "Centrum kosztów zaktualizowane" });
+          // Przelicz sugestie na istniejących fakturach wg nowych aliasów.
+          resuggest.mutate(undefined, {
+            onSuccess: (r) => {
+              queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+              if (r.suggested > 0) toast({ title: `Dopasowano ${r.suggested} faktur do centrów` });
+            },
+          });
         },
         onError: () => toast({ variant: "destructive", title: "Błąd", description: "Nie udało się zaktualizować centrum kosztów" }),
       },
@@ -255,12 +306,21 @@ export default function SettingsCostCenters() {
                   className="w-4 h-4 rounded-full shrink-0"
                   style={{ background: c.color }}
                 />
-                <span className="flex-1 font-medium text-foreground">{c.name}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium text-foreground">{c.name}</span>
+                  {(c.aliases?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {c.aliases.map((a) => (
+                        <span key={a} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">{a}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mr-2">
                   {c.invoiceCount > 0 && <span>{c.invoiceCount} {c.invoiceCount === 1 ? "faktura" : c.invoiceCount < 5 ? "faktury" : "faktur"}</span>}
                   {c.supplierCount > 0 && <span>{c.supplierCount} {c.supplierCount === 1 ? "dostawca" : c.supplierCount < 5 ? "dostawców" : "dostawców"}</span>}
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                   <Button
                     size="sm"
                     variant="ghost"
@@ -340,6 +400,7 @@ export default function SettingsCostCenters() {
                 />
               </div>
               <ColorPicker value={editColor} onChange={setEditColor} />
+              <AliasEditor aliases={editAliases} onChange={setEditAliases} />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditItem(null)}>Anuluj</Button>
