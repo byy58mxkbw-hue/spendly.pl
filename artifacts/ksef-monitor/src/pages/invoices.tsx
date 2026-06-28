@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useListInvoices,
@@ -992,6 +992,8 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [showBulkAssign, setShowBulkAssign] = useState(false);
   const [bulkAssignCcId, setBulkAssignCcId] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   const filtered = (invoices ?? []).filter((inv) => {
     if (supplierFilter !== "all" && String(inv.supplierId) !== supplierFilter) return false;
@@ -999,6 +1001,12 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     const q = searchQuery.toLowerCase();
     return inv.supplierName.toLowerCase().includes(q) || inv.invoiceNumber.toLowerCase().includes(q);
   });
+
+  // Pagination (render-only) — filtered stays full for select-all / counts
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [searchQuery, supplierFilter]);
+  useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
 
   // All invoices are selectable — cost-center assignment applies regardless of payment
   // status. handleBulkMarkPaid filters out already-paid invoices on its own before running.
@@ -1255,7 +1263,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
 
             {/* Rows */}
             <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
-              {filtered.map((inv) => {
+              {paged.map((inv) => {
                 const isSelected = selectedIds.has(inv.id);
                 return (
                   <div
@@ -1407,6 +1415,29 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
               })}
             </div>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg text-white/70 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors"
+                style={{ border: "1px solid rgba(255,255,255,0.12)" }}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Poprzednia
+              </button>
+              <span className="text-sm text-white/50 tabular-nums px-2">Strona {page} z {totalPages}</span>
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg text-white/70 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors"
+                style={{ border: "1px solid rgba(255,255,255,0.12)" }}
+              >
+                Następna
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </>
       )}
 

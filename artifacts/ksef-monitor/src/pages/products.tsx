@@ -79,6 +79,8 @@ import {
   Download,
   AlertTriangle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CheckSquare,
   CheckCheck,
 } from "lucide-react";
@@ -1072,6 +1074,8 @@ export default function Products() {
   const [showKeywordComparison, setShowKeywordComparison] = useState(false);
   const [showNeedsReview, setShowNeedsReview] = useState(false);
   const [categorySpendOpen, setCategorySpendOpen] = useState(true);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkCategoryModalOpen, setBulkCategoryModalOpen] = useState(false);
   const [bulkCategorySelection, setBulkCategorySelection] = useState<string | null>(null);
@@ -1134,6 +1138,16 @@ export default function Products() {
       sort
     );
   }, [products, search, categoryFilter, showNeedsReview, sort]);
+
+  // Pagination (render-only) — filtered stays full for export/select-all/counts
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page, PAGE_SIZE],
+  );
+  // Reset to first page when filters change or the current page falls out of range
+  useEffect(() => { setPage(1); }, [search, categoryFilter, supplierFilter, showNeedsReview, sort, month]);
+  useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
 
   const reviewableIds = useMemo(() =>
     filtered.filter((p) => p.needsReview === true).map((p) => p.id),
@@ -1596,7 +1610,7 @@ export default function Products() {
             </div>
           ) : filtered && filtered.length > 0 ? (
             <div className="divide-y divide-border">
-              {filtered.map((product) => {
+              {paged.map((product) => {
                 const hasMultipleSuppliers = (product.supplierCount ?? 1) > 1;
                 const effectiveCatId = product.category ?? categorizeProduct(product.name);
                 const catDef = categories?.find((c) => c.id === effectiveCatId);
@@ -1749,7 +1763,7 @@ export default function Products() {
             </div>
           ) : filtered && filtered.length > 0 ? (
             <div className="divide-y divide-border">
-              {filtered.map((product) => {
+              {paged.map((product) => {
                 const hasMultipleSuppliers = (product.supplierCount ?? 1) > 1;
                 return (
                   <div
@@ -1863,6 +1877,33 @@ export default function Products() {
             </div>
           )}
         </div>
+
+        {/* Pagination (wspólna dla mobile i desktop) */}
+        {!isLoading && totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Poprzednia
+            </Button>
+            <span className="text-sm text-muted-foreground tabular-nums px-2">
+              Strona {page} z {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Następna
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        )}
 
         {/* Floating bulk action bar */}
         {selectedIds.size > 0 && (
