@@ -78,7 +78,7 @@ import {
 import {
   ChevronLeft, ChevronRight, Plus, FileText, Trash2, Download,
   RefreshCw, Camera, Loader2, CheckCircle2, Package,
-  X, Search, Eye, EyeOff, ScanLine, Check, Layers, ArrowUpDown, LineChart,
+  X, Search, Eye, EyeOff, ScanLine, Check, Layers, ArrowUpDown, LineChart, Copy,
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import { PriceHistoryModal } from "./products";
@@ -810,6 +810,24 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
   const deleteItem = useDeleteInvoiceItem();
   const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
   const [historyProduct, setHistoryProduct] = useState<{ id: number; name: string } | null>(null);
+  const markPaidMut = useMarkInvoicePaid();
+
+  function copyNumber() {
+    if (!data?.invoiceNumber) return;
+    navigator.clipboard.writeText(data.invoiceNumber);
+    toast({ title: "Skopiowano numer faktury" });
+  }
+
+  async function handleMarkPaid() {
+    try {
+      await markPaidMut.mutateAsync({ id: invoiceId, data: { isPaid: true } });
+      qc.invalidateQueries({ queryKey: getGetInvoiceQueryKey(invoiceId) });
+      qc.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+      toast({ title: "Oznaczono jako zapłacone" });
+    } catch {
+      toast({ variant: "destructive", title: "Nie udało się oznaczyć" });
+    }
+  }
   const total = data?.items.reduce((s, i) => s + i.totalPrice, 0) ?? 0;
   const deleteItemName = data?.items.find((i) => i.id === deleteItemId)?.productName;
 
@@ -849,8 +867,18 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
         ) : data ? (
           <div className="flex flex-col min-h-0 gap-4 overflow-y-auto">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+              <Link
+                href={`/suppliers/${data.supplierId}`}
+                className="block bg-secondary/40 rounded-lg px-3 py-2.5 hover:bg-secondary transition-colors"
+                title="Przejdź do dostawcy"
+              >
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Dostawca</p>
+                <p className="text-sm font-semibold text-primary truncate flex items-center gap-1">
+                  <span className="truncate">{data.supplierName}</span>
+                  <ChevronRight className="w-3 h-3 shrink-0 opacity-60" />
+                </p>
+              </Link>
               {[
-                { label: "Dostawca", value: data.supplierName },
                 { label: "Data", value: formatDate(data.invoiceDate) },
                 { label: "Pozycji", value: String(data.items.length) },
               ].map((f) => (
@@ -863,6 +891,39 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Wartość</p>
                 <p className="text-sm font-bold text-primary">{formatPrice(data.totalAmount)}</p>
               </div>
+            </div>
+
+            {/* Akcje */}
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                onClick={copyNumber}
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Kopiuj numer
+              </button>
+              {data.isPaid ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Opłacone
+                </span>
+              ) : (
+                <button
+                  onClick={handleMarkPaid}
+                  disabled={markPaidMut.isPending}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+                >
+                  {markPaidMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                  Oznacz jako zapłacone
+                </button>
+              )}
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Drukuj / PDF
+              </button>
             </div>
             {data.items.length > 0 ? (
               <div className="flex-1 min-h-0 border border-border rounded-xl overflow-hidden">
