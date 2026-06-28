@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { toNum, toNumOrNull } from "../lib/parse";
 import { eq, desc, and, isNull, sql, gte, lte, lt } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db, invoicesTable, invoiceItemsTable, suppliersTable, productsTable, costCentersTable } from "@workspace/db";
 import {
   ImportInvoiceBody,
@@ -14,6 +15,7 @@ import { categorizeProductWithAI, type ClassificationResult } from "../lib/categ
 import { checkAlertsAfterImport } from "../services/alert-checker";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { encryptSecret, decryptSecret } from "../lib/encryption";
+import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
 
 const router: IRouter = Router();
 
@@ -26,6 +28,8 @@ router.get("/invoices", async (req, res): Promise<void> => {
   }
 
   const { supplierId, costCenterId, limit = 50, offset = 0 } = queryParams.data;
+
+  const suggestedCc = alias(costCentersTable, "suggested_cc");
 
   const invoices = await db
     .select({
@@ -44,6 +48,9 @@ router.get("/invoices", async (req, res): Promise<void> => {
       costCenterId: invoicesTable.costCenterId,
       costCenterName: costCentersTable.name,
       costCenterColor: costCentersTable.color,
+      suggestedCostCenterId: invoicesTable.suggestedCostCenterId,
+      suggestedCostCenterName: suggestedCc.name,
+      suggestedCostCenterColor: suggestedCc.color,
       invoiceType: invoicesTable.invoiceType,
       parentInvoiceId: invoicesTable.parentInvoiceId,
       correctedInvoiceNumber: invoicesTable.correctedInvoiceNumber,
@@ -51,6 +58,7 @@ router.get("/invoices", async (req, res): Promise<void> => {
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
     .leftJoin(costCentersTable, eq(invoicesTable.costCenterId, costCentersTable.id))
+    .leftJoin(suggestedCc, eq(invoicesTable.suggestedCostCenterId, suggestedCc.id))
     .where(
       and(
         eq(invoicesTable.userId, userId),
@@ -82,6 +90,9 @@ router.get("/invoices", async (req, res): Promise<void> => {
         costCenterId: inv.costCenterId ?? null,
         costCenterName: inv.costCenterName ?? null,
         costCenterColor: inv.costCenterColor ?? null,
+        suggestedCostCenterId: inv.suggestedCostCenterId ?? null,
+        suggestedCostCenterName: inv.suggestedCostCenterName ?? null,
+        suggestedCostCenterColor: inv.suggestedCostCenterColor ?? null,
         invoiceType: inv.invoiceType ?? null,
         parentInvoiceId: inv.parentInvoiceId ?? null,
         correctedInvoiceNumber: inv.correctedInvoiceNumber ?? null,
@@ -765,6 +776,17 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   // Cash/card payments are auto-marked as paid
   const isImmediatePayment = paymentMethod === "gotowka" || paymentMethod === "karta";
 
+  // Auto-suggest a cost center from the XML (Podmiot3 code / opis) vs the user's
+  // cost-center aliases. Suggestion only — the user accepts it (never auto-assigns).
+  let suggestedCostCenterId: number | null = null;
+  if (xmlContent) {
+    const centers = await db
+      .select({ id: costCentersTable.id, aliases: costCentersTable.aliases })
+      .from(costCentersTable)
+      .where(eq(costCentersTable.userId, userId));
+    suggestedCostCenterId = suggestCostCenterId(xmlContent, centers);
+  }
+
   const [invoice] = await db
     .insert(invoicesTable)
     .values({
@@ -779,6 +801,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
       isPaid: isImmediatePayment,
       paidAt: isImmediatePayment ? new Date() : null,
       costCenterId: supplier.defaultCostCenterId ?? null,
+      suggestedCostCenterId,
       invoiceType: finalInvoiceType,
       parentInvoiceId,
       correctedInvoiceNumber: finalCorrectedNumber,

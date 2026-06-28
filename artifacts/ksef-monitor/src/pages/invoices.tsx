@@ -16,6 +16,7 @@ import {
   useGetInvoicesPayments,
   useMarkInvoicePaid,
   useSetInvoiceCostCenter,
+  useApplyCostCenterSuggestions,
   useListCostCenters,
   getGetInvoiceQueryKey,
   getListInvoicesQueryKey,
@@ -1065,6 +1066,14 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     );
   }
 
+  const applySuggestions = useApplyCostCenterSuggestions();
+  const suggestionCount = (invoices ?? []).filter((i) => i.costCenterId == null && i.suggestedCostCenterId != null).length;
+  function handleApplySuggestions() {
+    applySuggestions.mutate(undefined, {
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() }),
+    });
+  }
+
   const [isBulkAssigningCc, setIsBulkAssigningCc] = useState(false);
   const markPaid = useMarkInvoicePaid();
   const [searchQuery, setSearchQuery] = useState("");
@@ -1220,6 +1229,19 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
           >
             <Layers className="w-4 h-4" />
             <span className="hidden sm:inline">Nieprzypisane</span>
+          </Button>
+        )}
+        {suggestionCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleApplySuggestions}
+            disabled={applySuggestions.isPending}
+            className="gap-1.5 shrink-0 text-primary border-primary/30 hover:bg-primary/5"
+            title="Przypisz wszystkie sugerowane centra kosztów"
+          >
+            <Check className="w-4 h-4" />
+            <span className="hidden sm:inline">Zastosuj sugestie</span> ({suggestionCount})
           </Button>
         )}
         <Button variant="outline" size="icon" onClick={handleExport} title="Eksportuj CSV">
@@ -1412,6 +1434,17 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: inv.costCenterColor ?? "#14B8A6" }} />
                               <span className="text-[10px] text-white/40 truncate">{inv.costCenterName}</span>
                             </>
+                          ) : inv.suggestedCostCenterId != null ? (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleSetCostCenter(inv.id, inv.suggestedCostCenterId!); }}
+                              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors"
+                              style={{ background: "rgba(20,184,166,0.12)", color: "#5eead4", border: "1px solid rgba(20,184,166,0.3)" }}
+                              title="Przypisz sugerowane centrum"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: inv.suggestedCostCenterColor ?? "#14B8A6" }} />
+                              <span className="truncate max-w-[120px]">Sugerowane: {inv.suggestedCostCenterName}</span>
+                              <Check className="w-2.5 h-2.5 shrink-0" />
+                            </button>
                           ) : (
                             <span className="text-[10px] text-white/20">Nieprzypisane</span>
                           )}

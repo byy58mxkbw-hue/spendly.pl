@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, isNull, isNotNull } from "drizzle-orm";
 import { db, costCentersTable, invoicesTable, suppliersTable } from "@workspace/db";
+import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
+import { decryptSecret } from "../lib/encryption.js";
 import {
   CreateCostCenterBody,
   UpdateCostCenterBody,
@@ -25,6 +27,7 @@ router.get("/cost-centers", async (req, res): Promise<void> => {
       userId: costCentersTable.userId,
       name: costCentersTable.name,
       color: costCentersTable.color,
+      aliases: costCentersTable.aliases,
     })
     .from(costCentersTable)
     .where(eq(costCentersTable.userId, userId))
@@ -86,7 +89,7 @@ router.post("/cost-centers", async (req, res): Promise<void> => {
   }
   const [row] = await db
     .insert(costCentersTable)
-    .values({ userId, name: parsed.data.name, color: parsed.data.color ?? "#14B8A6" })
+    .values({ userId, name: parsed.data.name, color: parsed.data.color ?? "#14B8A6", aliases: parsed.data.aliases ?? [] })
     .returning();
   res.status(201).json(row);
 });
@@ -99,9 +102,13 @@ router.patch("/cost-centers/:id", async (req, res): Promise<void> => {
   const parsed = UpdateCostCenterBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const updates: Partial<{ name: string; color: string }> = {};
+  const updates: Partial<{ name: string; color: string; aliases: string[] }> = {};
   if (parsed.data.name !== undefined) updates.name = parsed.data.name;
   if (parsed.data.color !== undefined) updates.color = parsed.data.color;
+  if (parsed.data.aliases !== undefined) {
+    // Normalizuj: trim, bez pustych, bez duplikatów.
+    updates.aliases = Array.from(new Set(parsed.data.aliases.map((a) => a.trim()).filter(Boolean)));
+  }
 
   const [row] = await db
     .update(costCentersTable)
@@ -126,6 +133,58 @@ router.delete("/cost-centers/:id", async (req, res): Promise<void> => {
 
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ deleted: true });
+});
+
+// ─── Recompute cost-center suggestions from XML (backfill) ────────────────────
+router.post("/cost-centers/resuggest", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+
+  const centers = await db
+    .select({ id: costCentersTable.id, aliases: costCentersTable.aliases })
+    .from(costCentersTable)
+    .where(eq(costCentersTable.userId, userId));
+
+  // Nic do dopasowania, jeśli żadne centrum nie ma aliasów.
+  if (centers.every((c) => (c.aliases ?? []).length === 0)) {
+    res.json({ suggested: 0 });
+    return;
+  }
+
+  const invoices = await db
+    .select({ id: invoicesTable.id, xmlContent: invoicesTable.xmlContent })
+    .from(invoicesTable)
+    .where(and(eq(invoicesTable.userId, userId), isNotNull(invoicesTable.xmlContent)));
+
+  let suggested = 0;
+  for (const inv of invoices) {
+    let xml: string | null = null;
+    if (inv.xmlContent) {
+      try { xml = decryptSecret(inv.xmlContent); } catch { xml = null; }
+    }
+    const ccId = xml ? suggestCostCenterId(xml, centers) : null;
+    await db
+      .update(invoicesTable)
+      .set({ suggestedCostCenterId: ccId })
+      .where(eq(invoicesTable.id, inv.id));
+    if (ccId != null) suggested++;
+  }
+
+  res.json({ suggested });
+});
+
+// ─── Accept all pending suggestions for unassigned invoices ───────────────────
+router.post("/invoices/apply-cost-center-suggestions", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const result = await db
+    .update(invoicesTable)
+    .set({ costCenterId: sql`${invoicesTable.suggestedCostCenterId}` })
+    .where(and(
+      eq(invoicesTable.userId, userId),
+      isNull(invoicesTable.costCenterId),
+      isNotNull(invoicesTable.suggestedCostCenterId),
+    ))
+    .returning({ id: invoicesTable.id });
+  res.json({ applied: result.length });
 });
 
 // ─── Assign cost center to invoice ────────────────────────────────────────────

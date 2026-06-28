@@ -20,6 +20,9 @@ export const invoicesTable = pgTable("invoices", {
   isPaid: boolean("is_paid").notNull().default(false),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   costCenterId: integer("cost_center_id").references(() => costCentersTable.id, { onDelete: "set null" }),
+  // Auto-wykryta sugestia centrum (z aliasów + XML). Nie przypisuje sama —
+  // user akceptuje. Czyszczona po ręcznym przypisaniu costCenterId.
+  suggestedCostCenterId: integer("suggested_cost_center_id").references(() => costCentersTable.id, { onDelete: "set null" }),
   invoiceType: text("invoice_type"),
   parentInvoiceId: integer("parent_invoice_id").references((): AnyPgColumn => invoicesTable.id, { onDelete: "set null" }),
   correctedInvoiceNumber: text("corrected_invoice_number"),
