@@ -78,9 +78,10 @@ import {
 import {
   ChevronLeft, ChevronRight, Plus, FileText, Trash2, Download,
   RefreshCw, Camera, Loader2, CheckCircle2, Package,
-  X, Search, Eye, EyeOff, ScanLine, Check, Layers, ArrowUpDown,
+  X, Search, Eye, EyeOff, ScanLine, Check, Layers, ArrowUpDown, LineChart,
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
+import { PriceHistoryModal } from "./products";
 import { cn } from "@/lib/utils";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import { useToast } from "@/hooks/use-toast";
@@ -808,6 +809,7 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
   });
   const deleteItem = useDeleteInvoiceItem();
   const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
+  const [historyProduct, setHistoryProduct] = useState<{ id: number; name: string } | null>(null);
   const total = data?.items.reduce((s, i) => s + i.totalPrice, 0) ?? 0;
   const deleteItemName = data?.items.find((i) => i.id === deleteItemId)?.productName;
 
@@ -875,7 +877,18 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
                   {data.items.map((item) => (
                     <div key={item.id} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-3 items-center group hover:bg-secondary/20 transition-colors">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{item.productName}</p>
+                        {item.productId != null ? (
+                          <button
+                            onClick={() => setHistoryProduct({ id: item.productId!, name: item.productName })}
+                            className="flex items-center gap-1 max-w-full text-left text-sm font-medium text-primary hover:underline transition-colors"
+                            title="Pokaż historię cen"
+                          >
+                            <span className="truncate">{item.productName}</span>
+                            <LineChart className="w-3.5 h-3.5 shrink-0 opacity-60" />
+                          </button>
+                        ) : (
+                          <p className="text-sm font-medium truncate">{item.productName}</p>
+                        )}
                         {item.vatRate != null && <p className="text-xs text-muted-foreground">VAT {item.vatRate}%</p>}
                       </div>
                       <div className="text-right w-20 hidden sm:block">
@@ -942,6 +955,14 @@ function InvoiceDetailModal({ invoiceId, onClose }: { invoiceId: number; onClose
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {historyProduct && (
+      <PriceHistoryModal
+        productId={historyProduct.id}
+        productName={historyProduct.name}
+        onClose={() => setHistoryProduct(null)}
+      />
+    )}
     </>
   );
 }
