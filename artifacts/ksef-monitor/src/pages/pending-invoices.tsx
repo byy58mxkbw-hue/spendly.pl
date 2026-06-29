@@ -167,33 +167,40 @@ function SupplierTile({
     <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
       {/* Header — clickable div for expand, with separate action buttons */}
       <div
-        className="px-5 py-4 flex items-start gap-4 hover:bg-muted/30 transition-colors cursor-pointer"
+        className="px-4 py-3.5 md:px-5 md:py-4 flex items-start gap-3 md:gap-4 hover:bg-muted/30 transition-colors cursor-pointer"
         onClick={onToggle}
         data-testid={`tile-${group.key}`}
       >
-        <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0 select-none">
+        <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0 select-none">
           {initials}
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[15px] font-semibold text-foreground truncate leading-tight">
+          <div className="flex items-start gap-2">
+            <span className="text-sm md:text-[15px] font-semibold text-foreground leading-snug line-clamp-2 md:line-clamp-1">
               {group.sellerName}
             </span>
             {group.isKnown ? (
-              <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
+              <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0 mt-0.5">
                 Znany
               </span>
             ) : (
-              <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+              <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shrink-0 mt-0.5">
                 Nowy
               </span>
             )}
           </div>
-          {group.sellerNip && (
-            <p className="text-xs text-muted-foreground mt-0.5">NIP {group.sellerNip}</p>
-          )}
-          <div className="mt-3.5 pt-3.5 border-t border-border grid grid-cols-2 gap-4">
+          {/* Mobile: meta w jednej linii. Desktop: NIP + dwukolumnowa siatka niżej. */}
+          <p className="text-xs text-muted-foreground mt-1 md:mt-0.5">
+            {group.sellerNip && <>NIP {group.sellerNip}</>}
+            <span className="md:hidden">
+              {group.sellerNip && " · "}
+              <strong className="text-foreground font-semibold">{group.invoices.length} {invoiceWord}</strong>
+              {" · "}
+              <strong className="text-foreground font-semibold tabular-nums">{formatPrice(group.totalGross)}</strong>
+            </span>
+          </p>
+          <div className="hidden md:grid mt-3.5 pt-3.5 border-t border-border grid-cols-2 gap-4">
             <div>
               <p className="text-xs text-muted-foreground mb-1">Faktury</p>
               <p className="text-[15px] font-semibold text-foreground">
@@ -207,7 +214,7 @@ function SupplierTile({
           </div>
         </div>
 
-        <div className="flex items-center gap-1 mt-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           {onRejectGroup && (
             <button
               type="button"
@@ -235,7 +242,7 @@ function SupplierTile({
       </div>
 
       {onImportGroup && (
-        <div className="px-5 pb-4 -mt-1">
+        <div className="px-4 md:px-5 pb-4 pt-0.5 md:-mt-1">
           <Button
             size="sm"
             className="w-full gap-2"
@@ -544,6 +551,7 @@ export default function PendingInvoices() {
         <PageHeader
           title="Faktury do przeglądu"
           subtitle="Potwierdź dostawcę — faktury i produkty dodadzą się do aplikacji automatycznie. Pełna kontrola jest pod „Dopasuj ręcznie”."
+          subtitleClassName="hidden md:block"
           action={
             <div className="flex items-center gap-2 w-full md:w-auto">
               <div className="flex-1 md:flex-none flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
@@ -617,8 +625,17 @@ export default function PendingInvoices() {
           </div>
         ) : (
           <>
-            <div className="mb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="mb-4 md:mb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:static sticky top-14 z-20 -mx-4 px-4 py-2 md:mx-0 md:px-0 md:py-0 bg-background/95 backdrop-blur md:bg-transparent md:backdrop-blur-none border-b border-border md:border-0">
+              {/* Mobile: jeden zwarty pasek; Desktop: kafle */}
+              <div className="md:hidden flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                <Receipt className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <strong className="text-foreground tabular-nums">{formatPrice(totalAmount)}</strong>
+                <span className="text-muted-foreground/50">·</span>
+                <strong className="text-foreground">{groups.length}</strong> dost.
+                <span className="text-muted-foreground/50">·</span>
+                <strong className="text-foreground">{filteredPending.length}</strong> fakt.
+              </div>
+              <div className="hidden md:flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3.5 py-2">
                   <Receipt className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   <span className="text-sm text-muted-foreground">
