@@ -71,7 +71,15 @@ app.use(helmet({
 }));
 
 // ── Kompresja odpowiedzi (gzip/brotli) ───────────────────────────────────────
-app.use(compression());
+// WAŻNE: pomijamy SSE (text/event-stream) — kompresja buforuje strumień i
+// pasek postępu KSeF / streaming nigdy nie dociera do klienta (apka „wisi").
+app.use(compression({
+  filter: (req, res) => {
+    const ct = res.getHeader("Content-Type");
+    if (typeof ct === "string" && ct.includes("text/event-stream")) return false;
+    return compression.filter(req, res);
+  },
+}));
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 // Globalny limit ochronny.
