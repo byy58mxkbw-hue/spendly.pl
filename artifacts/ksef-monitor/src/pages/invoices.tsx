@@ -739,13 +739,13 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
         {tiles.map((tile) => (
-          <div key={tile.label} className="p-4 rounded-2xl" style={{ background: tile.bg, border: `1px solid ${tile.border}` }}>
-            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: tile.color }}>{tile.label}</p>
-            <p className="text-xl font-bold text-white tabular-nums leading-tight">{formatPrice(tile.amount)}</p>
+          <div key={tile.label} className="p-3 md:p-4 rounded-xl md:rounded-2xl" style={{ background: tile.bg, border: `1px solid ${tile.border}` }}>
+            <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-1.5 md:mb-2 leading-tight" style={{ color: tile.color }}>{tile.label}</p>
+            <p className="text-base md:text-xl font-bold text-white tabular-nums leading-tight">{formatPrice(tile.amount)}</p>
             {tile.count > 0 && (
-              <p className="text-xs mt-1.5" style={{ color: tile.color + "99" }}>
+              <p className="text-[11px] md:text-xs mt-1 md:mt-1.5" style={{ color: tile.color + "99" }}>
                 {tile.count} {tile.count === 1 ? "faktura" : "faktur"}
               </p>
             )}
@@ -756,24 +756,29 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
       {timeline.length > 0 && (
         <div className="space-y-2">
           {timeline.map((inv) => (
-            <div key={inv.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={CARD_STYLE}>
-              <div className="w-28 shrink-0">
-                <p className="text-xs font-semibold" style={{ color: labelColor(inv.urgency) }}>
-                  {timelineLabel(inv)}
-                </p>
+            <div key={inv.id} className="px-3.5 md:px-4 py-3 rounded-xl" style={CARD_STYLE}>
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{inv.supplierName}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                    <span className="text-[11px] font-semibold shrink-0" style={{ color: labelColor(inv.urgency) }}>
+                      {timelineLabel(inv)}
+                    </span>
+                    <span className="text-white/20 shrink-0">·</span>
+                    <span className="text-xs text-white/40 truncate">{inv.invoiceNumber}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <span className="text-sm font-semibold text-white tabular-nums">{formatPrice(inv.totalAmount)}</span>
+                  <button
+                    onClick={() => onMarkPaid(inv.id, true)}
+                    className="text-xs px-3 py-1 rounded-full font-medium transition-colors text-white"
+                    style={{ background: "rgba(20,184,166,0.18)", border: "1px solid rgba(20,184,166,0.3)" }}
+                  >
+                    Zapłacono
+                  </button>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{inv.supplierName}</p>
-                <p className="text-xs text-white/40 truncate">{inv.invoiceNumber}</p>
-              </div>
-              <p className="text-sm font-semibold text-white tabular-nums shrink-0">{formatPrice(inv.totalAmount)}</p>
-              <button
-                onClick={() => onMarkPaid(inv.id, true)}
-                className="shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors text-white"
-                style={{ background: "rgba(20,184,166,0.18)", border: "1px solid rgba(20,184,166,0.3)" }}
-              >
-                Zapłacono
-              </button>
             </div>
           ))}
         </div>
