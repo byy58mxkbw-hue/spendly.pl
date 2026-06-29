@@ -177,7 +177,7 @@ function SupplierTile({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-foreground truncate leading-tight">
+            <span className="text-[15px] font-semibold text-foreground truncate leading-tight">
               {group.sellerName}
             </span>
             {group.isKnown ? (
@@ -193,16 +193,16 @@ function SupplierTile({
           {group.sellerNip && (
             <p className="text-xs text-muted-foreground mt-0.5">NIP {group.sellerNip}</p>
           )}
-          <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-3">
+          <div className="mt-3.5 pt-3.5 border-t border-border grid grid-cols-2 gap-4">
             <div>
-              <p className="text-xs text-muted-foreground">Faktury</p>
-              <p className="text-sm font-semibold text-foreground">
+              <p className="text-xs text-muted-foreground mb-1">Faktury</p>
+              <p className="text-[15px] font-semibold text-foreground">
                 {group.invoices.length} {invoiceWord}
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Łącznie</p>
-              <p className="text-sm font-semibold text-foreground">{formatPrice(group.totalGross)}</p>
+              <p className="text-xs text-muted-foreground mb-1">Łącznie</p>
+              <p className="text-[15px] font-semibold text-foreground tabular-nums">{formatPrice(group.totalGross)}</p>
             </div>
           </div>
         </div>

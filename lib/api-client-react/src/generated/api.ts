@@ -92,6 +92,7 @@ import type {
   KsefPendingInvoiceDetail,
   KsefPendingInvoiceSummary,
   KsefSyncResult,
+  ListInvoicesPagedParams,
   ListInvoicesParams,
   ListKsefPendingParams,
   ListProductsParams,
@@ -100,6 +101,7 @@ import type {
   MarkInvoicePaidBody,
   MonthlyFoodCost,
   MonthlyReport,
+  PaginatedInvoices,
   PatchAdminUserBlock200,
   PatchAdminUserBlockBody,
   PaymentsDashboard,
@@ -4310,6 +4312,90 @@ export function useListInvoices<TData = Awaited<ReturnType<typeof listInvoices>>
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListInvoicesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListInvoicesPagedUrl = (params?: ListInvoicesPagedParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/invoices/page?${stringifiedParams}` : `/api/invoices/page`
+}
+
+/**
+ * @summary Paginated invoice list with server-side search
+ */
+export const listInvoicesPaged = async (params?: ListInvoicesPagedParams, options?: RequestInit): Promise<PaginatedInvoices> => {
+
+  return customFetch<PaginatedInvoices>(getListInvoicesPagedUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListInvoicesPagedQueryKey = (params?: ListInvoicesPagedParams,) => {
+    return [
+    `/api/invoices/page`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListInvoicesPagedQueryOptions = <TData = Awaited<ReturnType<typeof listInvoicesPaged>>, TError = ErrorType<unknown>>(params?: ListInvoicesPagedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvoicesPaged>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListInvoicesPagedQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listInvoicesPaged>>> = ({ signal }) => listInvoicesPaged(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listInvoicesPaged>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListInvoicesPagedQueryResult = NonNullable<Awaited<ReturnType<typeof listInvoicesPaged>>>
+export type ListInvoicesPagedQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Paginated invoice list with server-side search
+ */
+
+export function useListInvoicesPaged<TData = Awaited<ReturnType<typeof listInvoicesPaged>>, TError = ErrorType<unknown>>(
+ params?: ListInvoicesPagedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listInvoicesPaged>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListInvoicesPagedQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
