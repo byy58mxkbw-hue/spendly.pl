@@ -3,6 +3,9 @@ import { Layout, PageHeader } from "@/components/layout";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   useListInvoices,
+  listInvoices,
+  useListInvoicesPaged,
+  getListInvoicesPagedQueryKey,
   useImportInvoice,
   useScanReceipt,
   useListSuppliers,
@@ -1045,66 +1048,74 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
   const setCostCenter = useSetInvoiceCostCenter();
   const [showUnassigned, setShowUnassigned] = useState(false);
 
-  const invoiceParams = {
-    limit: 1000,
-    ...(showUnassigned
-      ? { costCenterId: 0 }
-      : costCenterSelectedId !== null
-        ? { costCenterId: costCenterSelectedId }
-        : {}),
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+  const [supplierFilter, setSupplierFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
+
+  // Server-side pagination + search. costCenterId: 0 = nieprzypisane.
+  const effectiveCostCenterId = showUnassigned
+    ? 0
+    : costCenterSelectedId !== null
+      ? costCenterSelectedId
+      : undefined;
+  const pagedParams = {
+    page,
+    limit: PAGE_SIZE,
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    ...(supplierFilter !== "all" ? { supplierId: Number(supplierFilter) } : {}),
+    ...(effectiveCostCenterId != null ? { costCenterId: effectiveCostCenterId } : {}),
   };
-  const { data: invoices, isLoading } = useListInvoices(invoiceParams);
+  const { data: pagedData, isLoading } = useListInvoicesPaged(pagedParams, {
+    query: { queryKey: getListInvoicesPagedQueryKey(pagedParams) },
+  });
+  const invoices = pagedData?.items;
+  const total = pagedData?.total ?? 0;
   const { data: suppliers } = useListSuppliers();
   const deleteInvoice = useDeleteInvoice();
   const toggleExcluded = useToggleInvoiceExcluded();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Po mutacjach odświeżamy obie listy (paginowaną i tablicową dla innych widoków).
+  function invalidateInvoices() {
+    queryClient.invalidateQueries({ queryKey: getListInvoicesPagedQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+  }
+
   function handleSetCostCenter(invoiceId: number, ccId: number | null) {
     setCostCenter.mutate(
       { id: invoiceId, data: { costCenterId: ccId } },
-      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() }) },
+      { onSuccess: () => invalidateInvoices() },
     );
   }
 
   const applySuggestions = useApplyCostCenterSuggestions();
-  const suggestionCount = (invoices ?? []).filter((i) => i.costCenterId == null && i.suggestedCostCenterId != null).length;
+  const suggestionCount = pagedData?.suggestedCount ?? 0;
   function handleApplySuggestions() {
     applySuggestions.mutate(undefined, {
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() }),
+      onSuccess: () => invalidateInvoices(),
     });
   }
 
   const [isBulkAssigningCc, setIsBulkAssigningCc] = useState(false);
   const markPaid = useMarkInvoicePaid();
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebouncedValue(searchQuery, 300);
-  const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [showBulkAssign, setShowBulkAssign] = useState(false);
   const [bulkAssignCcId, setBulkAssignCcId] = useState<string>("");
-  const [page, setPage] = useState(1);
-  const PAGE_SIZE = 50;
 
-  const filtered = (invoices ?? []).filter((inv) => {
-    if (supplierFilter !== "all" && String(inv.supplierId) !== supplierFilter) return false;
-    if (!debouncedSearch) return true;
-    const q = debouncedSearch.toLowerCase();
-    return inv.supplierName.toLowerCase().includes(q) || inv.invoiceNumber.toLowerCase().includes(q);
-  });
-
-  // Pagination (render-only) — filtered stays full for select-all / counts
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [debouncedSearch, supplierFilter]);
+  // Strona bieżąca z serwera.
+  const paged = invoices ?? [];
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  useEffect(() => { setPage(1); }, [debouncedSearch, supplierFilter, showUnassigned, costCenterSelectedId]);
   useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
 
-  // All invoices are selectable — cost-center assignment applies regardless of payment
-  // status. handleBulkMarkPaid filters out already-paid invoices on its own before running.
-  const selectableIds = filtered.map((inv) => inv.id);
+  // Zaznaczanie działa w obrębie bieżącej strony (paginacja serwerowa).
+  const selectableIds = paged.map((inv) => inv.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
 
   function toggleSelect(id: number) {
@@ -1125,14 +1136,14 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
 
   async function handleBulkMarkPaid() {
     const ids = [...selectedIds].filter((id) => {
-      const inv = filtered.find((i) => i.id === id);
+      const inv = paged.find((i) => i.id === id);
       return inv && !inv.isPaid;
     });
     if (!ids.length) return;
     setIsMarkingPaid(true);
     try {
       await Promise.all(ids.map((id) => markPaid.mutateAsync({ id, data: { isPaid: true } })));
-      await queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+      invalidateInvoices();
       await queryClient.invalidateQueries({ queryKey: getGetInvoicesPaymentsQueryKey() });
       setSelectedIds(new Set());
       toast({ title: "Zaktualizowano", description: `Oznaczono ${ids.length} ${ids.length === 1 ? "fakturę" : ids.length < 5 ? "faktury" : "faktur"} jako zapłacone.` });
@@ -1143,35 +1154,54 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     }
   }
 
-  function handleExport() {
-    if (!invoices?.length) return;
-    exportToCsv(
-      [
-        ["Dostawca", "Numer", "Data", "Wartość", "Pozycji", "Metoda płatności", "Status"],
-        ...invoices.map((inv) => [
-          inv.supplierName,
-          inv.invoiceNumber,
-          inv.invoiceDate,
-          inv.totalAmount,
-          inv.itemCount,
-          inv.paymentMethod ? PAYMENT_METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod : "",
-          inv.isPaid ? "Opłacone" : "Nieopłacone",
-        ]),
-      ],
-      `faktury-${todaySlug()}.csv`,
-    );
+  const [isExporting, setIsExporting] = useState(false);
+  async function handleExport() {
+    // CSV obejmuje WSZYSTKIE faktury pasujące do filtra (nie tylko bieżącą stronę) —
+    // pobieramy je jednorazowo z endpointu tablicowego, bez trzymania ich w pamięci na stałe.
+    setIsExporting(true);
+    try {
+      const all = await listInvoices({
+        ...(supplierFilter !== "all" ? { supplierId: Number(supplierFilter) } : {}),
+        ...(effectiveCostCenterId != null ? { costCenterId: effectiveCostCenterId } : {}),
+        limit: 100000,
+      });
+      const q = debouncedSearch.trim().toLowerCase();
+      const rows = q
+        ? all.filter((inv) => inv.supplierName.toLowerCase().includes(q) || inv.invoiceNumber.toLowerCase().includes(q))
+        : all;
+      if (!rows.length) { toast({ title: "Brak faktur do eksportu" }); return; }
+      exportToCsv(
+        [
+          ["Dostawca", "Numer", "Data", "Wartość", "Pozycji", "Metoda płatności", "Status"],
+          ...rows.map((inv) => [
+            inv.supplierName,
+            inv.invoiceNumber,
+            inv.invoiceDate,
+            inv.totalAmount,
+            inv.itemCount,
+            inv.paymentMethod ? PAYMENT_METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod : "",
+            inv.isPaid ? "Opłacone" : "Nieopłacone",
+          ]),
+        ],
+        `faktury-${todaySlug()}.csv`,
+      );
+    } catch {
+      toast({ variant: "destructive", title: "Błąd eksportu", description: "Nie udało się pobrać faktur." });
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   async function handleDelete(id: number) {
     await deleteInvoice.mutateAsync({ id });
-    queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+    invalidateInvoices();
     setDeleteId(null);
     toast({ title: "Usunięto", description: "Faktura została usunięta." });
   }
 
   async function handleToggleExcluded(id: number, excluded: boolean) {
     await toggleExcluded.mutateAsync({ id, data: { excluded: !excluded } });
-    queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+    invalidateInvoices();
   }
 
   // Assigns the chosen cost center to ONLY the selected invoices (Promise.all over the
@@ -1184,7 +1214,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     setIsBulkAssigningCc(true);
     try {
       await Promise.all(ids.map((id) => setCostCenter.mutateAsync({ id, data: { costCenterId: ccId } })));
-      await queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+      invalidateInvoices();
       setShowBulkAssign(false);
       setBulkAssignCcId("");
       setSelectedIds(new Set());
@@ -1298,10 +1328,10 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
         <div className="space-y-2">
           {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : paged.length === 0 ? (
         <div className="py-16 text-center text-white/50">
           <FileText className="w-10 h-10 mx-auto mb-2 text-white/20" />
-          {!invoices?.length ? (
+          {total === 0 && !debouncedSearch && supplierFilter === "all" && !showUnassigned ? (
             <>
               <p className="font-medium">Nie masz jeszcze żadnych faktur</p>
               <p className="text-sm text-white/40 mt-1">Dodaj pierwszy zakup albo zsynchronizuj KSeF.</p>

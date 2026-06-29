@@ -1172,6 +1172,47 @@ export const ListInvoicesResponse = zod.array(ListInvoicesResponseItem)
 
 
 /**
+ * @summary Paginated invoice list with server-side search
+ */
+export const ListInvoicesPagedQueryParams = zod.object({
+  "supplierId": zod.coerce.number().optional(),
+  "costCenterId": zod.coerce.number().optional().describe('Filter by cost center id; use 0 to get unassigned invoices'),
+  "search": zod.coerce.string().optional().describe('Matches invoice number or supplier name (case-insensitive)'),
+  "page": zod.coerce.number().optional(),
+  "limit": zod.coerce.number().optional()
+})
+
+export const ListInvoicesPagedResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "supplierId": zod.number(),
+  "supplierName": zod.string(),
+  "invoiceNumber": zod.string(),
+  "invoiceDate": zod.string(),
+  "totalAmount": zod.number(),
+  "itemCount": zod.number(),
+  "importedAt": zod.string(),
+  "excluded": zod.boolean(),
+  "paymentMethod": zod.string().nullish(),
+  "paymentDueDate": zod.string().nullish(),
+  "isPaid": zod.boolean(),
+  "paidAt": zod.string().nullish(),
+  "costCenterId": zod.number().nullish(),
+  "costCenterName": zod.string().nullish(),
+  "costCenterColor": zod.string().nullish(),
+  "suggestedCostCenterId": zod.number().nullish(),
+  "suggestedCostCenterName": zod.string().nullish(),
+  "suggestedCostCenterColor": zod.string().nullish(),
+  "invoiceType": zod.string().nullish().describe('Invoice type from KSeF: VAT, KOR, etc.'),
+  "parentInvoiceId": zod.number().nullish().describe('ID of the parent invoice that this correction corrects'),
+  "correctedInvoiceNumber": zod.string().nullish().describe('Invoice number being corrected (KOR invoices)')
+})),
+  "total": zod.number().describe('Łączna liczba faktur pasujących do filtrów (bez paginacji).'),
+  "suggestedCount": zod.number().describe('Ile nieprzypisanych faktur ma sugerowane centrum kosztów (cały zbiór, nie tylko strona).')
+})
+
+
+/**
  * @summary Assign a cost center to all invoices for the current user
  */
 export const BulkAssignCostCenterBody = zod.object({

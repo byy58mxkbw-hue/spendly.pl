@@ -489,6 +489,14 @@ export interface DismissedAlert {
   dismissedAt: string;
 }
 
+export interface PaginatedInvoices {
+  items: Invoice[];
+  /** Łączna liczba faktur pasujących do filtrów (bez paginacji). */
+  total: number;
+  /** Ile nieprzypisanych faktur ma sugerowane centrum kosztów (cały zbiór, nie tylko strona). */
+  suggestedCount: number;
+}
+
 export type SearchResultsSuppliersItem = {
   id: number;
   name: string;
@@ -1292,6 +1300,20 @@ supplierId?: number;
 costCenterId?: number;
 limit?: number;
 offset?: number;
+};
+
+export type ListInvoicesPagedParams = {
+supplierId?: number;
+/**
+ * Filter by cost center id; use 0 to get unassigned invoices
+ */
+costCenterId?: number;
+/**
+ * Matches invoice number or supplier name (case-insensitive)
+ */
+search?: string;
+page?: number;
+limit?: number;
 };
 
 export type BulkAssignCostCenter200 = {

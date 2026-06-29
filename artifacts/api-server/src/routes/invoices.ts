@@ -1,12 +1,13 @@
 import { Router, type IRouter } from "express";
 import { toNum, toNumOrNull } from "../lib/parse";
-import { eq, desc, and, isNull, sql, gte, lte, lt } from "drizzle-orm";
+import { eq, desc, and, isNull, isNotNull, or, ilike, sql, gte, lte, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, invoicesTable, invoiceItemsTable, suppliersTable, productsTable, costCentersTable } from "@workspace/db";
 import {
   ImportInvoiceBody,
   ScanReceiptBody,
   ListInvoicesQueryParams,
+  ListInvoicesPagedQueryParams,
   GetInvoiceParams,
   DeleteInvoiceParams,
   SetInvoiceCostCenterBody,
@@ -101,6 +102,116 @@ router.get("/invoices", async (req, res): Promise<void> => {
   );
 
   res.json(enriched);
+});
+
+// ─── Paginated list with server-side search ──────────────────────────────────
+router.get("/invoices/page", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const parsed = ListInvoicesPagedQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const { supplierId, costCenterId, search } = parsed.data;
+  const page = Math.max(1, parsed.data.page ?? 1);
+  const limit = Math.min(200, Math.max(1, parsed.data.limit ?? 50));
+  const offset = (page - 1) * limit;
+
+  const suggestedCc = alias(costCentersTable, "suggested_cc");
+
+  const term = search?.trim();
+  const searchCond = term
+    ? or(ilike(invoicesTable.invoiceNumber, `%${term}%`), ilike(suppliersTable.name, `%${term}%`))
+    : undefined;
+
+  const whereCond = and(
+    eq(invoicesTable.userId, userId),
+    supplierId ? eq(invoicesTable.supplierId, supplierId) : undefined,
+    costCenterId != null
+      ? costCenterId === 0
+        ? isNull(invoicesTable.costCenterId)
+        : eq(invoicesTable.costCenterId, costCenterId)
+      : undefined,
+    searchCond,
+  );
+
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(invoicesTable)
+    .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+    .where(whereCond);
+
+  // Globalny licznik nieprzypisanych z sugestią (zgodny z "Zastosuj sugestie",
+  // które działa na całym koncie, nie tylko na bieżącej stronie/filtrze).
+  const [{ suggestedCount }] = await db
+    .select({ suggestedCount: sql<number>`count(*)::int` })
+    .from(invoicesTable)
+    .where(and(
+      eq(invoicesTable.userId, userId),
+      isNull(invoicesTable.costCenterId),
+      isNotNull(invoicesTable.suggestedCostCenterId),
+    ));
+
+  const invoices = await db
+    .select({
+      id: invoicesTable.id,
+      supplierId: invoicesTable.supplierId,
+      supplierName: suppliersTable.name,
+      invoiceNumber: invoicesTable.invoiceNumber,
+      invoiceDate: invoicesTable.invoiceDate,
+      totalAmount: invoicesTable.totalAmount,
+      importedAt: invoicesTable.importedAt,
+      excluded: invoicesTable.excluded,
+      paymentMethod: invoicesTable.paymentMethod,
+      paymentDueDate: invoicesTable.paymentDueDate,
+      isPaid: invoicesTable.isPaid,
+      paidAt: invoicesTable.paidAt,
+      costCenterId: invoicesTable.costCenterId,
+      costCenterName: costCentersTable.name,
+      costCenterColor: costCentersTable.color,
+      suggestedCostCenterId: invoicesTable.suggestedCostCenterId,
+      suggestedCostCenterName: suggestedCc.name,
+      suggestedCostCenterColor: suggestedCc.color,
+      invoiceType: invoicesTable.invoiceType,
+      parentInvoiceId: invoicesTable.parentInvoiceId,
+      correctedInvoiceNumber: invoicesTable.correctedInvoiceNumber,
+    })
+    .from(invoicesTable)
+    .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+    .leftJoin(costCentersTable, eq(invoicesTable.costCenterId, costCentersTable.id))
+    .leftJoin(suggestedCc, eq(invoicesTable.suggestedCostCenterId, suggestedCc.id))
+    .where(whereCond)
+    .orderBy(desc(invoicesTable.invoiceDate))
+    .limit(limit)
+    .offset(offset);
+
+  const items = await Promise.all(
+    invoices.map(async (inv) => {
+      const itemRows = await db
+        .select({ id: invoiceItemsTable.id })
+        .from(invoiceItemsTable)
+        .where(eq(invoiceItemsTable.invoiceId, inv.id));
+      return {
+        ...inv,
+        totalAmount: toNum(inv.totalAmount),
+        itemCount: itemRows.length,
+        importedAt: inv.importedAt.toISOString(),
+        paidAt: inv.paidAt ? inv.paidAt.toISOString() : null,
+        costCenterId: inv.costCenterId ?? null,
+        costCenterName: inv.costCenterName ?? null,
+        costCenterColor: inv.costCenterColor ?? null,
+        suggestedCostCenterId: inv.suggestedCostCenterId ?? null,
+        suggestedCostCenterName: inv.suggestedCostCenterName ?? null,
+        suggestedCostCenterColor: inv.suggestedCostCenterColor ?? null,
+        invoiceType: inv.invoiceType ?? null,
+        parentInvoiceId: inv.parentInvoiceId ?? null,
+        correctedInvoiceNumber: inv.correctedInvoiceNumber ?? null,
+      };
+    }),
+  );
+
+  res.json({ items, total, suggestedCount });
 });
 
 // ─── Timeline endpoint ───────────────────────────────────────────────────────

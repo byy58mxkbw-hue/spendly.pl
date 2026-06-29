@@ -285,14 +285,14 @@ function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) 
 }
 
 // ─── Cost Center Selector ──────────────────────────────────────────────────────
-function CostCenterSelector() {
+function CostCenterSelector({ compact = false }: { compact?: boolean }) {
   const { selectedId, setSelectedId, costCenters, selectedCenter } = useCostCenter();
   const [open, setOpen] = useState(false);
 
   if (costCenters.length === 0) return null;
 
   return (
-    <div className="px-3 mb-1 relative">
+    <div className={cn("relative", compact ? "shrink-0 max-w-[42vw]" : "px-3 mb-1")}>
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
@@ -306,14 +306,17 @@ function CostCenterSelector() {
           style={{ background: selectedCenter?.color ?? "rgba(255,255,255,0.2)" }}
         />
         <span className="flex-1 text-left truncate text-xs">
-          {selectedCenter ? selectedCenter.name : "Wszystkie centra"}
+          {selectedCenter ? selectedCenter.name : compact ? "Wszystkie" : "Wszystkie centra"}
         </span>
         <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 transition-transform", open && "rotate-180")} />
       </button>
 
       {open && (
         <div
-          className="absolute left-3 right-3 top-full mt-1 rounded-xl overflow-hidden shadow-2xl z-50"
+          className={cn(
+            "absolute top-full mt-1 rounded-xl overflow-hidden shadow-2xl z-50",
+            compact ? "right-0 w-60 max-w-[80vw]" : "left-3 right-3",
+          )}
           style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.08)" }}
         >
           {/* All centers option */}
@@ -686,7 +689,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </>
             )}
           </div>
-          <CostCenterSelector />
+          <CostCenterSelector compact />
         </div>
       </header>
 
