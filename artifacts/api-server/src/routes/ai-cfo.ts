@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, aiCfoSessionsTable } from "@workspace/db";
 import { sql, eq, and, desc } from "drizzle-orm";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
 import multer from "multer";
 
 const router: IRouter = Router();
@@ -715,7 +715,7 @@ Odpowiadaj wyłącznie po polsku.`;
     { role: "user", content: question.trim().slice(0, 500) },
   ];
 
-  const resp = await openai.chat.completions.create({
+  const resp = await requireOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     max_completion_tokens: 4000,
     messages,
@@ -879,7 +879,7 @@ Reguły obliczeń:
 - Sortuj dania od najgorszej do najlepszej marży (rosnąco po marginPct)
 - Odpowiadaj po polsku`;
 
-  const resp = await openai.chat.completions.create({
+  const resp = await requireOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     max_completion_tokens: 4000,
     messages: [{ role: "user", content: prompt }],
@@ -983,7 +983,7 @@ Odpowiadaj wyłącznie po polsku. Nie dodawaj żadnych komentarzy ani wyjaśnie�
 
 async function extractViaVision(buffer: Buffer, mimeType: string): Promise<string> {
   const base64 = buffer.toString("base64");
-  const response = await openai.chat.completions.create({
+  const response = await requireOpenAI().chat.completions.create({
     model: "gpt-4.1",
     messages: [
       {
@@ -1035,7 +1035,7 @@ async function processPdfFile(
 
   if (rawText.length >= 30) {
     // Native text found — ask AI to clean and format all pages
-    const cleanupResponse = await openai.chat.completions.create({
+    const cleanupResponse = await requireOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { Layout, PageHeader } from "@/components/layout";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   useListInvoices,
   useImportInvoice,
@@ -137,13 +138,13 @@ const TABS: { id: Tab; label: string }[] = [
 
 function SegmentControl({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
   return (
-    <div className="inline-flex p-1 gap-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)" }}>
+    <div className="inline-flex max-w-full overflow-x-auto scrollbar-none p-1 gap-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)" }}>
       {TABS.map((t) => (
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
           className={cn(
-            "px-4 h-8 rounded-full text-sm font-medium transition-all duration-200",
+            "shrink-0 whitespace-nowrap px-3.5 sm:px-4 h-8 rounded-full text-sm font-medium transition-all duration-200",
             active === t.id
               ? "bg-white text-[#08111f] shadow-md"
               : "text-white/50 hover:text-white/80",
@@ -200,9 +201,9 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
     ? Math.round(totalAmount / avgDailyAmount) : null);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
       {/* Card 1: Month summary */}
-      <div className="sm:col-span-1 p-5" style={CARD_STYLE}>
+      <div className="col-span-2 sm:col-span-1 p-4 sm:p-5" style={CARD_STYLE}>
         <div className="flex items-center gap-2 mb-3">
           {!allTime && (
             <button onClick={onPrev} className="p-1 rounded-full transition-colors" style={{ background: "rgba(255,255,255,0.06)" }}>
@@ -245,7 +246,7 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
       </div>
 
       {/* Card 2: Biggest day */}
-      <div className="p-5" style={CARD_STYLE}>
+      <div className="p-4 sm:p-5" style={CARD_STYLE}>
         <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-3">Największy dzień</p>
         {loading ? (
           <div className="space-y-2 animate-pulse">
@@ -255,7 +256,7 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
         ) : biggestDay ? (
           <>
             <p className="text-white/80 text-sm font-semibold capitalize mb-1">{dayLabel(biggestDay.date)}</p>
-            <p className="text-white text-xl font-bold tabular-nums mb-2">{formatPrice(biggestDay.totalAmount)}</p>
+            <p className="text-white text-lg sm:text-xl font-bold tabular-nums mb-2">{formatPrice(biggestDay.totalAmount)}</p>
             {(biggestDay.invoiceCount != null || biggestDay.supplierCount != null) && (
               <p className="text-white/50 text-xs">
                 {biggestDay.invoiceCount != null && `${biggestDay.invoiceCount} ${biggestDay.invoiceCount === 1 ? "faktura" : "faktur"}`}
@@ -270,7 +271,7 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
       </div>
 
       {/* Card 3: Daily average */}
-      <div className="p-5" style={CARD_STYLE}>
+      <div className="p-4 sm:p-5" style={CARD_STYLE}>
         <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-3">Średnio dziennie</p>
         {loading ? (
           <div className="space-y-2 animate-pulse">
@@ -279,7 +280,7 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
           </div>
         ) : avgDailyAmount > 0 ? (
           <>
-            <p className="text-white text-xl font-bold tabular-nums mb-2">{formatPrice(avgDailyAmount)}</p>
+            <p className="text-white text-lg sm:text-xl font-bold tabular-nums mb-2">{formatPrice(avgDailyAmount)}</p>
             {activeDaysInMonth != null && (
               <p className="text-white/50 text-xs">{activeDaysInMonth} {activeDaysInMonth === 1 ? "aktywny dzień" : "aktywne dni"}</p>
             )}
@@ -1077,6 +1078,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
   const [isBulkAssigningCc, setIsBulkAssigningCc] = useState(false);
   const markPaid = useMarkInvoicePaid();
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -1089,15 +1091,15 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
 
   const filtered = (invoices ?? []).filter((inv) => {
     if (supplierFilter !== "all" && String(inv.supplierId) !== supplierFilter) return false;
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
+    if (!debouncedSearch) return true;
+    const q = debouncedSearch.toLowerCase();
     return inv.supplierName.toLowerCase().includes(q) || inv.invoiceNumber.toLowerCase().includes(q);
   });
 
   // Pagination (render-only) — filtered stays full for select-all / counts
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [searchQuery, supplierFilter]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, supplierFilter]);
   useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
 
   // All invoices are selectable — cost-center assignment applies regardless of payment
@@ -1220,36 +1222,38 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
             </SelectContent>
           </Select>
         )}
-        {costCenters.length > 0 && (
-          <Button
-            variant={showUnassigned ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowUnassigned((v) => !v)}
-            className="gap-1.5 shrink-0"
-          >
-            <Layers className="w-4 h-4" />
-            <span className="hidden sm:inline">Nieprzypisane</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {costCenters.length > 0 && (
+            <Button
+              variant={showUnassigned ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowUnassigned((v) => !v)}
+              className="gap-1.5 shrink-0"
+            >
+              <Layers className="w-4 h-4" />
+              Nieprzypisane
+            </Button>
+          )}
+          {suggestionCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleApplySuggestions}
+              disabled={applySuggestions.isPending}
+              className="gap-1.5 shrink-0 text-primary border-primary/30 hover:bg-primary/5"
+              title="Przypisz wszystkie sugerowane centra kosztów"
+            >
+              <Check className="w-4 h-4" />
+              Zastosuj sugestie ({suggestionCount})
+            </Button>
+          )}
+          <Button variant="outline" size="icon" onClick={handleExport} title="Eksportuj CSV" className="shrink-0">
+            <Download className="w-4 h-4" />
           </Button>
-        )}
-        {suggestionCount > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleApplySuggestions}
-            disabled={applySuggestions.isPending}
-            className="gap-1.5 shrink-0 text-primary border-primary/30 hover:bg-primary/5"
-            title="Przypisz wszystkie sugerowane centra kosztów"
-          >
-            <Check className="w-4 h-4" />
-            <span className="hidden sm:inline">Zastosuj sugestie</span> ({suggestionCount})
+          <Button variant="outline" size="icon" onClick={onDeleteAllClick} title="Usuń wszystkie" className="shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10">
+            <Trash2 className="w-4 h-4" />
           </Button>
-        )}
-        <Button variant="outline" size="icon" onClick={handleExport} title="Eksportuj CSV">
-          <Download className="w-4 h-4" />
-        </Button>
-        <Button variant="outline" size="icon" onClick={onDeleteAllClick} className="text-destructive border-destructive/30 hover:bg-destructive/10">
-          <Trash2 className="w-4 h-4" />
-        </Button>
+        </div>
       </div>
 
       <Dialog open={showBulkAssign} onOpenChange={setShowBulkAssign}>
@@ -1479,7 +1483,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                     <div className="text-right w-24">
                       <p className="text-sm font-semibold tabular-nums text-white">{formatPrice(inv.totalAmount)}</p>
                     </div>
-                    <div className="flex items-center gap-0.5 w-16 justify-end">
+                    <div className="flex items-center gap-0.5 justify-end shrink-0">
                       {costCenters.length > 0 && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

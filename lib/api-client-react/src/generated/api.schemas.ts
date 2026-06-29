@@ -489,6 +489,31 @@ export interface DismissedAlert {
   dismissedAt: string;
 }
 
+export type SearchResultsSuppliersItem = {
+  id: number;
+  name: string;
+  taxId?: string | null;
+};
+
+export type SearchResultsProductsItem = {
+  id: number;
+  name: string;
+  category?: string | null;
+};
+
+export type SearchResultsInvoicesItem = {
+  id: number;
+  invoiceNumber: string;
+  supplierName?: string | null;
+  invoiceDate?: string | null;
+};
+
+export interface SearchResults {
+  suppliers: SearchResultsSuppliersItem[];
+  products: SearchResultsProductsItem[];
+  invoices: SearchResultsInvoicesItem[];
+}
+
 export interface DashboardSummary {
   totalSuppliers: number;
   activeSuppliers: number;
@@ -498,6 +523,8 @@ export interface DashboardSummary {
   spendChangePercent: number;
   trackedProducts: number;
   activeAlerts: number;
+  /** Liczba nieprzeczytanych powiadomień o alertach cenowych (insighty high). */
+  unreadAlerts?: number;
   avgPriceChange?: number | null;
 }
 
@@ -1248,6 +1275,13 @@ month?: string;
  * Filter results to a specific cost center.
  */
 costCenterId?: number;
+};
+
+export type GlobalSearchParams = {
+/**
+ * Search query (matches supplier name/NIP, product name, invoice number).
+ */
+q: string;
 };
 
 export type ListInvoicesParams = {

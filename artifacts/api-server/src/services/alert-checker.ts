@@ -1,5 +1,5 @@
 import type { Logger } from "pino";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import {
   db,
   priceAlertsTable,
@@ -8,12 +8,15 @@ import {
   invoiceItemsTable,
   invoicesTable,
   suppliersTable,
+  aiInsightsTable,
 } from "@workspace/db";
 import { toNum } from "../lib/parse";
 
 export interface TriggeredAlert {
   alertId: number;
+  productId: number;
   productName: string;
+  supplierId: number | null;
   supplierName: string | null;
   currentPrice: number;
   previousPrice: number;
@@ -85,7 +88,9 @@ export async function computeTriggeredAlerts(userId: string): Promise<TriggeredA
 
         return {
           alertId: alert.id,
+          productId: product.id,
           productName: alert.productName,
+          supplierId: alert.supplierId ?? null,
           supplierName: alert.supplierName ?? null,
           currentPrice: current,
           previousPrice: previous,
@@ -103,8 +108,46 @@ export async function computeTriggeredAlerts(userId: string): Promise<TriggeredA
 export async function checkAlertsAfterImport(userId: string, log: Logger): Promise<void> {
   try {
     const triggered = await computeTriggeredAlerts(userId);
-    if (triggered.length > 0) {
-      log.info({ userId, triggeredCount: triggered.length }, "Price alerts triggered after invoice import");
+    if (triggered.length === 0) return;
+
+    log.info({ userId, triggeredCount: triggered.length }, "Price alerts triggered after invoice import");
+
+    // Zapisz każdy przekroczony próg jako insight (severity=high), idempotentnie —
+    // ten sam alert dla tej samej daty faktury nie tworzy duplikatu.
+    for (const t of triggered) {
+      const existing = await db
+        .select({ id: aiInsightsTable.id })
+        .from(aiInsightsTable)
+        .where(
+          and(
+            eq(aiInsightsTable.userId, userId),
+            eq(aiInsightsTable.type, "price_alert"),
+            sql`${aiInsightsTable.metadata}->>'alertId' = ${String(t.alertId)}`,
+            sql`${aiInsightsTable.metadata}->>'alertDate' = ${t.alertDate}`,
+          ),
+        )
+        .limit(1);
+      if (existing.length > 0) continue;
+
+      const dir = t.changePercent >= 0 ? "wzrosła" : "spadła";
+      await db.insert(aiInsightsTable).values({
+        userId,
+        type: "price_alert",
+        severity: "high",
+        title: `Alert cenowy: ${t.productName}`,
+        body: `Cena „${t.productName}"${t.supplierName ? ` u ${t.supplierName}` : ""} ${dir} o ${Math.abs(t.changePercent)}% (próg ${t.thresholdPercent}%) — z ${t.previousPrice.toFixed(2)} na ${t.currentPrice.toFixed(2)} zł.`,
+        riskScore: Math.min(100, Math.round(Math.abs(t.changePercent))),
+        productId: t.productId,
+        supplierId: t.supplierId,
+        metadata: {
+          alertId: t.alertId,
+          alertDate: t.alertDate,
+          changePercent: t.changePercent,
+          thresholdPercent: t.thresholdPercent,
+          currentPrice: t.currentPrice,
+          previousPrice: t.previousPrice,
+        },
+      });
     }
   } catch (err) {
     log.warn({ err: String(err) }, "Alert check after invoice import failed");

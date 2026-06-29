@@ -642,7 +642,9 @@ async function ingestViaExport(
       await ingestInvoiceXml(userId, fresh[i].ksefReferenceNumber, fresh[i].xml, now, summary);
     } catch (err) {
       summary.failed++;
-      summary.errors.push(`Faktura ${fresh[i].ksefReferenceNumber}: ${describeDbErr(err)}`);
+      // Do klienta tylko generyk (bez wewnętrznych detali DB); pełny błąd ląduje w logach.
+      const clientMsg = process.env.NODE_ENV === "development" ? describeDbErr(err) : "błąd zapisu faktury";
+      summary.errors.push(`Faktura ${fresh[i].ksefReferenceNumber}: ${clientMsg}`);
       req.log.error({ ksefRef: fresh[i].ksefReferenceNumber, err: describeDbErr(err) }, "KSeF export ingest failed");
     }
     onProgress({ type: "fetching", fetched: i + 1, total: fresh.length });

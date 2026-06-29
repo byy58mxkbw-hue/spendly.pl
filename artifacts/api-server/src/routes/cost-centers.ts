@@ -32,6 +32,7 @@ router.get("/cost-centers", async (req, res): Promise<void> => {
     .from(costCentersTable)
     .where(eq(costCentersTable.userId, userId))
     .orderBy(costCentersTable.name);
+  res.set("Cache-Control", "private, max-age=300");
   res.json(rows);
 });
 

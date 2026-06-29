@@ -9,6 +9,7 @@ import reportsRouter from "./reports";
 import ksefRouter from "./ksef";
 import insightsRouter from "./insights";
 import costCentersRouter from "./cost-centers";
+import searchRouter from "./search";
 import { requireUser } from "../middlewares/requireUser";
 
 const router: IRouter = Router();
@@ -27,6 +28,7 @@ router.use(reportsRouter);
 router.use(ksefRouter);
 router.use(insightsRouter);
 router.use(costCentersRouter);
+router.use(searchRouter);
 
 import aiCfoRouter from "./ai-cfo";
 router.use(aiCfoRouter);

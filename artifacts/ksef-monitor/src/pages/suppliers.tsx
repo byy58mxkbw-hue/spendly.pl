@@ -123,14 +123,26 @@ export default function Suppliers() {
   function handleSetDefaultCostCenter(supplierId: number, ccId: number | null) {
     setDefaultCostCenter.mutate(
       { id: supplierId, data: { defaultCostCenterId: ccId } },
-      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() }) },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() });
+          toast({ title: "Domyślne centrum kosztów zapisane" });
+        },
+        onError: () => toast({ variant: "destructive", title: "Błąd", description: "Nie udało się zapisać centrum kosztów." }),
+      },
     );
   }
 
   function handleSetDefaultCategory(supplierId: number, categoryId: string | null) {
     setDefaultCategory.mutate(
       { id: supplierId, data: { defaultCategory: categoryId } },
-      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() }) },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() });
+          toast({ title: "Domyślna kategoria zapisana" });
+        },
+        onError: () => toast({ variant: "destructive", title: "Błąd", description: "Nie udało się zapisać kategorii." }),
+      },
     );
   }
 
@@ -154,7 +166,9 @@ export default function Suppliers() {
           queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() });
           setShowAddDialog(false);
           form.reset();
+          toast({ title: "Dostawca dodany" });
         },
+        onError: () => toast({ variant: "destructive", title: "Błąd", description: "Nie udało się dodać dostawcy." }),
       }
     );
   }

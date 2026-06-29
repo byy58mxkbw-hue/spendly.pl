@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { aiInsightsTable, invoiceItemsTable, invoicesTable, productsTable, suppliersTable } from "@workspace/db/schema";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
 import { sql, eq, and, desc, gte, lt } from "drizzle-orm";
 import type { Logger } from "pino";
 
@@ -262,7 +262,7 @@ riskScore: 0-100 (100=krytyczne ryzyko dla food cost)`;
 async function callAI(prompt: string, logger?: Logger): Promise<InsightRaw[]> {
   logger?.info({ promptLen: prompt.length }, "AI CFO calling model");
 
-  const resp = await openai.chat.completions.create({
+  const resp = await requireOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     max_completion_tokens: 12000,
     messages: [{ role: "user", content: prompt }],

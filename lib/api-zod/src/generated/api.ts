@@ -1108,6 +1108,33 @@ export const GetTopPriceChangesResponse = zod.array(GetTopPriceChangesResponseIt
 
 
 /**
+ * @summary Global search across suppliers, products and invoices
+ */
+export const GlobalSearchQueryParams = zod.object({
+  "q": zod.coerce.string().describe('Search query (matches supplier name\/NIP, product name, invoice number).')
+})
+
+export const GlobalSearchResponse = zod.object({
+  "suppliers": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "taxId": zod.string().nullish()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "category": zod.string().nullish()
+})),
+  "invoices": zod.array(zod.object({
+  "id": zod.number(),
+  "invoiceNumber": zod.string(),
+  "supplierName": zod.string().nullish(),
+  "invoiceDate": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary List all invoices
  */
 export const ListInvoicesQueryParams = zod.object({
@@ -1625,6 +1652,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "spendChangePercent": zod.number(),
   "trackedProducts": zod.number(),
   "activeAlerts": zod.number(),
+  "unreadAlerts": zod.number().optional().describe('Liczba nieprzeczytanych powiadomień o alertach cenowych (insighty high).'),
   "avgPriceChange": zod.number().nullish()
 })
 
