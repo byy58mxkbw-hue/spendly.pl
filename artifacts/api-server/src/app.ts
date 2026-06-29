@@ -19,6 +19,35 @@ const isProd = process.env.NODE_ENV !== "development";
 
 app.set("trust proxy", 1);
 
+// ── CORS (MUSI być pierwszy) ─────────────────────────────────────────────────
+// Przed helmetem i rate-limiterem, żeby KAŻDA odpowiedź (też 429 z limitera i
+// preflight OPTIONS) niosła nagłówki CORS. Inaczej rate-limit/preflight kończą
+// się błędem CORS w przeglądarce. Produkcyjne originy z ALLOWED_ORIGIN.
+const envOrigins = (process.env.ALLOWED_ORIGIN ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  credentials: true,
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:22900",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3001",
+      "http://127.0.0.1:22900",
+      ...envOrigins,
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, process.env.NODE_ENV === "development");
+    }
+  },
+}));
+
 // ── Nagłówki bezpieczeństwa (Helmet) ─────────────────────────────────────────
 // To serwer API (zwraca JSON), więc CSP jest restrykcyjne — nic nie ładujemy.
 app.use(helmet({
@@ -48,11 +77,15 @@ app.use(compression());
 // Globalny limit ochronny.
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 200,
+  // SPA z React Query odpala wiele zapytań na wejście (dashboard, raporty,
+  // refetch on focus) — 600/15min jest bezpieczne dla legit użytkownika,
+  // a nadal chroni przed nadużyciem. Realny koszt limitują AI/KSeF niżej.
+  limit: 600,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { error: "Za dużo żądań. Spróbuj ponownie za chwilę." },
-  skip: (req) => req.path === "/api/healthz",
+  // Nie limitujemy healthchecków ani preflightów CORS.
+  skip: (req) => req.path === "/api/healthz" || req.method === "OPTIONS",
 });
 
 // Zaostrzony limit na kosztowne operacje AI.
@@ -121,32 +154,6 @@ app.use(
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-// Production origins come from ALLOWED_ORIGIN (comma-separated). Local dev origins
-// stay hardcoded so `pnpm dev` keeps working without any env setup.
-const envOrigins = (process.env.ALLOWED_ORIGIN ?? "")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
-
-app.use(cors({
-  credentials: true,
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:22900",
-      "http://127.0.0.1:3000",
-      "http://127.0.0.1:3001",
-      "http://127.0.0.1:22900",
-      ...envOrigins,
-    ];
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(null, process.env.NODE_ENV === "development");
-    }
-  },
-}));
 app.use((req, res, next) => {
   const limit = req.path.includes("/invoices/scan-receipt") ? "15mb" : "2mb";
   express.json({ limit })(req, res, next);
