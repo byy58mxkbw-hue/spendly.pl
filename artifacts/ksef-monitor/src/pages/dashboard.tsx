@@ -365,9 +365,9 @@ function DashboardPage() {
             <p className="text-sm text-muted-foreground mb-4">Skonfiguruj aplikację, żeby zacząć śledzić ceny surowców.</p>
             <div className="space-y-2.5">
               {[
-                { done: !!config, label: "Wpisz NIP i token KSeF", desc: "Potrzebne do pobierania faktur z KSeF", href: "/settings/ksef", cta: "Ustawienia" },
-                { done: hasSuppliers, label: "Zsynchronizuj faktury", desc: "Pobierz faktury i zmapuj dostawców", href: "/invoices", cta: "Faktury" },
-                { done: hasSuppliers, label: "Gotowe — śledź ceny surowców", desc: "Dashboard, alerty i historia aktywne", href: null, cta: null },
+                { done: !!config, label: "Skonfiguruj KSeF", desc: "Wpisz NIP i token, aby pobierać faktury automatycznie", href: "/settings/ksef", cta: "Ustawienia" },
+                { done: hasSuppliers, label: "Dodaj fakturę lub zsynchronizuj KSeF", desc: "Pobierz z KSeF albo dodaj zakup ręcznie", href: "/invoices", cta: "Faktury" },
+                { done: false, label: "Ustaw alerty cenowe", desc: "Monitoruj wzrosty cen kluczowych surowców", href: "/price-alerts", cta: "Alerty" },
               ].map((step, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <div className={cn("w-5 h-5 flex items-center justify-center shrink-0", step.done ? "text-primary" : "text-border")}>
@@ -512,6 +512,14 @@ function DashboardPage() {
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   <Bell className="w-3.5 h-3.5 text-primary" />
                   Alerty cenowe
+                  {summary?.unreadAlerts ? (
+                    <span
+                      className="ml-1 inline-flex items-center justify-center rounded-full bg-destructive px-1.5 min-w-[1.25rem] h-5 text-[10px] font-bold text-destructive-foreground"
+                      title={`${summary.unreadAlerts} nieprzeczytanych powiadomień`}
+                    >
+                      {summary.unreadAlerts}
+                    </span>
+                  ) : null}
                 </h2>
                 <Link href="/price-alerts">
                   <button className="text-[11px] text-primary hover:underline flex items-center gap-0.5">

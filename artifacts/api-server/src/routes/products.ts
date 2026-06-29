@@ -653,6 +653,7 @@ router.patch("/products/:id/correct-category", async (req, res): Promise<void> =
 router.get("/categories", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const categories = await getUserCategories(userId);
+  res.set("Cache-Control", "private, max-age=3600");
   res.json(categories);
 });
 

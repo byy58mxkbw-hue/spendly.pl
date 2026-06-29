@@ -25,7 +25,8 @@ import { useUser, useClerk, useAuth } from "@clerk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { apiUrl } from "@/lib/api-base";
-import { useListKsefPending, useGetDashboardActiveAlerts, useCreateCostCenter, getListCostCentersQueryKey, useListSuppliers, useListProducts, getListSuppliersQueryKey, getListProductsQueryKey } from "@workspace/api-client-react";
+import { useListKsefPending, useGetDashboardActiveAlerts, useCreateCostCenter, getListCostCentersQueryKey, useGlobalSearch, getGlobalSearchQueryKey } from "@workspace/api-client-react";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   CommandDialog,
   CommandInput,
@@ -514,42 +515,50 @@ function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (
     return () => document.removeEventListener("keydown", down);
   }, [open, onOpenChange]);
 
-  // Fetch only while the palette is open — avoids loading all products on every page.
-  const { data: suppliers } = useListSuppliers(undefined, { query: { queryKey: getListSuppliersQueryKey(), enabled: open } });
-  const { data: products } = useListProducts({}, { query: { queryKey: getListProductsQueryKey({}), enabled: open } });
+  // Wyszukiwanie po stronie serwera (dostawcy + produkty + faktury) z debounce.
+  // Nie ładujemy już wszystkich produktów do przeglądarki.
+  const debounced = useDebouncedValue(search.trim(), 250);
+  const { data: results, isFetching } = useGlobalSearch(
+    { q: debounced },
+    { query: { queryKey: getGlobalSearchQueryKey({ q: debounced }), enabled: open && debounced.length >= 2 } },
+  );
 
-  const q = search.trim().toLowerCase();
-  const supplierMatches = (suppliers ?? [])
-    .filter((s) => !q || s.name.toLowerCase().includes(q))
-    .slice(0, 6);
-  // Pre-filter + cap the 900+ products before handing them to cmdk.
-  const productMatches = (products ?? [])
-    .filter((p) => !q || p.name.toLowerCase().includes(q))
-    .slice(0, 8);
+  const supplierMatches = results?.suppliers ?? [];
+  const productMatches = results?.products ?? [];
+  const invoiceMatches = results?.invoices ?? [];
 
   const go = (path: string) => { onOpenChange(false); setSearch(""); navigate(path); };
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput
-        placeholder="Szukaj stron, produktów, dostawców…"
+        placeholder="Szukaj stron, produktów, dostawców, faktur…"
         value={search}
         onValueChange={setSearch}
       />
+      {/* shouldFilter=false: filtrowanie robi serwer, cmdk nie ma chować wyników */}
       <CommandList>
-        <CommandEmpty>Brak wyników.</CommandEmpty>
+        <CommandEmpty>
+          {debounced.length < 2
+            ? "Wpisz min. 2 znaki…"
+            : isFetching
+              ? "Szukam…"
+              : "Brak wyników."}
+        </CommandEmpty>
         <CommandGroup heading="Nawigacja">
-          {navItems.map((item) => (
-            <CommandItem key={item.path} value={`nav ${item.label}`} onSelect={() => go(item.path)}>
-              <item.icon className="mr-2 h-4 w-4" />
-              {item.label}
-            </CommandItem>
-          ))}
+          {navItems
+            .filter((item) => !debounced || item.label.toLowerCase().includes(debounced.toLowerCase()))
+            .map((item) => (
+              <CommandItem key={item.path} value={`nav ${item.label}`} onSelect={() => go(item.path)}>
+                <item.icon className="mr-2 h-4 w-4" />
+                {item.label}
+              </CommandItem>
+            ))}
         </CommandGroup>
         {supplierMatches.length > 0 && (
           <CommandGroup heading="Dostawcy">
             {supplierMatches.map((s) => (
-              <CommandItem key={`s-${s.id}`} value={`supplier ${s.name}`} onSelect={() => go(`/suppliers/${s.id}`)}>
+              <CommandItem key={`s-${s.id}`} value={`supplier-${s.id}`} onSelect={() => go(`/suppliers/${s.id}`)}>
                 <Users className="mr-2 h-4 w-4" />
                 <span className="truncate">{s.name}</span>
               </CommandItem>
@@ -559,9 +568,20 @@ function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (
         {productMatches.length > 0 && (
           <CommandGroup heading="Produkty">
             {productMatches.map((p) => (
-              <CommandItem key={`p-${p.id}`} value={`product ${p.name}`} onSelect={() => go(`/products?id=${p.id}`)}>
+              <CommandItem key={`p-${p.id}`} value={`product-${p.id}`} onSelect={() => go(`/products?id=${p.id}`)}>
                 <Package className="mr-2 h-4 w-4" />
                 <span className="truncate">{p.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+        {invoiceMatches.length > 0 && (
+          <CommandGroup heading="Faktury">
+            {invoiceMatches.map((i) => (
+              <CommandItem key={`i-${i.id}`} value={`invoice-${i.id}`} onSelect={() => go(`/invoices?id=${i.id}`)}>
+                <FileText className="mr-2 h-4 w-4" />
+                <span className="truncate">{i.invoiceNumber}</span>
+                {i.supplierName && <span className="ml-2 truncate text-xs text-muted-foreground">{i.supplierName}</span>}
               </CommandItem>
             ))}
           </CommandGroup>

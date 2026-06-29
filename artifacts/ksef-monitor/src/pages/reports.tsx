@@ -461,6 +461,8 @@ function SpendTrendChart({ months: numMonths = 6 }: { months?: number }) {
   if (isLoading) return <Skeleton className="h-48 rounded-xl" />;
 
   return (
+    <div className="overflow-x-auto">
+     <div className="min-w-[420px]">
     <ResponsiveContainer width="100%" height={200}>
       <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
         <defs>
@@ -502,6 +504,8 @@ function SpendTrendChart({ months: numMonths = 6 }: { months?: number }) {
         />
       </AreaChart>
     </ResponsiveContainer>
+     </div>
+    </div>
   );
 }
 
@@ -1284,6 +1288,8 @@ function CategoryTrendChart({ months: numMonths = 6 }: { months?: number }) {
   );
 
   return (
+    <div className="overflow-x-auto">
+     <div className="min-w-[480px]">
     <ResponsiveContainer width="100%" height={240}>
       <BarChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="30%">
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -1325,6 +1331,8 @@ function CategoryTrendChart({ months: numMonths = 6 }: { months?: number }) {
         ))}
       </BarChart>
     </ResponsiveContainer>
+     </div>
+    </div>
   );
 }
 

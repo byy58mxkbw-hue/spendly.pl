@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import KsefPage from "@/pages/ksef";
@@ -282,9 +283,11 @@ function AppRouter() {
 
 function App() {
   return (
-    <WouterRouter base={basePath}>
-      <AppRouter />
-    </WouterRouter>
+    <ErrorBoundary>
+      <WouterRouter base={basePath}>
+        <AppRouter />
+      </WouterRouter>
+    </ErrorBoundary>
   );
 }
 

@@ -13,7 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { categorizeProductWithAI, type ClassificationResult } from "../lib/categorize-ai.js";
 import { checkAlertsAfterImport } from "../services/alert-checker";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
 import { encryptSecret, decryptSecret } from "../lib/encryption";
 import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
 
@@ -601,6 +601,15 @@ router.post("/invoices/scan-receipt", async (req, res): Promise<void> => {
     return;
   }
 
+  // Walidacja rozmiaru: base64 dekoduje się do ~3/4 swojej długości. Limit 10MB.
+  const MAX_BYTES = 10 * 1024 * 1024;
+  const sanitizedB64 = imageBase64.includes(",") ? imageBase64.split(",").pop()! : imageBase64;
+  const approxBytes = Math.floor((sanitizedB64.length * 3) / 4);
+  if (approxBytes > MAX_BYTES) {
+    res.status(400).json({ error: "Obraz jest za duży (max 10 MB). Zmniejsz plik i spróbuj ponownie." });
+    return;
+  }
+
   const prompt = `Analyze this receipt or invoice image and extract the data as JSON. Be precise with numbers.
 
 Return ONLY a JSON object with this exact structure (all fields optional except items and isCorrection):
@@ -634,7 +643,7 @@ Important:
 - correctedInvoiceNumber is the original invoice number this correction refers to (look for "do faktury", "koryguje fakturę", "Nr faktury korygowanej" labels)`;
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await requireOpenAI().chat.completions.create({
       model: "gpt-4.1",
       messages: [
         {

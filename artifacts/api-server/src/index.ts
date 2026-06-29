@@ -2,19 +2,42 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { runCategoryBackfill } from "./services/backfill-categories.js";
 
-const rawPort = process.env["PORT"];
+// ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
+// Lepiej zawieść głośno od razu niż w trakcie żądania użytkownika.
+function validateEnv(): number {
+  const errors: string[] = [];
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
+  if (!process.env.DATABASE_URL) {
+    errors.push("DATABASE_URL — wymagany (connection string do PostgreSQL).");
+  }
+
+  const key = process.env.KSEF_ENCRYPTION_KEY;
+  if (!key) {
+    errors.push("KSEF_ENCRYPTION_KEY — wymagany (klucz szyfrowania AES).");
+  } else if (key.length < 32) {
+    errors.push(`KSEF_ENCRYPTION_KEY — za krótki (${key.length} znaków, minimum 32).`);
+  }
+
+  const rawPort = process.env.PORT;
+  if (!rawPort) {
+    errors.push("PORT — wymagany.");
+  }
+  const port = Number(rawPort);
+  if (rawPort && (Number.isNaN(port) || port <= 0)) {
+    errors.push(`PORT — nieprawidłowa wartość: "${rawPort}" (musi być liczbą > 0).`);
+  }
+
+  if (errors.length > 0) {
+    logger.fatal(
+      "Brak lub nieprawidłowe zmienne środowiskowe:\n" + errors.map((e) => `  • ${e}`).join("\n"),
+    );
+    process.exit(1);
+  }
+
+  return port;
 }
 
-const port = Number(rawPort);
-
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+const port = validateEnv();
 
 app.listen(port, (err) => {
   if (err) {

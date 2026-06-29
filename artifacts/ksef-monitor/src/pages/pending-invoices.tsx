@@ -545,8 +545,8 @@ export default function PendingInvoices() {
           title="Faktury do przeglądu"
           subtitle="Potwierdź dostawcę — faktury i produkty dodadzą się do aplikacji automatycznie. Pełna kontrola jest pod „Dopasuj ręcznie”."
           action={
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="flex-1 md:flex-none flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
                 {([
                   ["pending", `Oczekujące${pendingCount > 0 ? ` (${pendingCount})` : ""}`],
                   ["accepted", "Zaakceptowane"],
@@ -557,7 +557,7 @@ export default function PendingInvoices() {
                     type="button"
                     onClick={() => setStatus(value)}
                     className={cn(
-                      "px-3 py-1.5 rounded-md text-sm transition-colors",
+                      "flex-1 md:flex-none px-2.5 md:px-3 py-1.5 rounded-md text-xs md:text-sm whitespace-nowrap transition-colors",
                       status === value
                         ? "bg-card shadow-sm text-foreground font-medium"
                         : "text-muted-foreground hover:text-foreground",
@@ -572,8 +572,9 @@ export default function PendingInvoices() {
                 <Button
                   variant="outline"
                   onClick={() => setShowDeleteAll(true)}
-                  className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                  className="shrink-0 gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                   data-testid="btn-delete-all-pending"
+                  title="Usuń wszystkie"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span className="hidden sm:inline">Usuń wszystkie</span>
@@ -616,7 +617,7 @@ export default function PendingInvoices() {
           </div>
         ) : (
           <>
-            <div className="mb-5 flex items-center justify-between flex-wrap gap-3">
+            <div className="mb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3.5 py-2">
                   <Receipt className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -643,11 +644,13 @@ export default function PendingInvoices() {
               </div>
 
               {allMonths.length > 0 && (
-                <MonthNav
-                  months={allMonths}
-                  selected={selectedMonth}
-                  onChange={(m) => setSelectedMonth(m)}
-                />
+                <div className="flex justify-center md:block">
+                  <MonthNav
+                    months={allMonths}
+                    selected={selectedMonth}
+                    onChange={(m) => setSelectedMonth(m)}
+                  />
+                </div>
               )}
             </div>
 

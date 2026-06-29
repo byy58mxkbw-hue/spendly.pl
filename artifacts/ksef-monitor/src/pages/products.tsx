@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import { useCostCenter } from "@/contexts/cost-center-context";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListProducts,
@@ -22,6 +23,7 @@ import {
 import { currentMonth } from "@/lib/month";
 import { MonthNavigator } from "@/components/month-navigator";
 import { categorizeProduct } from "@/lib/categories";
+import { useToast } from "@/hooks/use-toast";
 import type { CategoryItem } from "@workspace/api-client-react";
 import {
   DropdownMenu,
@@ -911,6 +913,7 @@ function CategoryBadge({
   onChanged: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const correctMutation = useCorrectProductCategory();
   const deleteMutation = useDeleteCategory();
   const [optimisticCategory, setOptimisticCategory] = useState<string | null | undefined>(category);
@@ -930,10 +933,12 @@ function CategoryBadge({
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
           onChanged();
+          toast({ title: "Kategoria zaktualizowana" });
         },
         onError: () => {
           // Rollback on error
           setOptimisticCategory(category);
+          toast({ variant: "destructive", title: "Błąd", description: "Nie udało się zmienić kategorii." });
         },
       },
     );
@@ -1100,6 +1105,8 @@ export default function Products() {
     const params = new URLSearchParams(window.location.search);
     return params.get("search") || "";
   });
+  // Debounce — filtrowanie/paginacja nie odpalają się przy każdym znaku.
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [sort, setSort] = useState<SortKey>(() => {
     const params = new URLSearchParams(window.location.search);
     return (params.get("sort") || "name-asc") as SortKey;
@@ -1172,7 +1179,7 @@ export default function Products() {
     if (!products) return [];
     return sortProducts(
       products.filter((p) => {
-        const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = p.name.toLowerCase().includes(debouncedSearch.toLowerCase());
         const effectiveCategory = p.category ?? categorizeProduct(p.name);
         const matchesCategory = categoryFilter === "all" || effectiveCategory === categoryFilter;
         const matchesReview = !showNeedsReview || p.needsReview === true;
@@ -1180,7 +1187,7 @@ export default function Products() {
       }),
       sort
     );
-  }, [products, search, categoryFilter, showNeedsReview, sort]);
+  }, [products, debouncedSearch, categoryFilter, showNeedsReview, sort]);
 
   // Pagination (render-only) — filtered stays full for export/select-all/counts
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -1189,7 +1196,7 @@ export default function Products() {
     [filtered, page, PAGE_SIZE],
   );
   // Reset to first page when filters change or the current page falls out of range
-  useEffect(() => { setPage(1); }, [search, categoryFilter, supplierFilter, showNeedsReview, sort, month]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, categoryFilter, supplierFilter, showNeedsReview, sort, month]);
   useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
 
   const reviewableIds = useMemo(() =>
@@ -1234,7 +1241,7 @@ export default function Products() {
   const categoryCountMap = useMemo(() => {
     if (!products) return {};
     const searchFiltered = products.filter((p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) &&
+      p.name.toLowerCase().includes(debouncedSearch.toLowerCase()) &&
       (!showNeedsReview || p.needsReview === true)
     );
     const map: Record<string, number> = {};
@@ -1243,7 +1250,7 @@ export default function Products() {
       map[cat] = (map[cat] ?? 0) + 1;
     }
     return map;
-  }, [products, search, showNeedsReview]);
+  }, [products, debouncedSearch, showNeedsReview]);
 
   const searchFilteredCount = Object.values(categoryCountMap).reduce((sum, count) => sum + count, 0);
 
@@ -1429,13 +1436,14 @@ export default function Products() {
                   key={s.id}
                   onClick={() => setSupplierFilter(supplierFilter === String(s.id) ? "all" : String(s.id))}
                   className={cn(
-                    "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors whitespace-nowrap",
+                    "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors max-w-[180px]",
                     supplierFilter === String(s.id)
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
                   )}
+                  title={s.name}
                 >
-                  {s.name}
+                  <span className="truncate">{s.name}</span>
                 </button>
               ))}
             </div>
@@ -1541,15 +1549,20 @@ export default function Products() {
                 onClick={() =>
                   exportToCsv(
                     [
-                      ["Produkt", "Dostawca", "Jednostka", "Ostatnia cena (PLN)", "Poprzednia cena (PLN)", "Zmiana (%)"],
-                      ...filtered.map((p) => [
-                        p.name,
-                        p.supplierName ?? "",
-                        p.unit,
-                        p.latestPrice ?? "",
-                        p.previousPrice ?? "",
-                        p.priceChangePercent ?? "",
-                      ]),
+                      ["Produkt", "Kategoria", "Dostawca", "Jednostka", "Ostatnia cena (PLN)", "Poprzednia cena (PLN)", "Zmiana (%)"],
+                      ...filtered.map((p) => {
+                        const catId = p.category ?? categorizeProduct(p.name);
+                        const catName = categories?.find((c) => c.id === catId)?.label ?? catId;
+                        return [
+                          p.name,
+                          catName,
+                          p.supplierName ?? "",
+                          p.unit,
+                          p.latestPrice ?? "",
+                          p.previousPrice ?? "",
+                          p.priceChangePercent ?? "",
+                        ];
+                      }),
                     ],
                     `produkty-${todaySlug()}.csv`,
                   )

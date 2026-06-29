@@ -1217,6 +1217,26 @@ paths:
                 items:
                   $ref: "#/components/schemas/PriceChangeProduct"
 
+  /search:
+    get:
+      operationId: globalSearch
+      tags: [search]
+      summary: Global search across suppliers, products and invoices
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query (matches supplier name/NIP, product name, invoice number).
+      responses:
+        "200":
+          description: Up to 5 results per category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResults"
+
   /invoices:
     get:
       operationId: listInvoices
@@ -3074,6 +3094,39 @@ components:
         - thresholdPercent
         - dismissedAt
 
+    SearchResults:
+      type: object
+      required: [suppliers, products, invoices]
+      properties:
+        suppliers:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              taxId: { type: string, nullable: true }
+        products:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              category: { type: string, nullable: true }
+        invoices:
+          type: array
+          items:
+            type: object
+            required: [id, invoiceNumber]
+            properties:
+              id: { type: integer }
+              invoiceNumber: { type: string }
+              supplierName: { type: string, nullable: true }
+              invoiceDate: { type: string, nullable: true }
+
     DashboardSummary:
       type: object
       properties:
@@ -3093,6 +3146,9 @@ components:
           type: integer
         activeAlerts:
           type: integer
+        unreadAlerts:
+          type: integer
+          description: Liczba nieprzeczytanych powiadomień o alertach cenowych (insighty high).
         avgPriceChange:
           type: number
           nullable: true
