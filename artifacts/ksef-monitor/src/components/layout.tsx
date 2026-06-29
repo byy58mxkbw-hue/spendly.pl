@@ -794,23 +794,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export function PageHeader({
   title,
   subtitle,
+  subtitleClassName,
   action,
 }: {
   title: string;
   subtitle?: string;
+  subtitleClassName?: string;
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-6 mb-8 md:mb-10">
+    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-6 mb-5 md:mb-10">
       <div className="min-w-0">
-        <h1 className="text-2xl md:text-[2rem] font-bold text-foreground tracking-[-0.03em] leading-tight">
+        <h1 className="text-xl md:text-[2rem] font-bold text-foreground tracking-[-0.03em] leading-tight">
           {title}
         </h1>
         {subtitle && (
-          <p className="text-sm text-muted-foreground mt-1.5">{subtitle}</p>
+          <p className={cn("text-sm text-muted-foreground mt-1.5", subtitleClassName)}>{subtitle}</p>
         )}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="shrink-0 w-full md:w-auto">{action}</div>}
     </div>
   );
 }
