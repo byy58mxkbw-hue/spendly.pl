@@ -21,6 +21,9 @@ import {
   ChevronDown,
   Zap,
   Database,
+  Bot,
+  Wallet,
+  Lightbulb,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
@@ -244,8 +247,11 @@ function FaqItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean
 const FEATURES = [
   { icon: RefreshCw, title: "Integracja z KSeF", desc: "Automatyczny import faktur zakupowych z Krajowego Systemu e-Faktur. Bez ręcznego wgrywania plików." },
   { icon: ScanLine, title: "OCR faktur", desc: "System odczytuje dane z faktur kosztowych — ze zdjęcia lub PDF — w kilkanaście sekund." },
+  { icon: Bot, title: "AI CFO", desc: "Wirtualny dyrektor finansowy. Zadajesz pytania o zakupy i food cost, a AI analizuje Twoje faktury i podpowiada gdzie tniesz koszty." },
   { icon: TrendingDown, title: "Kontrola food cost", desc: "Monitoruj udział kosztów w przychodach restauracji i reaguj zanim food cost przekroczy cel." },
   { icon: BarChart3, title: "Analiza kosztów", desc: "Wykrywaj wzrosty cen surowców, porównuj dostawców i analizuj trendy zakupowe miesiąc po miesiącu." },
+  { icon: Wallet, title: "Centra kosztów", desc: "Przypisuj faktury i dostawców do lokali lub działów. Koszty rozbite tam, gdzie naprawdę powstają." },
+  { icon: Lightbulb, title: "AI Insights", desc: "Automatyczne podpowiedzi: które ceny rosną najszybciej i gdzie warto zmienić dostawcę — bez ręcznego grzebania w danych." },
   { icon: FileBarChart2, title: "Raporty miesięczne", desc: "Zestawienie wydatków per-dostawca i per-kategoria z eksportem do CSV — gotowe do księgowości." },
   { icon: Bell, title: "Alerty kosztowe", desc: "Ustawiasz progi procentowe lub kwotowe dla kluczowych składników. Alert trafia do Ciebie od razu." },
   { icon: ShieldCheck, title: "Bezpieczeństwo danych", desc: "Faktury i tokeny KSeF szyfrowane AES-256 w bazie. Każdy użytkownik widzi wyłącznie swoje dane." },
@@ -727,8 +733,11 @@ export default function Home() {
                 {[
                   "Integracja z KSeF",
                   "OCR faktur",
+                  "AI CFO — analiza zakupowa",
+                  "AI Insights — automatyczne podpowiedzi",
                   "Kontrola food cost",
                   "Analiza kosztów restauracji",
+                  "Centra kosztów (wiele lokali)",
                   "Alerty kosztowe",
                   "Dashboard wydatków",
                   "Raporty miesięczne",
