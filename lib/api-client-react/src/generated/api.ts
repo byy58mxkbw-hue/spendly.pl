@@ -95,6 +95,7 @@ import type {
   ListInvoicesPagedParams,
   ListInvoicesParams,
   ListKsefPendingParams,
+  ListProductsPagedParams,
   ListProductsParams,
   ListSuppliersParams,
   MarkInvoicePaid200,
@@ -102,6 +103,7 @@ import type {
   MonthlyFoodCost,
   MonthlyReport,
   PaginatedInvoices,
+  PaginatedProducts,
   PatchAdminUserBlock200,
   PatchAdminUserBlockBody,
   PaymentsDashboard,
@@ -3240,6 +3242,90 @@ export function useGetSupplierTopProducts<TData = Awaited<ReturnType<typeof getS
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetSupplierTopProductsQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListProductsPagedUrl = (params?: ListProductsPagedParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/products/page?${stringifiedParams}` : `/api/products/page`
+}
+
+/**
+ * @summary Paginated product list with server-side search, filter and sort
+ */
+export const listProductsPaged = async (params?: ListProductsPagedParams, options?: RequestInit): Promise<PaginatedProducts> => {
+
+  return customFetch<PaginatedProducts>(getListProductsPagedUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProductsPagedQueryKey = (params?: ListProductsPagedParams,) => {
+    return [
+    `/api/products/page`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProductsPagedQueryOptions = <TData = Awaited<ReturnType<typeof listProductsPaged>>, TError = ErrorType<unknown>>(params?: ListProductsPagedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductsPaged>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProductsPagedQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProductsPaged>>> = ({ signal }) => listProductsPaged(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProductsPaged>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProductsPagedQueryResult = NonNullable<Awaited<ReturnType<typeof listProductsPaged>>>
+export type ListProductsPagedQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Paginated product list with server-side search, filter and sort
+ */
+
+export function useListProductsPaged<TData = Awaited<ReturnType<typeof listProductsPaged>>, TError = ErrorType<unknown>>(
+ params?: ListProductsPagedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProductsPaged>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProductsPagedQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

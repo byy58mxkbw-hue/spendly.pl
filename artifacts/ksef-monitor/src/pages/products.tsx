@@ -5,6 +5,8 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListProducts,
+  useListProductsPaged,
+  listProducts,
   useListSuppliers,
   useGetProductPriceHistory,
   useGetProductSupplierComparison,
@@ -19,6 +21,7 @@ import {
   getGetProductPriceHistoryQueryKey,
   getGetProductSupplierComparisonQueryKey,
   getListProductsQueryKey,
+  getListProductsPagedQueryKey,
 } from "@workspace/api-client-react";
 import { currentMonth } from "@/lib/month";
 import { MonthNavigator } from "@/components/month-navigator";
@@ -1093,11 +1096,6 @@ export default function Products() {
   const [month, setMonth] = useState(() => currentMonth());
   const [supplierFilter, setSupplierFilter] = useState<string>("all");
   const supplierId = supplierFilter !== "all" ? Number(supplierFilter) : undefined;
-  const { data: products, isLoading, isError } = useListProducts({
-    month,
-    supplierId,
-    ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}),
-  });
   const { data: suppliers } = useListSuppliers();
   const { data: spendItems } = useGetCategorySpend({ month, ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}) });
   const { data: categories } = useListCategories();
@@ -1129,17 +1127,43 @@ export default function Products() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkCategoryModalOpen, setBulkCategoryModalOpen] = useState(false);
   const [bulkCategorySelection, setBulkCategorySelection] = useState<string | null>(null);
+  const [csvExporting, setCsvExporting] = useState(false);
   const bulkVerify = useBulkVerifyProducts();
   const bulkAssignCategory = useCorrectProductCategory();
 
+  // Serwerowa paginacja/filtrowanie/sortowanie — backend zwraca tylko bieżącą stronę.
+  const pagedParams = {
+    month,
+    ...(supplierId != null ? { supplierId } : {}),
+    ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}),
+    ...(categoryFilter !== "all" ? { category: categoryFilter } : {}),
+    ...(showNeedsReview ? { needsReview: true } : {}),
+    ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+    sort,
+    page,
+    limit: PAGE_SIZE,
+  };
+  const { data: pagedData, isLoading, isError } = useListProductsPaged(pagedParams);
+  const items = pagedData?.items ?? [];
+  const total = pagedData?.total ?? 0;
+  const needsReviewCount = pagedData?.needsReviewCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Pełna lista — potrzebna tylko do „Porównaj po frazie" i deep-linku ?id=. Ładowana leniwie.
+  const allProductsParams = { month, ...(supplierId != null ? { supplierId } : {}), ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}) };
+  const { data: allProducts } = useListProducts(
+    allProductsParams,
+    { query: { enabled: showKeywordComparison || autoOpenId != null, queryKey: getListProductsQueryKey(allProductsParams) } },
+  );
+
   useEffect(() => {
-    if (autoOpenId == null || !products) return;
-    const product = products.find((p) => p.id === autoOpenId);
+    if (autoOpenId == null || !allProducts) return;
+    const product = allProducts.find((p) => p.id === autoOpenId);
     if (product) {
       setSelectedProduct({ id: product.id, name: product.name });
       setModalMode("history");
     }
-  }, [autoOpenId, products]);
+  }, [autoOpenId, allProducts]);
 
   // Sync filters to URL
   useEffect(() => {
@@ -1154,8 +1178,6 @@ export default function Products() {
 
     window.history.replaceState({}, "", newUrl);
   }, [search, sort, categoryFilter]);
-
-  const needsReviewCount = products?.filter((p) => p.needsReview === true).length ?? 0;
 
   function toggleSelect(id: number, e: React.MouseEvent) {
     e.stopPropagation();
@@ -1175,40 +1197,70 @@ export default function Products() {
     setSelectedIds(new Set());
   }
 
-  const filtered = useMemo(() => {
-    if (!products) return [];
-    return sortProducts(
-      products.filter((p) => {
-        const matchesSearch = p.name.toLowerCase().includes(debouncedSearch.toLowerCase());
-        const effectiveCategory = p.category ?? categorizeProduct(p.name);
-        const matchesCategory = categoryFilter === "all" || effectiveCategory === categoryFilter;
-        const matchesReview = !showNeedsReview || p.needsReview === true;
-        return matchesSearch && matchesCategory && matchesReview;
-      }),
-      sort
-    );
-  }, [products, debouncedSearch, categoryFilter, showNeedsReview, sort]);
-
-  // Pagination (render-only) — filtered stays full for export/select-all/counts
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = useMemo(
-    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filtered, page, PAGE_SIZE],
-  );
-  // Reset to first page when filters change or the current page falls out of range
+  // Reset to first page when filters change
   useEffect(() => { setPage(1); }, [debouncedSearch, categoryFilter, supplierFilter, showNeedsReview, sort, month]);
-  useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
+  // Reset selection when leaving review mode keeps state clean across pages
+  useEffect(() => { if (!showNeedsReview) clearSelection(); }, [showNeedsReview]);
 
+  // Select-all działa w obrębie bieżącej strony (paginacja serwerowa).
   const reviewableIds = useMemo(() =>
-    filtered.filter((p) => p.needsReview === true).map((p) => p.id),
-    [filtered]
+    items.filter((p) => p.needsReview === true).map((p) => p.id),
+    [items]
   );
+
+  function invalidateProducts() {
+    queryClient.invalidateQueries({ queryKey: getListProductsPagedQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+  }
+
+  // CSV — pobiera pełny zbiór on-demand (lista jest paginowana serwerowo) i filtruje po stronie klienta.
+  async function handleExportCsv() {
+    setCsvExporting(true);
+    try {
+      const all = await listProducts({
+        month,
+        ...(supplierId != null ? { supplierId } : {}),
+        ...(costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {}),
+      });
+      const q = debouncedSearch.trim().toLowerCase();
+      const rows = all
+        .filter((p) => {
+          const matchesSearch = !q || p.name.toLowerCase().includes(q);
+          const effectiveCategory = p.category ?? categorizeProduct(p.name);
+          const matchesCategory = categoryFilter === "all" || effectiveCategory === categoryFilter;
+          const matchesReview = !showNeedsReview || p.needsReview === true;
+          return matchesSearch && matchesCategory && matchesReview;
+        })
+        .map((p) => {
+          const catId = p.category ?? categorizeProduct(p.name);
+          const catName = categories?.find((c) => c.id === catId)?.label ?? catId;
+          return [
+            p.name,
+            catName,
+            p.supplierName ?? "",
+            p.unit,
+            p.latestPrice ?? "",
+            p.previousPrice ?? "",
+            p.priceChangePercent ?? "",
+          ];
+        });
+      exportToCsv(
+        [
+          ["Produkt", "Kategoria", "Dostawca", "Jednostka", "Ostatnia cena (PLN)", "Poprzednia cena (PLN)", "Zmiana (%)"],
+          ...rows,
+        ],
+        `produkty-${todaySlug()}.csv`,
+      );
+    } finally {
+      setCsvExporting(false);
+    }
+  }
 
   async function handleBulkVerify() {
     const ids = Array.from(selectedIds);
     await bulkVerify.mutateAsync({ data: { ids } });
     clearSelection();
-    queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+    invalidateProducts();
   }
 
   async function handleBulkCategoryAssign() {
@@ -1216,41 +1268,26 @@ export default function Products() {
     const ids = Array.from(selectedIds);
     try {
       await Promise.all(
-        ids.map(id => {
-          const product = products?.find(p => p.id === id);
-          if (!product) return Promise.resolve();
-          return bulkAssignCategory.mutateAsync({
-            id,
-            data: { category: bulkCategorySelection }
-          });
-        })
+        ids.map((id) =>
+          bulkAssignCategory.mutateAsync({ id, data: { category: bulkCategorySelection } })
+        )
       );
       setBulkCategoryModalOpen(false);
       setBulkCategorySelection(null);
       clearSelection();
-      queryClient.invalidateQueries({ queryKey: getListProductsQueryKey() });
+      invalidateProducts();
     } catch (error) {
       console.error("Failed to assign category:", error);
     }
   }
 
-  // Compute which categories actually have products (search-filtered, before category filter).
-  // Respect the "Do przeglądu" toggle so chip counts match the list the user will see —
-  // otherwise a category whose products are all verified (needs_review=false) shows a
-  // count but clicking it yields an empty list.
+  // Liczność per kategoria — z serwera (categoryCounts respektuje search + tryb weryfikacji,
+  // ignoruje filtr kategorii). Pigułki i licznik „Wszystkie" są spójne z listą serwerową.
   const categoryCountMap = useMemo(() => {
-    if (!products) return {};
-    const searchFiltered = products.filter((p) =>
-      p.name.toLowerCase().includes(debouncedSearch.toLowerCase()) &&
-      (!showNeedsReview || p.needsReview === true)
-    );
     const map: Record<string, number> = {};
-    for (const p of searchFiltered) {
-      const cat = p.category ?? categorizeProduct(p.name);
-      map[cat] = (map[cat] ?? 0) + 1;
-    }
+    for (const c of pagedData?.categoryCounts ?? []) map[c.category] = c.count;
     return map;
-  }, [products, debouncedSearch, showNeedsReview]);
+  }, [pagedData]);
 
   const searchFilteredCount = Object.values(categoryCountMap).reduce((sum, count) => sum + count, 0);
 
@@ -1541,36 +1578,17 @@ export default function Products() {
             </button>
           )}
           <div className="hidden md:flex ml-auto items-center gap-2">
-            {filtered && filtered.length > 0 && (
+            {total > 0 && (
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-1.5"
-                onClick={() =>
-                  exportToCsv(
-                    [
-                      ["Produkt", "Kategoria", "Dostawca", "Jednostka", "Ostatnia cena (PLN)", "Poprzednia cena (PLN)", "Zmiana (%)"],
-                      ...filtered.map((p) => {
-                        const catId = p.category ?? categorizeProduct(p.name);
-                        const catName = categories?.find((c) => c.id === catId)?.label ?? catId;
-                        return [
-                          p.name,
-                          catName,
-                          p.supplierName ?? "",
-                          p.unit,
-                          p.latestPrice ?? "",
-                          p.previousPrice ?? "",
-                          p.priceChangePercent ?? "",
-                        ];
-                      }),
-                    ],
-                    `produkty-${todaySlug()}.csv`,
-                  )
-                }
+                onClick={handleExportCsv}
+                disabled={csvExporting}
                 data-testid="btn-export-csv-products"
               >
                 <Download className="w-3.5 h-3.5" />
-                Eksportuj CSV
+                {csvExporting ? "Eksportowanie..." : "Eksportuj CSV"}
               </Button>
             )}
             <Button
@@ -1664,9 +1682,9 @@ export default function Products() {
             <div className="px-4 py-8 text-center text-sm text-destructive">
               Nie udało się załadować produktów.
             </div>
-          ) : filtered && filtered.length > 0 ? (
+          ) : items.length > 0 ? (
             <div className="divide-y divide-border">
-              {paged.map((product) => {
+              {items.map((product) => {
                 const hasMultipleSuppliers = (product.supplierCount ?? 1) > 1;
                 const effectiveCatId = product.category ?? categorizeProduct(product.name);
                 const catDef = categories?.find((c) => c.id === effectiveCatId);
@@ -1770,9 +1788,9 @@ export default function Products() {
               </p>
             </div>
           )}
-          {!isLoading && filtered && filtered.length > 0 && (
+          {!isLoading && total > 0 && (
             <div className="px-4 py-3 border-t border-border bg-secondary/20 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">{filtered.length} produktów</p>
+              <p className="text-xs text-muted-foreground">{total} produktów</p>
               <button
                 className="text-xs font-medium text-primary flex items-center gap-1 active:opacity-70"
                 onClick={() => setShowKeywordComparison(true)}
@@ -1817,9 +1835,9 @@ export default function Products() {
             <div className="px-6 py-8 text-center text-sm text-destructive">
               Nie udało się załadować produktów. Odśwież stronę lub spróbuj ponownie później.
             </div>
-          ) : filtered && filtered.length > 0 ? (
+          ) : items.length > 0 ? (
             <div className="divide-y divide-border">
-              {paged.map((product) => {
+              {items.map((product) => {
                 const hasMultipleSuppliers = (product.supplierCount ?? 1) > 1;
                 return (
                   <div
@@ -2014,7 +2032,7 @@ export default function Products() {
 
         {showKeywordComparison && (
           <KeywordComparisonModal
-            products={products ?? []}
+            products={allProducts ?? []}
             onClose={() => setShowKeywordComparison(false)}
           />
         )}

@@ -905,6 +905,68 @@ paths:
         "404":
           description: Not found
 
+  /products/page:
+    get:
+      operationId: listProductsPaged
+      tags: [products]
+      summary: Paginated product list with server-side search, filter and sort
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Month YYYY-MM (default current). Lista pokazuje produkty kupione w tym miesiącu."
+        - name: supplierId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filtr kategorii; 'inne' obejmuje też produkty bez kategorii."
+        - name: needsReview
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [name-asc, name-desc, price-desc, price-asc, change-desc, supplier-asc, quantity-desc, quantity-asc]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paginated products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedProducts"
+
   /products:
     get:
       operationId: listProducts
@@ -3134,6 +3196,30 @@ components:
         - changePercent
         - thresholdPercent
         - dismissedAt
+
+    PaginatedProducts:
+      type: object
+      required: [items, total, categoryCounts, needsReviewCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        total:
+          type: integer
+          description: Liczba produktów pasujących do filtrów (z aktywnym filtrem kategorii).
+        categoryCounts:
+          type: array
+          description: Liczność produktów per kategoria (ignoruje filtr kategorii) — do pigułek.
+          items:
+            type: object
+            required: [category, count]
+            properties:
+              category: { type: string }
+              count: { type: integer }
+        needsReviewCount:
+          type: integer
+          description: Liczba produktów do weryfikacji w scope (ignoruje search/kategorię) — do badge'a.
 
     PaginatedInvoices:
       type: object
