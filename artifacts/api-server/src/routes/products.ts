@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { toNum } from "../lib/parse";
-import { eq, sql, desc, and, inArray, isNull, ne } from "drizzle-orm";
+import { eq, sql, desc, and, inArray, isNull, ne, ilike } from "drizzle-orm";
 import { db, productsTable, invoiceItemsTable, invoicesTable, suppliersTable } from "@workspace/db";
 import { userCategoriesTable } from "@workspace/db/schema";
 import {
   ListProductsQueryParams,
+  ListProductsPagedQueryParams,
   GetProductPriceHistoryParams,
   GetProductPriceHistoryQueryParams,
   GetTopPriceChangesQueryParams,
@@ -211,6 +212,173 @@ router.get("/products", async (req, res): Promise<void> => {
   });
 
   res.json(enriched.filter(p => p.supplierName != null));
+});
+
+// ─── Paginated products (server-side search / filter / sort) ──────────────────
+router.get("/products/page", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const parsed = ListProductsPagedQueryParams.safeParse(req.query);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const { supplierId, costCenterId, category, needsReview, search, sort } = parsed.data;
+  const month = parsed.data.month ?? new Date().toISOString().slice(0, 7);
+  const page = Math.max(1, parsed.data.page ?? 1);
+  const limit = Math.min(200, Math.max(1, parsed.data.limit ?? 50));
+  const offset = (page - 1) * limit;
+  const mStart = monthStart(month);
+  const mEnd = monthEnd(month);
+
+  const supplierSql = supplierId ? sql` AND i.supplier_id = ${supplierId}` : sql``;
+  const ccSql = costCenterId != null
+    ? costCenterId === 0 ? sql` AND i.cost_center_id IS NULL` : sql` AND i.cost_center_id = ${costCenterId}`
+    : sql``;
+  const needsReviewSql = needsReview ? sql` AND p.needs_review = true` : sql``;
+  const searchSql = search?.trim() ? sql` AND p.name ILIKE ${`%${search.trim()}%`}` : sql``;
+  const categorySql = category
+    ? category === "inne"
+      ? sql` AND (p.category = 'inne' OR p.category IS NULL)`
+      : sql` AND p.category = ${category}`
+    : sql``;
+
+  const orderSql = (() => {
+    switch (sort) {
+      case "name-desc": return sql`p.name DESC`;
+      case "price-desc": return sql`lb.latest_price DESC NULLS LAST`;
+      case "price-asc": return sql`lb.latest_price ASC NULLS LAST`;
+      case "change-desc": return sql`ABS((lb.latest_price - pb.previous_price) / NULLIF(pb.previous_price, 0)) DESC NULLS LAST`;
+      case "supplier-asc": return sql`lb.supplier_name ASC NULLS LAST`;
+      case "quantity-desc": return sql`qs.total_quantity DESC NULLS LAST`;
+      case "quantity-asc": return sql`qs.total_quantity ASC NULLS LAST`;
+      default: return sql`p.name ASC`;
+    }
+  })();
+
+  type Row = {
+    id: number; name: string; unit: string; category: string | null; subcategory: string | null;
+    classificationConfidence: number | null; canonicalName: string | null; needsReview: boolean;
+    latestPrice: string | null; lastPurchaseDate: string | null;
+    supplierId: string | null; supplierName: string | null;
+    previousPrice: string | null; supplierCount: string | null; totalQuantity: string | null;
+  };
+
+  const itemsResult = await db.execute(sql`
+    WITH
+    latest_base AS (
+      SELECT DISTINCT ON (ii.product_id)
+        ii.product_id, ii.unit_price::numeric AS latest_price,
+        i.invoice_date AS last_purchase_date, i.supplier_id, s.name AS supplier_name
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      JOIN suppliers s ON i.supplier_id = s.id
+      WHERE i.user_id = ${userId} AND i.excluded = false
+        AND i.parent_invoice_id IS NULL AND i.invoice_type IS DISTINCT FROM 'KOR'
+        AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+        AND i.invoice_date >= ${mStart} AND i.invoice_date < ${mEnd}
+        ${supplierSql}${ccSql}
+      ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+    ),
+    prev_base AS (
+      SELECT DISTINCT ON (ii.product_id)
+        ii.product_id, ii.unit_price::numeric AS previous_price
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      WHERE i.user_id = ${userId} AND i.excluded = false
+        AND i.parent_invoice_id IS NULL AND i.invoice_type IS DISTINCT FROM 'KOR'
+        AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+        AND i.invoice_date < ${mStart}
+        ${supplierSql}${ccSql}
+      ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+    ),
+    sup_counts AS (
+      SELECT ii.product_id, COUNT(DISTINCT i.supplier_id)::int AS supplier_count
+      FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
+      WHERE i.user_id = ${userId} AND i.excluded = false ${ccSql}
+      GROUP BY ii.product_id
+    ),
+    qty_sums AS (
+      SELECT ii.product_id, SUM(ii.quantity::numeric) AS total_quantity
+      FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
+      WHERE i.user_id = ${userId} AND i.excluded = false
+        AND i.invoice_date >= ${mStart} AND i.invoice_date < ${mEnd} ${ccSql}
+      GROUP BY ii.product_id
+    )
+    SELECT
+      p.id, p.name, p.unit, p.category, p.subcategory,
+      p.classification_confidence AS "classificationConfidence",
+      p.canonical_name AS "canonicalName",
+      p.needs_review AS "needsReview",
+      lb.latest_price::text AS "latestPrice",
+      lb.last_purchase_date AS "lastPurchaseDate",
+      lb.supplier_id::text AS "supplierId",
+      lb.supplier_name AS "supplierName",
+      pb.previous_price::text AS "previousPrice",
+      sc.supplier_count::text AS "supplierCount",
+      qs.total_quantity::text AS "totalQuantity"
+    FROM products p
+    JOIN latest_base lb ON p.id = lb.product_id
+    LEFT JOIN prev_base pb ON p.id = pb.product_id
+    LEFT JOIN sup_counts sc ON p.id = sc.product_id
+    LEFT JOIN qty_sums qs ON p.id = qs.product_id
+    WHERE p.user_id = ${userId}${categorySql}${needsReviewSql}${searchSql}
+    ORDER BY ${orderSql}
+    LIMIT ${limit} OFFSET ${offset}
+  `);
+
+  const items = (itemsResult.rows as Row[]).map((row) => {
+    const latestPrice = row.latestPrice != null ? toNum(row.latestPrice) : null;
+    const previousPrice = row.previousPrice != null ? toNum(row.previousPrice) : null;
+    return {
+      id: row.id, name: row.name, unit: row.unit, category: row.category, subcategory: row.subcategory,
+      classificationConfidence: row.classificationConfidence,
+      canonicalName: row.canonicalName, needsReview: row.needsReview,
+      latestPrice, previousPrice,
+      priceChangePercent: latestPrice && previousPrice ? ((latestPrice - previousPrice) / previousPrice) * 100 : null,
+      supplierId: row.supplierId != null ? Number(row.supplierId) : null,
+      supplierName: row.supplierName ?? null,
+      lastPurchaseDate: row.lastPurchaseDate ?? null,
+      supplierCount: row.supplierCount != null ? toNum(row.supplierCount) : 0,
+      totalQuantity: row.totalQuantity != null ? toNum(row.totalQuantity) : null,
+    };
+  });
+
+  // Liczność per kategoria (ignoruje filtr kategorii) — produkty kupione w scope.
+  const countsResult = await db.execute(sql`
+    SELECT COALESCE(p.category, 'inne') AS category, COUNT(*)::int AS count
+    FROM products p
+    WHERE p.user_id = ${userId}${needsReviewSql}${searchSql}
+      AND EXISTS (
+        SELECT 1 FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
+        WHERE ii.product_id = p.id AND i.user_id = ${userId} AND i.excluded = false
+          AND i.parent_invoice_id IS NULL AND i.invoice_type IS DISTINCT FROM 'KOR'
+          AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+          AND i.invoice_date >= ${mStart} AND i.invoice_date < ${mEnd}
+          ${supplierSql}${ccSql}
+      )
+    GROUP BY 1
+  `);
+  const categoryCounts = (countsResult.rows as { category: string; count: number }[]).map((r) => ({
+    category: r.category, count: Number(r.count),
+  }));
+  const total = category
+    ? (categoryCounts.find((c) => c.category === category)?.count ?? 0)
+    : categoryCounts.reduce((s, c) => s + c.count, 0);
+
+  // Liczba produktów do weryfikacji w scope (ignoruje search/kategorię) — do badge'a przycisku.
+  const nrResult = await db.execute(sql`
+    SELECT COUNT(*)::int AS c FROM products p
+    WHERE p.user_id = ${userId} AND p.needs_review = true
+      AND EXISTS (
+        SELECT 1 FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
+        WHERE ii.product_id = p.id AND i.user_id = ${userId} AND i.excluded = false
+          AND i.parent_invoice_id IS NULL AND i.invoice_type IS DISTINCT FROM 'KOR'
+          AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+          AND i.invoice_date >= ${mStart} AND i.invoice_date < ${mEnd}
+          ${supplierSql}${ccSql}
+      )
+  `);
+  const needsReviewCount = Number((nrResult.rows[0] as { c: number } | undefined)?.c ?? 0);
+
+  res.json({ items, total, categoryCounts, needsReviewCount });
 });
 
 router.get("/products/top-price-changes", async (req, res): Promise<void> => {

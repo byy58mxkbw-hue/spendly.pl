@@ -871,6 +871,49 @@ export const GetSupplierTopProductsResponse = zod.array(GetSupplierTopProductsRe
 
 
 /**
+ * @summary Paginated product list with server-side search, filter and sort
+ */
+export const ListProductsPagedQueryParams = zod.object({
+  "month": zod.coerce.string().optional().describe('Month YYYY-MM (default current). Lista pokazuje produkty kupione w tym miesiącu.'),
+  "supplierId": zod.coerce.number().optional(),
+  "costCenterId": zod.coerce.number().optional(),
+  "category": zod.coerce.string().optional().describe('Filtr kategorii; \'inne\' obejmuje też produkty bez kategorii.'),
+  "needsReview": zod.coerce.boolean().optional(),
+  "search": zod.coerce.string().optional(),
+  "sort": zod.enum(['name-asc', 'name-desc', 'price-desc', 'price-asc', 'change-desc', 'supplier-asc', 'quantity-desc', 'quantity-asc']).optional(),
+  "page": zod.coerce.number().optional(),
+  "limit": zod.coerce.number().optional()
+})
+
+export const ListProductsPagedResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "unit": zod.string(),
+  "category": zod.string().nullish(),
+  "subcategory": zod.string().nullish(),
+  "classificationConfidence": zod.number().nullish(),
+  "canonicalName": zod.string().nullish(),
+  "needsReview": zod.boolean(),
+  "latestPrice": zod.number().nullish(),
+  "previousPrice": zod.number().nullish(),
+  "priceChangePercent": zod.number().nullish(),
+  "supplierId": zod.number().nullish(),
+  "supplierName": zod.string().nullish(),
+  "lastPurchaseDate": zod.string().nullish(),
+  "supplierCount": zod.number().optional(),
+  "totalQuantity": zod.number().nullish()
+})),
+  "total": zod.number().describe('Liczba produktów pasujących do filtrów (z aktywnym filtrem kategorii).'),
+  "categoryCounts": zod.array(zod.object({
+  "category": zod.string(),
+  "count": zod.number()
+})).describe('Liczność produktów per kategoria (ignoruje filtr kategorii) — do pigułek.'),
+  "needsReviewCount": zod.number().describe('Liczba produktów do weryfikacji w scope (ignoruje search\/kategorię) — do badge\'a.')
+})
+
+
+/**
  * @summary List all products
  */
 export const ListProductsQueryParams = zod.object({

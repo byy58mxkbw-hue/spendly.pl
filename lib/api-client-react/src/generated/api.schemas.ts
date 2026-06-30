@@ -489,6 +489,21 @@ export interface DismissedAlert {
   dismissedAt: string;
 }
 
+export type PaginatedProductsCategoryCountsItem = {
+  category: string;
+  count: number;
+};
+
+export interface PaginatedProducts {
+  items: Product[];
+  /** Liczba produktów pasujących do filtrów (z aktywnym filtrem kategorii). */
+  total: number;
+  /** Liczność produktów per kategoria (ignoruje filtr kategorii) — do pigułek. */
+  categoryCounts: PaginatedProductsCategoryCountsItem[];
+  /** Liczba produktów do weryfikacji w scope (ignoruje search/kategorię) — do badge'a. */
+  needsReviewCount: number;
+}
+
 export interface PaginatedInvoices {
   items: Invoice[];
   /** Łączna liczba faktur pasujących do filtrów (bez paginacji). */
@@ -1241,6 +1256,38 @@ export type GetSupplierTopProductsParams = {
  */
 limit?: number;
 };
+
+export type ListProductsPagedParams = {
+/**
+ * Month YYYY-MM (default current). Lista pokazuje produkty kupione w tym miesiącu.
+ */
+month?: string;
+supplierId?: number;
+costCenterId?: number;
+/**
+ * Filtr kategorii; 'inne' obejmuje też produkty bez kategorii.
+ */
+category?: string;
+needsReview?: boolean;
+search?: string;
+sort?: ListProductsPagedSort;
+page?: number;
+limit?: number;
+};
+
+export type ListProductsPagedSort = typeof ListProductsPagedSort[keyof typeof ListProductsPagedSort];
+
+
+export const ListProductsPagedSort = {
+  'name-asc': 'name-asc',
+  'name-desc': 'name-desc',
+  'price-desc': 'price-desc',
+  'price-asc': 'price-asc',
+  'change-desc': 'change-desc',
+  'supplier-asc': 'supplier-asc',
+  'quantity-desc': 'quantity-desc',
+  'quantity-asc': 'quantity-asc',
+} as const;
 
 export type ListProductsParams = {
 supplierId?: number;
