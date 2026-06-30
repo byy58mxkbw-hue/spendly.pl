@@ -117,6 +117,8 @@ function KpiCard({
   icon: Icon,
   sparkData,
   accent,
+  hero,
+  className,
 }: {
   label: string;
   value: string;
@@ -125,6 +127,8 @@ function KpiCard({
   icon: React.ElementType;
   sparkData?: number[];
   accent?: boolean;
+  hero?: boolean;
+  className?: string;
 }) {
   const up = (change ?? 0) > 0;
   const down = (change ?? 0) < 0;
@@ -134,7 +138,8 @@ function KpiCard({
     <div
       className={cn(
         "relative bg-card border rounded-xl p-4 overflow-hidden transition-shadow hover:shadow-md",
-        accent ? "border-primary/30" : "border-border"
+        accent ? "border-primary/30" : "border-border",
+        className,
       )}
       data-testid="stat-card"
     >
@@ -163,8 +168,8 @@ function KpiCard({
 
       <div className="relative flex items-end justify-between mt-3">
         <div>
-          <p className="text-xl font-bold text-foreground leading-tight tracking-tight">{value}</p>
-          {subValue && <p className="text-[11px] text-muted-foreground mt-0.5">{subValue}</p>}
+          <p className={cn("font-bold text-foreground leading-tight tracking-tight", hero ? "text-3xl" : "text-xl")}>{value}</p>
+          {subValue && <p className={cn("text-muted-foreground mt-0.5", hero ? "text-xs" : "text-[11px]")}>{subValue}</p>}
           <p className="text-[11px] font-medium text-muted-foreground mt-1 uppercase tracking-wider">{label}</p>
         </div>
         {sparkData && sparkData.length > 1 && (
@@ -393,10 +398,10 @@ function DashboardPage() {
         )}
 
         {/* ── KPI ROW ──────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
           {summaryLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-4">
+              <div key={i} className={cn("bg-card border border-border rounded-xl p-4", i === 0 && "col-span-3 lg:col-span-1")}>
                 <Skeleton className="w-8 h-8 rounded-lg mb-3" />
                 <Skeleton className="h-6 w-24 mb-1" />
                 <Skeleton className="h-3 w-32" />
@@ -404,6 +409,7 @@ function DashboardPage() {
             ))
           ) : summary ? (
             <>
+              {/* Duży kafel wydatków — pełna szerokość na mobile (hero), 1 kolumna na desktop */}
               <KpiCard
                 label="Wydatki w miesiącu"
                 value={formatPrice(summary.totalSpendThisMonth)}
@@ -414,6 +420,8 @@ function DashboardPage() {
                 icon={FileText}
                 sparkData={spendSparkData}
                 accent
+                hero
+                className="col-span-3 lg:col-span-1"
               />
               <KpiCard
                 label="Aktywni dostawcy"
