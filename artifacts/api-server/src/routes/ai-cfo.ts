@@ -491,13 +491,27 @@ Odpowiadaj wyłącznie po polsku.`;
     { role: "user", content: question.trim().slice(0, 500) },
   ];
 
-  const resp = await requireOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
-    max_completion_tokens: 4000,
-    messages,
-  });
+  // Wywołanie AI w try/catch — brak klucza OpenAI lub błąd API ma dawać czytelny
+  // komunikat 503 zamiast generycznego 500 z globalnego handlera.
+  let raw = "";
+  try {
+    const resp = await requireOpenAI().chat.completions.create({
+      model: "gpt-4o-mini",
+      max_completion_tokens: 4000,
+      messages,
+    });
+    raw = (resp.choices[0]?.message?.content ?? "").trim();
+  } catch (err) {
+    const notConfigured = err instanceof Error && err.message.includes("brak konfiguracji OpenAI");
+    req.log.error({ err: String(err), notConfigured }, "ai-cfo chat OpenAI call failed");
+    res.status(503).json({
+      error: notConfigured
+        ? "Asystent AI nie jest skonfigurowany na serwerze (brak klucza OpenAI)."
+        : "Asystent AI jest chwilowo niedostępny. Spróbuj ponownie za chwilę.",
+    });
+    return;
+  }
 
-  const raw = (resp.choices[0]?.message?.content ?? "").trim();
   req.log.info({ rawLen: raw.length }, "ai-cfo chat response");
 
   let parsed: Record<string, unknown>;

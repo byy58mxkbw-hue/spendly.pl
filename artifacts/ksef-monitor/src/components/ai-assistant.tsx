@@ -194,10 +194,12 @@ export function AiAssistant() {
         onSuccess: (data) => {
           setMessages((prev) => [...prev, { role: "assistant", data }]);
         },
-        onError: () => {
+        onError: (err: unknown) => {
+          // ApiError z customFetch niesie sparsowane body błędu w .data
+          const serverMsg = (err as { data?: { error?: string } })?.data?.error;
           setMessages((prev) => [
             ...prev,
-            { role: "error", text: "Nie udało się uzyskać odpowiedzi. Spróbuj ponownie za chwilę." },
+            { role: "error", text: serverMsg ?? "Nie udało się uzyskać odpowiedzi. Spróbuj ponownie za chwilę." },
           ]);
         },
       },
