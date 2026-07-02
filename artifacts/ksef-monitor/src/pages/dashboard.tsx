@@ -534,14 +534,14 @@ function DashboardPage() {
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   <Bell className="w-3.5 h-3.5 text-primary" />
                   Alerty cenowe
-                  {summary?.unreadAlerts ? (
+                  {visibleActiveAlerts.length > 0 && (
                     <span
                       className="ml-1 inline-flex items-center justify-center rounded-full bg-destructive px-1.5 min-w-[1.25rem] h-5 text-[10px] font-bold text-destructive-foreground"
-                      title={`${summary.unreadAlerts} nieprzeczytanych powiadomień`}
+                      title={`${visibleActiveAlerts.length} aktywnych alertów`}
                     >
-                      {summary.unreadAlerts}
+                      {visibleActiveAlerts.length}
                     </span>
-                  ) : null}
+                  )}
                 </h2>
                 <Link href="/price-alerts">
                   <button className="text-[11px] text-primary hover:underline flex items-center gap-0.5">

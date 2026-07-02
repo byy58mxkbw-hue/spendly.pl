@@ -906,6 +906,9 @@ function ProductsTable({ products }: { products: ProductWithImpact[] }) {
           <option value="qty">Wg zmiany ilości</option>
         </select>
       </div>
+      {/* Mobile: tabela przewija się poziomo — bez tego 5-6 kolumn zgniata nazwę produktu do zera */}
+      <div className="overflow-x-auto">
+      <div className={cn(sortBy === "qty" ? "min-w-[640px]" : "min-w-[560px]")}>
       {sortBy === "qty" ? (
         <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
           <div>Produkt</div>
@@ -1007,6 +1010,8 @@ function ProductsTable({ products }: { products: ProductWithImpact[] }) {
             Brak wyników
           </div>
         )}
+      </div>
+      </div>
       </div>
     </div>
   );

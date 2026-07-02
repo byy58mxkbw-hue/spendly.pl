@@ -10,7 +10,6 @@ import {
   BarChart2,
   Inbox,
   Settings,
-  Sparkles,
   Menu,
   X,
   ShieldCheck,
@@ -38,6 +37,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useCostCenter } from "@/contexts/cost-center-context";
+import { AiAssistant } from "@/components/ai-assistant";
 
 type NavItem = { path: string; label: string; icon: React.ElementType };
 
@@ -53,7 +53,6 @@ const analyticsNavItems: NavItem[] = [
   { path: "/food-cost", label: "Food Cost", icon: UtensilsCrossed },
   { path: "/reports", label: "Raporty", icon: BarChart2 },
   { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
-  { path: "/ai-cfo", label: "AI CFO", icon: Sparkles },
 ];
 
 const navItems: NavItem[] = [...coreNavItems, ...analyticsNavItems];
@@ -747,6 +746,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
 
       <CostCenterOnboardingModal userSignedIn={!!user} />
+
+      {/* Rozwijany czat-asystent AI — dostępny na każdej stronie aplikacji */}
+      <AiAssistant />
 
       {/* Mobile bottom navigation */}
       <nav

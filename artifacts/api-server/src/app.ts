@@ -118,9 +118,7 @@ app.use(limiter);
 
 // Limity per-endpoint (przed głównym routerem). Ścieżki zawierają prefiks /api.
 app.use("/api/ai-cfo/chat", aiLimiter);
-app.use("/api/ai-cfo/food-cost", aiLimiter);
 app.use("/api/invoices/scan-receipt", aiLimiter);
-app.use("/api/insights/generate", aiLimiter);
 app.use("/api/ksef/sync", ksefLimiter);
 
 // ── Timeout na długich operacjach ────────────────────────────────────────────

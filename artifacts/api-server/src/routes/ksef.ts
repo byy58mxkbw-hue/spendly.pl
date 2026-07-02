@@ -1168,13 +1168,6 @@ async function runSync(
   if (summary.imported > 0) {
     checkAlertsAfterImport(userId, req.log).catch(() => {});
   }
-
-  // Fire-and-forget AI insight generation after sync completes.
-  if (summary.imported > 0 || summary.pending > 0) {
-    import("../services/insights-generator")
-      .then(({ generateInsights }) => generateInsights(userId, req.log))
-      .catch((err: unknown) => req.log.warn({ err: String(err) }, "AI CFO post-sync generation failed"));
-  }
 }
 
 // ─── Pending retry ───────────────────────────────────────────────────────────
@@ -1293,6 +1286,9 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
       req.log.error({ pendingId: row.id, err: String(err) }, "KSeF pending retry failed");
     }
   }
+
+  // Reguła: po każdym imporcie faktury sprawdzamy progi alertów cenowych.
+  if (imported > 0) checkAlertsAfterImport(userId, req.log).catch(() => {});
 
   res.json({ imported, stillPending: remainingPending });
 });
@@ -1550,6 +1546,9 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
 
     return { inv, items };
   });
+
+  // Reguła: po każdym imporcie faktury sprawdzamy progi alertów cenowych.
+  checkAlertsAfterImport(userId, req.log).catch(() => {});
 
   res.json({
     id: created.inv.id,

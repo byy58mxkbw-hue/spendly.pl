@@ -546,8 +546,6 @@ export interface DashboardSummary {
   spendChangePercent: number;
   trackedProducts: number;
   activeAlerts: number;
-  /** Liczba nieprzeczytanych powiadomień o alertach cenowych (insighty high). */
-  unreadAlerts?: number;
   avgPriceChange?: number | null;
 }
 
@@ -813,36 +811,6 @@ export interface AcceptKsefPendingBody {
   itemMappings: AcceptKsefPendingItemMapping[];
 }
 
-/**
- * @nullable
- */
-export type AiInsightMetadata = { [key: string]: unknown } | null;
-
-export interface AiInsight {
-  id: number;
-  userId: string;
-  type: string;
-  severity: string;
-  title: string;
-  body: string;
-  riskScore: number;
-  /** @nullable */
-  productId?: number | null;
-  /** @nullable */
-  supplierId?: number | null;
-  /** @nullable */
-  metadata?: AiInsightMetadata;
-  /** @nullable */
-  readAt?: string | null;
-  /** @nullable */
-  dismissedAt?: string | null;
-  createdAt: string;
-}
-
-export interface GenerateInsightsResponse {
-  generated: number;
-}
-
 export interface TriggeredAlert {
   alertId: number;
   productName: string;
@@ -938,34 +906,6 @@ export interface AdminUserDetails {
   topProducts: AdminTopProduct[];
 }
 
-export type AiCfoInsightCardType = typeof AiCfoInsightCardType[keyof typeof AiCfoInsightCardType];
-
-
-export const AiCfoInsightCardType = {
-  price_spike: 'price_spike',
-  quantity_anomaly: 'quantity_anomaly',
-  savings_opportunity: 'savings_opportunity',
-} as const;
-
-export type AiCfoInsightCardMetadata = { [key: string]: unknown };
-
-export interface AiCfoInsightCard {
-  type: AiCfoInsightCardType;
-  title: string;
-  description: string;
-  impactAmount: number;
-  impactLabel: string;
-  /** @nullable */
-  productId?: number | null;
-  /** @nullable */
-  supplierId?: number | null;
-  /** @nullable */
-  productName?: string | null;
-  /** @nullable */
-  supplierName?: string | null;
-  metadata?: AiCfoInsightCardMetadata;
-}
-
 export interface AiCfoKpiCard {
   label: string;
   value: string;
@@ -995,11 +935,17 @@ export const AiCfoChatBodyHistoryItemRole = {
 
 export type AiCfoChatBodyHistoryItem = {
   role: AiCfoChatBodyHistoryItemRole;
+  /** @maxLength 2000 */
   content: string;
 };
 
 export interface AiCfoChatBody {
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
   question: string;
+  /** @maxItems 12 */
   history?: AiCfoChatBodyHistoryItem[];
 }
 
@@ -1010,93 +956,6 @@ export interface AiCfoChatResponse {
   table?: AiCfoTableData | null;
   recommendation?: string;
   actions: AiCfoAction[];
-}
-
-export interface AiCfoExtractMenuBody {
-  /**
-     * Up to 5 images (JPG, PNG, WEBP) or a single multi-page PDF — max 15 MB total
-     * @minItems 1
-     * @maxItems 5
-     */
-  files: Blob[];
-}
-
-export interface AiCfoExtractMenuResponse {
-  /** Extracted menu text ready to use in Food Cost AI */
-  menuText: string;
-  /** Number of pages/files that were processed */
-  pageCount: number;
-}
-
-export interface AiCfoFoodCostBody {
-  menuText: string;
-  salesText?: string;
-}
-
-export interface AiCfoFoodCostDish {
-  name: string;
-  /** @nullable */
-  sales?: number | null;
-  ingredientCost: number;
-  salePrice: number;
-  marginPct: number;
-  /** @nullable */
-  grossProfit?: number | null;
-  /** @nullable */
-  suggestedPrice?: number | null;
-}
-
-export interface AiCfoFoodCostResponse {
-  dishes: AiCfoFoodCostDish[];
-  summary?: string;
-  avgMarginPct?: number;
-}
-
-export type AiCfoSessionMessageRole = typeof AiCfoSessionMessageRole[keyof typeof AiCfoSessionMessageRole];
-
-
-export const AiCfoSessionMessageRole = {
-  user: 'user',
-  assistant: 'assistant',
-} as const;
-
-/**
- * @nullable
- */
-export type AiCfoSessionMessageData = { [key: string]: unknown } | null;
-
-export interface AiCfoSessionMessage {
-  id: string;
-  role: AiCfoSessionMessageRole;
-  /** @nullable */
-  text?: string | null;
-  /** @nullable */
-  data?: AiCfoSessionMessageData;
-}
-
-export interface AiCfoSessionSummary {
-  id: number;
-  title: string;
-  messageCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AiCfoSessionDetail {
-  id: number;
-  title: string;
-  messages: AiCfoSessionMessage[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateAiCfoSessionBody {
-  title: string;
-  messages: AiCfoSessionMessage[];
-}
-
-export interface UpdateAiCfoSessionBody {
-  messages: AiCfoSessionMessage[];
 }
 
 export interface SupplierMonthlySpend {
@@ -1196,20 +1055,6 @@ export type PatchAdminUserBlockBody = {
 export type PatchAdminUserBlock200 = {
   ok: boolean;
   blocked: boolean;
-};
-
-export type PostInsightsGenerateBody = { [key: string]: unknown };
-
-export type PostInsightsIdReadBody = { [key: string]: unknown };
-
-export type PostInsightsIdRead200 = {
-  ok?: boolean;
-};
-
-export type PostInsightsIdDismissBody = { [key: string]: unknown };
-
-export type PostInsightsIdDismiss200 = {
-  ok?: boolean;
 };
 
 export type DeleteCostCenter200 = {

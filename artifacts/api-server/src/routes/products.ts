@@ -641,16 +641,9 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
   // linked via parent_invoice_id (for the same product). Corrections with negative
   // quantities or 'KOR' invoice type are excluded from the main result set.
   const productId = params.data.id;
-  const supplierFilter = supplierId ? `AND inv.supplier_id = ${supplierId}` : "";
+  const supplierFilter = supplierId ? sql` AND inv.supplier_id = ${supplierId}` : sql``;
 
-  const { rows: history } = await db.execute<{
-    date: string;
-    price: string;
-    invoice_id: number;
-    invoice_number: string;
-    supplier_id: number;
-    supplier_name: string;
-  }>(sql.raw(`
+  const { rows: history } = (await db.execute(sql`
     SELECT
       inv.invoice_date                                  AS date,
       (
@@ -661,7 +654,7 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
             JOIN invoices cor ON ii2.invoice_id = cor.id
             WHERE ii2.product_id = ${productId}
               AND cor.parent_invoice_id = inv.id
-              AND cor.user_id = '${userId}'
+              AND cor.user_id = ${userId}
               AND cor.excluded = false
           ), 0)
       )::text                                           AS price,
@@ -673,7 +666,7 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
     JOIN invoices inv ON ii.invoice_id = inv.id
     JOIN suppliers s  ON inv.supplier_id = s.id
     WHERE ii.product_id = ${productId}
-      AND inv.user_id   = '${userId}'
+      AND inv.user_id   = ${userId}
       AND inv.excluded  = false
       AND inv.parent_invoice_id IS NULL
       AND (inv.invoice_type IS DISTINCT FROM 'KOR')
@@ -681,7 +674,14 @@ router.get("/products/:id/price-history", async (req, res): Promise<void> => {
       AND ii.unit_price::numeric > 0
       ${supplierFilter}
     ORDER BY inv.invoice_date
-  `));
+  `)) as unknown as { rows: {
+    date: string;
+    price: string;
+    invoice_id: number;
+    invoice_number: string;
+    supplier_id: number;
+    supplier_name: string;
+  }[] };
 
   res.json(
     history.map((h) => ({

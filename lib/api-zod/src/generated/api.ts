@@ -193,101 +193,22 @@ export const DeleteAdminUserResponse = zod.void()
 
 
 /**
- * @summary List AI insights for the current user
- */
-export const GetInsightsResponseItem = zod.object({
-  "id": zod.number(),
-  "userId": zod.string(),
-  "type": zod.string(),
-  "severity": zod.string(),
-  "title": zod.string(),
-  "body": zod.string(),
-  "riskScore": zod.number(),
-  "productId": zod.number().nullish(),
-  "supplierId": zod.number().nullish(),
-  "metadata": zod.object({
-
-}).passthrough().nullish(),
-  "readAt": zod.string().nullish(),
-  "dismissedAt": zod.string().nullish(),
-  "createdAt": zod.string()
-})
-export const GetInsightsResponse = zod.array(GetInsightsResponseItem)
-
-
-/**
- * @summary Trigger AI insight generation
- */
-export const PostInsightsGenerateBody = zod.object({
-
-}).passthrough()
-
-export const PostInsightsGenerateResponse = zod.object({
-  "generated": zod.number()
-})
-
-
-/**
- * @summary Mark insight as read
- */
-export const PostInsightsIdReadParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const PostInsightsIdReadBody = zod.object({
-
-}).passthrough()
-
-export const PostInsightsIdReadResponse = zod.object({
-  "ok": zod.boolean().optional()
-})
-
-
-/**
- * @summary Dismiss an insight
- */
-export const PostInsightsIdDismissParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const PostInsightsIdDismissBody = zod.object({
-
-}).passthrough()
-
-export const PostInsightsIdDismissResponse = zod.object({
-  "ok": zod.boolean().optional()
-})
-
-
-/**
- * @summary Get top 3 AI CFO insight cards (pure SQL, no AI)
- */
-export const GetAiCfoInsightsResponseItem = zod.object({
-  "type": zod.enum(['price_spike', 'quantity_anomaly', 'savings_opportunity']),
-  "title": zod.string(),
-  "description": zod.string(),
-  "impactAmount": zod.number(),
-  "impactLabel": zod.string(),
-  "productId": zod.number().nullish(),
-  "supplierId": zod.number().nullish(),
-  "productName": zod.string().nullish(),
-  "supplierName": zod.string().nullish(),
-  "metadata": zod.object({
-
-}).passthrough().optional()
-})
-export const GetAiCfoInsightsResponse = zod.array(GetAiCfoInsightsResponseItem)
-
-
-/**
  * @summary Chat with AI CFO — returns a structured mini-report
  */
+export const postAiCfoChatBodyQuestionMax = 500;
+
+export const postAiCfoChatBodyHistoryItemContentMax = 2000;
+
+export const postAiCfoChatBodyHistoryMax = 12;
+
+
+
 export const PostAiCfoChatBody = zod.object({
-  "question": zod.string(),
+  "question": zod.string().min(1).max(postAiCfoChatBodyQuestionMax),
   "history": zod.array(zod.object({
   "role": zod.enum(['user', 'assistant']),
-  "content": zod.string()
-})).optional()
+  "content": zod.string().max(postAiCfoChatBodyHistoryItemContentMax)
+})).max(postAiCfoChatBodyHistoryMax).optional()
 })
 
 export const PostAiCfoChatResponse = zod.object({
@@ -309,157 +230,6 @@ export const PostAiCfoChatResponse = zod.object({
   "href": zod.string()
 }))
 })
-
-
-/**
- * @summary Calculate food cost from menu text + weekly sales
- */
-export const PostAiCfoFoodCostBody = zod.object({
-  "menuText": zod.string(),
-  "salesText": zod.string().optional()
-})
-
-export const PostAiCfoFoodCostResponse = zod.object({
-  "dishes": zod.array(zod.object({
-  "name": zod.string(),
-  "sales": zod.number().nullish(),
-  "ingredientCost": zod.number(),
-  "salePrice": zod.number(),
-  "marginPct": zod.number(),
-  "grossProfit": zod.number().nullish(),
-  "suggestedPrice": zod.number().nullish()
-})),
-  "summary": zod.string().optional(),
-  "avgMarginPct": zod.number().optional()
-})
-
-
-/**
- * @summary Extract menu items and prices from uploaded images or a multi-page PDF (up to 5 files)
- */
-export const postAiCfoExtractMenuBodyFilesMax = 5;
-
-
-
-export const PostAiCfoExtractMenuBody = zod.object({
-  "files": zod.array(zod.instanceof(File)).min(1).max(postAiCfoExtractMenuBodyFilesMax).describe('Up to 5 images (JPG, PNG, WEBP) or a single multi-page PDF — max 15 MB total')
-})
-
-export const PostAiCfoExtractMenuResponse = zod.object({
-  "menuText": zod.string().describe('Extracted menu text ready to use in Food Cost AI'),
-  "pageCount": zod.number().describe('Number of pages\/files that were processed')
-})
-
-
-/**
- * @summary List recent AI CFO chat sessions for the current user
- */
-export const ListAiCfoSessionsResponseItem = zod.object({
-  "id": zod.number(),
-  "title": zod.string(),
-  "messageCount": zod.number(),
-  "createdAt": zod.string(),
-  "updatedAt": zod.string()
-})
-export const ListAiCfoSessionsResponse = zod.array(ListAiCfoSessionsResponseItem)
-
-
-/**
- * @summary Create a new AI CFO chat session
- */
-export const CreateAiCfoSessionBody = zod.object({
-  "title": zod.string(),
-  "messages": zod.array(zod.object({
-  "id": zod.string(),
-  "role": zod.enum(['user', 'assistant']),
-  "text": zod.string().nullish(),
-  "data": zod.object({
-
-}).passthrough().nullish()
-}))
-})
-
-export const CreateAiCfoSessionResponse = zod.object({
-  "id": zod.number(),
-  "title": zod.string(),
-  "messages": zod.array(zod.object({
-  "id": zod.string(),
-  "role": zod.enum(['user', 'assistant']),
-  "text": zod.string().nullish(),
-  "data": zod.object({
-
-}).passthrough().nullish()
-})),
-  "createdAt": zod.string(),
-  "updatedAt": zod.string()
-})
-
-
-/**
- * @summary Get a single AI CFO session with full message history
- */
-export const GetAiCfoSessionParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const GetAiCfoSessionResponse = zod.object({
-  "id": zod.number(),
-  "title": zod.string(),
-  "messages": zod.array(zod.object({
-  "id": zod.string(),
-  "role": zod.enum(['user', 'assistant']),
-  "text": zod.string().nullish(),
-  "data": zod.object({
-
-}).passthrough().nullish()
-})),
-  "createdAt": zod.string(),
-  "updatedAt": zod.string()
-})
-
-
-/**
- * @summary Append messages to an existing AI CFO session
- */
-export const UpdateAiCfoSessionParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const UpdateAiCfoSessionBody = zod.object({
-  "messages": zod.array(zod.object({
-  "id": zod.string(),
-  "role": zod.enum(['user', 'assistant']),
-  "text": zod.string().nullish(),
-  "data": zod.object({
-
-}).passthrough().nullish()
-}))
-})
-
-export const UpdateAiCfoSessionResponse = zod.object({
-  "id": zod.number(),
-  "title": zod.string(),
-  "messages": zod.array(zod.object({
-  "id": zod.string(),
-  "role": zod.enum(['user', 'assistant']),
-  "text": zod.string().nullish(),
-  "data": zod.object({
-
-}).passthrough().nullish()
-})),
-  "createdAt": zod.string(),
-  "updatedAt": zod.string()
-})
-
-
-/**
- * @summary Delete an AI CFO session
- */
-export const DeleteAiCfoSessionParams = zod.object({
-  "id": zod.coerce.number()
-})
-
-export const DeleteAiCfoSessionResponse = zod.void()
 
 
 /**
@@ -1736,7 +1506,6 @@ export const GetDashboardSummaryResponse = zod.object({
   "spendChangePercent": zod.number(),
   "trackedProducts": zod.number(),
   "activeAlerts": zod.number(),
-  "unreadAlerts": zod.number().optional().describe('Liczba nieprzeczytanych powiadomień o alertach cenowych (insighty high).'),
   "avgPriceChange": zod.number().nullish()
 })
 

@@ -7,9 +7,7 @@ import {
   invoiceItemsTable,
   productsTable,
   priceAlertsTable,
-  aiInsightsTable,
 } from "@workspace/db";
-import { isNull } from "drizzle-orm";
 import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams, GetDashboardSummaryQueryParams, GetTopPriceChangesQueryParams } from "@workspace/api-zod";
 import { toNum } from "../lib/parse";
 import { computeTriggeredAlerts } from "../services/alert-checker";
@@ -127,20 +125,6 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .from(priceAlertsTable)
     .where(eq(priceAlertsTable.userId, userId));
 
-  // Nieprzeczytane powiadomienia o alertach cenowych (insighty high jeszcze
-  // nie odczytane i nie odrzucone) — do badge na dashboardzie.
-  const [unreadAlertsRow] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(aiInsightsTable)
-    .where(
-      and(
-        eq(aiInsightsTable.userId, userId),
-        eq(aiInsightsTable.type, "price_alert"),
-        isNull(aiInsightsTable.readAt),
-        isNull(aiInsightsTable.dismissedAt),
-      ),
-    );
-
   const ccAvgSql = costCenterId != null
     ? sql`AND i.cost_center_id = ${costCenterId}`
     : sql.raw("");
@@ -189,7 +173,6 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     spendChangePercent: Math.round(spendChange * 10) / 10,
     trackedProducts: productCount.count,
     activeAlerts: alertCount.count,
-    unreadAlerts: unreadAlertsRow?.count ?? 0,
     avgPriceChange,
   });
 });

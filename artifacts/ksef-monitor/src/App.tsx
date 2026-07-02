@@ -25,7 +25,6 @@ const Reports = lazy(() => import("@/pages/reports"));
 const Predictive = lazy(() => import("@/pages/predictive"));
 const PendingInvoices = lazy(() => import("@/pages/pending-invoices"));
 const SettingsKsef = lazy(() => import("@/pages/settings-ksef"));
-const AiCfoPage = lazy(() => import("@/pages/ai-cfo"));
 const AdminUsers = lazy(() => import("@/pages/admin-users"));
 const SettingsCostCenters = lazy(() => import("@/pages/settings-cost-centers"));
 import { CostCenterProvider } from "@/contexts/cost-center-context";
@@ -258,8 +257,9 @@ function AppRouter() {
               <Route path="/pending-invoices">
                 <ProtectedRoute><PendingInvoices /></ProtectedRoute>
               </Route>
+              {/* Stara zakładka AI CFO — zastąpiona czatem-asystentem; stare linki kierujemy na dashboard */}
               <Route path="/ai-cfo">
-                <ProtectedRoute><AiCfoPage /></ProtectedRoute>
+                <Redirect to="/dashboard" />
               </Route>
               <Route path="/settings/ksef">
                 <ProtectedRoute><SettingsKsef /></ProtectedRoute>
