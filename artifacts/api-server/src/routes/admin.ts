@@ -195,6 +195,11 @@ router.patch("/admin/users/:userId/block", async (req, res): Promise<void> => {
   if (!isAdmin(req)) { denyAdmin(res); return; }
 
   const { userId } = req.params;
+  // Ochrona: admin nie może zablokować siebie ani innego admina.
+  if (userId === req.userId || ADMIN_IDS.includes(userId)) {
+    res.status(403).json({ error: "Nie można zablokować konta administratora." });
+    return;
+  }
   const blocked = (req.body as Record<string, unknown>)?.["blocked"] === true;
 
   const r = await clerkApiFetch(`/users/${userId}`);
@@ -215,10 +220,46 @@ router.patch("/admin/users/:userId/block", async (req, res): Promise<void> => {
   res.json({ ok: true, blocked });
 });
 
+// Usuwa wszystkie dane użytkownika z bazy w jednej transakcji. Kolejność tak,
+// by nie naruszyć kluczy obcych: faktury (kaskadują pozycje) i dania (kaskadują
+// składniki) najpierw, dostawcy/centra kosztów na końcu.
+async function purgeUserData(userId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`DELETE FROM invoices              WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM dishes                WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM alert_dismissals      WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM price_alerts          WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM ai_insights           WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM ai_cfo_sessions       WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM ksef_pending_invoices WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM ksef_config           WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM user_categories       WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM product_corrections   WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM products              WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM suppliers             WHERE user_id = ${userId}`);
+    await tx.execute(sql`DELETE FROM cost_centers          WHERE user_id = ${userId}`);
+  });
+}
+
 router.delete("/admin/users/:userId", async (req, res): Promise<void> => {
   if (!isAdmin(req)) { denyAdmin(res); return; }
 
   const { userId } = req.params;
+  // Ochrona: admin nie może usunąć siebie ani innego admina.
+  if (userId === req.userId || ADMIN_IDS.includes(userId)) {
+    res.status(403).json({ error: "Nie można usunąć konta administratora." });
+    return;
+  }
+
+  // Najpierw czyścimy dane w bazie (atomowo). Dopiero gdy się powiedzie,
+  // usuwamy konto w Clerk — inaczej zostałyby osierocone faktury i tokeny KSeF.
+  try {
+    await purgeUserData(userId);
+  } catch (err) {
+    req.log?.error?.({ err }, "Purge user data failed");
+    res.status(500).json({ error: "Błąd usuwania danych użytkownika z bazy." });
+    return;
+  }
 
   const delRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
     method: "DELETE",
@@ -226,7 +267,7 @@ router.delete("/admin/users/:userId", async (req, res): Promise<void> => {
       Authorization: `Bearer ${process.env.CLERK_SECRET_KEY ?? ""}`,
     },
   });
-  if (!delRes.ok) { res.status(502).json({ error: "Błąd usuwania w Clerk" }); return; }
+  if (!delRes.ok) { res.status(502).json({ error: "Dane usunięte z bazy, ale błąd usuwania konta w Clerk." }); return; }
 
   res.status(204).end();
 });

@@ -56,6 +56,7 @@ import { useToast } from "@/hooks/use-toast";
 import { currentMonth } from "@/lib/month";
 import { MonthNavigator } from "@/components/month-navigator";
 import { useCostCenter } from "@/contexts/cost-center-context";
+import { WelcomeOnboarding } from "@/components/welcome-onboarding";
 
 // ─── Mini sparkline ────────────────────────────────────────────────────────────
 function Sparkline({ data, positive }: { data: number[]; positive: boolean }) {
@@ -362,6 +363,9 @@ function DashboardPage() {
             </Link>
           </div>
         )}
+
+        {/* Powitalny samouczek — raz dla nowego użytkownika */}
+        <WelcomeOnboarding ready={suppliers !== undefined} hasData={!!config || hasSuppliers} />
 
         {/* Onboarding */}
         {showOnboarding && (
