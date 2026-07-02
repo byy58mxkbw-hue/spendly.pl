@@ -114,6 +114,71 @@ export function useSyncKsefProgress() {
   return { phase, startSync, reset, isPending };
 }
 
+// Polska odmiana rzeczownika przez liczbę.
+function plPlural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (n === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
+/**
+ * Jednolity, czytelny opis wyniku synchronizacji KSeF — używany w toastach na
+ * dashboardzie, w fakturach i ustawieniach. Zawsze mówi ILE faktur wpadło,
+ * ile czeka na przegląd, ile się nie udało i pokazuje ewentualne ostrzeżenia
+ * (przekroczony limit KSeF, ucięte okno itd.).
+ */
+export function describeSyncResult(res: KsefSyncResult): {
+  title: string;
+  description: string;
+  variant?: "destructive";
+  duration?: number;
+} {
+  const imported = res.imported ?? 0;
+  const pending = res.pending ?? 0;
+  const failed = res.failed ?? 0;
+  const errors = res.errors ?? [];
+
+  const nothing = imported === 0 && pending === 0 && failed === 0;
+  if (nothing && errors.length === 0) {
+    return { title: "Wszystko aktualne", description: "Brak nowych faktur do zaimportowania." };
+  }
+
+  // Same faktury do przeglądu (brak importu i błędów) — jasna instrukcja.
+  if (pending > 0 && imported === 0 && failed === 0 && errors.length === 0) {
+    return {
+      title: "Faktury wymagają przypisania",
+      description: `${pending} ${plPlural(pending, "faktura trafiła", "faktury trafiły", "faktur trafiło")} do „Do przeglądu" — dodaj lub przypisz dostawców w sekcji „Do przeglądu".`,
+      duration: 8000,
+    };
+  }
+
+  const parts: string[] = [];
+  if (imported > 0) parts.push(`${imported} ${plPlural(imported, "nowa faktura", "nowe faktury", "nowych faktur")}`);
+  if (pending > 0) parts.push(`${pending} do przeglądu`);
+  if (failed > 0) parts.push(`${failed} ${plPlural(failed, "nieudana", "nieudane", "nieudanych")}`);
+
+  let description = parts.length > 0
+    ? `Zsynchronizowano: ${parts.join(", ")}.`
+    : "Nie zaimportowano żadnych faktur.";
+
+  if (errors.length > 0) {
+    description += ` Uwaga: ${errors[0]}`;
+    if (errors.length > 1) description += ` (+${errors.length - 1} ${plPlural(errors.length - 1, "inne", "inne", "innych")})`;
+  }
+
+  // Nic nie wpadło, ale były problemy → traktuj jako błąd.
+  const variant = imported === 0 && pending === 0 ? ("destructive" as const) : undefined;
+
+  return {
+    title: variant ? "Synchronizacja nieudana" : "Synchronizacja zakończona",
+    description,
+    ...(variant ? { variant } : {}),
+    duration: errors.length > 0 || failed > 0 ? 8000 : 5000,
+  };
+}
+
 export function syncPhaseProgress(phase: SyncPhase): number | null {
   switch (phase.type) {
     case "connecting":

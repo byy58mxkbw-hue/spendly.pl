@@ -138,7 +138,10 @@ function withTimeout(ms: number) {
 const OP_TIMEOUT = 30_000;
 app.use("/api/ai-cfo/chat", withTimeout(OP_TIMEOUT));
 app.use("/api/invoices/scan-receipt", withTimeout(OP_TIMEOUT));
-app.use("/api/ksef/sync", withTimeout(OP_TIMEOUT));
+// UWAGA: /api/ksef/sync to długi strumień SSE (skanowanie okien + fallback
+// per-faktura + retry pending) — NIE nakładamy 30s socket-timeout, bo ucinał
+// połączenie w połowie i klient nie dostawał podsumowania. Endpoint sam zarządza
+// czasem (guard rate-limit, advisory lock per NIP, limity okien/paginacji).
 
 app.use(
   pinoHttp({

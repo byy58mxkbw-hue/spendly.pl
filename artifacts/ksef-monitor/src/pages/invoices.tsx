@@ -32,7 +32,7 @@ import {
   getListSuppliersQueryKey,
 } from "@workspace/api-client-react";
 import { useCostCenter } from "@/contexts/cost-center-context";
-import { useSyncKsefProgress, syncPhaseProgress, type SyncPhase } from "@/hooks/use-sync-progress";
+import { useSyncKsefProgress, syncPhaseProgress, describeSyncResult, type SyncPhase } from "@/hooks/use-sync-progress";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -2144,13 +2144,7 @@ export default function Invoices() {
     try {
       const res = await startSync();
       queryClient.invalidateQueries();
-      const hasPending = (res.pending ?? 0) > 0;
-      const hasImported = (res.imported ?? 0) > 0;
-      if (hasPending && !hasImported) {
-        toast({ title: "Faktury wymagają przypisania", description: `${res.pending} faktur trafiło do "Do przeglądu".`, duration: 8000 });
-      } else {
-        toast({ title: "Synchronizacja zakończona", description: hasImported ? `Zaimportowano ${res.imported} nowych faktur.` : "Wszystkie faktury są aktualne." });
-      }
+      toast(describeSyncResult(res));
     } catch (err) {
       toast({ variant: "destructive", title: "Błąd synchronizacji", description: err instanceof Error ? err.message : "Nie udało się zsynchronizować." });
     }

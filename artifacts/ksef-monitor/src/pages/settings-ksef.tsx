@@ -8,7 +8,7 @@ import {
   useUpdateKsefConfig,
   useUpdateKsefSyncFromDate,
 } from "@workspace/api-client-react";
-import { useSyncKsefProgress, syncPhaseProgress, type SyncPhase } from "@/hooks/use-sync-progress";
+import { useSyncKsefProgress, syncPhaseProgress, describeSyncResult, type SyncPhase } from "@/hooks/use-sync-progress";
 import { Progress } from "@/components/ui/progress";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -85,29 +85,7 @@ export default function SettingsKsef() {
     try {
       const res = await startSync(true);
       queryClient.invalidateQueries();
-      const hasPending = (res.pending ?? 0) > 0;
-      const hasImported = (res.imported ?? 0) > 0;
-
-      if (hasPending && !hasImported) {
-        toast({
-          title: "Faktury wymagają przypisania",
-          description: `${res.pending} faktur trafiło do "Do przeglądu" — dostawcy nie są jeszcze dodani w systemie. Otwórz "Do przeglądu" i przypisz je ręcznie lub najpierw dodaj dostawców w sekcji Dostawcy.`,
-          duration: 8000,
-        });
-      } else if (hasPending) {
-        toast({
-          title: "Synchronizacja zakończona",
-          description: `Zaimportowano ${res.imported} faktur. Kolejne ${res.pending} czeka w "Do przeglądu" — wymaga przypisania dostawców.`,
-          duration: 6000,
-        });
-      } else {
-        toast({
-          title: "Synchronizacja zakończona",
-          description: hasImported
-            ? `Zaimportowano ${res.imported} nowych faktur.`
-            : "Wszystkie faktury są aktualne.",
-        });
-      }
+      toast(describeSyncResult(res));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Nie udało się zsynchronizować z KSeF.";
       toast({ variant: "destructive", title: "Błąd synchronizacji", description: msg });
