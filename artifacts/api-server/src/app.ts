@@ -38,6 +38,10 @@ app.use(cors({
       "http://127.0.0.1:3000",
       "http://127.0.0.1:3001",
       "http://127.0.0.1:22900",
+      // Aplikacja natywna (Capacitor): Android WebView = https://localhost,
+      // iOS WKWebView = capacitor://localhost.
+      "https://localhost",
+      "capacitor://localhost",
       ...envOrigins,
     ];
     if (!origin || allowedOrigins.includes(origin)) {

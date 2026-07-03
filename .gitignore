@@ -55,3 +55,4 @@ Thumbs.db
 
 # Local debug/session artifacts
 __server.log
+.env.mobile
