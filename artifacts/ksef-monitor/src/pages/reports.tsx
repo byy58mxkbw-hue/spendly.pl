@@ -766,17 +766,25 @@ function RecommendationsList({ products }: { products: ProductWithImpact[] }) {
 
 function SectionCard({
   title,
+  subtitle,
+  action,
   children,
   className,
 }: {
   title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn("bg-card border border-border rounded-xl overflow-hidden", className)}>
-      <div className="px-4 md:px-5 py-3 border-b border-border">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <div className="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+        </div>
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       {children}
     </div>
@@ -1616,10 +1624,33 @@ export default function Reports() {
               </div>
             )}
 
-            {/* Cost center comparison (only when multiple centers configured) */}
+            {/* 1. Trend wydatków — główny wykres, pełna szerokość */}
+            {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (
+              <SectionCard
+                title="Trend wydatków"
+                subtitle="Jak zmieniają się miesięczne zakupy surowców"
+                action={
+                  <select
+                    value={trendMonths}
+                    onChange={(e) => setTrendMonths(Number(e.target.value))}
+                    className="text-xs border border-border rounded-md px-2 py-1 bg-background"
+                  >
+                    <option value={3}>3 miesiące</option>
+                    <option value={6}>6 miesięcy</option>
+                    <option value={12}>12 miesięcy</option>
+                  </select>
+                }
+              >
+                <div className="p-4 md:p-5">
+                  <SpendTrendChart months={trendMonths} />
+                </div>
+              </SectionCard>
+            )}
+
+            {/* 2. Porównanie centrów kosztów (tylko gdy skonfigurowane) */}
             <CostCenterComparisonSection month={month} />
 
-            {/* AI Summary */}
+            {/* 3. Podsumowanie AI */}
             {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (
               <AiSummaryBlock
                 totalSpend={data.totalSpend}
@@ -1629,80 +1660,45 @@ export default function Reports() {
               />
             )}
 
-            {/* Impact 3-column */}
-            {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[0, 1, 2].map((i) => <Skeleton key={i} className="h-56 rounded-xl" />)}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <SectionCard title="Największe przyczyny wzrostu kosztów">
-                  <PriceImpactList
-                    products={allProducts}
-                    onViewAll={() => setTab("ceny")}
-                  />
+            {/* 4. Co najbardziej podnosi koszty — jedna sekcja zamiast trzech nachodzących */}
+            {!isLoading && allProducts.length > 0 && (
+              <SectionCard
+                title="Co najbardziej podnosi koszty"
+                subtitle="Produkty, które najmocniej podbiły rachunek w tym miesiącu"
+              >
+                <PriceImpactList products={allProducts} onViewAll={() => setTab("ceny")} />
+              </SectionCard>
+            )}
+
+            {/* 5. Kategorie + dostawcy — spójne bloki (dwie listy) */}
+            {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SectionCard title="Wydatki wg kategorii">
+                  <div className="p-4 md:p-5">
+                    <CategoryMiniList month={month} />
+                  </div>
                 </SectionCard>
-                <SectionCard title="Produkty – największe wzrosty ilości">
-                  <QuantityImpactTable
-                    products={allProducts}
-                    onViewAll={() => setTab("ilosci")}
-                  />
-                </SectionCard>
-                <SectionCard title="Największe wzrosty cen">
-                  <PriceChangesTable
-                    products={allProducts}
-                    onViewAll={() => setTab("ceny")}
+                <SectionCard title="Top dostawcy">
+                  <TopSuppliersTable
+                    suppliers={data?.suppliers ?? []}
+                    totalSpend={data?.totalSpend ?? 0}
+                    onViewAll={() => setTab("dostawcy")}
                   />
                 </SectionCard>
               </div>
             )}
 
-            {/* Charts 3-column */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <SectionCard
-                title="Trend wydatków"
-                className="md:col-span-1"
-              >
-                <div className="p-4 md:p-5">
-                  <div className="flex justify-end mb-3">
-                    <select
-                      value={trendMonths}
-                      onChange={(e) => setTrendMonths(Number(e.target.value))}
-                      className="text-xs border border-border rounded-md px-2 py-1 bg-background"
-                    >
-                      <option value={3}>3 miesiące</option>
-                      <option value={6}>6 miesięcy</option>
-                      <option value={12}>12 miesięcy</option>
-                    </select>
-                  </div>
-                  <SpendTrendChart months={trendMonths} />
-                </div>
-              </SectionCard>
-
-              <SectionCard title="Wydatki wg kategorii">
-                <div className="p-4 md:p-5">
-                  <CategoryMiniList month={month} />
-                </div>
-              </SectionCard>
-
-              <SectionCard title="Top dostawcy">
-                <TopSuppliersTable
-                  suppliers={data?.suppliers ?? []}
-                  totalSpend={data?.totalSpend ?? 0}
-                  onViewAll={() => setTab("dostawcy")}
-                />
-              </SectionCard>
-            </div>
-
-            {/* Alerts + recommendations 2-column */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SectionCard title="Krytyczne alerty">
-                <AlertsList onViewAll={() => setTab("anomalie")} />
-              </SectionCard>
-              <SectionCard title="Rekomendacje AI">
-                <RecommendationsList products={allProducts} />
-              </SectionCard>
-            </div>
+            {/* 6. Alerty + rekomendacje */}
+            {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SectionCard title="Krytyczne alerty">
+                  <AlertsList onViewAll={() => setTab("anomalie")} />
+                </SectionCard>
+                <SectionCard title="Rekomendacje AI">
+                  <RecommendationsList products={allProducts} />
+                </SectionCard>
+              </div>
+            )}
 
             {/* Empty state */}
             {!isLoading && (!data || data.totalSpend === 0) && (
