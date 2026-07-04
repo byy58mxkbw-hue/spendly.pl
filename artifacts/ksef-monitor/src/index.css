@@ -154,16 +154,18 @@
   --elevate-1: rgba(0,0,0,0.025);
   --elevate-2: rgba(0,0,0,0.06);
 
-  --background: 0 0% 100%;
+  /* Tło strony lekko przygaszone (miękka chłodna szarość), karty białe —
+     dzięki temu karty odcinają się od tła i UI nie jest „za białe". */
+  --background: 210 24% 96%;
   --foreground: 224 71% 4%;
 
   --card: 0 0% 100%;
   --card-foreground: 224 71% 4%;
-  --card-border: 220 9% 91%;
+  --card-border: 214 18% 88%;
 
   --popover: 0 0% 100%;
   --popover-foreground: 224 71% 4%;
-  --popover-border: 220 9% 91%;
+  --popover-border: 214 18% 88%;
 
   --primary: 173 80% 40%;
   --primary-foreground: 0 0% 100%;
@@ -180,13 +182,13 @@
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 174 16% 90%;
-  --input: 174 16% 90%;
+  --border: 214 16% 87%;
+  --input: 214 16% 87%;
   --ring: 173 80% 40%;
 
-  --sidebar: 174 20% 98%;
+  --sidebar: 0 0% 100%;
   --sidebar-foreground: 174 30% 10%;
-  --sidebar-border: 174 16% 90%;
+  --sidebar-border: 214 16% 89%;
   --sidebar-primary: 173 80% 40%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 174 20% 94%;
