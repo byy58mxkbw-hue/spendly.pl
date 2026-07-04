@@ -936,7 +936,9 @@ function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invoiceId: 
               </button>
             </div>
             {data.items.length > 0 ? (
-              <div className="flex-1 min-h-0 border border-border rounded-xl overflow-hidden">
+              <>
+              {/* Desktop: tabela */}
+              <div className="hidden sm:block flex-1 min-h-0 border border-border rounded-xl overflow-hidden">
                 <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-2.5 text-xs font-medium text-muted-foreground bg-secondary/30 border-b border-border">
                   <div>Produkt</div>
                   <div className="text-right w-20 hidden sm:block">Ilość</div>
@@ -993,6 +995,48 @@ function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invoiceId: 
                   <div className="w-7" />
                 </div>
               </div>
+
+              {/* Mobile: lista 2-liniowa (nazwa produktu w pełnej szerokości) */}
+              <div className="sm:hidden flex-1 min-h-0 border border-border rounded-xl overflow-hidden flex flex-col">
+                <div className="divide-y divide-border overflow-y-auto">
+                  {data.items.map((item) => (
+                    <div key={item.id} className="px-3.5 py-3 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        {item.productId != null ? (
+                          <button
+                            onClick={() => setHistoryProduct({ id: item.productId!, name: item.productName })}
+                            className="flex items-start gap-1 text-left text-sm font-medium text-primary"
+                          >
+                            <span className="line-clamp-2 leading-snug">{item.productName}</span>
+                            <LineChart className="w-3.5 h-3.5 shrink-0 opacity-60 mt-0.5" />
+                          </button>
+                        ) : (
+                          <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">{item.productName}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {item.quantity % 1 === 0 ? item.quantity : item.quantity.toFixed(3)} {item.unit} × {formatPrice(item.unitPrice)}
+                          {item.vatRate != null && ` · VAT ${item.vatRate}%`}
+                        </p>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        <p className="text-sm font-semibold tabular-nums whitespace-nowrap">{formatPrice(item.totalPrice)}</p>
+                        <button
+                          onClick={() => setDeleteItemId(item.id)}
+                          className="p-1 rounded text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
+                          title="Usuń pozycję"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-3.5 py-2.5 border-t border-border bg-secondary/20 flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Razem</span>
+                  <span className="text-sm font-bold tabular-nums">{formatPrice(total)}</span>
+                </div>
+              </div>
+              </>
             ) : (
               <div className="py-8 text-center text-sm text-muted-foreground border border-border rounded-xl">
                 <Package className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />

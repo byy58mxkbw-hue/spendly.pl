@@ -198,11 +198,11 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
                     return (
                       <div
                         key={i}
-                        className={`px-6 py-3 flex items-center justify-between gap-4 transition-colors${isClickable ? " cursor-pointer hover:bg-secondary/40" : ""}`}
+                        className={`px-4 md:px-6 py-3 flex items-center justify-between gap-3 transition-colors${isClickable ? " cursor-pointer hover:bg-secondary/40" : ""}`}
                         data-testid={`top-product-row-${i}`}
                         onClick={isClickable ? () => setSelectedProduct({ id: product.productId!, name: product.productName }) : undefined}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                             <Package className="w-3.5 h-3.5" />
                           </div>
