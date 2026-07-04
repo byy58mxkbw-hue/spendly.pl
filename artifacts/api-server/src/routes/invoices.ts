@@ -376,7 +376,15 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
   const invoiceCount = days.reduce((s, d) => s + d.invoiceCount, 0);
   const allSupplierIds = new Set(invoicesRaw.map((i) => i.supplierId));
   const activeDays = days.filter((d) => d.totalAmount > 0);
-  const avgDailyAmount = activeDays.length > 0 ? totalAmount / activeDays.length : 0;
+  // Średnia dzienna liczona przez WSZYSTKIE dni miesiąca (nie tylko dni z zakupami).
+  // Dla bieżącego miesiąca dzielimy przez dni, które już minęły — inaczej średnia
+  // byłaby sztucznie zaniżona na początku miesiąca.
+  const nowIso = new Date();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const divisorDays = monthParam === nowIso.toISOString().slice(0, 7)
+    ? Math.max(1, nowIso.getUTCDate())
+    : daysInMonth;
+  const avgDailyAmount = divisorDays > 0 ? totalAmount / divisorDays : 0;
   const biggestDay = days.length > 0
     ? days.reduce((max, d) => d.totalAmount > max.totalAmount ? d : max, days[0])
     : null;
@@ -393,6 +401,8 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
       supplierCount: biggestDay.supplierCount,
     } : null,
     avgDailyAmount,
+    activeDaysCount: activeDays.length,
+    daysInMonth: divisorDays,
     prevMonthTotalAmount,
   });
 });

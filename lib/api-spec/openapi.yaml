@@ -2890,6 +2890,13 @@ components:
             - supplierCount
         avgDailyAmount:
           type: number
+          description: Średnia dzienna liczona przez wszystkie dni miesiąca (dla bieżącego — dni które minęły).
+        activeDaysCount:
+          type: integer
+          description: Liczba dni miesiąca, w których były zakupy.
+        daysInMonth:
+          type: integer
+          description: Dzielnik średniej — wszystkie dni miesiąca (lub dni które minęły w bieżącym).
         prevMonthTotalAmount:
           type: number
       required:

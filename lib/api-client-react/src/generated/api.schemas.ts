@@ -433,7 +433,12 @@ export interface InvoiceTimelineResponse {
   invoiceCount: number;
   supplierCount: number;
   biggestDay?: InvoiceTimelineResponseBiggestDay;
+  /** Średnia dzienna liczona przez wszystkie dni miesiąca (dla bieżącego — dni które minęły). */
   avgDailyAmount: number;
+  /** Liczba dni miesiąca, w których były zakupy. */
+  activeDaysCount?: number;
+  /** Dzielnik średniej — wszystkie dni miesiąca (lub dni które minęły w bieżącym). */
+  daysInMonth?: number;
   prevMonthTotalAmount: number;
 }
 

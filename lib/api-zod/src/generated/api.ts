@@ -1241,7 +1241,9 @@ export const GetInvoicesTimelineResponse = zod.object({
   "invoiceCount": zod.number(),
   "supplierCount": zod.number()
 }).nullish(),
-  "avgDailyAmount": zod.number(),
+  "avgDailyAmount": zod.number().describe('Średnia dzienna liczona przez wszystkie dni miesiąca (dla bieżącego — dni które minęły).'),
+  "activeDaysCount": zod.number().optional().describe('Liczba dni miesiąca, w których były zakupy.'),
+  "daysInMonth": zod.number().optional().describe('Dzielnik średniej — wszystkie dni miesiąca (lub dni które minęły w bieżącym).'),
   "prevMonthTotalAmount": zod.number()
 })
 

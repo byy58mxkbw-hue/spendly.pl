@@ -184,6 +184,8 @@ interface HeroProps {
   prevMonthTotalAmount: number;
   biggestDay?: { date: string; totalAmount: number; invoiceCount?: number; supplierCount?: number } | null;
   avgDailyAmount: number;
+  activeDaysCount?: number;
+  daysInMonth?: number;
   loading: boolean;
   allTime?: boolean;
 }
@@ -194,14 +196,11 @@ const CARD_STYLE = {
   borderRadius: "20px",
 } as const;
 
-function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierCount, prevMonthTotalAmount, biggestDay, avgDailyAmount, loading, allTime }: HeroProps) {
+function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierCount, prevMonthTotalAmount, biggestDay, avgDailyAmount, activeDaysCount, daysInMonth, loading, allTime }: HeroProps) {
   const changePercent = prevMonthTotalAmount > 0
     ? Math.round(((totalAmount - prevMonthTotalAmount) / prevMonthTotalAmount) * 100)
     : null;
   const isUp = changePercent !== null && changePercent >= 0;
-
-  const activeDaysInMonth = loading ? null : (avgDailyAmount > 0 && totalAmount > 0
-    ? Math.round(totalAmount / avgDailyAmount) : null);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
@@ -284,11 +283,11 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
         ) : avgDailyAmount > 0 ? (
           <>
             <p className="text-foreground text-lg sm:text-xl font-bold tabular-nums mb-2">{formatPrice(avgDailyAmount)}</p>
-            {activeDaysInMonth != null && (
-              <p className="text-foreground/50 text-xs">{activeDaysInMonth} {activeDaysInMonth === 1 ? "aktywny dzień" : "aktywne dni"}</p>
+            {!allTime && daysInMonth != null && (
+              <p className="text-foreground/50 text-xs">przez {daysInMonth} {daysInMonth === 1 ? "dzień" : "dni"} miesiąca</p>
             )}
-            {invoiceCount > 0 && activeDaysInMonth != null && activeDaysInMonth > 0 && (
-              <p className="text-foreground/50 text-xs mt-1">{Math.round(invoiceCount / activeDaysInMonth)} zakupów dziennie</p>
+            {activeDaysCount != null && (
+              <p className="text-foreground/50 text-xs mt-1">zakupy w {activeDaysCount} {activeDaysCount === 1 ? "dniu" : "dniach"}</p>
             )}
           </>
         ) : (
@@ -2251,6 +2250,8 @@ export default function Invoices() {
           prevMonthTotalAmount={activeTab === "faktury" ? 0 : (timelineData?.prevMonthTotalAmount ?? 0)}
           biggestDay={activeTab === "faktury" ? null : timelineData?.biggestDay}
           avgDailyAmount={activeTab === "faktury" ? 0 : (timelineData?.avgDailyAmount ?? 0)}
+          activeDaysCount={activeTab === "faktury" ? undefined : timelineData?.activeDaysCount}
+          daysInMonth={activeTab === "faktury" ? undefined : timelineData?.daysInMonth}
           loading={activeTab === "faktury" ? false : timelineLoading}
           allTime={activeTab === "faktury"}
         />
