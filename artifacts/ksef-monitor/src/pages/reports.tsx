@@ -975,7 +975,12 @@ function ProductsTable({ products }: { products: ProductWithImpact[] }) {
                       <td className="text-right px-3 py-2.5 text-sm font-medium text-foreground">{formatPrice(p.avgPrice)}</td>
                       <td className={cn("text-right px-3 py-2.5 text-xs font-medium", costTone(p.prevMonthAvgPrice != null ? p.pricePct : null))}>{p.prevMonthAvgPrice != null ? signedPct(p.pricePct) : "—"}</td>
                       <td className={cn("text-right px-3 py-2.5 text-xs font-medium", costTone(vsOverall))}>{vsOverall == null ? "—" : signedPct(vsOverall)}</td>
-                      <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{fmtQty(p.totalQuantity)} {p.unit}</td>
+                      <td className="text-right px-3 py-2.5 text-xs">
+                        <div className="text-foreground">{fmtQty(p.totalQuantity)} {p.unit}</div>
+                        {p.prevMonthTotalQuantity != null && (
+                          <div className="text-[10px] text-muted-foreground">z {fmtQty(p.prevMonthTotalQuantity)}</div>
+                        )}
+                      </td>
                       <td className={cn("text-right px-3 py-2.5 text-xs font-medium", p.prevMonthTotalQuantity == null ? "text-muted-foreground" : p.qtyPct > 0 ? "text-amber-600" : p.qtyPct < 0 ? "text-blue-600" : "text-muted-foreground")}>{p.prevMonthTotalQuantity != null && p.prevMonthTotalQuantity > 0 ? signedPct(p.qtyPct) : "—"}</td>
                       <td className="text-right px-5 py-2.5 text-sm font-semibold text-foreground">{formatPrice(p.totalCost)}</td>
                     </tr>
@@ -1011,6 +1016,9 @@ function ProductsTable({ products }: { products: ProductWithImpact[] }) {
                         <span className={cn("ml-1 font-medium", p.qtyPct > 0 ? "text-amber-600" : p.qtyPct < 0 ? "text-blue-600" : "")}>{signedPct(p.qtyPct)}</span>
                       )}
                     </p>
+                    {p.prevMonthTotalQuantity != null && (
+                      <p className="text-[10px] text-muted-foreground tabular-nums">poprz. {fmtQty(p.prevMonthTotalQuantity)} {p.unit}</p>
+                    )}
                   </div>
                 </div>
               );
