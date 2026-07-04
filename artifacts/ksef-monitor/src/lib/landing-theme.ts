@@ -27,20 +27,32 @@ export const LIGHT: Palette = {
   tintFaint: "rgba(15,23,42,0.02)", tint: "rgba(15,23,42,0.035)", tintStrong: "rgba(15,23,42,0.05)",
 };
 
-const STORAGE_KEY = "spendly_landing_theme";
+// Jeden wspólny klucz preferencji motywu dla landingu i aplikacji.
+export const THEME_STORAGE_KEY = "spendly_theme";
 
+export type ThemeMode = "light" | "dark";
+
+/** Odczytuje zapisaną preferencję motywu (lub null, gdy brak). */
+export function readSavedTheme(): ThemeMode | null {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    if (saved === "dark" || saved === "light") return saved;
+  } catch { /* brak dostępu do localStorage */ }
+  return null;
+}
+
+/** Zapisuje preferencję motywu. */
+export function saveTheme(mode: ThemeMode): void {
+  try { localStorage.setItem(THEME_STORAGE_KEY, mode); } catch { /* ignore */ }
+}
+
+// Motyw stron publicznych — domyślnie jasny. Wybór współdzielony z aplikacją (ten sam klucz).
 export function useLandingTheme() {
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === "dark" || saved === "light") return saved;
-    } catch { /* brak dostępu do localStorage */ }
-    return "light";
-  });
+  const [theme, setTheme] = useState<ThemeMode>(() => readSavedTheme() ?? "light");
   const toggle = () =>
     setTheme((prev) => {
       const next = prev === "light" ? "dark" : "light";
-      try { localStorage.setItem(STORAGE_KEY, next); } catch { /* ignore */ }
+      saveTheme(next);
       return next;
     });
   const c = theme === "light" ? LIGHT : DARK;

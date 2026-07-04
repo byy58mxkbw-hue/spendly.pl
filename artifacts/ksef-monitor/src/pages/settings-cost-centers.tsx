@@ -290,7 +290,7 @@ export default function SettingsCostCenters() {
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.04)" }} />
+              <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: "var(--elevate-1)" }} />
             ))}
           </div>
         ) : centers.length === 0 ? (

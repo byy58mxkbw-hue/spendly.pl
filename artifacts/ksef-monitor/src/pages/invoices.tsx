@@ -141,7 +141,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 function SegmentControl({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
   return (
-    <div className="inline-flex max-w-full overflow-x-auto scrollbar-none p-1 gap-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)" }}>
+    <div className="inline-flex max-w-full overflow-x-auto scrollbar-none p-1 gap-0.5 rounded-full" style={{ background: "var(--elevate-2)", border: "1px solid hsl(var(--border))" }}>
       {TABS.map((t) => (
         <button
           key={t.id}
@@ -150,7 +150,7 @@ function SegmentControl({ active, onChange }: { active: Tab; onChange: (t: Tab) 
             "shrink-0 whitespace-nowrap px-3.5 sm:px-4 h-8 rounded-full text-sm font-medium transition-all duration-200",
             active === t.id
               ? "bg-white text-[#08111f] shadow-md"
-              : "text-white/50 hover:text-white/80",
+              : "text-foreground/50 hover:text-foreground/80",
           )}
           style={active === t.id ? { boxShadow: "0 0 12px rgba(20,184,166,0.35)" } : undefined}
         >
@@ -189,8 +189,8 @@ interface HeroProps {
 }
 
 const CARD_STYLE = {
-  background: "#0f1b33",
-  border: "1px solid rgba(255,255,255,0.06)",
+  background: "hsl(var(--card))",
+  border: "1px solid hsl(var(--border))",
   borderRadius: "20px",
 } as const;
 
@@ -209,11 +209,11 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
       <div className="col-span-2 sm:col-span-1 p-4 sm:p-5" style={CARD_STYLE}>
         <div className="flex items-center gap-2 mb-3">
           {!allTime && (
-            <button onClick={onPrev} className="p-1 rounded-full transition-colors" style={{ background: "rgba(255,255,255,0.06)" }}>
-              <ChevronLeft className="w-3.5 h-3.5 text-white/70" />
+            <button onClick={onPrev} className="p-1 rounded-full transition-colors" style={{ background: "var(--elevate-2)" }}>
+              <ChevronLeft className="w-3.5 h-3.5 text-foreground/70" />
             </button>
           )}
-          <span className="text-white/60 text-xs font-medium flex-1 capitalize">
+          <span className="text-foreground/60 text-xs font-medium flex-1 capitalize">
             {allTime ? "Wszystkie faktury" : monthLabel(month)}
           </span>
           {!allTime && (
@@ -221,23 +221,23 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
               onClick={onNext}
               disabled={month >= todayMonth()}
               className="p-1 rounded-full transition-colors disabled:opacity-30"
-              style={{ background: "rgba(255,255,255,0.06)" }}
+              style={{ background: "var(--elevate-2)" }}
             >
-              <ChevronRight className="w-3.5 h-3.5 text-white/70" />
+              <ChevronRight className="w-3.5 h-3.5 text-foreground/70" />
             </button>
           )}
         </div>
         {loading ? (
           <div className="space-y-2 animate-pulse">
-            <div className="h-8 w-36 rounded-lg" style={{ background: "rgba(255,255,255,0.08)" }} />
-            <div className="h-3 w-28 rounded" style={{ background: "rgba(255,255,255,0.05)" }} />
+            <div className="h-8 w-36 rounded-lg" style={{ background: "var(--elevate-2)" }} />
+            <div className="h-3 w-28 rounded" style={{ background: "var(--elevate-1)" }} />
           </div>
         ) : (
           <>
-            <p className="text-2xl font-bold tabular-nums text-white mb-1">{formatPrice(totalAmount)}</p>
-            <p className="text-white/50 text-xs">Łączne wydatki</p>
+            <p className="text-2xl font-bold tabular-nums text-foreground mb-1">{formatPrice(totalAmount)}</p>
+            <p className="text-foreground/50 text-xs">Łączne wydatki</p>
             <div className="mt-3 space-y-1">
-              <p className="text-white/70 text-xs">{invoiceCount} {invoiceCount === 1 ? "zakup" : "zakupów"} · {supplierCount} {supplierCount === 1 ? "dostawca" : "dostawców"}</p>
+              <p className="text-foreground/70 text-xs">{invoiceCount} {invoiceCount === 1 ? "zakup" : "zakupów"} · {supplierCount} {supplierCount === 1 ? "dostawca" : "dostawców"}</p>
               {changePercent !== null && (
                 <p className={cn("text-xs font-semibold", isUp ? "text-orange-400" : "text-emerald-400")}>
                   {isUp ? "+" : ""}{changePercent}% vs poprzedni miesiąc
@@ -250,18 +250,18 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
 
       {/* Card 2: Biggest day */}
       <div className="p-4 sm:p-5" style={CARD_STYLE}>
-        <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-3">Największy dzień</p>
+        <p className="text-foreground/40 text-xs font-medium uppercase tracking-wider mb-3">Największy dzień</p>
         {loading ? (
           <div className="space-y-2 animate-pulse">
-            <div className="h-5 w-24 rounded" style={{ background: "rgba(255,255,255,0.08)" }} />
-            <div className="h-7 w-32 rounded-lg" style={{ background: "rgba(255,255,255,0.06)" }} />
+            <div className="h-5 w-24 rounded" style={{ background: "var(--elevate-2)" }} />
+            <div className="h-7 w-32 rounded-lg" style={{ background: "var(--elevate-2)" }} />
           </div>
         ) : biggestDay ? (
           <>
-            <p className="text-white/80 text-sm font-semibold capitalize mb-1">{dayLabel(biggestDay.date)}</p>
-            <p className="text-white text-lg sm:text-xl font-bold tabular-nums mb-2">{formatPrice(biggestDay.totalAmount)}</p>
+            <p className="text-foreground/80 text-sm font-semibold capitalize mb-1">{dayLabel(biggestDay.date)}</p>
+            <p className="text-foreground text-lg sm:text-xl font-bold tabular-nums mb-2">{formatPrice(biggestDay.totalAmount)}</p>
             {(biggestDay.invoiceCount != null || biggestDay.supplierCount != null) && (
-              <p className="text-white/50 text-xs">
+              <p className="text-foreground/50 text-xs">
                 {biggestDay.invoiceCount != null && `${biggestDay.invoiceCount} ${biggestDay.invoiceCount === 1 ? "faktura" : "faktur"}`}
                 {biggestDay.invoiceCount != null && biggestDay.supplierCount != null && " · "}
                 {biggestDay.supplierCount != null && `${biggestDay.supplierCount} ${biggestDay.supplierCount === 1 ? "dostawca" : "dostawców"}`}
@@ -269,30 +269,30 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
             )}
           </>
         ) : (
-          <p className="text-white/30 text-sm">Brak danych</p>
+          <p className="text-foreground/30 text-sm">Brak danych</p>
         )}
       </div>
 
       {/* Card 3: Daily average */}
       <div className="p-4 sm:p-5" style={CARD_STYLE}>
-        <p className="text-white/40 text-xs font-medium uppercase tracking-wider mb-3">Średnio dziennie</p>
+        <p className="text-foreground/40 text-xs font-medium uppercase tracking-wider mb-3">Średnio dziennie</p>
         {loading ? (
           <div className="space-y-2 animate-pulse">
-            <div className="h-7 w-32 rounded-lg" style={{ background: "rgba(255,255,255,0.08)" }} />
-            <div className="h-3 w-20 rounded" style={{ background: "rgba(255,255,255,0.05)" }} />
+            <div className="h-7 w-32 rounded-lg" style={{ background: "var(--elevate-2)" }} />
+            <div className="h-3 w-20 rounded" style={{ background: "var(--elevate-1)" }} />
           </div>
         ) : avgDailyAmount > 0 ? (
           <>
-            <p className="text-white text-lg sm:text-xl font-bold tabular-nums mb-2">{formatPrice(avgDailyAmount)}</p>
+            <p className="text-foreground text-lg sm:text-xl font-bold tabular-nums mb-2">{formatPrice(avgDailyAmount)}</p>
             {activeDaysInMonth != null && (
-              <p className="text-white/50 text-xs">{activeDaysInMonth} {activeDaysInMonth === 1 ? "aktywny dzień" : "aktywne dni"}</p>
+              <p className="text-foreground/50 text-xs">{activeDaysInMonth} {activeDaysInMonth === 1 ? "aktywny dzień" : "aktywne dni"}</p>
             )}
             {invoiceCount > 0 && activeDaysInMonth != null && activeDaysInMonth > 0 && (
-              <p className="text-white/50 text-xs mt-1">{Math.round(invoiceCount / activeDaysInMonth)} zakupów dziennie</p>
+              <p className="text-foreground/50 text-xs mt-1">{Math.round(invoiceCount / activeDaysInMonth)} zakupów dziennie</p>
             )}
           </>
         ) : (
-          <p className="text-white/30 text-sm">Brak zakupów</p>
+          <p className="text-foreground/30 text-sm">Brak zakupów</p>
         )}
       </div>
     </div>
@@ -462,7 +462,7 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
     return (
       <div className="space-y-3">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-28 w-full rounded-2xl animate-pulse" style={{ background: "rgba(255,255,255,0.04)" }} />
+          <div key={i} className="h-28 w-full rounded-2xl animate-pulse" style={{ background: "var(--elevate-1)" }} />
         ))}
       </div>
     );
@@ -471,9 +471,9 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
   if (!data || data.days.length === 0) {
     return (
       <div className="py-20 text-center">
-        <Package className="w-12 h-12 mx-auto mb-3 text-white/20" />
-        <p className="text-white/60 font-medium">Brak zakupów w tym miesiącu</p>
-        <p className="text-sm text-white/40 mt-1">Zaimportuj faktury lub zsynchronizuj z KSeF</p>
+        <Package className="w-12 h-12 mx-auto mb-3 text-foreground/20" />
+        <p className="text-foreground/60 font-medium">Brak zakupów w tym miesiącu</p>
+        <p className="text-sm text-foreground/40 mt-1">Zaimportuj faktury lub zsynchronizuj z KSeF</p>
       </div>
     );
   }
@@ -493,8 +493,8 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
           >
             <div className="flex items-start justify-between mb-3">
               <div>
-                <p className="font-semibold text-white capitalize">{dayLabel(day.date)}</p>
-                <p className="text-xs text-white/50 capitalize mt-0.5">{dayOfWeek(day.date)}</p>
+                <p className="font-semibold text-foreground capitalize">{dayLabel(day.date)}</p>
+                <p className="text-xs text-foreground/50 capitalize mt-0.5">{dayOfWeek(day.date)}</p>
                 {comment && (
                   <span className={cn(
                     "inline-block text-[11px] font-medium mt-1.5 px-2 py-0.5 rounded-full",
@@ -509,8 +509,8 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
                 )}
               </div>
               <div className="text-right shrink-0 ml-3">
-                <p className="font-bold text-lg tabular-nums text-white">{formatPrice(day.totalAmount)}</p>
-                <p className="text-xs text-white/40 mt-0.5">
+                <p className="font-bold text-lg tabular-nums text-foreground">{formatPrice(day.totalAmount)}</p>
+                <p className="text-xs text-foreground/40 mt-0.5">
                   {day.invoiceCount} {day.invoiceCount === 1 ? "zakup" : "zakupów"} · {day.supplierCount} {day.supplierCount === 1 ? "dostawca" : "dostawców"}
                 </p>
               </div>
@@ -520,7 +520,7 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
               <div className="space-y-1.5">
                 <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1.5">
                   {day.categories.slice(0, 4).map((cat, i) => (
-                    <span key={cat.category} className="text-xs text-white/60 flex items-center gap-1">
+                    <span key={cat.category} className="text-xs text-foreground/60 flex items-center gap-1">
                       <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", CAT_COLORS[i % CAT_COLORS.length])} />
                       {catLabel(cat.category)} {cat.percent}%
                     </span>
@@ -547,7 +547,7 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
 // ─── Kalendarz (heatmap) view ──────────────────────────────────────────────────
 
 const HEAT_CLASSES = [
-  "bg-white/[0.04]",
+  "bg-foreground/[0.04]",
   "bg-teal-900/70",
   "bg-teal-700/80",
   "bg-teal-500/90",
@@ -566,7 +566,7 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
   if (isLoading) {
     return (
       <div className="h-64 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-white/40" />
+        <Loader2 className="w-6 h-6 animate-spin text-foreground/40" />
       </div>
     );
   }
@@ -597,7 +597,7 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
     <div>
       <div className="grid grid-cols-7 gap-1 mb-1">
         {DOW_LABELS.map((d) => (
-          <div key={d} className="text-center text-xs text-white/40 font-medium py-1">{d}</div>
+          <div key={d} className="text-center text-xs text-foreground/40 font-medium py-1">{d}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -617,15 +617,15 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
                 info ? "hover:scale-105 hover:shadow-md cursor-pointer" : "cursor-default",
               )}
             >
-              <span className={cn("text-xs font-semibold leading-tight", level >= 3 ? "text-white" : "text-white/50")}>
+              <span className={cn("text-xs font-semibold leading-tight", level >= 3 ? "text-white" : "text-foreground/50")}>
                 {cell.dayNum}
               </span>
               {info && info.invoiceCount > 0 && (
                 <>
-                  <span className={cn("text-[9px] font-bold leading-tight", level >= 3 ? "text-white/80" : "text-teal-600")}>
+                  <span className={cn("text-[9px] font-bold leading-tight", level >= 3 ? "text-foreground/80" : "text-teal-600")}>
                     {info.invoiceCount} zak.
                   </span>
-                  <span className={cn("text-[9px] leading-tight tabular-nums", level >= 2 ? "text-white/70" : "text-white/40")}>
+                  <span className={cn("text-[9px] leading-tight tabular-nums", level >= 2 ? "text-foreground/70" : "text-foreground/40")}>
                     {formatAmountShort(info.totalAmount)}
                   </span>
                 </>
@@ -636,11 +636,11 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
       </div>
 
       <div className="flex items-center gap-1.5 mt-5 justify-end">
-        <span className="text-xs text-white/30">Mniej</span>
+        <span className="text-xs text-foreground/30">Mniej</span>
         {HEAT_CLASSES.map((cls, i) => (
-          <div key={i} className={cn("w-4 h-4 rounded", cls, i === 0 && "border border-white/10")} />
+          <div key={i} className={cn("w-4 h-4 rounded", cls, i === 0 && "border border-border")} />
         ))}
-        <span className="text-xs text-white/30">Więcej</span>
+        <span className="text-xs text-foreground/30">Więcej</span>
       </div>
     </div>
   );
@@ -661,11 +661,11 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
       <div className="space-y-4">
         <div className="grid grid-cols-3 gap-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ background: "rgba(255,255,255,0.04)" }} />
+            <div key={i} className="h-24 rounded-2xl animate-pulse" style={{ background: "var(--elevate-1)" }} />
           ))}
         </div>
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.04)" }} />
+          <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: "var(--elevate-1)" }} />
         ))}
       </div>
     );
@@ -678,8 +678,8 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
     return (
       <div className="py-24 text-center">
         <CheckCircle2 className="w-14 h-14 mx-auto mb-3 text-emerald-400" />
-        <p className="text-white font-semibold text-lg">Wszystkie płatności uregulowane</p>
-        <p className="text-sm text-white/40 mt-1">Brak zaległych przelewów bankowych</p>
+        <p className="text-foreground font-semibold text-lg">Wszystkie płatności uregulowane</p>
+        <p className="text-sm text-foreground/40 mt-1">Brak zaległych przelewów bankowych</p>
       </div>
     );
   }
@@ -743,7 +743,7 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
         {tiles.map((tile) => (
           <div key={tile.label} className="p-3 md:p-4 rounded-xl md:rounded-2xl" style={{ background: tile.bg, border: `1px solid ${tile.border}` }}>
             <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wide mb-1.5 md:mb-2 leading-tight" style={{ color: tile.color }}>{tile.label}</p>
-            <p className="text-base md:text-xl font-bold text-white tabular-nums leading-tight">{formatPrice(tile.amount)}</p>
+            <p className="text-base md:text-xl font-bold text-foreground tabular-nums leading-tight">{formatPrice(tile.amount)}</p>
             {tile.count > 0 && (
               <p className="text-[11px] md:text-xs mt-1 md:mt-1.5" style={{ color: tile.color + "99" }}>
                 {tile.count} {tile.count === 1 ? "faktura" : "faktur"}
@@ -759,20 +759,20 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
             <div key={inv.id} className="px-3.5 md:px-4 py-3 rounded-xl" style={CARD_STYLE}>
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{inv.supplierName}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{inv.supplierName}</p>
                   <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                     <span className="text-[11px] font-semibold shrink-0" style={{ color: labelColor(inv.urgency) }}>
                       {timelineLabel(inv)}
                     </span>
-                    <span className="text-white/20 shrink-0">·</span>
-                    <span className="text-xs text-white/40 truncate">{inv.invoiceNumber}</span>
+                    <span className="text-foreground/20 shrink-0">·</span>
+                    <span className="text-xs text-foreground/40 truncate">{inv.invoiceNumber}</span>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <span className="text-sm font-semibold text-white tabular-nums">{formatPrice(inv.totalAmount)}</span>
+                  <span className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(inv.totalAmount)}</span>
                   <button
                     onClick={() => onMarkPaid(inv.id, true)}
-                    className="text-xs px-3 py-1 rounded-full font-medium transition-colors text-white"
+                    className="text-xs px-3 py-1 rounded-full font-medium transition-colors text-primary"
                     style={{ background: "rgba(20,184,166,0.18)", border: "1px solid rgba(20,184,166,0.3)" }}
                   >
                     Zapłacono
@@ -785,19 +785,19 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
       )}
 
       {(data?.noDueDateCount ?? 0) > 0 && (
-        <div className="px-4 py-3 rounded-xl space-y-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-          <p className="text-xs text-white/40">Bez terminu ({data?.noDueDateCount})</p>
+        <div className="px-4 py-3 rounded-xl space-y-2" style={{ background: "var(--elevate-1)", border: "1px solid hsl(var(--border))" }}>
+          <p className="text-xs text-foreground/40">Bez terminu ({data?.noDueDateCount})</p>
           {(data?.noDueDate ?? []).map((inv) => (
             <div key={inv.id} className="flex items-center gap-3 py-1.5">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white/70 truncate">{inv.supplierName}</p>
-                <p className="text-xs text-white/30 truncate">{inv.invoiceNumber}</p>
+                <p className="text-sm font-medium text-foreground/70 truncate">{inv.supplierName}</p>
+                <p className="text-xs text-foreground/30 truncate">{inv.invoiceNumber}</p>
               </div>
-              <p className="text-sm font-semibold text-white/60 tabular-nums shrink-0">{formatPrice(inv.totalAmount)}</p>
+              <p className="text-sm font-semibold text-foreground/60 tabular-nums shrink-0">{formatPrice(inv.totalAmount)}</p>
               <button
                 onClick={() => onMarkPaid(inv.id, true)}
-                className="text-xs px-3 py-1.5 rounded-full font-medium text-white/50"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}
+                className="text-xs px-3 py-1.5 rounded-full font-medium text-foreground/50"
+                style={{ background: "var(--elevate-2)", border: "1px solid hsl(var(--border))" }}
               >
                 Zapłacono
               </button>
@@ -1334,12 +1334,12 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
           {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
         </div>
       ) : paged.length === 0 ? (
-        <div className="py-16 text-center text-white/50">
-          <FileText className="w-10 h-10 mx-auto mb-2 text-white/20" />
+        <div className="py-16 text-center text-foreground/50">
+          <FileText className="w-10 h-10 mx-auto mb-2 text-foreground/20" />
           {total === 0 && !debouncedSearch && supplierFilter === "all" && !showUnassigned ? (
             <>
               <p className="font-medium">Nie masz jeszcze żadnych faktur</p>
-              <p className="text-sm text-white/40 mt-1">Dodaj pierwszy zakup albo zsynchronizuj KSeF.</p>
+              <p className="text-sm text-foreground/40 mt-1">Dodaj pierwszy zakup albo zsynchronizuj KSeF.</p>
               <Button className="mt-4" onClick={onImportClick}>
                 <Plus className="w-4 h-4 mr-2" />
                 Dodaj zakup
@@ -1358,7 +1358,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSelectedIds(new Set())}
-                  className="text-xs text-white/40 hover:text-white/70 transition-colors px-2"
+                  className="text-xs text-foreground/40 hover:text-foreground/70 transition-colors px-2"
                 >
                   Odznacz
                 </button>
@@ -1375,7 +1375,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                   <button
                     onClick={() => { setBulkAssignCcId(""); setShowBulkAssign(true); }}
                     className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
-                    style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.15)" }}
+                    style={{ background: "var(--elevate-2)", color: "hsl(var(--foreground))", border: "1px solid hsl(var(--border))" }}
                   >
                     <Layers className="w-3 h-3" />
                     Przypisz do centrum
@@ -1385,15 +1385,15 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
             </div>
           )}
 
-          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid hsl(var(--border))" }}>
             {/* Header */}
-            <div className="grid grid-cols-[28px_1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-2.5 text-xs font-medium text-white/40" style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="grid grid-cols-[28px_1fr_auto_auto_auto_auto_auto] gap-2 px-4 py-2.5 text-xs font-medium text-foreground/40" style={{ background: "var(--elevate-1)", borderBottom: "1px solid hsl(var(--border))" }}>
               {/* Select-all checkbox */}
               <div className="flex items-center justify-center cursor-pointer" onClick={handleSelectAll}>
                 <div className="w-4 h-4 rounded flex items-center justify-center transition-colors"
                   style={allSelected
                     ? { background: "rgba(20,184,166,0.3)", border: "1px solid rgba(20,184,166,0.6)" }
-                    : { border: "1px solid rgba(255,255,255,0.2)" }}>
+                    : { border: "1px solid hsl(var(--border))" }}>
                   {allSelected && <Check className="w-2.5 h-2.5 text-teal-300" />}
                 </div>
               </div>
@@ -1406,7 +1406,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
             </div>
 
             {/* Rows */}
-            <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+            <div className="divide-y" style={{ borderColor: "hsl(var(--border))" }}>
               {paged.map((inv) => {
                 const isSelected = selectedIds.has(inv.id);
                 return (
@@ -1417,10 +1417,10 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                       inv.excluded && "opacity-50",
                     )}
                     style={{
-                      borderBottomColor: "rgba(255,255,255,0.04)",
+                      borderBottomColor: "hsl(var(--border))",
                       background: isSelected ? "rgba(20,184,166,0.06)" : undefined,
                     }}
-                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
+                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "var(--elevate-1)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = isSelected ? "rgba(20,184,166,0.06)" : ""; }}
                   >
                     {/* Checkbox */}
@@ -1437,23 +1437,23 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                           <Check className="w-2.5 h-2.5 text-emerald-400" />
                         </div>
                       ) : (
-                        <div className="w-4 h-4 rounded transition-colors hover:border-white/40" style={{ border: "1px solid rgba(255,255,255,0.18)" }} />
+                        <div className="w-4 h-4 rounded transition-colors hover:border-foreground/40" style={{ border: "1px solid hsl(var(--border))" }} />
                       )}
                     </div>
 
                     <div className="min-w-0 cursor-pointer" onClick={() => setViewInvoiceId(inv.id)}>
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <p className="text-sm font-medium truncate text-white">{inv.supplierName}</p>
+                        <p className="text-sm font-medium truncate text-foreground">{inv.supplierName}</p>
                         {inv.invoiceType === "KOR" && (
                           <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded text-orange-300 leading-none" style={{ background: "rgba(251,146,60,0.18)" }}>
                             KOREKTA
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-white/50 truncate">{inv.invoiceNumber}</p>
+                      <p className="text-xs text-foreground/50 truncate">{inv.invoiceNumber}</p>
                       {/* Mobile-only meta: data + status (kolumny ukryte na <sm) */}
                       <div className="flex items-center gap-2 mt-0.5 sm:hidden">
-                        <span className="text-xs text-white/50 tabular-nums">{formatDate(inv.invoiceDate)}</span>
+                        <span className="text-xs text-foreground/50 tabular-nums">{formatDate(inv.invoiceDate)}</span>
                         {inv.isPaid ? (
                           <span className="text-[10px] text-emerald-400 px-1.5 py-0.5 rounded-full font-medium" style={{ background: "rgba(52,211,153,0.12)" }}>Opłacone</span>
                         ) : inv.paymentMethod === "przelew" ? (
@@ -1471,7 +1471,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                           {inv.costCenterName ? (
                             <>
                               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: inv.costCenterColor ?? "#14B8A6" }} />
-                              <span className="text-[10px] text-white/40 truncate">{inv.costCenterName}</span>
+                              <span className="text-[10px] text-foreground/40 truncate">{inv.costCenterName}</span>
                             </>
                           ) : inv.suggestedCostCenterId != null ? (
                             <button
@@ -1485,21 +1485,21 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                               <Check className="w-2.5 h-2.5 shrink-0" />
                             </button>
                           ) : (
-                            <span className="text-[10px] text-white/20">Nieprzypisane</span>
+                            <span className="text-[10px] text-foreground/20">Nieprzypisane</span>
                           )}
                         </div>
                       )}
                     </div>
                     <div className="hidden sm:block text-right w-24">
-                      <p className="text-sm text-white/50 tabular-nums">{formatDate(inv.invoiceDate)}</p>
+                      <p className="text-sm text-foreground/50 tabular-nums">{formatDate(inv.invoiceDate)}</p>
                     </div>
                     <div className="hidden sm:flex justify-center w-20">
                       {inv.paymentMethod ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full text-white/60" style={{ background: "rgba(255,255,255,0.08)" }}>
+                        <span className="text-xs px-2 py-0.5 rounded-full text-foreground/60" style={{ background: "var(--elevate-2)" }}>
                           {PAYMENT_METHOD_LABELS[inv.paymentMethod] ?? inv.paymentMethod}
                         </span>
                       ) : (
-                        <span className="text-white/20">—</span>
+                        <span className="text-foreground/20">—</span>
                       )}
                     </div>
                     <div className="hidden sm:flex justify-center w-20">
@@ -1512,18 +1512,18 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                           Oczekuje
                         </span>
                       ) : (
-                        <span className="text-white/20 text-xs">—</span>
+                        <span className="text-foreground/20 text-xs">—</span>
                       )}
                     </div>
                     <div className="text-right w-24">
-                      <p className="text-sm font-semibold tabular-nums text-white">{formatPrice(inv.totalAmount)}</p>
+                      <p className="text-sm font-semibold tabular-nums text-foreground">{formatPrice(inv.totalAmount)}</p>
                     </div>
                     <div className="flex items-center gap-0.5 justify-end shrink-0">
                       {costCenters.length > 0 && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
-                              className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-white/70 rounded"
+                              className="w-7 h-7 flex items-center justify-center text-foreground/30 hover:text-foreground/70 rounded"
                               title="Przypisz centrum kosztów"
                             >
                               <Layers className="w-3.5 h-3.5" />
@@ -1553,14 +1553,14 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
                       )}
                       <button
                         onClick={() => handleToggleExcluded(inv.id, inv.excluded)}
-                        className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-white/70 rounded"
+                        className="w-7 h-7 flex items-center justify-center text-foreground/30 hover:text-foreground/70 rounded"
                         title={inv.excluded ? "Uwzględnij w statystykach" : "Wyklucz ze statystyk"}
                       >
                         {inv.excluded ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                       </button>
                       <button
                         onClick={() => setDeleteId(inv.id)}
-                        className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-red-400 rounded"
+                        className="w-7 h-7 flex items-center justify-center text-foreground/30 hover:text-red-400 rounded"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1575,18 +1575,18 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
               <button
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg text-white/70 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors"
-                style={{ border: "1px solid rgba(255,255,255,0.12)" }}
+                className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg text-foreground/70 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-foreground/5 transition-colors"
+                style={{ border: "1px solid hsl(var(--border))" }}
               >
                 <ChevronLeft className="w-4 h-4" />
                 Poprzednia
               </button>
-              <span className="text-sm text-white/50 tabular-nums px-2">Strona {page} z {totalPages}</span>
+              <span className="text-sm text-foreground/50 tabular-nums px-2">Strona {page} z {totalPages}</span>
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg text-white/70 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors"
-                style={{ border: "1px solid rgba(255,255,255,0.12)" }}
+                className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg text-foreground/70 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-foreground/5 transition-colors"
+                style={{ border: "1px solid hsl(var(--border))" }}
               >
                 Następna
                 <ChevronRight className="w-4 h-4" />
@@ -2152,11 +2152,11 @@ export default function Invoices() {
 
   return (
     <Layout>
-      <div className="min-h-full bg-[#08111f]">
+      <div className="min-h-full bg-background">
         {/* Custom dark header */}
         <div className="px-4 sm:px-6 pt-6 pb-2 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Zakupy</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Zakupy</h1>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {config ? (
@@ -2164,8 +2164,8 @@ export default function Invoices() {
                 <button
                   onClick={handleSync}
                   disabled={syncPending}
-                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium text-white/70 transition-colors hover:text-white"
-                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
+                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium text-foreground/70 transition-colors hover:text-foreground"
+                  style={{ background: "var(--elevate-2)", border: "1px solid hsl(var(--border))" }}
                 >
                   <RefreshCw className={cn("w-3.5 h-3.5", syncPending && "animate-spin")} />
                   <span className="hidden sm:inline">{syncPhaseLabel(phase)}</span>
@@ -2175,8 +2175,8 @@ export default function Invoices() {
             ) : (
               <Link href="/settings/ksef">
                 <button
-                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium text-white/70 transition-colors hover:text-white"
-                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
+                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium text-foreground/70 transition-colors hover:text-foreground"
+                  style={{ background: "var(--elevate-2)", border: "1px solid hsl(var(--border))" }}
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Skonfiguruj KSeF</span>

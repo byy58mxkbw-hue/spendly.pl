@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="pl" class="dark">
   <head>
+    <script>
+      // Motyw przed montowaniem Reacta (brak mignięcia). Domyślnie ciemny.
+      (function () {
+        try {
+          var t = localStorage.getItem("spendly_theme");
+          var mode = t === "light" || t === "dark" ? t : "dark";
+          var el = document.documentElement;
+          el.classList.toggle("light", mode === "light");
+          el.classList.toggle("dark", mode === "dark");
+        } catch (e) {}
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

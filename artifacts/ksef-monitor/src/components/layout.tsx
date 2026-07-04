@@ -19,6 +19,8 @@ import {
   Plus,
   UtensilsCrossed,
   Search,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useUser, useClerk, useAuth } from "@clerk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +40,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from "@/hooks/use-toast";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { AiAssistant } from "@/components/ai-assistant";
+import { useTheme } from "@/hooks/use-theme";
 
 type NavItem = { path: string; label: string; icon: React.ElementType };
 
@@ -84,7 +87,7 @@ function NavLink({
         "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150",
         active
           ? "bg-primary/[0.10] text-primary"
-          : "text-sidebar-foreground/60 hover:bg-white/[0.04] hover:text-sidebar-foreground",
+          : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
       )}
       style={active ? { boxShadow: "0 0 16px rgba(74,222,179,0.06)" } : undefined}
     >
@@ -296,13 +299,13 @@ function CostCenterSelector({ compact = false }: { compact?: boolean }) {
         onClick={() => setOpen((o) => !o)}
         className={cn(
           "w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150",
-          "text-sidebar-foreground/70 hover:bg-white/[0.05] hover:text-sidebar-foreground",
-          open && "bg-white/[0.05]",
+          "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+          open && "bg-sidebar-accent",
         )}
       >
         <div
           className="w-3 h-3 rounded-full shrink-0"
-          style={{ background: selectedCenter?.color ?? "rgba(255,255,255,0.2)" }}
+          style={{ background: selectedCenter?.color ?? "hsl(var(--muted-foreground))" }}
         />
         <span className="flex-1 text-left truncate text-xs">
           {selectedCenter ? selectedCenter.name : compact ? "Wszystkie" : "Wszystkie centra"}
@@ -316,7 +319,7 @@ function CostCenterSelector({ compact = false }: { compact?: boolean }) {
             "absolute top-full mt-1 rounded-xl overflow-hidden shadow-2xl z-50",
             compact ? "right-0 w-60 max-w-[80vw]" : "left-3 right-3",
           )}
-          style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.08)" }}
+          style={{ background: "hsl(var(--popover))", border: "1px solid hsl(var(--popover-border))" }}
         >
           {/* All centers option */}
           <button
@@ -325,10 +328,10 @@ function CostCenterSelector({ compact = false }: { compact?: boolean }) {
               "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors",
               selectedId === null
                 ? "text-primary bg-primary/[0.08]"
-                : "text-sidebar-foreground/70 hover:bg-white/[0.04] hover:text-sidebar-foreground",
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
             )}
           >
-            <div className="w-3 h-3 rounded-full shrink-0" style={{ background: "rgba(255,255,255,0.2)" }} />
+            <div className="w-3 h-3 rounded-full shrink-0" style={{ background: "hsl(var(--muted-foreground))" }} />
             <span className="flex-1 text-left">Wszystkie centra</span>
             {selectedId === null && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
           </button>
@@ -341,7 +344,7 @@ function CostCenterSelector({ compact = false }: { compact?: boolean }) {
                 "w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors",
                 selectedId === c.id
                   ? "text-primary bg-primary/[0.08]"
-                  : "text-sidebar-foreground/70 hover:bg-white/[0.04] hover:text-sidebar-foreground",
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
               )}
             >
               <div className="w-3 h-3 rounded-full shrink-0" style={{ background: c.color }} />
@@ -350,7 +353,7 @@ function CostCenterSelector({ compact = false }: { compact?: boolean }) {
             </button>
           ))}
           {/* Link to manage */}
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}>
             <Link
               href="/settings/cost-centers"
               onClick={() => setOpen(false)}
@@ -385,6 +388,7 @@ function SidebarContent({
   isAdmin: boolean;
   onOpenSearch?: () => void;
 }) {
+  const { theme, toggle } = useTheme();
   return (
     <>
       {/* Logo */}
@@ -469,7 +473,7 @@ function SidebarContent({
 
       {/* User */}
       <div
-        className="mx-3 mb-4 mt-1 rounded-xl bg-white/[0.03] border border-white/[0.05] p-3"
+        className="mx-3 mb-4 mt-1 rounded-xl bg-sidebar-accent/40 border border-sidebar-border p-3"
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
         <div className="flex items-center gap-3 mb-2.5">
@@ -489,14 +493,24 @@ function SidebarContent({
             </p>
           </div>
         </div>
-        <button
-          data-testid="btn-logout"
-          onClick={onSignOut}
-          className="flex items-center gap-2.5 px-2.5 py-2 w-full rounded-lg text-xs text-sidebar-foreground/50 hover:bg-white/[0.05] hover:text-sidebar-foreground/80 transition-colors"
-        >
-          <LogOut className="w-3.5 h-3.5 shrink-0" />
-          Wyloguj się
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            data-testid="btn-logout"
+            onClick={onSignOut}
+            className="flex-1 flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground/80 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5 shrink-0" />
+            Wyloguj się
+          </button>
+          <button
+            onClick={toggle}
+            title={theme === "light" ? "Tryb ciemny" : "Tryb jasny"}
+            aria-label={theme === "light" ? "Włącz tryb ciemny" : "Włącz tryb jasny"}
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground/80 transition-colors"
+          >
+            {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
     </>
   );
@@ -594,6 +608,7 @@ function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const { theme, toggle } = useTheme();
   const [cmdOpen, setCmdOpen] = useState(false);
   const [location] = useLocation();
   const { user } = useUser();
@@ -642,7 +657,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="hidden md:flex w-[260px] shrink-0 flex-col border-r"
         style={{
           background: "hsl(var(--sidebar))",
-          borderColor: "rgba(255,255,255,0.05)",
+          borderColor: "hsl(var(--sidebar-border))",
         }}
       >
         <SidebarContent
@@ -658,10 +673,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile top bar */}
       <header
-        className="md:hidden fixed top-0 inset-x-0 z-40 backdrop-blur-xl border-b"
+        className="md:hidden fixed top-0 inset-x-0 z-40 backdrop-blur-xl border-b border-border bg-background/90"
         style={{
-          background: "rgba(11,15,20,0.92)",
-          borderColor: "rgba(255,255,255,0.06)",
           paddingTop: "env(safe-area-inset-top)",
         }}
       >
@@ -670,7 +683,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             type="button"
             onClick={() => setMobileOpen(true)}
             aria-label="Otwórz menu"
-            className="p-2.5 -ml-1 rounded-xl text-foreground hover:bg-white/[0.06] active:bg-white/[0.08] transition-colors"
+            className="p-2.5 -ml-1 rounded-xl text-foreground hover:bg-secondary active:bg-muted transition-colors"
             data-testid="btn-mobile-menu"
           >
             <Menu className="w-5 h-5" />
@@ -688,6 +701,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </>
             )}
           </div>
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={theme === "light" ? "Włącz tryb ciemny" : "Włącz tryb jasny"}
+            className="p-2 rounded-xl text-foreground/70 hover:bg-secondary transition-colors shrink-0"
+          >
+            {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          </button>
           <CostCenterSelector compact />
         </div>
       </header>
@@ -705,7 +726,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             className="absolute left-0 top-0 bottom-0 w-[82%] max-w-[300px] flex flex-col shadow-2xl animate-in slide-in-from-left duration-200"
             style={{
               background: "hsl(var(--sidebar))",
-              borderRight: "1px solid rgba(255,255,255,0.05)",
+              borderRight: "1px solid hsl(var(--sidebar-border))",
               paddingTop: "env(safe-area-inset-top)",
             }}
           >
@@ -713,7 +734,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               type="button"
               onClick={() => setMobileOpen(false)}
               aria-label="Zamknij menu"
-              className="absolute top-4 right-3 p-1.5 rounded-lg text-foreground/40 hover:bg-white/[0.06] z-10 transition-colors"
+              className="absolute top-4 right-3 p-1.5 rounded-lg text-foreground/40 hover:bg-secondary z-10 transition-colors"
               style={{ marginTop: "env(safe-area-inset-top)" }}
             >
               <X className="w-4 h-4" />
@@ -754,8 +775,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <nav
         className="md:hidden fixed bottom-0 inset-x-0 z-40 backdrop-blur-xl border-t"
         style={{
-          background: "rgba(11,15,20,0.94)",
-          borderColor: "rgba(255,255,255,0.06)",
+          background: "hsl(var(--sidebar))",
+          borderColor: "hsl(var(--sidebar-border))",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
