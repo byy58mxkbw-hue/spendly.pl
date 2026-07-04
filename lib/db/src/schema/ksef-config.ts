@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, uniqueIndex, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -18,6 +18,12 @@ export const ksefConfigTable = pgTable("ksef_config", {
   // a still-valid session instead of running the multi-call auth handshake each time.
   sessionToken: text("session_token"),
   sessionValidUntil: timestamp("session_valid_until", { withTimezone: true }),
+  // Automatyczna synchronizacja w tle: włączona przez użytkownika + wybrany interwał (godziny).
+  // lastAutoSyncAt = znacznik ostatniej PRÓBY auto-synchronizacji (do harmonogramu; różny od
+  // lastSyncedAt, który jest watermarkiem danych KSeF).
+  autoSyncEnabled: boolean("auto_sync_enabled").notNull().default(false),
+  autoSyncIntervalHours: integer("auto_sync_interval_hours").notNull().default(12),
+  lastAutoSyncAt: timestamp("last_auto_sync_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [

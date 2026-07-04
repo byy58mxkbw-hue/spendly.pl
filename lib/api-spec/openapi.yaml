@@ -1830,6 +1830,27 @@ paths:
         "400":
           description: Invalid date format or KSeF not configured
 
+  /ksef/auto-sync:
+    put:
+      operationId: updateKsefAutoSync
+      tags: [ksef]
+      summary: Enable/disable automatic background KSeF sync and set its interval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateKsefAutoSyncBody"
+      responses:
+        "200":
+          description: Updated config (masked)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KsefConfigView"
+        "400":
+          description: Invalid interval or KSeF not configured
+
   /ksef/sync:
     post:
       operationId: syncKsefInvoices
@@ -3368,10 +3389,28 @@ components:
         syncFromDate:
           type: ["string", "null"]
           description: Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.
+        autoSyncEnabled:
+          type: boolean
+          description: Whether automatic background KSeF sync is enabled.
+        autoSyncIntervalHours:
+          type: integer
+          description: Interval (hours) between automatic syncs when enabled.
       required:
         - nip
         - tokenMasked
         - environment
+
+    UpdateKsefAutoSyncBody:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Enable or disable automatic background sync.
+        intervalHours:
+          type: integer
+          description: "Interval between syncs in hours (allowed: 6, 12, 24). Required when enabled=true."
+      required:
+        - enabled
 
     SyncKsefInvoicesBody:
       type: object

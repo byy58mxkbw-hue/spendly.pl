@@ -706,7 +706,18 @@ export type KsefConfigView = {
      * @nullable
      */
   syncFromDate?: string | null;
+  /** Whether automatic background KSeF sync is enabled. */
+  autoSyncEnabled?: boolean;
+  /** Interval (hours) between automatic syncs when enabled. */
+  autoSyncIntervalHours?: number;
 } | null;
+
+export interface UpdateKsefAutoSyncBody {
+  /** Enable or disable automatic background sync. */
+  enabled: boolean;
+  /** Interval between syncs in hours (allowed: 6, 12, 24). Required when enabled=true. */
+  intervalHours?: number;
+}
 
 export interface SyncKsefInvoicesBody {
   /** If true, clears the last sync checkpoint and fetches invoices from the past 365 days. */

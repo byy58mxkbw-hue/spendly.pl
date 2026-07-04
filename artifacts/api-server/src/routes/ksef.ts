@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import type { Logger } from "pino";
 import { toNum, toNumOrNull } from "../lib/parse";
 import { and, desc, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { categorizeProductWithAI } from "../lib/categorize-ai.js";
@@ -86,7 +87,7 @@ async function loadConfig(userId: string) {
 
 function viewConfig(
   cfg: Awaited<ReturnType<typeof loadConfig>>,
-): { nip: string; tokenMasked: string; environment: string; lastSyncedAt: string | null; syncFromDate: string | null } | null {
+): { nip: string; tokenMasked: string; environment: string; lastSyncedAt: string | null; syncFromDate: string | null; autoSyncEnabled: boolean; autoSyncIntervalHours: number } | null {
   if (!cfg) return null;
   return {
     nip: cfg.nip,
@@ -94,6 +95,8 @@ function viewConfig(
     environment: cfg.environment,
     lastSyncedAt: cfg.lastSyncedAt ? cfg.lastSyncedAt.toISOString() : null,
     syncFromDate: cfg.syncFromDate ?? null,
+    autoSyncEnabled: cfg.autoSyncEnabled,
+    autoSyncIntervalHours: cfg.autoSyncIntervalHours,
   };
 }
 
@@ -246,6 +249,38 @@ router.put("/ksef/config/sync-from-date", async (req, res): Promise<void> => {
     .returning();
 
   req.log.info({ syncFromDate }, "KSeF sync-from-date updated");
+  res.json(viewConfig(saved));
+});
+
+// Dozwolone interwały automatycznej synchronizacji (godziny) — do wyboru przez użytkownika.
+const ALLOWED_AUTO_SYNC_INTERVALS = [6, 12, 24];
+
+router.put("/ksef/auto-sync", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const body = (req.body ?? {}) as { enabled?: unknown; intervalHours?: unknown };
+  const enabled = body.enabled === true;
+  const intervalHours = Number(body.intervalHours);
+  if (enabled && !ALLOWED_AUTO_SYNC_INTERVALS.includes(intervalHours)) {
+    res.status(400).json({ error: `Nieprawidłowy interwał. Dozwolone: ${ALLOWED_AUTO_SYNC_INTERVALS.join(", ")} godz.` });
+    return;
+  }
+
+  const existing = await loadConfig(userId);
+  if (!existing) {
+    res.status(400).json({ error: "Brak konfiguracji KSeF. Najpierw zapisz NIP i token." });
+    return;
+  }
+
+  const [saved] = await db
+    .update(ksefConfigTable)
+    .set({
+      autoSyncEnabled: enabled,
+      ...(enabled ? { autoSyncIntervalHours: intervalHours } : {}),
+    })
+    .where(eq(ksefConfigTable.id, existing.id))
+    .returning();
+
+  req.log.info({ enabled, intervalHours: saved.autoSyncIntervalHours }, "KSeF auto-sync updated");
   res.json(viewConfig(saved));
 });
 
@@ -1167,6 +1202,38 @@ async function runSync(
   // Fire-and-forget: recalculate price alert triggers after new invoices arrive.
   if (summary.imported > 0) {
     checkAlertsAfterImport(userId, req.log).catch(() => {});
+  }
+}
+
+// ─── Auto-sync (harmonogram w tle) ────────────────────────────────────────────
+// Bezgłowa (headless) synchronizacja uruchamiana przez scheduler — bez żądania HTTP
+// ani SSE. Respektuje te same zabezpieczenia co ręczny sync: guard rate_limited_until
+// oraz advisory lock per NIP (nie nachodzi na ręczną synchronizację ani inny auto-sync).
+export async function runAutoSyncForUser(userId: string, log: Logger): Promise<void> {
+  const cfg = await loadConfig(userId);
+  if (!cfg) return;
+
+  const remaining = await nipRateLimitSecondsRemaining(cfg.nip);
+  if (remaining > 0) {
+    log.info({ userId, nip: cfg.nip, remaining }, "Auto-sync KSeF pominięty — aktywny rate-limit");
+    return;
+  }
+
+  const lock = await AdvisoryLock.tryAcquire("ksef_sync", cfg.nip);
+  if (!lock) {
+    log.info({ userId, nip: cfg.nip }, "Auto-sync KSeF pominięty — trwa inna synchronizacja");
+    return;
+  }
+
+  // runSync korzysta wyłącznie z req.log — podajemy lekki obiekt z loggerem.
+  const ctx = { log } as unknown as Request;
+  try {
+    await runSync(ctx, userId, cfg, () => { /* brak strumienia postępu w tle */ });
+    log.info({ userId }, "Auto-sync KSeF zakończony");
+  } catch (err) {
+    log.warn({ userId, err: String(err) }, "Auto-sync KSeF nieudany");
+  } finally {
+    await lock.release().catch(() => {});
   }
 }
 

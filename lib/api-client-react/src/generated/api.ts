@@ -123,6 +123,7 @@ import type {
   UpdateCategoryBody,
   UpdateCostCenterBody,
   UpdateDishBody,
+  UpdateKsefAutoSyncBody,
   UpdateKsefConfigBody,
   UpdateKsefSyncFromDateBody,
   UpdatePriceAlertBody,
@@ -5821,6 +5822,76 @@ export const useUpdateKsefSyncFromDate = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateKsefSyncFromDateMutationOptions(options));
+    }
+
+export const getUpdateKsefAutoSyncUrl = () => {
+
+
+
+
+  return `/api/ksef/auto-sync`
+}
+
+/**
+ * @summary Enable/disable automatic background KSeF sync and set its interval
+ */
+export const updateKsefAutoSync = async (updateKsefAutoSyncBody: UpdateKsefAutoSyncBody, options?: RequestInit): Promise<KsefConfigView | null> => {
+
+  return customFetch<KsefConfigView | null>(getUpdateKsefAutoSyncUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateKsefAutoSyncBody)
+  }
+);}
+
+
+
+
+export const getUpdateKsefAutoSyncMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateKsefAutoSync>>, TError,{data: BodyType<UpdateKsefAutoSyncBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateKsefAutoSync>>, TError,{data: BodyType<UpdateKsefAutoSyncBody>}, TContext> => {
+
+const mutationKey = ['updateKsefAutoSync'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateKsefAutoSync>>, {data: BodyType<UpdateKsefAutoSyncBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateKsefAutoSync(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateKsefAutoSyncMutationResult = NonNullable<Awaited<ReturnType<typeof updateKsefAutoSync>>>
+    export type UpdateKsefAutoSyncMutationBody = BodyType<UpdateKsefAutoSyncBody>
+    export type UpdateKsefAutoSyncMutationError = ErrorType<void>
+
+    /**
+ * @summary Enable/disable automatic background KSeF sync and set its interval
+ */
+export const useUpdateKsefAutoSync = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateKsefAutoSync>>, TError,{data: BodyType<UpdateKsefAutoSyncBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateKsefAutoSync>>,
+        TError,
+        {data: BodyType<UpdateKsefAutoSyncBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateKsefAutoSyncMutationOptions(options));
     }
 
 export const getSyncKsefInvoicesUrl = () => {

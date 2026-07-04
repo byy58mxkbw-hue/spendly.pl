@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runCategoryBackfill } from "./services/backfill-categories.js";
+import { ensureAutoSyncColumns, startKsefAutoSyncScheduler } from "./services/ksef-scheduler.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
 // Lepiej zawieść głośno od razu niż w trakcie żądania użytkownika.
@@ -53,6 +54,14 @@ app.listen(port, (err) => {
   // ==="production" silently skipped it on prod. On prod this clears the
   // "do przeglądu" queue on every deploy (deterministic keyword pass first,
   // then AI only for still-unclassified products). Fully idempotent.
+  // Migracja kolumn auto-sync — ZAWSZE (idempotentne DDL), żeby zapytania ORM
+  // działały też lokalnie. Harmonogram startuje tylko poza dev (nie bije w KSeF w dev).
+  ensureAutoSyncColumns(logger)
+    .then(() => {
+      if (process.env.NODE_ENV !== "development") startKsefAutoSyncScheduler(logger);
+    })
+    .catch((err) => logger.error({ err }, "Auto-sync KSeF: nie wystartował (kolumny)"));
+
   if (process.env.NODE_ENV !== "development") {
     logger.info("Starting category backfill on startup");
     runCategoryBackfill().catch((err) => {

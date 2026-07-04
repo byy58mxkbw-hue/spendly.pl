@@ -1722,7 +1722,9 @@ export const GetKsefConfigResponse = zod.object({
   "tokenMasked": zod.string(),
   "environment": zod.string(),
   "lastSyncedAt": zod.string().nullish(),
-  "syncFromDate": zod.string().nullish().describe('Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.')
+  "syncFromDate": zod.string().nullish().describe('Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.'),
+  "autoSyncEnabled": zod.boolean().optional().describe('Whether automatic background KSeF sync is enabled.'),
+  "autoSyncIntervalHours": zod.number().optional().describe('Interval (hours) between automatic syncs when enabled.')
 }).nullable()
 
 
@@ -1739,7 +1741,9 @@ export const UpdateKsefConfigResponse = zod.object({
   "tokenMasked": zod.string(),
   "environment": zod.string(),
   "lastSyncedAt": zod.string().nullish(),
-  "syncFromDate": zod.string().nullish().describe('Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.')
+  "syncFromDate": zod.string().nullish().describe('Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.'),
+  "autoSyncEnabled": zod.boolean().optional().describe('Whether automatic background KSeF sync is enabled.'),
+  "autoSyncIntervalHours": zod.number().optional().describe('Interval (hours) between automatic syncs when enabled.')
 }).nullable()
 
 
@@ -1755,7 +1759,28 @@ export const UpdateKsefSyncFromDateResponse = zod.object({
   "tokenMasked": zod.string(),
   "environment": zod.string(),
   "lastSyncedAt": zod.string().nullish(),
-  "syncFromDate": zod.string().nullish().describe('Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.')
+  "syncFromDate": zod.string().nullish().describe('Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.'),
+  "autoSyncEnabled": zod.boolean().optional().describe('Whether automatic background KSeF sync is enabled.'),
+  "autoSyncIntervalHours": zod.number().optional().describe('Interval (hours) between automatic syncs when enabled.')
+}).nullable()
+
+
+/**
+ * @summary Enable/disable automatic background KSeF sync and set its interval
+ */
+export const UpdateKsefAutoSyncBody = zod.object({
+  "enabled": zod.boolean().describe('Enable or disable automatic background sync.'),
+  "intervalHours": zod.number().optional().describe('Interval between syncs in hours (allowed: 6, 12, 24). Required when enabled=true.')
+})
+
+export const UpdateKsefAutoSyncResponse = zod.object({
+  "nip": zod.string(),
+  "tokenMasked": zod.string(),
+  "environment": zod.string(),
+  "lastSyncedAt": zod.string().nullish(),
+  "syncFromDate": zod.string().nullish().describe('Date (YYYY-MM-DD) from which the full sync starts. Defaults to 2026-02-01 if not set.'),
+  "autoSyncEnabled": zod.boolean().optional().describe('Whether automatic background KSeF sync is enabled.'),
+  "autoSyncIntervalHours": zod.number().optional().describe('Interval (hours) between automatic syncs when enabled.')
 }).nullable()
 
 

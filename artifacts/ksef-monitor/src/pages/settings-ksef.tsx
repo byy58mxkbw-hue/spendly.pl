@@ -1,18 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useGetKsefConfig,
   useUpdateKsefConfig,
   useUpdateKsefSyncFromDate,
+  useUpdateKsefAutoSync,
+  getGetKsefConfigQueryKey,
 } from "@workspace/api-client-react";
 import { useSyncKsefProgress, syncPhaseProgress, describeSyncResult, type SyncPhase } from "@/hooks/use-sync-progress";
 import { Progress } from "@/components/ui/progress";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { ShieldCheck, ExternalLink, RefreshCw, RotateCcw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ShieldCheck, ExternalLink, RefreshCw, RotateCcw, Clock } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,11 +46,46 @@ export default function SettingsKsef() {
   const { phase: syncPhase, startSync, isPending: syncPending } = useSyncKsefProgress();
 
   const updateSyncFromDate = useUpdateKsefSyncFromDate();
+  const updateAutoSync = useUpdateKsefAutoSync();
 
   const [nip, setNip] = useState("");
   const [token, setToken] = useState("");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [syncFromDate, setSyncFromDate] = useState("");
+
+  // Auto-sync — stan lokalny synchronizowany z konfiguracją po jej załadowaniu.
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [autoInterval, setAutoInterval] = useState(12);
+  useEffect(() => {
+    if (config) {
+      setAutoEnabled(config.autoSyncEnabled ?? false);
+      setAutoInterval(config.autoSyncIntervalHours ?? 12);
+    }
+  }, [config]);
+
+  const AUTO_INTERVALS = [6, 12, 24];
+
+  function saveAutoSync(enabled: boolean, intervalHours: number) {
+    setAutoEnabled(enabled);
+    setAutoInterval(intervalHours);
+    updateAutoSync.mutate(
+      { data: { enabled, intervalHours } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetKsefConfigQueryKey() });
+          toast({
+            title: enabled ? "Automatyczna synchronizacja włączona" : "Automatyczna synchronizacja wyłączona",
+            description: enabled ? `Spendly będzie pobierać faktury co ${intervalHours} godz.` : undefined,
+          });
+        },
+        onError: () => {
+          setAutoEnabled(config?.autoSyncEnabled ?? false);
+          setAutoInterval(config?.autoSyncIntervalHours ?? 12);
+          toast({ variant: "destructive", title: "Błąd", description: "Nie udało się zapisać ustawienia." });
+        },
+      },
+    );
+  }
 
   function onSave(e: React.FormEvent) {
     e.preventDefault();
@@ -216,6 +255,56 @@ export default function SettingsKsef() {
             </p>
           )}
         </div>
+
+        {config && (
+          <div className="bg-card border border-border rounded-xl p-6 mb-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  Automatyczna synchronizacja
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Spendly samo pobiera nowe faktury z KSeF w tle — bez ręcznego klikania „Synchronizuj".
+                </p>
+              </div>
+              <Switch
+                checked={autoEnabled}
+                onCheckedChange={(v) => saveAutoSync(v, autoInterval)}
+                disabled={updateAutoSync.isPending}
+                data-testid="switch-auto-sync"
+              />
+            </div>
+
+            {autoEnabled && (
+              <div className="mt-4 border-t border-border pt-4">
+                <p className="text-xs font-medium text-foreground mb-2">Jak często synchronizować?</p>
+                <div className="flex gap-2">
+                  {AUTO_INTERVALS.map((h) => (
+                    <button
+                      key={h}
+                      onClick={() => saveAutoSync(true, h)}
+                      disabled={updateAutoSync.isPending}
+                      className={cn(
+                        "px-3.5 py-1.5 rounded-lg text-sm font-medium border transition-colors",
+                        autoInterval === h
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40",
+                      )}
+                      data-testid={`auto-sync-interval-${h}`}
+                    >
+                      {h === 24 ? "raz dziennie" : `co ${h} godz.`}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Synchronizacja uruchamia się automatycznie w tle. Rate-limit KSeF i trwające synchronizacje
+                  są respektowane — nic nie nachodzi na siebie.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         <form onSubmit={onSave} className="bg-card border border-border rounded-xl p-6 space-y-4">
           <h2 className="text-sm font-semibold text-foreground">
