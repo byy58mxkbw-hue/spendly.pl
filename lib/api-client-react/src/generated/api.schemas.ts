@@ -595,6 +595,18 @@ export type SpendBridgeQuantityMoversItem = {
   qtyPct?: number | null;
 };
 
+export type SpendBridgeNewProductsItem = {
+  productName: string;
+  unit: string;
+  amount: number;
+};
+
+export type SpendBridgeDroppedProductsItem = {
+  productName: string;
+  unit: string;
+  amount: number;
+};
+
 export interface SpendBridge {
   month: string;
   prevMonth: string;
@@ -613,6 +625,8 @@ export interface SpendBridge {
   topVolumeDrivers: SpendBridgeTopVolumeDriversItem[];
   priceBenchmark: SpendBridgePriceBenchmarkItem[];
   quantityMovers: SpendBridgeQuantityMoversItem[];
+  newProducts: SpendBridgeNewProductsItem[];
+  droppedProducts: SpendBridgeDroppedProductsItem[];
 }
 
 export interface RecentPurchase {

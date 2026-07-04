@@ -3188,6 +3188,24 @@ components:
               prevQty: { type: ["number", "null"] }
               qtyPct: { type: ["number", "null"] }
             required: [productName, unit, currentQty]
+        newProducts:
+          type: array
+          items:
+            type: object
+            properties:
+              productName: { type: string }
+              unit: { type: string }
+              amount: { type: number }
+            required: [productName, unit, amount]
+        droppedProducts:
+          type: array
+          items:
+            type: object
+            properties:
+              productName: { type: string }
+              unit: { type: string }
+              amount: { type: number }
+            required: [productName, unit, amount]
       required:
         - month
         - prevMonth
@@ -3203,6 +3221,8 @@ components:
         - topVolumeDrivers
         - priceBenchmark
         - quantityMovers
+        - newProducts
+        - droppedProducts
 
     RecentPurchase:
       type: object

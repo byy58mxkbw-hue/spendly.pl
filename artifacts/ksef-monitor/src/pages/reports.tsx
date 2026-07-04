@@ -1465,13 +1465,30 @@ function SpendHero({ bridge, monthName }: { bridge: SpendBridge; monthName: stri
 }
 
 function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
-  // Rozbite na zrozumiałe pozycje. Rezyduum modelu (otherEffect) dokładamy do
-  // „zmian ilości" — pochodzi z wahań cen/ilości w obrębie tego samego produktu.
-  const rows = [
-    { label: "Zmiany cen", hint: "ten sam produkt drożej lub taniej", amount: bridge.priceEffect },
-    { label: "Zmiany ilości", hint: "kupiłeś więcej lub mniej tego samego", amount: bridge.volumeEffect + bridge.otherEffect },
-    { label: "Nowe produkty", hint: "kupione teraz, nie było miesiąc temu", amount: bridge.newEffect },
-    { label: "Przestałeś kupować", hint: "były miesiąc temu, teraz ich brak", amount: bridge.droppedEffect },
+  const [open, setOpen] = useState<string | null>(null);
+  // Rezyduum modelu (otherEffect) dokładamy do „zmian ilości".
+  type Item = { name: string; unit: string; amount: number; pct?: number };
+  const rows: { key: string; label: string; hint: string; amount: number; items: Item[]; note?: string }[] = [
+    {
+      key: "cen", label: "Zmiany cen", hint: "ten sam produkt drożej lub taniej",
+      amount: bridge.priceEffect,
+      items: bridge.topPriceDrivers.map((d) => ({ name: d.productName, unit: d.unit, amount: d.amount, pct: d.pricePct })),
+    },
+    {
+      key: "il", label: "Zmiany ilości", hint: "kupiłeś więcej lub mniej tego samego",
+      amount: bridge.volumeEffect + bridge.otherEffect,
+      items: bridge.topVolumeDrivers.map((d) => ({ name: d.productName, unit: d.unit, amount: d.amount, pct: d.qtyPct })),
+    },
+    {
+      key: "nowe", label: "Nowe produkty", hint: "kupione teraz, nie było miesiąc temu",
+      amount: bridge.newEffect,
+      items: bridge.newProducts.map((d) => ({ name: d.productName, unit: d.unit, amount: d.amount })),
+    },
+    {
+      key: "drop", label: "Przestałeś kupować", hint: "były miesiąc temu, teraz ich brak",
+      amount: bridge.droppedEffect,
+      items: bridge.droppedProducts.map((d) => ({ name: d.productName, unit: d.unit, amount: -d.amount })),
+    },
   ].filter((r) => Math.abs(r.amount) >= 1);
   const max = Math.max(1, ...rows.map((r) => Math.abs(r.amount)));
   const namingArtefact = Math.abs(bridge.newEffect) >= 1000 && Math.abs(bridge.droppedEffect) >= 1000;
@@ -1484,60 +1501,66 @@ function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
         </span>{" "}
         vs poprzedni miesiąc bierze się z:
       </p>
-      <div className="p-4 md:p-5 space-y-2.5">
-        {rows.map((r) => (
-          <div key={r.label} className="flex items-center gap-3">
-            <div className="w-32 sm:w-40 shrink-0">
-              <p className="text-sm text-foreground leading-tight">{r.label}</p>
-              <p className="text-[11px] text-muted-foreground leading-tight">{r.hint}</p>
+      <p className="px-4 md:px-5 pt-1 text-[11px] text-muted-foreground">Kliknij wiersz, aby zobaczyć produkty.</p>
+      <div className="p-4 md:p-5 space-y-1">
+        {rows.map((r) => {
+          const isOpen = open === r.key;
+          const canOpen = r.items.length > 0;
+          return (
+            <div key={r.key}>
+              <button
+                type="button"
+                onClick={() => canOpen && setOpen(isOpen ? null : r.key)}
+                className={cn(
+                  "w-full flex items-center gap-3 py-1.5 rounded-lg text-left transition-colors",
+                  canOpen && "hover:bg-secondary/50 cursor-pointer",
+                )}
+                aria-expanded={isOpen}
+              >
+                <div className="w-32 sm:w-40 shrink-0">
+                  <p className="text-sm text-foreground leading-tight">{r.label}</p>
+                  <p className="text-[11px] text-muted-foreground leading-tight">{r.hint}</p>
+                </div>
+                <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full", r.amount < 0 ? "bg-emerald-500" : "bg-destructive")}
+                    style={{ width: `${Math.min(100, (Math.abs(r.amount) / max) * 100)}%` }}
+                  />
+                </div>
+                <div className={cn("w-20 sm:w-24 text-right text-sm font-semibold tabular-nums shrink-0", costTone(r.amount))}>
+                  {r.amount > 0 ? "+" : ""}{formatPrice(r.amount)}
+                </div>
+                {canOpen ? (
+                  <ChevronDown className={cn("w-4 h-4 text-muted-foreground shrink-0 transition-transform", isOpen && "rotate-180")} />
+                ) : (
+                  <span className="w-4 shrink-0" />
+                )}
+              </button>
+              {isOpen && (
+                <div className="mt-1 mb-2 rounded-lg border border-border bg-secondary/30 divide-y divide-border overflow-hidden">
+                  {r.items.map((it, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 px-3 py-1.5 text-xs">
+                      <span className="truncate text-foreground">
+                        {it.name}
+                        <span className="text-muted-foreground"> · {it.unit}</span>
+                      </span>
+                      <span className={cn("shrink-0 font-medium tabular-nums", costTone(it.amount))}>
+                        {it.amount > 0 ? "+" : ""}{formatPrice(it.amount)}
+                        {it.pct != null && ` (${signedPct(it.pct)})`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
-              <div
-                className={cn("h-full rounded-full", r.amount < 0 ? "bg-emerald-500" : "bg-destructive")}
-                style={{ width: `${Math.min(100, (Math.abs(r.amount) / max) * 100)}%` }}
-              />
-            </div>
-            <div className={cn("w-24 text-right text-sm font-semibold tabular-nums shrink-0", costTone(r.amount))}>
-              {r.amount > 0 ? "+" : ""}{formatPrice(r.amount)}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       {namingArtefact && (
         <p className="mx-4 md:mx-5 mb-4 -mt-1 text-[11px] text-muted-foreground bg-secondary/50 rounded-lg px-3 py-2">
           „Nowe produkty" i „przestałeś kupować" bywają wysokie, gdy KSeF nazywa ten sam produkt
           co miesiąc trochę inaczej — wtedy zwykle się równoważą i nie oznaczają realnej zmiany.
         </p>
-      )}
-      {(bridge.topPriceDrivers.length > 0 || bridge.topVolumeDrivers.length > 0) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4 md:px-5 pb-4">
-          {bridge.topPriceDrivers.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">Ceny w górę ciągnęły</p>
-              <ul className="space-y-1">
-                {bridge.topPriceDrivers.map((d, i) => (
-                  <li key={i} className="flex justify-between gap-2 text-xs">
-                    <span className="truncate text-foreground">{d.productName}</span>
-                    <span className="text-destructive font-medium tabular-nums shrink-0">+{formatPrice(d.amount)} ({signedPct(d.pricePct)})</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {bridge.topVolumeDrivers.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">Kupiłeś więcej</p>
-              <ul className="space-y-1">
-                {bridge.topVolumeDrivers.map((d, i) => (
-                  <li key={i} className="flex justify-between gap-2 text-xs">
-                    <span className="truncate text-foreground">{d.productName}</span>
-                    <span className="text-amber-600 font-medium tabular-nums shrink-0">+{formatPrice(d.amount)} ({signedPct(d.qtyPct)})</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
       )}
     </div>
   );

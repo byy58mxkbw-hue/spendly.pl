@@ -1652,6 +1652,16 @@ export const GetSpendBridgeResponse = zod.object({
   "currentQty": zod.number(),
   "prevQty": zod.number().nullish(),
   "qtyPct": zod.number().nullish()
+})),
+  "newProducts": zod.array(zod.object({
+  "productName": zod.string(),
+  "unit": zod.string(),
+  "amount": zod.number()
+})),
+  "droppedProducts": zod.array(zod.object({
+  "productName": zod.string(),
+  "unit": zod.string(),
+  "amount": zod.number()
 }))
 })
 

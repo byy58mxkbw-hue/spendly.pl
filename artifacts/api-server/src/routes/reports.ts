@@ -353,6 +353,8 @@ router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
   let priceEffect = 0, volumeEffect = 0, newEffect = 0, droppedEffect = 0;
   const priceDrivers: { productName: string; unit: string; amount: number; pricePct: number }[] = [];
   const volumeDrivers: { productName: string; unit: string; amount: number; qtyPct: number }[] = [];
+  const newProducts: { productName: string; unit: string; amount: number }[] = [];
+  const droppedProducts: { productName: string; unit: string; amount: number }[] = [];
 
   for (const [k, c] of curMap) {
     const p = prevMap.get(k);
@@ -365,9 +367,17 @@ router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
       volumeDrivers.push({ productName: c.name, unit: c.unit, amount: ve, qtyPct: toNum(p.qty) > 0 ? ((toNum(c.qty) - toNum(p.qty)) / toNum(p.qty)) * 100 : 0 });
     } else {
       newEffect += toNum(c.cost);
+      newProducts.push({ productName: c.name, unit: c.unit, amount: toNum(c.cost) });
     }
   }
-  for (const [k, p] of prevMap) { if (!curMap.has(k)) droppedEffect -= toNum(p.cost); }
+  for (const [k, p] of prevMap) {
+    if (!curMap.has(k)) {
+      droppedEffect -= toNum(p.cost);
+      droppedProducts.push({ productName: p.name, unit: p.unit, amount: toNum(p.cost) });
+    }
+  }
+  newProducts.sort((a, b) => b.amount - a.amount);
+  droppedProducts.sort((a, b) => b.amount - a.amount);
 
   const deltaSpend = currentSpend - prevSpend;
   const otherEffect = deltaSpend - priceEffect - volumeEffect - newEffect - droppedEffect;
@@ -430,8 +440,10 @@ router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
     newEffect,
     droppedEffect,
     otherEffect,
-    topPriceDrivers: priceDrivers.filter((d) => d.amount > 0).slice(0, 5),
-    topVolumeDrivers: volumeDrivers.filter((d) => d.amount > 0).slice(0, 5),
+    topPriceDrivers: priceDrivers.filter((d) => d.amount > 0).slice(0, 8),
+    topVolumeDrivers: volumeDrivers.filter((d) => d.amount > 0).slice(0, 8),
+    newProducts: newProducts.slice(0, 15),
+    droppedProducts: droppedProducts.slice(0, 15),
     priceBenchmark,
     quantityMovers,
   });
