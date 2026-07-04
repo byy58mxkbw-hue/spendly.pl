@@ -77,10 +77,6 @@ export default function PolitykaPrywatnosci() {
               wersja jest zawsze dostępna w Serwisie.</p>
             </LegalSection>
 
-            <p style={{ marginTop: 32, fontSize: 13, fontStyle: "italic" }}>
-              Uwaga: dokument jest wzorem i wymaga uzupełnienia danych administratora ([...])
-              oraz weryfikacji przez radcę prawnego / IOD przed publikacją produkcyjną.
-            </p>
           </>
         );
       }}

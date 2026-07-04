@@ -62,10 +62,6 @@ export default function Regulamin() {
               <p>Usługodawca zastrzega sobie prawo do zmiany Regulaminu z ważnych przyczyn. O zmianach Użytkownik zostanie poinformowany. W sprawach nieuregulowanych zastosowanie mają przepisy prawa polskiego.</p>
             </LegalSection>
 
-            <p style={{ marginTop: 32, fontSize: 13, fontStyle: "italic" }}>
-              Uwaga: dokument jest wzorem i wymaga uzupełnienia danych rejestrowych firmy ([...])
-              oraz weryfikacji przez radcę prawnego przed publikacją produkcyjną.
-            </p>
           </>
         );
       }}
