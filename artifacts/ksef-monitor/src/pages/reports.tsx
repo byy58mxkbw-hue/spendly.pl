@@ -55,7 +55,7 @@ import {
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/categories";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 
 // ─── Month helpers ─────────────────────────────────────────────────────────────
@@ -879,9 +879,16 @@ function SupplierCard({
 
 // ─── Products table (for Produkty tab) ────────────────────────────────────────
 
+function pctVsOverall(p: ProductWithImpact): number | null {
+  return p.overallAvgPrice != null && p.overallAvgPrice > 0
+    ? ((p.avgPrice - p.overallAvgPrice) / p.overallAvgPrice) * 100
+    : null;
+}
+
+// Scalona zakładka „Produkty": ceny + ilości + „vs zwykle" + flaga oszczędności.
 function ProductsTable({ products }: { products: ProductWithImpact[] }) {
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"cost" | "price" | "qty">("cost");
+  const [sortBy, setSortBy] = useState<"cost" | "price" | "qty" | "overprice">("cost");
 
   const filtered = useMemo(() => {
     let list = [...products];
@@ -890,138 +897,127 @@ function ProductsTable({ products }: { products: ProductWithImpact[] }) {
       list = list.filter((p) => p.productName.toLowerCase().includes(q));
     }
     if (sortBy === "cost") list.sort((a, b) => b.totalCost - a.totalCost);
-    if (sortBy === "price") list.sort((a, b) => Math.abs(b.pricePct) - Math.abs(a.pricePct));
-    if (sortBy === "qty") list.sort((a, b) => Math.abs(b.qtyPct) - Math.abs(a.qtyPct));
-    return list;
+    if (sortBy === "price") list.sort((a, b) => b.pricePct - a.pricePct);
+    if (sortBy === "qty") list.sort((a, b) => b.qtyPct - a.qtyPct);
+    if (sortBy === "overprice") list.sort((a, b) => (pctVsOverall(b) ?? -999) - (pctVsOverall(a) ?? -999));
+    return list.slice(0, 100);
   }, [products, search, sortBy]);
+
+  const sorts: { id: typeof sortBy; label: string }[] = [
+    { id: "cost", label: "Wg kosztu" },
+    { id: "price", label: "Zmiana ceny" },
+    { id: "qty", label: "Zmiana ilości" },
+    { id: "overprice", label: "Powyżej normy" },
+  ];
 
   return (
     <div>
-      <div className="flex gap-2 p-4 md:px-5">
+      <div className="flex flex-wrap gap-2 p-4 md:px-5 items-center">
         <input
           type="text"
           placeholder="Szukaj produktu..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+          className="flex-1 min-w-[160px] text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-          className="text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none"
-        >
-          <option value="cost">Wg kosztu</option>
-          <option value="price">Wg zmiany ceny</option>
-          <option value="qty">Wg zmiany ilości</option>
-        </select>
-      </div>
-      {/* Mobile: tabela przewija się poziomo — bez tego 5-6 kolumn zgniata nazwę produktu do zera */}
-      <div className="overflow-x-auto">
-      <div className={cn(sortBy === "qty" ? "min-w-[640px]" : "min-w-[560px]")}>
-      {sortBy === "qty" ? (
-        <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-          <div>Produkt</div>
-          <div className="text-right w-20">Poprz. mies.</div>
-          <div className="text-right w-16">Ten mies.</div>
-          <div className="text-right w-16">Zmiana il.</div>
-          <div className="text-right w-24">Śr. cena</div>
-          <div className="text-right w-24">Łącznie</div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-          <div>Produkt</div>
-          <div className="text-right w-16">Ilość</div>
-          <div className="text-right w-24">Śr. cena</div>
-          <div className="text-right w-14">Zmiana ceny</div>
-          <div className="text-right w-24">Łącznie</div>
-        </div>
-      )}
-      <div className="divide-y divide-border max-h-[60vh] overflow-y-auto">
-        {filtered.slice(0, 50).map((p, i) => (
-          <div
-            key={i}
-            className={cn(
-              "grid gap-2 px-4 md:px-5 py-2.5 items-center",
-              sortBy === "qty"
-                ? "grid-cols-[1fr_auto_auto_auto_auto_auto]"
-                : "grid-cols-[1fr_auto_auto_auto_auto]",
-            )}
-          >
-            <div className="min-w-0">
-              <p className="text-sm text-foreground truncate">{p.productName}</p>
-              {p.supplierName && (
-                <p className="text-[10px] text-muted-foreground truncate">{p.supplierName}</p>
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+          {sorts.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSortBy(s.id)}
+              className={cn(
+                "shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors",
+                sortBy === s.id
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-border text-muted-foreground hover:text-foreground",
               )}
-            </div>
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-            {sortBy === "qty" ? (
-              <>
-                {/* Previous month quantity */}
-                <p className="text-xs text-muted-foreground text-right w-20 tabular-nums">
-                  {p.prevMonthTotalQuantity != null
-                    ? `${p.prevMonthTotalQuantity % 1 === 0 ? p.prevMonthTotalQuantity : p.prevMonthTotalQuantity.toFixed(1)} ${p.unit}`
-                    : "—"}
-                </p>
-                {/* Current month quantity */}
-                <p className="text-xs text-foreground text-right w-16 tabular-nums font-medium">
-                  {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(1)} {p.unit}
-                </p>
-                {/* Quantity % change */}
-                {p.prevMonthTotalQuantity != null && p.prevMonthTotalQuantity > 0 ? (
-                  <span
-                    className={cn(
-                      "text-xs font-bold text-right w-16 tabular-nums flex items-center justify-end gap-0.5",
-                      p.qtyPct > 0 ? "text-amber-500" : p.qtyPct < 0 ? "text-blue-500" : "text-muted-foreground",
-                    )}
-                  >
-                    {p.qtyPct > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : p.qtyPct < 0 ? <ArrowDown className="w-2.5 h-2.5" /> : null}
-                    {p.qtyPct !== 0 ? (p.qtyPct > 0 ? "+" : "") + p.qtyPct.toFixed(1) + "%" : "—"}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground text-right w-16">—</span>
-                )}
-                {/* Avg price */}
-                <p className="text-xs text-muted-foreground text-right w-24 tabular-nums">
-                  {formatPrice(p.avgPrice)}/{p.unit}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-muted-foreground text-right w-16 tabular-nums">
-                  {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(1)} {p.unit}
-                </p>
-                <p className="text-xs text-foreground text-right w-24 tabular-nums">
-                  {formatPrice(p.avgPrice)}/{p.unit}
-                </p>
-                {p.prevMonthAvgPrice != null && p.prevMonthAvgPrice > 0 ? (
-                  <span
-                    className={cn(
-                      "text-xs font-bold text-right w-14 tabular-nums flex items-center justify-end gap-0.5",
-                      p.pricePct > 0 ? "text-red-500" : p.pricePct < 0 ? "text-emerald-600" : "text-muted-foreground",
-                    )}
-                  >
-                    {p.pricePct > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : p.pricePct < 0 ? <ArrowDown className="w-2.5 h-2.5" /> : null}
-                    {p.pricePct !== 0 ? Math.abs(p.pricePct).toFixed(1) + "%" : "—"}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground text-right w-14">—</span>
-                )}
-              </>
-            )}
+      {filtered.length === 0 ? (
+        <div className="py-10 text-center text-sm text-muted-foreground">Brak wyników</div>
+      ) : (
+        <>
+          {/* Desktop: tabela */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full min-w-[720px] tabular-nums">
+              <thead>
+                <tr className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-secondary/30">
+                  <th className="text-left px-5 py-2 font-semibold">Produkt</th>
+                  <th className="text-right px-3 py-2 font-semibold">Śr. cena</th>
+                  <th className="text-right px-3 py-2 font-semibold">vs poprz.</th>
+                  <th className="text-right px-3 py-2 font-semibold">vs zwykle</th>
+                  <th className="text-right px-3 py-2 font-semibold">Ilość</th>
+                  <th className="text-right px-3 py-2 font-semibold">Δ il.</th>
+                  <th className="text-right px-5 py-2 font-semibold">Koszt</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map((p, i) => {
+                  const vsOverall = pctVsOverall(p);
+                  return (
+                    <tr key={i}>
+                      <td className="px-5 py-2.5 max-w-[280px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm text-foreground truncate">{p.productName}</span>
+                          {p.cheaperSupplierName && (
+                            <span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-medium text-primary bg-primary/10 rounded-full px-1.5 py-0.5">
+                              taniej u {p.cheaperSupplierName} {signedPct(-(p.cheaperPct ?? 0))}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">{p.unit}{p.supplierName ? ` · ${p.supplierName}` : ""}</span>
+                      </td>
+                      <td className="text-right px-3 py-2.5 text-sm font-medium text-foreground">{formatPrice(p.avgPrice)}</td>
+                      <td className={cn("text-right px-3 py-2.5 text-xs font-medium", costTone(p.prevMonthAvgPrice != null ? p.pricePct : null))}>{p.prevMonthAvgPrice != null ? signedPct(p.pricePct) : "—"}</td>
+                      <td className={cn("text-right px-3 py-2.5 text-xs font-medium", costTone(vsOverall))}>{vsOverall == null ? "—" : signedPct(vsOverall)}</td>
+                      <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{fmtQty(p.totalQuantity)} {p.unit}</td>
+                      <td className={cn("text-right px-3 py-2.5 text-xs font-medium", p.prevMonthTotalQuantity == null ? "text-muted-foreground" : p.qtyPct > 0 ? "text-amber-600" : p.qtyPct < 0 ? "text-blue-600" : "text-muted-foreground")}>{p.prevMonthTotalQuantity != null && p.prevMonthTotalQuantity > 0 ? signedPct(p.qtyPct) : "—"}</td>
+                      <td className="text-right px-5 py-2.5 text-sm font-semibold text-foreground">{formatPrice(p.totalCost)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
-            <p className="text-sm font-semibold text-foreground text-right w-24 tabular-nums">
-              {formatPrice(p.totalCost)}
-            </p>
+          {/* Mobile: karty 2-liniowe */}
+          <div className="md:hidden divide-y divide-border">
+            {filtered.map((p, i) => {
+              const vsOverall = pctVsOverall(p);
+              return (
+                <div key={i} className="px-4 py-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-foreground truncate">{p.productName}</p>
+                    {p.cheaperSupplierName && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary bg-primary/10 rounded-full px-1.5 py-0.5 mt-0.5">
+                        taniej u {p.cheaperSupplierName} {signedPct(-(p.cheaperPct ?? 0))}
+                      </span>
+                    )}
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
+                      <span>vs poprz. <span className={cn("font-medium", costTone(p.prevMonthAvgPrice != null ? p.pricePct : null))}>{p.prevMonthAvgPrice != null ? signedPct(p.pricePct) : "—"}</span></span>
+                      <span>vs zwykle <span className={cn("font-medium", costTone(vsOverall))}>{vsOverall == null ? "—" : signedPct(vsOverall)}</span></span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(p.avgPrice)}</p>
+                    <p className="text-[11px] text-muted-foreground tabular-nums">
+                      {fmtQty(p.totalQuantity)} {p.unit}
+                      {p.prevMonthTotalQuantity != null && p.prevMonthTotalQuantity > 0 && (
+                        <span className={cn("ml-1 font-medium", p.qtyPct > 0 ? "text-amber-600" : p.qtyPct < 0 ? "text-blue-600" : "")}>{signedPct(p.qtyPct)}</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            Brak wyników
-          </div>
-        )}
-      </div>
-      </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1580,6 +1576,7 @@ function QuantityMoversList({ rows }: { rows: SpendBridge["quantityMovers"] }) {
 }
 
 export default function Reports() {
+  const [, navigate] = useLocation();
   const [month, setMonth] = useState(currentMonth);
   // On first load, default the view to the month where the user's data actually is —
   // the month with the highest spend. Freshly imported invoices are usually from a
@@ -1717,20 +1714,10 @@ export default function Reports() {
         {/* Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="mb-5 md:mb-6 flex-wrap h-auto gap-0.5">
-            <TabsTrigger value="podsumowanie">Podsumowanie</TabsTrigger>
+            <TabsTrigger value="podsumowanie">Przegląd</TabsTrigger>
             <TabsTrigger value="produkty">Produkty</TabsTrigger>
             <TabsTrigger value="dostawcy">Dostawcy</TabsTrigger>
             <TabsTrigger value="kategorie">Kategorie</TabsTrigger>
-            <TabsTrigger value="ceny">Ceny</TabsTrigger>
-            <TabsTrigger value="ilosci">Ilości</TabsTrigger>
-            <TabsTrigger value="anomalie">
-              Anomalie
-              {alertCount > 0 && (
-                <span className="ml-1.5 text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold leading-none">
-                  {alertCount}
-                </span>
-              )}
-            </TabsTrigger>
           </TabsList>
 
           {/* ── PODSUMOWANIE ─────────────────────────────────────────────────── */}
@@ -1816,7 +1803,7 @@ export default function Reports() {
             {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SectionCard title="Krytyczne alerty">
-                  <AlertsList onViewAll={() => setTab("anomalie")} />
+                  <AlertsList onViewAll={() => navigate("/price-alerts")} />
                 </SectionCard>
                 <SectionCard title="Rekomendacje AI">
                   <RecommendationsList products={allProducts} />
@@ -1844,11 +1831,12 @@ export default function Reports() {
               <Skeleton className="h-64 rounded-xl" />
             ) : allProducts.length > 0 ? (
               <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Wszystkie produkty · {allProducts.length}
-                  </h3>
-                  <span className="text-xs text-muted-foreground">
+                <div className="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-foreground">Produkty · {allProducts.length}</h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Ceny i ilości w jednym miejscu — vs poprzedni miesiąc, vs zwykle, gdzie taniej</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">
                     Łącznie {formatPrice(data?.totalSpend ?? 0)}
                   </span>
                 </div>
@@ -1909,196 +1897,6 @@ export default function Reports() {
             </SectionCard>
           </TabsContent>
 
-          {/* ── CENY ─────────────────────────────────────────────────────────── */}
-          <TabsContent value="ceny">
-            {isLoading ? (
-              <Skeleton className="h-64 rounded-xl" />
-            ) : (
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="px-4 md:px-5 py-3 border-b border-border">
-                  <h3 className="text-sm font-semibold text-foreground">Analiza zmian cen</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Porównanie {monthLabel(month)} vs {monthLabel(prevMonth(month))}
-                  </p>
-                </div>
-                <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  <div>Produkt</div>
-                  <div className="text-right w-24">Poprz. cena</div>
-                  <div className="text-right w-24">Obecna cena</div>
-                  <div className="text-right w-16">Zmiana %</div>
-                  <div className="text-right w-24">Wpływ na koszt</div>
-                </div>
-                <div className="divide-y divide-border">
-                  {[...allProducts]
-                    .filter((p) => p.prevMonthAvgPrice != null && p.prevMonthAvgPrice > 0)
-                    .sort((a, b) => Math.abs(b.pricePct) - Math.abs(a.pricePct))
-                    .map((p, i) => (
-                      <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2.5 items-center">
-                        <div className="min-w-0">
-                          <p className="text-sm text-foreground truncate">{p.productName}</p>
-                          {p.supplierName && (
-                            <p className="text-[10px] text-muted-foreground">{p.supplierName}</p>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground text-right w-24 tabular-nums">
-                          {formatPrice(p.prevMonthAvgPrice ?? 0)}/{p.unit}
-                        </p>
-                        <p className="text-sm font-medium text-foreground text-right w-24 tabular-nums">
-                          {formatPrice(p.avgPrice)}/{p.unit}
-                        </p>
-                        <span className={cn(
-                          "text-xs font-bold text-right w-16 tabular-nums flex items-center justify-end gap-0.5",
-                          p.pricePct > 0 ? "text-red-500" : "text-emerald-600"
-                        )}>
-                          {p.pricePct > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                          {Math.abs(p.pricePct).toFixed(1)}%
-                        </span>
-                        <p className={cn(
-                          "text-sm font-semibold text-right w-24 tabular-nums",
-                          p.priceImpact > 0 ? "text-red-500" : "text-emerald-600"
-                        )}>
-                          {p.priceImpact > 0 ? "+" : ""}{formatPrice(p.priceImpact)}
-                        </p>
-                      </div>
-                    ))}
-                  {allProducts.filter((p) => p.prevMonthAvgPrice != null).length === 0 && (
-                    <div className="py-8 text-center text-sm text-muted-foreground">
-                      Brak danych porównawczych
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ── ILOŚCI ────────────────────────────────────────────────────────── */}
-          <TabsContent value="ilosci">
-            {isLoading ? (
-              <Skeleton className="h-64 rounded-xl" />
-            ) : (
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="px-4 md:px-5 py-3 border-b border-border">
-                  <h3 className="text-sm font-semibold text-foreground">Analiza ilości zakupów</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Porównanie {monthLabel(month)} vs {monthLabel(prevMonth(month))}
-                  </p>
-                </div>
-                <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2 bg-secondary/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  <div>Produkt</div>
-                  <div className="text-right w-20">Poprz. ilość</div>
-                  <div className="text-right w-20">Obecna ilość</div>
-                  <div className="text-right w-14">Zmiana %</div>
-                  <div className="text-right w-24">Łączny koszt</div>
-                </div>
-                <div className="divide-y divide-border">
-                  {[...allProducts]
-                    .filter((p) => p.prevMonthTotalQuantity != null && p.prevMonthTotalQuantity > 0)
-                    .sort((a, b) => Math.abs(b.qtyPct) - Math.abs(a.qtyPct))
-                    .map((p, i) => {
-                      const fmtQty = (q: number) =>
-                        (q % 1 === 0 ? q.toFixed(0) : q.toFixed(1)) + " " + p.unit;
-                      return (
-                        <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 px-4 md:px-5 py-2.5 items-center">
-                          <div className="min-w-0">
-                            <p className="text-sm text-foreground truncate">{p.productName}</p>
-                            {p.supplierName && (
-                              <p className="text-[10px] text-muted-foreground">{p.supplierName}</p>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground text-right w-20 tabular-nums">
-                            {fmtQty(p.prevMonthTotalQuantity ?? 0)}
-                          </p>
-                          <p className="text-sm font-medium text-foreground text-right w-20 tabular-nums">
-                            {fmtQty(p.totalQuantity)}
-                          </p>
-                          <span className={cn(
-                            "text-xs font-bold text-right w-14 tabular-nums flex items-center justify-end gap-0.5",
-                            p.qtyPct > 0 ? "text-blue-500" : "text-orange-500"
-                          )}>
-                            {p.qtyPct > 0 ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
-                            {Math.abs(p.qtyPct).toFixed(1)}%
-                          </span>
-                          <p className="text-sm font-semibold text-foreground text-right w-24 tabular-nums">
-                            {formatPrice(p.totalCost)}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  {allProducts.filter((p) => p.prevMonthTotalQuantity != null).length === 0 && (
-                    <div className="py-8 text-center text-sm text-muted-foreground">
-                      Brak danych porównawczych
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ── ANOMALIE ─────────────────────────────────────────────────────── */}
-          <TabsContent value="anomalie" className="space-y-4">
-            {/* Triggered price alerts */}
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
-              <div className="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">Alerty cenowe</h3>
-                {alertCount > 0 && (
-                  <span className="text-xs bg-red-500/10 text-red-500 font-bold px-2 py-0.5 rounded-full">
-                    {alertCount} aktywnych
-                  </span>
-                )}
-              </div>
-              <AlertsList />
-            </div>
-
-            {/* Quantity anomalies */}
-            {allProducts.filter((p) => Math.abs(p.qtyPct) > 40).length > 0 && (
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="px-4 md:px-5 py-3 border-b border-border">
-                  <h3 className="text-sm font-semibold text-foreground">Anomalie ilości (&gt;40% zmiany)</h3>
-                </div>
-                <div className="divide-y divide-border">
-                  {[...allProducts]
-                    .filter((p) => Math.abs(p.qtyPct) > 40)
-                    .sort((a, b) => Math.abs(b.qtyPct) - Math.abs(a.qtyPct))
-                    .map((p, i) => (
-                      <div key={i} className="flex items-start gap-3 px-4 md:px-5 py-3">
-                        <AlertTriangle
-                          className={cn("w-4 h-4 shrink-0 mt-0.5", p.qtyPct > 0 ? "text-amber-500" : "text-blue-400")}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground">
-                            <span className="font-medium">{p.productName}</span>
-                            {" "}– zakup{" "}
-                            {p.qtyPct > 0 ? "wzrósł" : "spadł"} z{" "}
-                            {(p.prevMonthTotalQuantity ?? 0).toFixed(1)} do{" "}
-                            {p.totalQuantity.toFixed(1)} {p.unit} (
-                            <span className={cn("font-bold", p.qtyPct > 0 ? "text-amber-500" : "text-blue-400")}>
-                              {p.qtyPct > 0 ? "+" : ""}
-                              {p.qtyPct.toFixed(0)}%
-                            </span>
-                            )
-                          </p>
-                          {p.qtyPct > 40 && (
-                            <p className="text-[11px] text-muted-foreground mt-0.5">
-                              Sprawdź marnowanie lub zmianę receptury
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {alertCount === 0 && allProducts.filter((p) => Math.abs(p.qtyPct) > 40).length === 0 && (
-              <div className="bg-card border border-border rounded-xl py-20 text-center px-4">
-                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-                <p className="text-foreground font-medium mb-1">Brak anomalii</p>
-                <p className="text-sm text-muted-foreground">
-                  Nie wykryto nieprawidłowych cen ani ilości za {monthLabel(month)}.
-                </p>
-              </div>
-            )}
-          </TabsContent>
         </Tabs>
       </div>
     </Layout>

@@ -103,8 +103,53 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       ${ccSql}
     GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
     ORDER BY total_cost DESC
-    LIMIT 20
+    LIMIT 100
   `);
+
+  // „vs zwykle" — średnia z miesięcznych średnich ceny (ostatnie 12 mies.) per produkt+jednostka+dostawca.
+  // „Taniej u innego dostawcy" — najtańszy dostawca dla tego produktu w bieżącym miesiącu.
+  const overallMap = new Map<string, number>();
+  const cheapest = new Map<string, { supplier: string; price: number }>();
+  if (!isAllTime) {
+    const overallFrom = `${monthMinus(month, 11)}-01`;
+    const overallEndExcl = `${monthMinus(month, -1)}-01`;
+    const [overallRes, cheapRes] = await Promise.all([
+      db.execute(sql`
+        SELECT name, unit, supplier, AVG(mavg)::float AS overall_avg FROM (
+          SELECT COALESCE(p.name, ii.product_name) AS name, ii.unit AS unit, s.name AS supplier,
+            SUBSTRING(i.invoice_date, 1, 7) AS mo, AVG(ii.unit_price::numeric)::float AS mavg
+          FROM invoice_items ii
+          INNER JOIN invoices i ON ii.invoice_id = i.id
+          INNER JOIN suppliers s ON i.supplier_id = s.id
+          LEFT JOIN products p ON ii.product_id = p.id
+          WHERE i.user_id = ${userId} AND i.excluded = false
+            AND i.invoice_date >= ${overallFrom} AND i.invoice_date < ${overallEndExcl} ${ccSql}
+          GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name, SUBSTRING(i.invoice_date, 1, 7)
+        ) m
+        GROUP BY name, unit, supplier
+      `),
+      db.execute(sql`
+        SELECT DISTINCT ON (name, unit) name, unit, supplier, price FROM (
+          SELECT COALESCE(p.name, ii.product_name) AS name, ii.unit AS unit, s.name AS supplier,
+            AVG(ii.unit_price::numeric)::float AS price
+          FROM invoice_items ii
+          INNER JOIN invoices i ON ii.invoice_id = i.id
+          INNER JOIN suppliers s ON i.supplier_id = s.id
+          LEFT JOIN products p ON ii.product_id = p.id
+          WHERE i.user_id = ${userId} AND i.excluded = false
+            AND i.invoice_date LIKE ${monthPrefix + "%"} ${ccSql}
+          GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
+        ) x
+        ORDER BY name, unit, price ASC
+      `),
+    ]);
+    for (const r of overallRes.rows as { name: string; unit: string; supplier: string; overall_avg: number }[]) {
+      overallMap.set(`${r.name}|${r.unit}|${r.supplier}`, toNum(r.overall_avg));
+    }
+    for (const r of cheapRes.rows as { name: string; unit: string; supplier: string; price: number }[]) {
+      cheapest.set(`${r.name}|${r.unit}`, { supplier: r.supplier, price: toNum(r.price) });
+    }
+  }
 
   const topProducts = (topProductsResult.rows as Array<{
     product_name: string | null;
@@ -115,6 +160,10 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     supplier_name: string;
   }>).map((r) => {
     const name = r.product_name ?? "Nieznany";
+    const avgPrice = toNum(r.avg_price);
+    const cheap = cheapest.get(`${name}|${r.unit}`);
+    // Flaguj tylko realną oszczędność u INNEGO dostawcy (>2% taniej).
+    const hasCheaper = cheap && cheap.supplier !== r.supplier_name && cheap.price < avgPrice * 0.98;
     return {
       productName: name,
       unit: r.unit,
@@ -124,6 +173,9 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       supplierName: r.supplier_name,
       prevMonthAvgPrice: prevMap.get(`${name}|${r.unit}|${r.supplier_name}`) ?? null,
       prevMonthTotalQuantity: prevQtyMap.get(`${name}|${r.unit}|${r.supplier_name}`) ?? null,
+      overallAvgPrice: overallMap.get(`${name}|${r.unit}|${r.supplier_name}`) ?? null,
+      cheaperSupplierName: hasCheaper ? cheap!.supplier : null,
+      cheaperPct: hasCheaper ? ((avgPrice - cheap!.price) / avgPrice) * 100 : null,
     };
   });
 

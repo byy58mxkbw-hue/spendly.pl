@@ -3249,6 +3249,15 @@ components:
           type: ["number", "null"]
         prevMonthTotalQuantity:
           type: ["number", "null"]
+        overallAvgPrice:
+          type: ["number", "null"]
+          description: Average of monthly average prices over the last 12 months ("vs zwykle").
+        cheaperSupplierName:
+          type: ["string", "null"]
+          description: Supplier offering the same product cheaper this month, if any.
+        cheaperPct:
+          type: ["number", "null"]
+          description: How much cheaper (%) at cheaperSupplierName vs what was paid.
       required:
         - productName
         - unit

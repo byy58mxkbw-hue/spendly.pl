@@ -1582,7 +1582,10 @@ export const GetMonthlyReportResponse = zod.object({
   "totalCost": zod.number(),
   "supplierName": zod.string().nullish(),
   "prevMonthAvgPrice": zod.number().nullish(),
-  "prevMonthTotalQuantity": zod.number().nullish()
+  "prevMonthTotalQuantity": zod.number().nullish(),
+  "overallAvgPrice": zod.number().nullish().describe('Average of monthly average prices over the last 12 months (\"vs zwykle\").'),
+  "cheaperSupplierName": zod.string().nullish().describe('Supplier offering the same product cheaper this month, if any.'),
+  "cheaperPct": zod.number().nullish().describe('How much cheaper (%) at cheaperSupplierName vs what was paid.')
 }))
 })),
   "topProducts": zod.array(zod.object({
@@ -1593,7 +1596,10 @@ export const GetMonthlyReportResponse = zod.object({
   "totalCost": zod.number(),
   "supplierName": zod.string().nullish(),
   "prevMonthAvgPrice": zod.number().nullish(),
-  "prevMonthTotalQuantity": zod.number().nullish()
+  "prevMonthTotalQuantity": zod.number().nullish(),
+  "overallAvgPrice": zod.number().nullish().describe('Average of monthly average prices over the last 12 months (\"vs zwykle\").'),
+  "cheaperSupplierName": zod.string().nullish().describe('Supplier offering the same product cheaper this month, if any.'),
+  "cheaperPct": zod.number().nullish().describe('How much cheaper (%) at cheaperSupplierName vs what was paid.')
 }))
 })
 

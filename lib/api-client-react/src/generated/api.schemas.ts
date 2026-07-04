@@ -641,6 +641,21 @@ export interface ReportProductRow {
   prevMonthAvgPrice?: number | null;
   /** @nullable */
   prevMonthTotalQuantity?: number | null;
+  /**
+     * Average of monthly average prices over the last 12 months ("vs zwykle").
+     * @nullable
+     */
+  overallAvgPrice?: number | null;
+  /**
+     * Supplier offering the same product cheaper this month, if any.
+     * @nullable
+     */
+  cheaperSupplierName?: string | null;
+  /**
+     * How much cheaper (%) at cheaperSupplierName vs what was paid.
+     * @nullable
+     */
+  cheaperPct?: number | null;
 }
 
 export interface ReportSupplierRow {
