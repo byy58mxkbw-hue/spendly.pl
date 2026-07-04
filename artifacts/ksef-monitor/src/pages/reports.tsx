@@ -6,8 +6,9 @@ import {
   useGetCategorySpendTrend,
   useGetDashboardActiveAlerts,
   useGetReportsCostCenters,
+  useGetSpendBridge,
 } from "@workspace/api-client-react";
-import type { ReportProductRow, ReportSupplierRow } from "@workspace/api-client-react";
+import type { ReportProductRow, ReportSupplierRow, SpendBridge } from "@workspace/api-client-react";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -1419,6 +1420,165 @@ function CostCenterComparisonSection({ month }: { month: string }) {
 
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
+// ─── Answer-first: pomocnicze + karty ─────────────────────────────────────────
+
+const fmtQty = (v: number) => new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(v);
+const signedPct = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(1)}%`);
+// Koszty: mniej = dobrze (zielony), więcej = źle (czerwony).
+const costTone = (v: number | null | undefined) =>
+  v == null ? "text-muted-foreground" : v < 0 ? "text-emerald-600" : v > 0 ? "text-destructive" : "text-muted-foreground";
+const spendWord = (v: number | null | undefined) =>
+  v == null ? "" : v < 0 ? "mniej" : v > 0 ? "więcej" : "tyle samo";
+
+function SpendHero({ bridge, monthName }: { bridge: SpendBridge; monthName: string }) {
+  const vsPrev = bridge.prevSpend > 0 ? (bridge.deltaSpend / bridge.prevSpend) * 100 : null;
+  const vsAvg =
+    bridge.avgMonthlySpend && bridge.avgMonthlySpend > 0
+      ? ((bridge.currentSpend - bridge.avgMonthlySpend) / bridge.avgMonthlySpend) * 100
+      : null;
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 md:p-6">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Wydatki · {monthName}</p>
+      <p className="text-3xl md:text-4xl font-bold text-foreground tabular-nums mt-1">{formatPrice(bridge.currentSpend)}</p>
+      <div className="flex flex-wrap gap-2 mt-3">
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-secondary/60 px-3 py-1.5 text-sm">
+          <span className="text-muted-foreground">vs poprzedni miesiąc:</span>
+          <span className={cn("font-semibold", costTone(vsPrev))}>
+            {signedPct(vsPrev)} {vsPrev != null && `(${bridge.deltaSpend > 0 ? "+" : ""}${formatPrice(bridge.deltaSpend)})`}
+          </span>
+        </span>
+        {vsAvg != null && (
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-secondary/60 px-3 py-1.5 text-sm">
+            <span className="text-muted-foreground">vs zwykle:</span>
+            <span className={cn("font-semibold", costTone(vsAvg))}>
+              o {Math.abs(vsAvg).toFixed(1)}% {spendWord(vsAvg)} niż średnia
+            </span>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
+  const other = bridge.newEffect + bridge.droppedEffect + bridge.otherEffect;
+  const rows = [
+    { label: "Zmiany cen", hint: "ceny surowców w górę/dół", amount: bridge.priceEffect },
+    { label: "Zmiany ilości", hint: "kupiłeś więcej/mniej", amount: bridge.volumeEffect },
+    { label: "Nowe / inne pozycje", hint: "nowe, zniknięte, mix", amount: other },
+  ];
+  const max = Math.max(1, ...rows.map((r) => Math.abs(r.amount)));
+  return (
+    <div>
+      <p className="px-4 md:px-5 pt-4 text-sm text-foreground">
+        Różnica{" "}
+        <span className={cn("font-semibold", costTone(bridge.deltaSpend))}>
+          {bridge.deltaSpend > 0 ? "+" : ""}{formatPrice(bridge.deltaSpend)}
+        </span>{" "}
+        vs poprzedni miesiąc bierze się z:
+      </p>
+      <div className="p-4 md:p-5 space-y-2.5">
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-center gap-3">
+            <div className="w-32 sm:w-40 shrink-0">
+              <p className="text-sm text-foreground leading-tight">{r.label}</p>
+              <p className="text-[11px] text-muted-foreground leading-tight">{r.hint}</p>
+            </div>
+            <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
+              <div
+                className={cn("h-full rounded-full", r.amount < 0 ? "bg-emerald-500" : "bg-destructive")}
+                style={{ width: `${Math.min(100, (Math.abs(r.amount) / max) * 100)}%` }}
+              />
+            </div>
+            <div className={cn("w-24 text-right text-sm font-semibold tabular-nums shrink-0", costTone(r.amount))}>
+              {r.amount > 0 ? "+" : ""}{formatPrice(r.amount)}
+            </div>
+          </div>
+        ))}
+      </div>
+      {(bridge.topPriceDrivers.length > 0 || bridge.topVolumeDrivers.length > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4 md:px-5 pb-4">
+          {bridge.topPriceDrivers.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Ceny w górę ciągnęły</p>
+              <ul className="space-y-1">
+                {bridge.topPriceDrivers.map((d, i) => (
+                  <li key={i} className="flex justify-between gap-2 text-xs">
+                    <span className="truncate text-foreground">{d.productName}</span>
+                    <span className="text-destructive font-medium tabular-nums shrink-0">+{formatPrice(d.amount)} ({signedPct(d.pricePct)})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {bridge.topVolumeDrivers.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Kupiłeś więcej</p>
+              <ul className="space-y-1">
+                {bridge.topVolumeDrivers.map((d, i) => (
+                  <li key={i} className="flex justify-between gap-2 text-xs">
+                    <span className="truncate text-foreground">{d.productName}</span>
+                    <span className="text-amber-600 font-medium tabular-nums shrink-0">+{formatPrice(d.amount)} ({signedPct(d.qtyPct)})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PriceBenchmarkList({ rows }: { rows: SpendBridge["priceBenchmark"] }) {
+  if (rows.length === 0) return <div className="px-4 md:px-5 py-6 text-sm text-muted-foreground">Brak danych.</div>;
+  return (
+    <div className="divide-y divide-border">
+      {rows.map((r, i) => (
+        <div key={i} className="px-4 md:px-5 py-2.5 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-foreground truncate">{r.productName}</p>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
+              <span>vs poprz. <span className={cn("font-medium", costTone(r.pctVsPrev))}>{r.pctVsPrev == null ? "—" : signedPct(r.pctVsPrev)}</span></span>
+              <span>vs zwykle <span className={cn("font-medium", costTone(r.pctVsOverall))}>{r.pctVsOverall == null ? "—" : signedPct(r.pctVsOverall)}</span></span>
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(r.avgPrice)}</p>
+            <p className="text-[10px] text-muted-foreground">/{r.unit}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function QuantityMoversList({ rows }: { rows: SpendBridge["quantityMovers"] }) {
+  if (rows.length === 0) return <div className="px-4 md:px-5 py-6 text-sm text-muted-foreground">Brak danych.</div>;
+  return (
+    <div className="divide-y divide-border">
+      {rows.map((r, i) => (
+        <div key={i} className="px-4 md:px-5 py-2.5 flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-foreground truncate">{r.productName}</p>
+            {r.prevQty != null && (
+              <p className="text-[11px] text-muted-foreground">poprzednio {fmtQty(r.prevQty)} {r.unit}</p>
+            )}
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-sm font-semibold text-foreground tabular-nums">{fmtQty(r.currentQty)} {r.unit}</p>
+            {r.qtyPct != null && (
+              <p className={cn("text-[11px] font-medium tabular-nums", r.qtyPct > 0 ? "text-amber-600" : r.qtyPct < 0 ? "text-blue-600" : "text-muted-foreground")}>
+                {signedPct(r.qtyPct)}
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Reports() {
   const [month, setMonth] = useState(currentMonth);
   // On first load, default the view to the month where the user's data actually is —
@@ -1464,6 +1624,10 @@ export default function Reports() {
   const { data: alerts } = useGetDashboardActiveAlerts({
     query: { queryKey: ["dashboard-active-alerts"] },
   });
+  const { data: bridge } = useGetSpendBridge(
+    { month, ...ccParam },
+    { query: { queryKey: ["spend-bridge", month, costCenterId] } },
+  );
 
   const allProducts = useMemo<ProductWithImpact[]>(() => {
     if (!data) return [];
@@ -1571,60 +1735,40 @@ export default function Reports() {
 
           {/* ── PODSUMOWANIE ─────────────────────────────────────────────────── */}
           <TabsContent value="podsumowanie" className="space-y-5 md:space-y-6">
-            {/* KPI cards */}
+            {/* 1. Ile wydałeś + porównania (hero) i dlaczego tyle */}
             {isLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <KpiCard
-                  label="Łączne zakupy"
-                  value={formatPrice(data?.totalSpend ?? 0)}
-                  sub={
-                    prevMonthTotalSpend > 0
-                      ? `${momPct > 0 ? "+" : ""}${momPct.toFixed(1)}% vs ${monthLabel(prevMonth(month))}`
-                      : `${data?.invoiceCount ?? 0} faktur`
-                  }
-                  subColor={momPct > 0 ? "red" : momPct < 0 ? "green" : "muted"}
-                  icon={ShoppingCart}
-                />
-                <KpiCard
-                  label="Wpływ wzrostów cen"
-                  value={totalPriceImpact > 0 ? `+${formatPrice(totalPriceImpact)}` : formatPrice(0)}
-                  sub={
-                    totalPriceImpact > 0 && (data?.totalSpend ?? 0) > 0
-                      ? `+${((totalPriceImpact / (data?.totalSpend ?? 1)) * 100).toFixed(1)}% budżetu`
-                      : "Brak zmian cen"
-                  }
-                  subColor={totalPriceImpact > 0 ? "red" : "muted"}
-                  icon={TrendingUp}
-                  iconBg="bg-red-500/10 text-red-500"
-                />
-                <KpiCard
-                  label="Możliwe oszczędności"
-                  value={
-                    totalPriceImpact > 0
-                      ? formatPrice(Math.round(totalPriceImpact * 0.6))
-                      : "—"
-                  }
-                  sub={totalPriceImpact > 0 ? "potencjalnie" : "Brak anomalii"}
-                  subColor="muted"
-                  icon={BarChart3}
-                  iconBg="bg-emerald-500/10 text-emerald-600"
-                />
-                <KpiCard
-                  label="Aktywne alerty"
-                  value={String(alertCount)}
-                  sub={criticalCount > 0 ? `${criticalCount} krytycznych` : "Brak krytycznych"}
-                  subColor={criticalCount > 0 ? "red" : "muted"}
-                  icon={Bell}
-                  iconBg={alertCount > 0 ? "bg-amber-500/10 text-amber-500" : "bg-primary/10 text-primary"}
-                />
+              <Skeleton className="h-40 rounded-xl" />
+            ) : bridge && (data?.totalSpend ?? 0) > 0 ? (
+              <>
+                <SpendHero bridge={bridge} monthName={monthLabel(month)} />
+                <SectionCard
+                  title="Dlaczego tyle?"
+                  subtitle="Ile z różnicy to zmiany cen, a ile to że kupiłeś więcej lub mniej"
+                >
+                  <WhyBreakdown bridge={bridge} />
+                </SectionCard>
+              </>
+            ) : null}
+
+            {/* 2. Ceny produktów vs zwykle + ilości */}
+            {!isLoading && bridge && (data?.totalSpend ?? 0) > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SectionCard
+                  title="Ceny produktów"
+                  subtitle="Średnia cena teraz vs poprzedni miesiąc i vs zwykle"
+                >
+                  <PriceBenchmarkList rows={bridge.priceBenchmark} />
+                </SectionCard>
+                <SectionCard
+                  title="Ilości produktów"
+                  subtitle="Ile kupiłeś w tym miesiącu vs poprzedni"
+                >
+                  <QuantityMoversList rows={bridge.quantityMovers} />
+                </SectionCard>
               </div>
             )}
 
-            {/* 1. Trend wydatków — główny wykres, pełna szerokość */}
+            {/* 3. Trend wydatków — główny wykres, pełna szerokość */}
             {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (
               <SectionCard
                 title="Trend wydatków"
@@ -1647,28 +1791,8 @@ export default function Reports() {
               </SectionCard>
             )}
 
-            {/* 2. Porównanie centrów kosztów (tylko gdy skonfigurowane) */}
+            {/* 4. Porównanie centrów kosztów (tylko gdy skonfigurowane) */}
             <CostCenterComparisonSection month={month} />
-
-            {/* 3. Podsumowanie AI */}
-            {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (
-              <AiSummaryBlock
-                totalSpend={data.totalSpend}
-                prevSpend={prevMonthTotalSpend}
-                topImpact={allProducts}
-                momPct={momPct}
-              />
-            )}
-
-            {/* 4. Co najbardziej podnosi koszty — jedna sekcja zamiast trzech nachodzących */}
-            {!isLoading && allProducts.length > 0 && (
-              <SectionCard
-                title="Co najbardziej podnosi koszty"
-                subtitle="Produkty, które najmocniej podbiły rachunek w tym miesiącu"
-              >
-                <PriceImpactList products={allProducts} onViewAll={() => setTab("ceny")} />
-              </SectionCard>
-            )}
 
             {/* 5. Kategorie + dostawcy — spójne bloki (dwie listy) */}
             {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (

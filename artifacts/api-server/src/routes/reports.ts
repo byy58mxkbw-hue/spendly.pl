@@ -11,6 +11,13 @@ function calcPrevMonthPrefix(month: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// YYYY-MM przesunięte o n miesięcy wstecz.
+function monthMinus(month: string, n: number): string {
+  const [y, m] = month.split("-").map(Number);
+  const d = new Date(y, m - 1 - n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 router.get("/reports/monthly", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const monthParam = req.query.month as string | undefined;
@@ -214,6 +221,167 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     productCount: summary.product_count,
     suppliers,
     topProducts,
+  });
+});
+
+// ─── Spend bridge: odpowiedzi „answer-first" dla restauratora ─────────────────
+// Ile wydałem vs poprzedni miesiąc i vs średnia miesięczna; rozbicie różnicy na
+// wpływ CEN vs ILOŚCI (dokładnie, po WSZYSTKICH produktach); benchmark cen
+// produktów (teraz vs poprzedni vs średnia ogólna) oraz ruchy ilościowe.
+router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const now = new Date();
+  const monthParam = req.query.month as string | undefined;
+  const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam)
+    ? monthParam
+    : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  if (!/^\d{4}-\d{2}$/.test(month)) { res.status(400).json({ error: "Invalid month. Use YYYY-MM." }); return; }
+
+  const ccIdRaw = req.query.costCenterId;
+  const ccId = ccIdRaw != null && ccIdRaw !== "" ? parseInt(String(ccIdRaw), 10) : null;
+  const ccSql = ccId != null && !isNaN(ccId) ? sql`AND i.cost_center_id = ${ccId}` : sql.raw("");
+
+  const prev = calcPrevMonthPrefix(month);
+
+  type NU = { name: string; unit: string; qty: number; price: number; cost: number };
+  const perProduct = (likePrefix: string) => db.execute(sql`
+    SELECT COALESCE(p.name, ii.product_name) AS name, ii.unit AS unit,
+      SUM(ii.quantity::numeric)::float AS qty,
+      AVG(ii.unit_price::numeric)::float AS price,
+      SUM(ii.total_price::numeric)::float AS cost
+    FROM invoice_items ii
+    JOIN invoices i ON ii.invoice_id = i.id
+    LEFT JOIN products p ON ii.product_id = p.id
+    WHERE i.user_id = ${userId} AND i.excluded = false
+      AND i.invoice_date LIKE ${likePrefix} ${ccSql}
+    GROUP BY COALESCE(p.name, ii.product_name), ii.unit
+  `);
+
+  // Średnia ogólna ceny produktu = średnia z miesięcznych średnich (ostatnie 12 mies.).
+  const overallFrom = `${monthMinus(month, 11)}-01`;
+  const overallEndExcl = `${monthMinus(month, -1)}-01`; // < początek następnego miesiąca
+  const [curRes, prevRes, overallRes, trendRes] = await Promise.all([
+    perProduct(`${month}-%`),
+    perProduct(`${prev}-%`),
+    db.execute(sql`
+      SELECT name, unit, AVG(mavg)::float AS overall_avg FROM (
+        SELECT COALESCE(p.name, ii.product_name) AS name, ii.unit AS unit,
+          SUBSTRING(i.invoice_date, 1, 7) AS mo, AVG(ii.unit_price::numeric)::float AS mavg
+        FROM invoice_items ii
+        JOIN invoices i ON ii.invoice_id = i.id
+        LEFT JOIN products p ON ii.product_id = p.id
+        WHERE i.user_id = ${userId} AND i.excluded = false
+          AND i.invoice_date >= ${overallFrom} AND i.invoice_date < ${overallEndExcl} ${ccSql}
+        GROUP BY COALESCE(p.name, ii.product_name), ii.unit, SUBSTRING(i.invoice_date, 1, 7)
+      ) monthly
+      GROUP BY name, unit
+    `),
+    // Średnia miesięczna wydatków — ostatnie 6 pełnych miesięcy PRZED bieżącym.
+    db.execute(sql`
+      SELECT SUBSTRING(i.invoice_date, 1, 7) AS mo, SUM(ii.total_price::numeric)::float AS spend
+      FROM invoice_items ii
+      JOIN invoices i ON ii.invoice_id = i.id
+      WHERE i.user_id = ${userId} AND i.excluded = false
+        AND i.invoice_date >= ${`${monthMinus(month, 6)}-01`} AND i.invoice_date < ${`${month}-01`} ${ccSql}
+      GROUP BY SUBSTRING(i.invoice_date, 1, 7)
+    `),
+  ]);
+
+  const curMap = new Map<string, NU>();
+  let currentSpend = 0;
+  for (const r of curRes.rows as NU[]) { const k = `${r.name}|${r.unit}`; curMap.set(k, r); currentSpend += toNum(r.cost); }
+  const prevMap = new Map<string, NU>();
+  let prevSpend = 0;
+  for (const r of prevRes.rows as NU[]) { const k = `${r.name}|${r.unit}`; prevMap.set(k, r); prevSpend += toNum(r.cost); }
+  const overallMap = new Map<string, number>();
+  for (const r of overallRes.rows as { name: string; unit: string; overall_avg: number }[]) {
+    overallMap.set(`${r.name}|${r.unit}`, toNum(r.overall_avg));
+  }
+
+  let priceEffect = 0, volumeEffect = 0, newEffect = 0, droppedEffect = 0;
+  const priceDrivers: { productName: string; unit: string; amount: number; pricePct: number }[] = [];
+  const volumeDrivers: { productName: string; unit: string; amount: number; qtyPct: number }[] = [];
+
+  for (const [k, c] of curMap) {
+    const p = prevMap.get(k);
+    if (p) {
+      const pe = (toNum(c.price) - toNum(p.price)) * toNum(c.qty);
+      const ve = (toNum(c.qty) - toNum(p.qty)) * toNum(p.price);
+      priceEffect += pe;
+      volumeEffect += ve;
+      priceDrivers.push({ productName: c.name, unit: c.unit, amount: pe, pricePct: toNum(p.price) > 0 ? ((toNum(c.price) - toNum(p.price)) / toNum(p.price)) * 100 : 0 });
+      volumeDrivers.push({ productName: c.name, unit: c.unit, amount: ve, qtyPct: toNum(p.qty) > 0 ? ((toNum(c.qty) - toNum(p.qty)) / toNum(p.qty)) * 100 : 0 });
+    } else {
+      newEffect += toNum(c.cost);
+    }
+  }
+  for (const [k, p] of prevMap) { if (!curMap.has(k)) droppedEffect -= toNum(p.cost); }
+
+  const deltaSpend = currentSpend - prevSpend;
+  const otherEffect = deltaSpend - priceEffect - volumeEffect - newEffect - droppedEffect;
+
+  priceDrivers.sort((a, b) => b.amount - a.amount);
+  volumeDrivers.sort((a, b) => b.amount - a.amount);
+
+  // Benchmark cen — top produkty wg kosztu bieżącego, z ceną teraz/poprzednio/średnia ogólna.
+  const priceBenchmark = [...curMap.values()]
+    .sort((a, b) => toNum(b.cost) - toNum(a.cost))
+    .slice(0, 15)
+    .map((c) => {
+      const k = `${c.name}|${c.unit}`;
+      const prevPrice = prevMap.has(k) ? toNum(prevMap.get(k)!.price) : null;
+      const overallPrice = overallMap.get(k) ?? null;
+      const curPrice = toNum(c.price);
+      return {
+        productName: c.name,
+        unit: c.unit,
+        avgPrice: curPrice,
+        prevMonthAvgPrice: prevPrice,
+        overallAvgPrice: overallPrice,
+        pctVsPrev: prevPrice && prevPrice > 0 ? ((curPrice - prevPrice) / prevPrice) * 100 : null,
+        pctVsOverall: overallPrice && overallPrice > 0 ? ((curPrice - overallPrice) / overallPrice) * 100 : null,
+      };
+    });
+
+  // Ruchy ilościowe — top produkty wg kosztu, z ilością teraz vs poprzednio.
+  const quantityMovers = [...curMap.values()]
+    .sort((a, b) => toNum(b.cost) - toNum(a.cost))
+    .slice(0, 10)
+    .map((c) => {
+      const k = `${c.name}|${c.unit}`;
+      const prevQty = prevMap.has(k) ? toNum(prevMap.get(k)!.qty) : null;
+      const curQty = toNum(c.qty);
+      return {
+        productName: c.name,
+        unit: c.unit,
+        currentQty: curQty,
+        prevQty,
+        qtyPct: prevQty && prevQty > 0 ? ((curQty - prevQty) / prevQty) * 100 : null,
+      };
+    });
+
+  const monthlySpends = (trendRes.rows as { mo: string; spend: number }[]).map((r) => toNum(r.spend));
+  const avgMonthlySpend = monthlySpends.length > 0
+    ? monthlySpends.reduce((s, v) => s + v, 0) / monthlySpends.length
+    : null;
+
+  res.json({
+    month,
+    prevMonth: prev,
+    currentSpend,
+    prevSpend,
+    deltaSpend,
+    avgMonthlySpend,
+    avgMonthsCount: monthlySpends.length,
+    priceEffect,
+    volumeEffect,
+    newEffect,
+    droppedEffect,
+    otherEffect,
+    topPriceDrivers: priceDrivers.filter((d) => d.amount > 0).slice(0, 5),
+    topVolumeDrivers: volumeDrivers.filter((d) => d.amount > 0).slice(0, 5),
+    priceBenchmark,
+    quantityMovers,
   });
 });
 

@@ -1599,6 +1599,58 @@ export const GetMonthlyReportResponse = zod.object({
 
 
 /**
+ * @summary Answer-first monthly insight — spend vs prev/average, price-vs-volume split, price benchmark, quantity movers
+ */
+export const GetSpendBridgeQueryParams = zod.object({
+  "month": zod.coerce.string().optional().describe('Month in YYYY-MM format (defaults to current month)'),
+  "costCenterId": zod.coerce.number().optional()
+})
+
+export const GetSpendBridgeResponse = zod.object({
+  "month": zod.string(),
+  "prevMonth": zod.string(),
+  "currentSpend": zod.number(),
+  "prevSpend": zod.number(),
+  "deltaSpend": zod.number(),
+  "avgMonthlySpend": zod.number().nullish(),
+  "avgMonthsCount": zod.number().optional(),
+  "priceEffect": zod.number(),
+  "volumeEffect": zod.number(),
+  "newEffect": zod.number(),
+  "droppedEffect": zod.number(),
+  "otherEffect": zod.number(),
+  "topPriceDrivers": zod.array(zod.object({
+  "productName": zod.string(),
+  "unit": zod.string(),
+  "amount": zod.number(),
+  "pricePct": zod.number()
+})),
+  "topVolumeDrivers": zod.array(zod.object({
+  "productName": zod.string(),
+  "unit": zod.string(),
+  "amount": zod.number(),
+  "qtyPct": zod.number()
+})),
+  "priceBenchmark": zod.array(zod.object({
+  "productName": zod.string(),
+  "unit": zod.string(),
+  "avgPrice": zod.number(),
+  "prevMonthAvgPrice": zod.number().nullish(),
+  "overallAvgPrice": zod.number().nullish(),
+  "pctVsPrev": zod.number().nullish(),
+  "pctVsOverall": zod.number().nullish()
+})),
+  "quantityMovers": zod.array(zod.object({
+  "productName": zod.string(),
+  "unit": zod.string(),
+  "currentQty": zod.number(),
+  "prevQty": zod.number().nullish(),
+  "qtyPct": zod.number().nullish()
+}))
+})
+
+
+/**
  * @summary Get total spend per product grouped by category
  */
 

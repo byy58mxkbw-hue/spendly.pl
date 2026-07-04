@@ -557,6 +557,64 @@ export interface MonthlyFoodCost {
   label: string;
 }
 
+export type SpendBridgeTopPriceDriversItem = {
+  productName: string;
+  unit: string;
+  amount: number;
+  pricePct: number;
+};
+
+export type SpendBridgeTopVolumeDriversItem = {
+  productName: string;
+  unit: string;
+  amount: number;
+  qtyPct: number;
+};
+
+export type SpendBridgePriceBenchmarkItem = {
+  productName: string;
+  unit: string;
+  avgPrice: number;
+  /** @nullable */
+  prevMonthAvgPrice?: number | null;
+  /** @nullable */
+  overallAvgPrice?: number | null;
+  /** @nullable */
+  pctVsPrev?: number | null;
+  /** @nullable */
+  pctVsOverall?: number | null;
+};
+
+export type SpendBridgeQuantityMoversItem = {
+  productName: string;
+  unit: string;
+  currentQty: number;
+  /** @nullable */
+  prevQty?: number | null;
+  /** @nullable */
+  qtyPct?: number | null;
+};
+
+export interface SpendBridge {
+  month: string;
+  prevMonth: string;
+  currentSpend: number;
+  prevSpend: number;
+  deltaSpend: number;
+  /** @nullable */
+  avgMonthlySpend?: number | null;
+  avgMonthsCount?: number;
+  priceEffect: number;
+  volumeEffect: number;
+  newEffect: number;
+  droppedEffect: number;
+  otherEffect: number;
+  topPriceDrivers: SpendBridgeTopPriceDriversItem[];
+  topVolumeDrivers: SpendBridgeTopVolumeDriversItem[];
+  priceBenchmark: SpendBridgePriceBenchmarkItem[];
+  quantityMovers: SpendBridgeQuantityMoversItem[];
+}
+
 export interface RecentPurchase {
   /** @nullable */
   productId?: number | null;
@@ -1332,6 +1390,14 @@ month?: string;
 /**
  * Filter results to a specific cost center.
  */
+costCenterId?: number;
+};
+
+export type GetSpendBridgeParams = {
+/**
+ * Month in YYYY-MM format (defaults to current month)
+ */
+month?: string;
 costCenterId?: number;
 };
 

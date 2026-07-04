@@ -1671,6 +1671,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/MonthlyReport"
 
+  /reports/spend-bridge:
+    get:
+      operationId: getSpendBridge
+      tags: [reports]
+      summary: Answer-first monthly insight — spend vs prev/average, price-vs-volume split, price benchmark, quantity movers
+      parameters:
+        - name: month
+          in: query
+          required: false
+          description: "Month in YYYY-MM format (defaults to current month)"
+          schema:
+            type: string
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Spend bridge insight
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpendBridge"
+
   /reports/category-spend:
     get:
       operationId: getCategorySpend
@@ -3103,6 +3128,81 @@ components:
         - totalAmount
         - invoiceCount
         - label
+
+    SpendBridge:
+      type: object
+      properties:
+        month: { type: string }
+        prevMonth: { type: string }
+        currentSpend: { type: number }
+        prevSpend: { type: number }
+        deltaSpend: { type: number }
+        avgMonthlySpend: { type: ["number", "null"] }
+        avgMonthsCount: { type: integer }
+        priceEffect: { type: number }
+        volumeEffect: { type: number }
+        newEffect: { type: number }
+        droppedEffect: { type: number }
+        otherEffect: { type: number }
+        topPriceDrivers:
+          type: array
+          items:
+            type: object
+            properties:
+              productName: { type: string }
+              unit: { type: string }
+              amount: { type: number }
+              pricePct: { type: number }
+            required: [productName, unit, amount, pricePct]
+        topVolumeDrivers:
+          type: array
+          items:
+            type: object
+            properties:
+              productName: { type: string }
+              unit: { type: string }
+              amount: { type: number }
+              qtyPct: { type: number }
+            required: [productName, unit, amount, qtyPct]
+        priceBenchmark:
+          type: array
+          items:
+            type: object
+            properties:
+              productName: { type: string }
+              unit: { type: string }
+              avgPrice: { type: number }
+              prevMonthAvgPrice: { type: ["number", "null"] }
+              overallAvgPrice: { type: ["number", "null"] }
+              pctVsPrev: { type: ["number", "null"] }
+              pctVsOverall: { type: ["number", "null"] }
+            required: [productName, unit, avgPrice]
+        quantityMovers:
+          type: array
+          items:
+            type: object
+            properties:
+              productName: { type: string }
+              unit: { type: string }
+              currentQty: { type: number }
+              prevQty: { type: ["number", "null"] }
+              qtyPct: { type: ["number", "null"] }
+            required: [productName, unit, currentQty]
+      required:
+        - month
+        - prevMonth
+        - currentSpend
+        - prevSpend
+        - deltaSpend
+        - priceEffect
+        - volumeEffect
+        - newEffect
+        - droppedEffect
+        - otherEffect
+        - topPriceDrivers
+        - topVolumeDrivers
+        - priceBenchmark
+        - quantityMovers
 
     RecentPurchase:
       type: object

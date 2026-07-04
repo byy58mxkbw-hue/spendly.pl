@@ -68,6 +68,7 @@ import type {
   GetProductPriceHistoryParams,
   GetRecentPurchasesParams,
   GetReportsCostCentersParams,
+  GetSpendBridgeParams,
   GetSupplierMonthlySpendParams,
   GetSupplierTopProductsParams,
   GetTopPriceChangesParams,
@@ -111,6 +112,7 @@ import type {
   SetInvoiceCostCenterBody,
   SetSupplierDefaultCategoryBody,
   SetSupplierDefaultCostCenterBody,
+  SpendBridge,
   Supplier,
   SupplierComparison,
   SupplierCostCenterSuggestion,
@@ -5259,6 +5261,90 @@ export function useGetMonthlyReport<TData = Awaited<ReturnType<typeof getMonthly
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMonthlyReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSpendBridgeUrl = (params?: GetSpendBridgeParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/spend-bridge?${stringifiedParams}` : `/api/reports/spend-bridge`
+}
+
+/**
+ * @summary Answer-first monthly insight — spend vs prev/average, price-vs-volume split, price benchmark, quantity movers
+ */
+export const getSpendBridge = async (params?: GetSpendBridgeParams, options?: RequestInit): Promise<SpendBridge> => {
+
+  return customFetch<SpendBridge>(getGetSpendBridgeUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSpendBridgeQueryKey = (params?: GetSpendBridgeParams,) => {
+    return [
+    `/api/reports/spend-bridge`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSpendBridgeQueryOptions = <TData = Awaited<ReturnType<typeof getSpendBridge>>, TError = ErrorType<unknown>>(params?: GetSpendBridgeParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSpendBridge>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSpendBridgeQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSpendBridge>>> = ({ signal }) => getSpendBridge(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSpendBridge>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSpendBridgeQueryResult = NonNullable<Awaited<ReturnType<typeof getSpendBridge>>>
+export type GetSpendBridgeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Answer-first monthly insight — spend vs prev/average, price-vs-volume split, price benchmark, quantity movers
+ */
+
+export function useGetSpendBridge<TData = Awaited<ReturnType<typeof getSpendBridge>>, TError = ErrorType<unknown>>(
+ params?: GetSpendBridgeParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSpendBridge>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSpendBridgeQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
