@@ -14,6 +14,8 @@ import KsefPage from "@/pages/ksef";
 const FoodCostPage = lazy(() => import("@/pages/food-cost"));
 import OcrFakturPage from "@/pages/ocr-faktur";
 import CennikPage from "@/pages/cennik";
+import RegulaminPage from "@/pages/regulamin";
+import PolitykaPrywatnosciPage from "@/pages/polityka-prywatnosci";
 
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Suppliers = lazy(() => import("@/pages/suppliers"));
@@ -228,6 +230,8 @@ function AppRouter() {
               </Route>
               <Route path="/ocr-faktur" component={OcrFakturPage} />
               <Route path="/cennik" component={CennikPage} />
+              <Route path="/regulamin" component={RegulaminPage} />
+              <Route path="/polityka-prywatnosci" component={PolitykaPrywatnosciPage} />
               <Route path="/sign-in/*?" component={SignInPage} />
               <Route path="/sign-up/*?" component={SignUpPage} />
               <Route path="/dashboard">
