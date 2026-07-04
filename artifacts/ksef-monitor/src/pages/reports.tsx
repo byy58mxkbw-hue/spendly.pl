@@ -1465,13 +1465,16 @@ function SpendHero({ bridge, monthName }: { bridge: SpendBridge; monthName: stri
 }
 
 function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
-  const other = bridge.newEffect + bridge.droppedEffect + bridge.otherEffect;
+  // Rozbite na zrozumiałe pozycje. Rezyduum modelu (otherEffect) dokładamy do
+  // „zmian ilości" — pochodzi z wahań cen/ilości w obrębie tego samego produktu.
   const rows = [
-    { label: "Zmiany cen", hint: "ceny surowców w górę/dół", amount: bridge.priceEffect },
-    { label: "Zmiany ilości", hint: "kupiłeś więcej/mniej", amount: bridge.volumeEffect },
-    { label: "Nowe / inne pozycje", hint: "nowe, zniknięte, mix", amount: other },
-  ];
+    { label: "Zmiany cen", hint: "ten sam produkt drożej lub taniej", amount: bridge.priceEffect },
+    { label: "Zmiany ilości", hint: "kupiłeś więcej lub mniej tego samego", amount: bridge.volumeEffect + bridge.otherEffect },
+    { label: "Nowe produkty", hint: "kupione teraz, nie było miesiąc temu", amount: bridge.newEffect },
+    { label: "Przestałeś kupować", hint: "były miesiąc temu, teraz ich brak", amount: bridge.droppedEffect },
+  ].filter((r) => Math.abs(r.amount) >= 1);
   const max = Math.max(1, ...rows.map((r) => Math.abs(r.amount)));
+  const namingArtefact = Math.abs(bridge.newEffect) >= 1000 && Math.abs(bridge.droppedEffect) >= 1000;
   return (
     <div>
       <p className="px-4 md:px-5 pt-4 text-sm text-foreground">
@@ -1500,6 +1503,12 @@ function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
           </div>
         ))}
       </div>
+      {namingArtefact && (
+        <p className="mx-4 md:mx-5 mb-4 -mt-1 text-[11px] text-muted-foreground bg-secondary/50 rounded-lg px-3 py-2">
+          „Nowe produkty" i „przestałeś kupować" bywają wysokie, gdy KSeF nazywa ten sam produkt
+          co miesiąc trochę inaczej — wtedy zwykle się równoważą i nie oznaczają realnej zmiany.
+        </p>
+      )}
       {(bridge.topPriceDrivers.length > 0 || bridge.topVolumeDrivers.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-4 md:px-5 pb-4">
           {bridge.topPriceDrivers.length > 0 && (
