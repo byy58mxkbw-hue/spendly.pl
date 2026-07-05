@@ -29,7 +29,7 @@ import {
   getListInvoicesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Layers, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Layers, X, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -69,9 +69,14 @@ type CostCenter = { id: number; name: string; color: string; userId: string; ali
 function AliasEditor({ aliases, onChange }: { aliases: string[]; onChange: (a: string[]) => void }) {
   const [input, setInput] = useState("");
   function add() {
-    const v = input.trim();
-    if (!v) return;
-    if (!aliases.some((a) => a.toLowerCase() === v.toLowerCase())) onChange([...aliases, v]);
+    // Pozwól wkleić/wpisać kilka aliasów naraz — rozdzielone przecinkiem, średnikiem lub nową linią.
+    const parts = input.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
+    if (parts.length === 0) return;
+    let next = aliases;
+    for (const v of parts) {
+      if (!next.some((a) => a.toLowerCase() === v.toLowerCase())) next = [...next, v];
+    }
+    if (next !== aliases) onChange(next);
     setInput("");
   }
   return (
@@ -93,7 +98,7 @@ function AliasEditor({ aliases, onChange }: { aliases: string[]; onChange: (a: s
       </div>
       <div className="flex gap-2">
         <Input
-          placeholder="Dodaj skrót i Enter"
+          placeholder="Dodaj skróty — Enter lub przecinek (można kilka naraz)"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); } }}
@@ -205,6 +210,7 @@ export default function SettingsCostCenters() {
 
   const [addName, setAddName] = useState("");
   const [addColor, setAddColor] = useState(PRESET_COLORS[0]);
+  const [addAliases, setAddAliases] = useState<string[]>([]);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
   const [editAliases, setEditAliases] = useState<string[]>([]);
@@ -216,13 +222,16 @@ export default function SettingsCostCenters() {
   function handleAdd() {
     if (!addName.trim()) return;
     create.mutate(
-      { data: { name: addName.trim(), color: addColor } },
+      { data: { name: addName.trim(), color: addColor, aliases: addAliases } },
       {
         onSuccess: () => {
           invalidate();
           setShowAdd(false);
           setAddName("");
           setAddColor(PRESET_COLORS[0]);
+          setAddAliases([]);
+          // Nowe aliasy mogą pasować do istniejących faktur — przelicz sugestie.
+          if (addAliases.length > 0) resuggest.mutate(undefined, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() }) });
           toast({ title: "Centrum kosztów dodane" });
         },
         onError: () => toast({ variant: "destructive", title: "Błąd", description: "Nie udało się dodać centrum kosztów" }),
@@ -259,6 +268,19 @@ export default function SettingsCostCenters() {
     );
   }
 
+  function handleResuggest() {
+    resuggest.mutate(undefined, {
+      onSuccess: (r) => {
+        queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+        toast({
+          title: r.suggested > 0 ? `Dopasowano ${r.suggested} faktur do centrów` : "Brak nowych sugestii",
+          description: r.suggested > 0 ? "Zobacz „Zastosuj sugestie” na liście faktur." : "Wszystkie nieprzypisane faktury już przejrzane.",
+        });
+      },
+      onError: () => toast({ variant: "destructive", title: "Błąd", description: "Nie udało się przeliczyć sugestii" }),
+    });
+  }
+
   function handleDelete() {
     if (!deleteItem) return;
     deleteMut.mutate(
@@ -281,9 +303,20 @@ export default function SettingsCostCenters() {
           title="Centra kosztów"
           subtitle="Pogrupuj wydatki restauracji według lokalizacji lub funkcji"
           action={
-            <Button onClick={() => setShowAdd(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> Dodaj centrum
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleResuggest}
+                disabled={resuggest.isPending || centers.length === 0}
+                className="gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                {resuggest.isPending ? "Przeliczam…" : "Przelicz sugestie"}
+              </Button>
+              <Button onClick={() => setShowAdd(true)} className="gap-2">
+                <Plus className="w-4 h-4" /> Dodaj centrum
+              </Button>
+            </div>
           }
         />
 
@@ -373,9 +406,10 @@ export default function SettingsCostCenters() {
                 </div>
               </div>
               <ColorPicker value={addColor} onChange={setAddColor} />
+              <AliasEditor aliases={addAliases} onChange={setAddAliases} />
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAdd(false)}>Anuluj</Button>
+              <Button variant="outline" onClick={() => { setShowAdd(false); setAddAliases([]); }}>Anuluj</Button>
               <Button onClick={handleAdd} disabled={!addName.trim() || create.isPending}>
                 {create.isPending ? "Dodawanie..." : "Dodaj centrum"}
               </Button>
