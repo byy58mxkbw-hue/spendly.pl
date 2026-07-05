@@ -196,7 +196,8 @@ export function classifyByProducts(
       score.set(c, (score.get(c) ?? 0) + Math.log(pGivenC));
     }
   }
-  if (used < 2) return null; // za mało rozpoznanych produktów, by ufać sygnałowi
+  if (used < 1) return null; // brak rozpoznanych produktów; przy 1+ o jakości decyduje próg pewności
+                             // (dzięki temu 1-pozycyjne faktury, np. paliwo, też dostają sugestię)
 
   let bestC = centers[0], best = -Infinity;
   for (const c of centers) {
