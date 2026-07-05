@@ -11,6 +11,7 @@ import {
   invoiceItemsTable,
   suppliersTable,
   productsTable,
+  costCentersTable,
 } from "@workspace/db";
 import {
   UpdateKsefConfigBody,
@@ -38,6 +39,7 @@ import {
 import { decryptSecret, encryptSecret, maskToken } from "../lib/encryption";
 import { checkAlertsAfterImport } from "../services/alert-checker";
 import { resuggestForUser } from "./cost-centers";
+import { buildCostCenterModel, computeCostCenterSuggestion } from "../lib/cost-center-suggest.js";
 import { AdvisoryLock } from "../lib/advisory-lock";
 
 function encryptXml(xml: string | null | undefined): string | null {
@@ -1625,6 +1627,35 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   // Reguła: po każdym imporcie faktury sprawdzamy progi alertów cenowych.
   checkAlertsAfterImport(userId, req.log).catch(() => {});
 
+  // Faktura wchodzi bez centrum — od razu (synchronicznie) liczymy sugestię do potwierdzenia,
+  // żeby chip „Sugerowane" był widoczny natychmiast po odświeżeniu listy.
+  let suggestedCostCenterId: number | null = null;
+  try {
+    const centers = await db
+      .select({ id: costCentersTable.id, aliases: costCentersTable.aliases })
+      .from(costCentersTable)
+      .where(eq(costCentersTable.userId, userId));
+    if (centers.length > 0) {
+      const model = await buildCostCenterModel(userId);
+      suggestedCostCenterId = computeCostCenterSuggestion({
+        xml: row.rawXml,
+        centers,
+        productNames: created.items.map((it) => it.productName),
+        supplierId: supplier.id,
+        supplierDefaultCostCenterId: supplier.defaultCostCenterId ?? null,
+        model,
+      });
+      if (suggestedCostCenterId != null) {
+        await db
+          .update(invoicesTable)
+          .set({ suggestedCostCenterId })
+          .where(eq(invoicesTable.id, created.inv.id));
+      }
+    }
+  } catch (err) {
+    req.log.warn({ err: String(err) }, "sugestia centrum po akceptacji pending nieudana");
+  }
+
   res.json({
     id: created.inv.id,
     supplierId: supplier.id,
@@ -1632,6 +1663,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
     invoiceNumber: created.inv.invoiceNumber,
     invoiceDate: created.inv.invoiceDate,
     totalAmount: toNum(created.inv.totalAmount),
+    suggestedCostCenterId,
     importedAt: created.inv.importedAt.toISOString(),
     items: created.items.map((it) => ({
       ...it,
