@@ -37,6 +37,7 @@ import {
 } from "@workspace/ksef-client";
 import { decryptSecret, encryptSecret, maskToken } from "../lib/encryption";
 import { checkAlertsAfterImport } from "../services/alert-checker";
+import { resuggestForUser } from "./cost-centers";
 import { AdvisoryLock } from "../lib/advisory-lock";
 
 function encryptXml(xml: string | null | undefined): string | null {
@@ -555,7 +556,7 @@ async function importMatchedInvoice(
         paymentDueDate: payDue,
         isPaid: payMethod === "gotowka" || payMethod === "karta",
         paidAt: payMethod === "gotowka" || payMethod === "karta" ? new Date() : null,
-        costCenterId: supplier.defaultCostCenterId ?? null,
+        costCenterId: null, // bez auto-przypisania — sugestię nada resuggestForUser po sync, user potwierdza
       })
       .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
       .returning();
@@ -1145,7 +1146,7 @@ async function runSync(
               paymentDueDate: rowPayDue,
               isPaid: rowPayMethod === "gotowka" || rowPayMethod === "karta",
               paidAt: rowPayMethod === "gotowka" || rowPayMethod === "karta" ? new Date() : null,
-              costCenterId: match.supplier!.defaultCostCenterId ?? null,
+              costCenterId: null, // bez auto-przypisania — sugestię nada resuggestForUser po sync, user potwierdza
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -1202,6 +1203,13 @@ async function runSync(
   // Fire-and-forget: recalculate price alert triggers after new invoices arrive.
   if (summary.imported > 0) {
     checkAlertsAfterImport(userId, req.log).catch(() => {});
+  }
+  // Po imporcie nadaj sugestie centrów kosztów (kod jednostki / opis / dostawca) —
+  // faktury wchodzą bez przypisania, użytkownik potwierdza sugestię jednym kliknięciem.
+  if (summary.imported > 0 || summary.pending > 0) {
+    resuggestForUser(userId, req.log).catch((err: unknown) =>
+      req.log.warn({ err: String(err) }, "resuggestForUser po sync nieudany"),
+    );
   }
 }
 
@@ -1318,7 +1326,7 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
               paymentDueDate: rowPayDue,
               isPaid: rowPayMethod === "gotowka" || rowPayMethod === "karta",
               paidAt: rowPayMethod === "gotowka" || rowPayMethod === "karta" ? new Date() : null,
-              costCenterId: match.supplier!.defaultCostCenterId ?? null,
+              costCenterId: null, // bez auto-przypisania — sugestię nada resuggestForUser po sync, user potwierdza
             })
             .onConflictDoNothing({ target: [invoicesTable.userId, invoicesTable.ksefNumber] })
             .returning();
@@ -1582,7 +1590,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
         paymentDueDate: acceptPayDue,
         isPaid: acceptPayMethod === "gotowka" || acceptPayMethod === "karta",
         paidAt: acceptPayMethod === "gotowka" || acceptPayMethod === "karta" ? new Date() : null,
-        costCenterId: supplier.defaultCostCenterId ?? null,
+        costCenterId: null, // bez auto-przypisania — sugestię nada resuggestForUser po sync, user potwierdza
       })
       .returning();
 

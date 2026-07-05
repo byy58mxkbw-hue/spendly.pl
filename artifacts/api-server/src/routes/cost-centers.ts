@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { and, eq, sql, isNull, isNotNull } from "drizzle-orm";
 import { db, costCentersTable, invoicesTable, suppliersTable } from "@workspace/db";
-import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
+import { computeCostCenterSuggestion } from "../lib/cost-center-suggest.js";
 import { decryptSecret } from "../lib/encryption.js";
+import type { Logger } from "pino";
 import {
   CreateCostCenterBody,
   UpdateCostCenterBody,
@@ -136,25 +137,29 @@ router.delete("/cost-centers/:id", async (req, res): Promise<void> => {
   res.json({ deleted: true });
 });
 
-// ─── Recompute cost-center suggestions from XML (backfill) ────────────────────
-router.post("/cost-centers/resuggest", async (req, res): Promise<void> => {
-  const userId = req.userId!;
-
+/**
+ * Przelicza sugestie centrum kosztów dla NIEPRZYPISANYCH faktur użytkownika:
+ * XML (kod jednostki / opis) → domyślne centrum dostawcy → historia dostawcy.
+ * Zwraca liczbę faktur, którym nadano sugestię. Reużywane po synchronizacji KSeF.
+ */
+export async function resuggestForUser(userId: string, log?: Logger): Promise<number> {
   const centers = await db
     .select({ id: costCentersTable.id, aliases: costCentersTable.aliases })
     .from(costCentersTable)
     .where(eq(costCentersTable.userId, userId));
+  if (centers.length === 0) return 0;
 
-  // Nic do dopasowania, jeśli żadne centrum nie ma aliasów.
-  if (centers.every((c) => (c.aliases ?? []).length === 0)) {
-    res.json({ suggested: 0 });
-    return;
-  }
-
+  // Tylko nieprzypisane — nie ruszamy faktur, które użytkownik już potwierdził.
   const invoices = await db
-    .select({ id: invoicesTable.id, xmlContent: invoicesTable.xmlContent })
+    .select({
+      id: invoicesTable.id,
+      supplierId: invoicesTable.supplierId,
+      xmlContent: invoicesTable.xmlContent,
+      supplierDefault: suppliersTable.defaultCostCenterId,
+    })
     .from(invoicesTable)
-    .where(and(eq(invoicesTable.userId, userId), isNotNull(invoicesTable.xmlContent)));
+    .leftJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
+    .where(and(eq(invoicesTable.userId, userId), isNull(invoicesTable.costCenterId)));
 
   let suggested = 0;
   for (const inv of invoices) {
@@ -162,14 +167,26 @@ router.post("/cost-centers/resuggest", async (req, res): Promise<void> => {
     if (inv.xmlContent) {
       try { xml = decryptSecret(inv.xmlContent); } catch { xml = null; }
     }
-    const ccId = xml ? suggestCostCenterId(xml, centers) : null;
+    const ccId = await computeCostCenterSuggestion({
+      userId,
+      supplierId: inv.supplierId ?? null,
+      xml,
+      centers,
+      supplierDefaultCostCenterId: inv.supplierDefault ?? null,
+    });
     await db
       .update(invoicesTable)
       .set({ suggestedCostCenterId: ccId })
       .where(eq(invoicesTable.id, inv.id));
     if (ccId != null) suggested++;
   }
+  log?.info({ userId, suggested, scanned: invoices.length }, "Przeliczono sugestie centrów kosztów");
+  return suggested;
+}
 
+// ─── Recompute cost-center suggestions (backfill / ręczny przycisk) ────────────
+router.post("/cost-centers/resuggest", async (req, res): Promise<void> => {
+  const suggested = await resuggestForUser(req.userId!, req.log);
   res.json({ suggested });
 });
 
