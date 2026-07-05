@@ -148,8 +148,8 @@ function KpiCard({
   return (
     <div
       className={cn(
-        "relative bg-card border rounded-xl p-4 overflow-hidden transition-shadow hover:shadow-md",
-        accent ? "border-primary/30" : "border-border",
+        "relative glass rounded-xl p-4 overflow-hidden transition-shadow hover:shadow-md",
+        accent && "border-primary/30",
         className,
       )}
       data-testid="stat-card"
@@ -379,7 +379,7 @@ function DashboardPage() {
 
         {/* Onboarding */}
         {showOnboarding && (
-          <div className="mb-4 bg-card border border-border rounded-xl p-5">
+          <div className="mb-4 glass rounded-xl p-5">
             <h2 className="font-semibold text-foreground mb-0.5">Zacznij w 3 krokach</h2>
             <p className="text-sm text-muted-foreground mb-4">Skonfiguruj aplikację, żeby zacząć śledzić ceny surowców.</p>
             <div className="space-y-2.5">
@@ -415,7 +415,7 @@ function DashboardPage() {
         <div className="grid grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
           {summaryLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className={cn("bg-card border border-border rounded-xl p-4", i === 0 && "col-span-3 lg:col-span-1")}>
+              <div key={i} className={cn("glass rounded-xl p-4", i === 0 && "col-span-3 lg:col-span-1")}>
                 <Skeleton className="w-8 h-8 rounded-lg mb-3" />
                 <Skeleton className="h-6 w-24 mb-1" />
                 <Skeleton className="h-3 w-32" />
@@ -461,7 +461,7 @@ function DashboardPage() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
 
           {/* ── BIG ANALYTICS CHART (2/3 width) ── */}
-          <div className="xl:col-span-2 bg-card border border-border rounded-xl p-5">
+          <div className="xl:col-span-2 glass rounded-xl p-5">
             <div className="flex items-start justify-between mb-1">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Wydatki miesięczne</h2>
@@ -529,7 +529,7 @@ function DashboardPage() {
           {/* ── RIGHT SIDEBAR ── */}
           <div className="flex flex-col gap-4">
             {/* Active alerts summary */}
-            <div className="bg-card border border-border rounded-xl p-4 flex-1">
+            <div className="glass rounded-xl p-4 flex-1">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   <Bell className="w-3.5 h-3.5 text-primary" />
@@ -586,7 +586,7 @@ function DashboardPage() {
             </div>
 
             {/* Top price increases — mini leaderboard */}
-            <div className="bg-card border border-border rounded-xl p-4">
+            <div className="glass rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                   <TrendingUp className="w-3.5 h-3.5 text-destructive" />
@@ -630,7 +630,7 @@ function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
           {/* Recent purchases */}
-          <div className="bg-card border border-border rounded-xl p-5">
+          <div className="glass rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Ostatnie zakupy</h2>
@@ -682,7 +682,7 @@ function DashboardPage() {
           </div>
 
           {/* Top price changes */}
-          <div className="bg-card border border-border rounded-xl p-5">
+          <div className="glass rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Największe zmiany cen</h2>

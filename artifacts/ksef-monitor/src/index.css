@@ -76,6 +76,8 @@
 
   /* Aurora (subtelne poświaty tła powłoki) — spójne z landingiem */
   --au1:#0f6b52; --au2:#134e63; --au3:#1f7a5c; --au-alpha:.26;
+  /* Glass (szklane karty jak na landingu) */
+  --glass-hi: rgba(255,255,255,.10); --glass-alpha: .58;
 
   --background: 215 28% 7%;      /* #0B0F14 */
   --foreground: 220 29% 97%;     /* #F5F7FA */
@@ -159,6 +161,8 @@
 
   /* Aurora — pastelowa mięta na jasnym tle */
   --au1:#8ff0cf; --au2:#a9e5f0; --au3:#b6f0d8; --au-alpha:.42;
+  /* Glass na jasnym tle — biały highlight, mocniejsze krycie */
+  --glass-hi: rgba(255,255,255,.85); --glass-alpha: .72;
 
   /* Tło strony lekko przygaszone (miękka chłodna szarość), karty białe —
      dzięki temu karty odcinają się od tła i UI nie jest „za białe". */
@@ -224,6 +228,19 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Szklana karta — jak na landingu. Aurora powłoki prześwituje pod spodem. */
+  .glass {
+    background:
+      linear-gradient(155deg, var(--glass-hi), transparent 44%),
+      hsl(var(--card) / var(--glass-alpha));
+    border: 1px solid hsl(var(--card-border));
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    backdrop-filter: blur(20px) saturate(1.2);
+    box-shadow: 0 20px 50px -24px rgba(0,0,0,0.5), inset 0 1px 0 var(--glass-hi);
   }
 }
 
