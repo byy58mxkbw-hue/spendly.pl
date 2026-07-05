@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, eq, sql, isNull, isNotNull } from "drizzle-orm";
 import { db, costCentersTable, invoicesTable, suppliersTable } from "@workspace/db";
-import { computeCostCenterSuggestion } from "../lib/cost-center-suggest.js";
+import { computeCostCenterSuggestion, buildCostCenterModel } from "../lib/cost-center-suggest.js";
 import { decryptSecret } from "../lib/encryption.js";
 import type { Logger } from "pino";
 import {
@@ -149,6 +149,9 @@ export async function resuggestForUser(userId: string, log?: Logger): Promise<nu
     .where(eq(costCentersTable.userId, userId));
   if (centers.length === 0) return 0;
 
+  // Model uczący (produkty, base rate, dominujące centrum dostawcy) — budowany RAZ.
+  const model = await buildCostCenterModel(userId);
+
   // Tylko nieprzypisane — nie ruszamy faktur, które użytkownik już potwierdził.
   const invoices = await db
     .select({
@@ -160,6 +163,20 @@ export async function resuggestForUser(userId: string, log?: Logger): Promise<nu
     .from(invoicesTable)
     .leftJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
     .where(and(eq(invoicesTable.userId, userId), isNull(invoicesTable.costCenterId)));
+  if (invoices.length === 0) return 0;
+
+  // Nazwy produktów per faktura (jedno zapytanie) — sygnał do klasyfikatora.
+  const ids = invoices.map((i) => i.id);
+  const itemsRes = await db.execute(sql`
+    SELECT invoice_id AS iid, product_name AS pn
+    FROM invoice_items WHERE invoice_id = ANY(${ids})
+  `);
+  const productsByInvoice = new Map<number, string[]>();
+  for (const r of itemsRes.rows as { iid: number; pn: string }[]) {
+    const arr = productsByInvoice.get(r.iid) ?? [];
+    arr.push(r.pn);
+    productsByInvoice.set(r.iid, arr);
+  }
 
   let suggested = 0;
   for (const inv of invoices) {
@@ -167,12 +184,13 @@ export async function resuggestForUser(userId: string, log?: Logger): Promise<nu
     if (inv.xmlContent) {
       try { xml = decryptSecret(inv.xmlContent); } catch { xml = null; }
     }
-    const ccId = await computeCostCenterSuggestion({
-      userId,
-      supplierId: inv.supplierId ?? null,
+    const ccId = computeCostCenterSuggestion({
       xml,
       centers,
+      productNames: productsByInvoice.get(inv.id) ?? [],
+      supplierId: inv.supplierId ?? null,
       supplierDefaultCostCenterId: inv.supplierDefault ?? null,
+      model,
     });
     await db
       .update(invoicesTable)
