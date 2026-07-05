@@ -66,16 +66,23 @@ const PRESET_NAMES = ["Restauracja Centrum", "Bar", "Catering", "Kuchnia", "Ogr�
 type CostCenter = { id: number; name: string; color: string; userId: string; aliases: string[]; invoiceCount: number; supplierCount: number };
 
 /** Edytor listy aliasów (skrótów/kodów) — chipy + dodawanie. */
-function AliasEditor({ aliases, onChange }: { aliases: string[]; onChange: (a: string[]) => void }) {
-  const [input, setInput] = useState("");
+/**
+ * Domyka wpisany (jeszcze niezatwierdzony) tekst pola aliasów: rozdziela po przecinku,
+ * średniku i nowej linii, dokleja bez duplikatów. Używane przy „Dodaj" ORAZ przy zapisie
+ * całego formularza — dzięki temu alias wpisany bez Entera i tak się zapisze.
+ */
+function commitAliasInput(aliases: string[], input: string): string[] {
+  const parts = input.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
+  let next = aliases;
+  for (const v of parts) {
+    if (!next.some((a) => a.toLowerCase() === v.toLowerCase())) next = [...next, v];
+  }
+  return next;
+}
+
+function AliasEditor({ aliases, onChange, input, setInput }: { aliases: string[]; onChange: (a: string[]) => void; input: string; setInput: (s: string) => void }) {
   function add() {
-    // Pozwól wkleić/wpisać kilka aliasów naraz — rozdzielone przecinkiem, średnikiem lub nową linią.
-    const parts = input.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
-    if (parts.length === 0) return;
-    let next = aliases;
-    for (const v of parts) {
-      if (!next.some((a) => a.toLowerCase() === v.toLowerCase())) next = [...next, v];
-    }
+    const next = commitAliasInput(aliases, input);
     if (next !== aliases) onChange(next);
     setInput("");
   }
@@ -102,6 +109,7 @@ function AliasEditor({ aliases, onChange }: { aliases: string[]; onChange: (a: s
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); } }}
+          onBlur={add}
         />
         <Button type="button" variant="outline" onClick={add} disabled={!input.trim()}>Dodaj</Button>
       </div>
@@ -211,6 +219,8 @@ export default function SettingsCostCenters() {
   const [addName, setAddName] = useState("");
   const [addColor, setAddColor] = useState(PRESET_COLORS[0]);
   const [addAliases, setAddAliases] = useState<string[]>([]);
+  const [addAliasInput, setAddAliasInput] = useState("");
+  const [editAliasInput, setEditAliasInput] = useState("");
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
   const [editAliases, setEditAliases] = useState<string[]>([]);
@@ -221,8 +231,9 @@ export default function SettingsCostCenters() {
 
   function handleAdd() {
     if (!addName.trim()) return;
+    const aliases = commitAliasInput(addAliases, addAliasInput); // domknij tekst wpisany bez Entera
     create.mutate(
-      { data: { name: addName.trim(), color: addColor, aliases: addAliases } },
+      { data: { name: addName.trim(), color: addColor, aliases } },
       {
         onSuccess: () => {
           invalidate();
@@ -230,8 +241,9 @@ export default function SettingsCostCenters() {
           setAddName("");
           setAddColor(PRESET_COLORS[0]);
           setAddAliases([]);
+          setAddAliasInput("");
           // Nowe aliasy mogą pasować do istniejących faktur — przelicz sugestie.
-          if (addAliases.length > 0) resuggest.mutate(undefined, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() }) });
+          if (aliases.length > 0) resuggest.mutate(undefined, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() }) });
           toast({ title: "Centrum kosztów dodane" });
         },
         onError: () => toast({ variant: "destructive", title: "Błąd", description: "Nie udało się dodać centrum kosztów" }),
@@ -244,16 +256,19 @@ export default function SettingsCostCenters() {
     setEditName(c.name);
     setEditColor(c.color);
     setEditAliases(c.aliases ?? []);
+    setEditAliasInput("");
   }
 
   function handleEdit() {
     if (!editItem || !editName.trim()) return;
+    const aliases = commitAliasInput(editAliases, editAliasInput); // domknij tekst wpisany bez Entera
     update.mutate(
-      { id: editItem.id, data: { name: editName.trim(), color: editColor, aliases: editAliases } },
+      { id: editItem.id, data: { name: editName.trim(), color: editColor, aliases } },
       {
         onSuccess: () => {
           invalidate();
           setEditItem(null);
+          setEditAliasInput("");
           toast({ title: "Centrum kosztów zaktualizowane" });
           // Przelicz sugestie na istniejących fakturach wg nowych aliasów.
           resuggest.mutate(undefined, {
@@ -406,10 +421,10 @@ export default function SettingsCostCenters() {
                 </div>
               </div>
               <ColorPicker value={addColor} onChange={setAddColor} />
-              <AliasEditor aliases={addAliases} onChange={setAddAliases} />
+              <AliasEditor aliases={addAliases} onChange={setAddAliases} input={addAliasInput} setInput={setAddAliasInput} />
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => { setShowAdd(false); setAddAliases([]); }}>Anuluj</Button>
+              <Button variant="outline" onClick={() => { setShowAdd(false); setAddAliases([]); setAddAliasInput(""); }}>Anuluj</Button>
               <Button onClick={handleAdd} disabled={!addName.trim() || create.isPending}>
                 {create.isPending ? "Dodawanie..." : "Dodaj centrum"}
               </Button>
@@ -434,7 +449,7 @@ export default function SettingsCostCenters() {
                 />
               </div>
               <ColorPicker value={editColor} onChange={setEditColor} />
-              <AliasEditor aliases={editAliases} onChange={setEditAliases} />
+              <AliasEditor aliases={editAliases} onChange={setEditAliases} input={editAliasInput} setInput={setEditAliasInput} />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditItem(null)}>Anuluj</Button>
