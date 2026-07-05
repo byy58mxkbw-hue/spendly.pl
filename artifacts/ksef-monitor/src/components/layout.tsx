@@ -89,7 +89,7 @@ function NavLink({
           ? "bg-primary/[0.10] text-primary"
           : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground",
       )}
-      style={active ? { boxShadow: "0 0 16px rgba(74,222,179,0.06)" } : undefined}
+      style={active ? { boxShadow: "0 0 16px rgba(61,220,151,0.08)" } : undefined}
     >
       <Icon className="w-4 h-4 shrink-0" />
       <span className="flex-1">{label}</span>
@@ -393,8 +393,8 @@ function SidebarContent({
     <>
       {/* Logo */}
       <div className="px-5 pt-6 pb-3">
-        <span className="text-xl tracking-tighter font-black text-primary">
-          SPENDLY<span className="text-sidebar-foreground/40">.</span>
+        <span className="text-xl font-black" style={{ letterSpacing: "-0.045em" }}>
+          <span className="text-sidebar-foreground">spend</span><span className="text-primary">ly.</span>
         </span>
       </div>
 
@@ -651,12 +651,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-background relative">
+      {/* Aurora — subtelne poświaty tła, spójne z landingiem */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="absolute rounded-full" style={{ width: 620, height: 620, left: -180, top: -240, background: "radial-gradient(circle at 30% 30%, var(--au1), transparent 70%)", filter: "blur(110px)", opacity: "var(--au-alpha)" }} />
+        <div className="absolute rounded-full" style={{ width: 640, height: 640, right: -240, top: -140, background: "radial-gradient(circle at 60% 40%, var(--au2), transparent 70%)", filter: "blur(110px)", opacity: "var(--au-alpha)" }} />
+        <div className="absolute rounded-full" style={{ width: 560, height: 560, left: "42%", top: 620, background: "radial-gradient(circle at 50% 50%, var(--au3), transparent 70%)", filter: "blur(110px)", opacity: "var(--au-alpha)" }} />
+      </div>
+
       {/* Desktop sidebar */}
       <aside
-        className="hidden md:flex w-[260px] shrink-0 flex-col border-r"
+        className="hidden md:flex w-[260px] shrink-0 flex-col border-r relative z-10 backdrop-blur-xl"
         style={{
-          background: "hsl(var(--sidebar))",
+          background: "hsl(var(--sidebar) / 0.72)",
           borderColor: "hsl(var(--sidebar-border))",
         }}
       >
@@ -689,8 +696,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="font-black tracking-tighter text-primary text-sm shrink-0">
-              SPENDLY<span className="text-foreground/30">.</span>
+            <span className="font-black text-sm shrink-0" style={{ letterSpacing: "-0.045em" }}>
+              <span className="text-foreground">spend</span><span className="text-primary">ly.</span>
             </span>
             {activeItem && (
               <>
@@ -758,7 +765,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main
-        className="flex-1 min-w-0 overflow-y-auto pt-14 md:pt-0"
+        className="flex-1 min-w-0 overflow-y-auto pt-14 md:pt-0 relative z-10"
         style={{ paddingBottom: "calc(4rem + env(safe-area-inset-bottom))" }}
       >
         {children}

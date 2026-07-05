@@ -74,6 +74,9 @@
   --elevate-1: rgba(255,255,255,0.04);
   --elevate-2: rgba(255,255,255,0.09);
 
+  /* Aurora (subtelne poświaty tła powłoki) — spójne z landingiem */
+  --au1:#0f6b52; --au2:#134e63; --au3:#1f7a5c; --au-alpha:.26;
+
   --background: 215 28% 7%;      /* #0B0F14 */
   --foreground: 220 29% 97%;     /* #F5F7FA */
 
@@ -85,7 +88,7 @@
   --popover-foreground: 220 29% 97%;
   --popover-border: 215 20% 16%;
 
-  --primary: 162 69% 58%;        /* #4ADEB3 */
+  --primary: 154 69% 55%;        /* #4ADEB3 */
   --primary-foreground: 215 28% 7%;
 
   --secondary: 215 25% 15%;
@@ -94,7 +97,7 @@
   --muted: 215 25% 13%;
   --muted-foreground: 215 14% 65%; /* #9AA4B2 */
 
-  --accent: 162 69% 58%;
+  --accent: 154 69% 55%;
   --accent-foreground: 215 28% 7%;
 
   --destructive: 0 84% 60%;
@@ -102,20 +105,20 @@
 
   --border: 215 20% 16%;
   --input: 215 25% 14%;
-  --ring: 162 69% 58%;
+  --ring: 154 69% 55%;
 
   --sidebar: 215 32% 5%;         /* slightly darker than bg */
   --sidebar-foreground: 220 20% 88%;
   --sidebar-border: 215 20% 12%;
-  --sidebar-primary: 162 69% 58%;
+  --sidebar-primary: 154 69% 55%;
   --sidebar-primary-foreground: 215 28% 7%;
   --sidebar-accent: 215 25% 13%;
   --sidebar-accent-foreground: 220 20% 88%;
-  --sidebar-ring: 162 69% 58%;
+  --sidebar-ring: 154 69% 55%;
 
-  --chart-1: 162 69% 58%;
+  --chart-1: 154 69% 55%;
   --chart-2: 199 89% 60%;
-  --chart-3: 162 55% 75%;
+  --chart-3: 154 55% 76%;
   --chart-4: 220 39% 45%;
   --chart-5: 0 84% 60%;
 
@@ -153,6 +156,9 @@
   --opaque-button-border-intensity: -8;
   --elevate-1: rgba(0,0,0,0.025);
   --elevate-2: rgba(0,0,0,0.06);
+
+  /* Aurora — pastelowa mięta na jasnym tle */
+  --au1:#8ff0cf; --au2:#a9e5f0; --au3:#b6f0d8; --au-alpha:.42;
 
   /* Tło strony lekko przygaszone (miękka chłodna szarość), karty białe —
      dzięki temu karty odcinają się od tła i UI nie jest „za białe". */

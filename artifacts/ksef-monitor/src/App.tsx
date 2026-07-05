@@ -72,7 +72,7 @@ const clerkAppearance = {
     logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
   },
   variables: {
-    colorPrimary: "#4ADEB3",
+    colorPrimary: "#3DDC97",
     colorForeground: "#F5F7FA",
     colorMutedForeground: "#9AA4B2",
     colorDanger: "hsl(0, 84%, 60%)",
@@ -92,17 +92,17 @@ const clerkAppearance = {
     headerSubtitle: "!text-[#9AA4B2]",
     socialButtonsBlockButtonText: "!text-[#F5F7FA]",
     formFieldLabel: "!text-[#9AA4B2] text-sm font-medium",
-    footerActionLink: "!text-[#4ADEB3] font-medium",
+    footerActionLink: "!text-[#3DDC97] font-medium",
     footerActionText: "!text-[#9AA4B2]",
     dividerText: "!text-[#9AA4B2]",
-    identityPreviewEditButton: "!text-[#4ADEB3]",
+    identityPreviewEditButton: "!text-[#3DDC97]",
     formFieldSuccessText: "text-emerald-400",
     alertText: "!text-[#F5F7FA]",
     logoBox: "mx-auto",
     logoImage: "w-10 h-10 rounded-xl",
     socialButtonsBlockButton: "!border !border-white/[0.08] !bg-white/[0.04] hover:!bg-white/[0.08] transition-colors",
-    formButtonPrimary: "!bg-[#4ADEB3] hover:!bg-[#3dcba3] !text-[#0B0F14] font-semibold transition-colors",
-    formFieldInput: "!border !border-white/[0.08] !bg-[#1D2A37] !text-[#F5F7FA] rounded-lg focus:!ring-2 focus:!ring-[#4ADEB3]/40",
+    formButtonPrimary: "!bg-[#3DDC97] hover:!bg-[#35c486] !text-[#06231a] font-semibold transition-colors",
+    formFieldInput: "!border !border-white/[0.08] !bg-[#1D2A37] !text-[#F5F7FA] rounded-lg focus:!ring-2 focus:!ring-[#3DDC97]/40",
     footerAction: "border-t border-white/[0.06]",
     dividerLine: "!bg-white/[0.06]",
     alert: "!border !border-white/[0.08] !rounded-lg !bg-white/[0.04]",
@@ -116,7 +116,7 @@ function SignInPage() {
   return (
     <div
       className="flex min-h-[100dvh] items-center justify-center px-4"
-      style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(74,222,179,0.08) 0%, transparent 60%), #0B0F14" }}
+      style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61,220,151,0.08) 0%, transparent 60%), #0B0F14" }}
     >
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
     </div>
@@ -127,7 +127,7 @@ function SignUpPage() {
   return (
     <div
       className="flex min-h-[100dvh] items-center justify-center px-4"
-      style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(74,222,179,0.08) 0%, transparent 60%), #0B0F14" }}
+      style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61,220,151,0.08) 0%, transparent 60%), #0B0F14" }}
     >
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
     </div>
