@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -58,6 +59,9 @@ interface AdminUser {
   createdAt: number;
   lastSignInAt: number | null;
   blocked: boolean;
+  plan: "free" | "pro" | "business";
+  aiUsage: number;
+  aiLimit: number | null;
   invoiceCount: number;
   supplierCount: number;
   productCount: number;
@@ -143,6 +147,22 @@ function useBlockUser() {
         body: JSON.stringify({ blocked }),
       });
       if (!res.ok) throw new Error("Błąd zmiany statusu konta");
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
+}
+
+function useSetPlan() {
+  const { session } = useClerk();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, plan }: { userId: string; plan: "free" | "pro" | "business" }) => {
+      const res = await authFetch(session, `/api/admin/users/${userId}/plan`, {
+        method: "PATCH",
+        body: JSON.stringify({ plan }),
+      });
+      if (!res.ok) throw new Error("Błąd zmiany planu");
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
@@ -358,6 +378,7 @@ export default function AdminUsers() {
   const { data, isLoading, isError, refetch, isFetching, dataUpdatedAt } = useAdminUsers();
   const { data: stats, isLoading: statsLoading, refetch: refetchStats, isFetching: isStatsFetching } = useAdminStats();
   const blockUser = useBlockUser();
+  const setPlan = useSetPlan();
   const deleteUser = useDeleteUser();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -372,6 +393,18 @@ export default function AdminUsers() {
     void refetch();
     void refetchStats();
   }
+
+  async function handleSetPlan(u: AdminUser, plan: "free" | "pro" | "business") {
+    if (u.plan === plan) return;
+    try {
+      await setPlan.mutateAsync({ userId: u.id, plan });
+      toast({ title: `Plan zmieniony na ${plan.toUpperCase()}` });
+    } catch {
+      toast({ variant: "destructive", title: "Błąd", description: "Nie udało się zmienić planu" });
+    }
+  }
+
+  const planLabel: Record<AdminUser["plan"], string> = { free: "Free", pro: "Pro", business: "Business" };
 
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
   const isRefreshing = isFetching || isStatsFetching;
@@ -547,11 +580,16 @@ export default function AdminUsers() {
                             <td className="px-4 py-3 text-center text-xs font-medium hidden lg:table-cell">{u.supplierCount}</td>
                             <td className="px-4 py-3 text-center text-xs font-medium hidden lg:table-cell">{u.productCount}</td>
                             <td className="px-4 py-3">
-                              {u.blocked ? (
-                                <Badge variant="destructive" className="text-[10px]">Zablokowany</Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50">Aktywny</Badge>
-                              )}
+                              <div className="flex flex-col gap-1 items-start">
+                                {u.blocked ? (
+                                  <Badge variant="destructive" className="text-[10px]">Zablokowany</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50">Aktywny</Badge>
+                                )}
+                                <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                  {planLabel[u.plan]} · AI {u.aiUsage}{u.aiLimit != null ? `/${u.aiLimit}` : " (∞)"}
+                                </span>
+                              </div>
                             </td>
                             <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                               <DropdownMenu>
@@ -568,6 +606,18 @@ export default function AdminUsers() {
                                       <><ShieldOff className="w-4 h-4 mr-2" />Zablokuj konto</>
                                     )}
                                   </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel className="text-[10px] text-muted-foreground">Plan (limit AI/mies.)</DropdownMenuLabel>
+                                  {(["free", "pro", "business"] as const).map((p) => (
+                                    <DropdownMenuItem
+                                      key={p}
+                                      onClick={() => handleSetPlan(u, p)}
+                                      disabled={u.plan === p || setPlan.isPending}
+                                    >
+                                      <span className="w-4 h-4 mr-2 inline-flex items-center justify-center text-primary">{u.plan === p ? "✓" : ""}</span>
+                                      {planLabel[p]}
+                                    </DropdownMenuItem>
+                                  ))}
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     className="text-destructive focus:text-destructive"

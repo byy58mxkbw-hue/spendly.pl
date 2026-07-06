@@ -11,3 +11,4 @@ export * from "./ai-cfo-sessions";
 export * from "./user-categories";
 export * from "./product-corrections";
 export * from "./dishes";
+export * from "./ai-usage";

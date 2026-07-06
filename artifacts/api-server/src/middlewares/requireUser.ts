@@ -10,6 +10,7 @@ import {
   ksefConfigTable,
   ksefPendingInvoicesTable,
 } from "@workspace/db";
+import { normalizePlan } from "../lib/ai-plan.js";
 
 export const LEGACY_USER_ID = "__legacy__";
 
@@ -18,6 +19,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      plan?: "free" | "pro" | "business";
     }
   }
 }
@@ -92,6 +94,8 @@ export function requireUser(req: Request, res: Response, next: NextFunction): vo
   }
 
   req.userId = auth.userId;
+  // Plan z Clerk publicMetadata (jak `blocked`); brak → free. Steruje limitem AI.
+  req.plan = normalizePlan(metadata?.["plan"]);
   maybeClaimLegacy(auth.userId)
     .catch((err) => req.log?.error?.({ err }, "Legacy claim failed"))
     .finally(() => next());

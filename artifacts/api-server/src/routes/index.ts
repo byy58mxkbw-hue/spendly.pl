@@ -10,6 +10,7 @@ import ksefRouter from "./ksef";
 import costCentersRouter from "./cost-centers";
 import searchRouter from "./search";
 import { requireUser } from "../middlewares/requireUser";
+import { aiQuota } from "../middlewares/aiQuota";
 
 const router: IRouter = Router();
 
@@ -18,6 +19,12 @@ router.use(healthRouter);
 
 // Everything below requires an authenticated user and is scoped to req.userId
 router.use(requireUser);
+
+// Miesięczny limit AI zależny od planu (czat AI CFO + OCR). Za requireUser,
+// bo potrzebuje req.userId/req.plan; przed routerami, żeby wyprzedzić handlery.
+router.use("/ai-cfo/chat", aiQuota);
+router.use("/invoices/scan-receipt", aiQuota);
+
 router.use(suppliersRouter);
 router.use(productsRouter);
 router.use(invoicesRouter);

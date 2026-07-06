@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../lib/ai-plan.js";
 
 const router: IRouter = Router();
 
@@ -75,11 +76,13 @@ router.get("/admin/check", (req, res): void => {
 router.get("/admin/users", async (req, res): Promise<void> => {
   if (!isAdmin(req)) { denyAdmin(res); return; }
 
-  const [clerkResult, invoiceCounts, supplierCounts, productCounts] = await Promise.all([
+  const period = currentPeriod();
+  const [clerkResult, invoiceCounts, supplierCounts, productCounts, aiUsageRows] = await Promise.all([
     fetchAllClerkUsers(),
     db.execute(sql`SELECT user_id, COUNT(*)::int AS cnt FROM invoices GROUP BY user_id`),
     db.execute(sql`SELECT user_id, COUNT(*)::int AS cnt FROM suppliers GROUP BY user_id`),
     db.execute(sql`SELECT user_id, COUNT(*)::int AS cnt FROM products GROUP BY user_id`),
+    db.execute(sql`SELECT user_id, count FROM ai_usage WHERE period = ${period}`),
   ]);
 
   const invoiceMap = new Map<string, number>(
@@ -91,8 +94,13 @@ router.get("/admin/users", async (req, res): Promise<void> => {
   const productMap = new Map<string, number>(
     productCounts.rows.map((r: Record<string, unknown>) => [r["user_id"] as string, r["cnt"] as number])
   );
+  const aiUsageMap = new Map<string, number>(
+    aiUsageRows.rows.map((r: Record<string, unknown>) => [r["user_id"] as string, Number(r["count"] ?? 0)])
+  );
 
-  const users = clerkResult.data.map((u) => ({
+  const users = clerkResult.data.map((u) => {
+    const plan = normalizePlan(u.public_metadata?.["plan"]);
+    return {
     id: u.id,
     firstName: u.first_name ?? null,
     lastName: u.last_name ?? null,
@@ -104,10 +112,14 @@ router.get("/admin/users", async (req, res): Promise<void> => {
     createdAt: u.created_at,
     lastSignInAt: u.last_sign_in_at ?? null,
     blocked: (u.public_metadata?.["blocked"] as boolean | undefined) === true,
+    plan,
+    aiUsage: aiUsageMap.get(u.id) ?? 0,
+    aiLimit: AI_MONTHLY_LIMIT[plan],
     invoiceCount: invoiceMap.get(u.id) ?? 0,
     supplierCount: supplierMap.get(u.id) ?? 0,
     productCount: productMap.get(u.id) ?? 0,
-  }));
+    };
+  });
 
   res.json({ users, total: clerkResult.totalCount });
 });
@@ -218,6 +230,38 @@ router.patch("/admin/users/:userId/block", async (req, res): Promise<void> => {
   if (!patchRes.ok) { res.status(502).json({ error: "Błąd aktualizacji Clerk" }); return; }
 
   res.json({ ok: true, blocked });
+});
+
+// Ustawienie planu użytkownika (limit AI). Plan trzymany w Clerk publicMetadata,
+// tak jak `blocked`. Nadawane ręcznie przez administratora.
+router.patch("/admin/users/:userId/plan", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+
+  const { userId } = req.params;
+  const raw = (req.body as Record<string, unknown>)?.["plan"];
+  const allowed: Plan[] = ["free", "pro", "business"];
+  if (typeof raw !== "string" || !allowed.includes(raw as Plan)) {
+    res.status(400).json({ error: "Nieprawidłowy plan (free | pro | business)." });
+    return;
+  }
+  const plan = raw as Plan;
+
+  const r = await clerkApiFetch(`/users/${userId}`);
+  if (!r.ok) { res.status(502).json({ error: "Błąd Clerk API" }); return; }
+  const user = (await r.json()) as ClerkUserRaw;
+  const currentMeta = user.public_metadata ?? {};
+
+  const patchRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${process.env.CLERK_SECRET_KEY ?? ""}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ public_metadata: { ...currentMeta, plan } }),
+  });
+  if (!patchRes.ok) { res.status(502).json({ error: "Błąd aktualizacji Clerk" }); return; }
+
+  res.json({ ok: true, plan });
 });
 
 // Usuwa wszystkie dane użytkownika z bazy w jednej transakcji. Kolejność tak,

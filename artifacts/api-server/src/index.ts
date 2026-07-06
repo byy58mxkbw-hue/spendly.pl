@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { runCategoryBackfill } from "./services/backfill-categories.js";
 import { ensureAutoSyncColumns, startKsefAutoSyncScheduler } from "./services/ksef-scheduler.js";
+import { ensureAiUsageTable } from "./services/ensure-ai-usage.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
 // Lepiej zawieść głośno od razu niż w trakcie żądania użytkownika.
@@ -61,6 +62,9 @@ app.listen(port, (err) => {
       if (process.env.NODE_ENV !== "development") startKsefAutoSyncScheduler(logger);
     })
     .catch((err) => logger.error({ err }, "Auto-sync KSeF: nie wystartował (kolumny)"));
+
+  // Tabela miesięcznego zużycia AI (limity per plan) — idempotentne DDL, zawsze.
+  ensureAiUsageTable(logger).catch((err) => logger.error({ err }, "ai_usage: migracja nieudana"));
 
   if (process.env.NODE_ENV !== "development") {
     logger.info("Starting category backfill on startup");
