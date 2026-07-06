@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { and, eq, sql, isNull, isNotNull } from "drizzle-orm";
-import { db, costCentersTable, invoicesTable, suppliersTable } from "@workspace/db";
+import { and, eq, sql, isNull, isNotNull, inArray } from "drizzle-orm";
+import { db, costCentersTable, invoicesTable, invoiceItemsTable, suppliersTable } from "@workspace/db";
 import { computeCostCenterSuggestion, buildCostCenterModel, extractCostCenterSignals } from "../lib/cost-center-suggest.js";
 import { decryptSecret } from "../lib/encryption.js";
 import type { Logger } from "pino";
@@ -190,13 +190,14 @@ export async function resuggestForUser(userId: string, log?: Logger): Promise<Re
   if (invoices.length === 0) return empty;
 
   // Nazwy produktów per faktura (jedno zapytanie) — sygnał do klasyfikatora.
+  // inArray zamiast surowego ANY(${ids}) — Drizzle nie serializuje pewnie tablicy JS do ANY().
   const ids = invoices.map((i) => i.id);
-  const itemsRes = await db.execute(sql`
-    SELECT invoice_id AS iid, product_name AS pn
-    FROM invoice_items WHERE invoice_id = ANY(${ids})
-  `);
+  const itemsRows = await db
+    .select({ iid: invoiceItemsTable.invoiceId, pn: invoiceItemsTable.productName })
+    .from(invoiceItemsTable)
+    .where(inArray(invoiceItemsTable.invoiceId, ids));
   const productsByInvoice = new Map<number, string[]>();
-  for (const r of itemsRes.rows as { iid: number; pn: string }[]) {
+  for (const r of itemsRows) {
     const arr = productsByInvoice.get(r.iid) ?? [];
     arr.push(r.pn);
     productsByInvoice.set(r.iid, arr);
@@ -246,10 +247,17 @@ export async function resuggestForUser(userId: string, log?: Logger): Promise<Re
 
 // ─── Recompute cost-center suggestions (backfill / ręczny przycisk) ────────────
 router.post("/cost-centers/resuggest", async (req, res): Promise<void> => {
-  const result = await resuggestForUser(req.userId!, req.log);
-  // Zwracamy pełną diagnostykę (scanned / xmlUndecryptable / withSubunits / sampleSubunits),
-  // żeby dało się z UI zobaczyć, dlaczego sugestia się nie pojawia. `suggested` zachowane wstecznie.
-  res.json(result);
+  try {
+    const result = await resuggestForUser(req.userId!, req.log);
+    // Zwracamy pełną diagnostykę (scanned / xmlUndecryptable / withSubunits / sampleSubunits),
+    // żeby dało się z UI zobaczyć, dlaczego sugestia się nie pojawia. `suggested` zachowane wstecznie.
+    res.json(result);
+  } catch (err) {
+    // Zamiast generycznego 500 zwracamy treść błędu (200), żeby UI mógł ją pokazać
+    // i żeby dało się zdiagnozować przyczynę na produkcji bez dostępu do logów.
+    req.log.error({ err: String(err) }, "resuggest endpoint error");
+    res.json({ suggested: 0, scanned: 0, xmlMissing: 0, xmlUndecryptable: 0, withSubunits: 0, sampleSubunits: [], error: String(err) });
+  }
 });
 
 // ─── Accept all pending suggestions for unassigned invoices ───────────────────

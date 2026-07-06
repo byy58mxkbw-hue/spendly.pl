@@ -292,7 +292,11 @@ export default function SettingsCostCenters() {
           return;
         }
         // Diagnostyka: dlaczego brak sugestii (skan / nieczytelny XML / wykryte nazwy jednostek).
-        const d = r as unknown as { scanned?: number; xmlUndecryptable?: number; withSubunits?: number; sampleSubunits?: string[] };
+        const d = r as unknown as { scanned?: number; xmlUndecryptable?: number; withSubunits?: number; sampleSubunits?: string[]; error?: string };
+        if (d.error) {
+          toast({ variant: "destructive", title: "Błąd serwera przy przeliczaniu", description: d.error.slice(0, 300) });
+          return;
+        }
         const parts = [
           `zeskanowano ${d.scanned ?? 0}`,
           d.xmlUndecryptable ? `XML nieczytelny: ${d.xmlUndecryptable}` : null,
