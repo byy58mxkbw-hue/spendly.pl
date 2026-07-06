@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, eq, sql, isNull, isNotNull } from "drizzle-orm";
 import { db, costCentersTable, invoicesTable, suppliersTable } from "@workspace/db";
-import { computeCostCenterSuggestion, buildCostCenterModel } from "../lib/cost-center-suggest.js";
+import { computeCostCenterSuggestion, buildCostCenterModel, extractCostCenterSignals } from "../lib/cost-center-suggest.js";
 import { decryptSecret } from "../lib/encryption.js";
 import type { Logger } from "pino";
 import {
@@ -156,12 +156,22 @@ router.delete("/cost-centers/:id", async (req, res): Promise<void> => {
  * XML (kod jednostki / opis) → domyślne centrum dostawcy → historia dostawcy.
  * Zwraca liczbę faktur, którym nadano sugestię. Reużywane po synchronizacji KSeF.
  */
-export async function resuggestForUser(userId: string, log?: Logger): Promise<number> {
+export type ResuggestResult = {
+  suggested: number;
+  scanned: number;
+  xmlMissing: number;
+  xmlUndecryptable: number;
+  withSubunits: number;
+  sampleSubunits: string[];
+};
+
+export async function resuggestForUser(userId: string, log?: Logger): Promise<ResuggestResult> {
+  const empty: ResuggestResult = { suggested: 0, scanned: 0, xmlMissing: 0, xmlUndecryptable: 0, withSubunits: 0, sampleSubunits: [] };
   const centers = await db
     .select({ id: costCentersTable.id, aliases: costCentersTable.aliases })
     .from(costCentersTable)
     .where(eq(costCentersTable.userId, userId));
-  if (centers.length === 0) return 0;
+  if (centers.length === 0) return empty;
 
   // Model uczący (produkty, base rate, dominujące centrum dostawcy) — budowany RAZ.
   const model = await buildCostCenterModel(userId);
@@ -177,7 +187,7 @@ export async function resuggestForUser(userId: string, log?: Logger): Promise<nu
     .from(invoicesTable)
     .leftJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
     .where(and(eq(invoicesTable.userId, userId), isNull(invoicesTable.costCenterId)));
-  if (invoices.length === 0) return 0;
+  if (invoices.length === 0) return empty;
 
   // Nazwy produktów per faktura (jedno zapytanie) — sygnał do klasyfikatora.
   const ids = invoices.map((i) => i.id);
@@ -193,10 +203,24 @@ export async function resuggestForUser(userId: string, log?: Logger): Promise<nu
   }
 
   let suggested = 0;
+  let xmlMissing = 0;
+  let xmlUndecryptable = 0;
+  let withSubunits = 0;
+  const sampleSet = new Set<string>();
   for (const inv of invoices) {
     let xml: string | null = null;
-    if (inv.xmlContent) {
-      try { xml = decryptSecret(inv.xmlContent); } catch { xml = null; }
+    if (!inv.xmlContent) {
+      xmlMissing++;
+    } else {
+      try { xml = decryptSecret(inv.xmlContent); }
+      catch { xml = null; xmlUndecryptable++; }
+    }
+    if (xml) {
+      const subs = extractCostCenterSignals(xml).subunits;
+      if (subs.length > 0) {
+        withSubunits++;
+        for (const s of subs) if (sampleSet.size < 5) sampleSet.add(s);
+      }
     }
     const ccId = computeCostCenterSuggestion({
       xml,
@@ -212,14 +236,20 @@ export async function resuggestForUser(userId: string, log?: Logger): Promise<nu
       .where(eq(invoicesTable.id, inv.id));
     if (ccId != null) suggested++;
   }
-  log?.info({ userId, suggested, scanned: invoices.length }, "Przeliczono sugestie centrów kosztów");
-  return suggested;
+  const result: ResuggestResult = {
+    suggested, scanned: invoices.length, xmlMissing, xmlUndecryptable,
+    withSubunits, sampleSubunits: Array.from(sampleSet),
+  };
+  log?.info(result, "Przeliczono sugestie centrów kosztów");
+  return result;
 }
 
 // ─── Recompute cost-center suggestions (backfill / ręczny przycisk) ────────────
 router.post("/cost-centers/resuggest", async (req, res): Promise<void> => {
-  const suggested = await resuggestForUser(req.userId!, req.log);
-  res.json({ suggested });
+  const result = await resuggestForUser(req.userId!, req.log);
+  // Zwracamy pełną diagnostykę (scanned / xmlUndecryptable / withSubunits / sampleSubunits),
+  // żeby dało się z UI zobaczyć, dlaczego sugestia się nie pojawia. `suggested` zachowane wstecznie.
+  res.json(result);
 });
 
 // ─── Accept all pending suggestions for unassigned invoices ───────────────────

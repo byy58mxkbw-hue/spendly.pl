@@ -287,10 +287,19 @@ export default function SettingsCostCenters() {
     resuggest.mutate(undefined, {
       onSuccess: (r) => {
         queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
-        toast({
-          title: r.suggested > 0 ? `Dopasowano ${r.suggested} faktur do centrów` : "Brak nowych sugestii",
-          description: r.suggested > 0 ? "Zobacz „Zastosuj sugestie” na liście faktur." : "Wszystkie nieprzypisane faktury już przejrzane.",
-        });
+        if (r.suggested > 0) {
+          toast({ title: `Dopasowano ${r.suggested} faktur do centrów`, description: "Zobacz „Zastosuj sugestie” na liście faktur." });
+          return;
+        }
+        // Diagnostyka: dlaczego brak sugestii (skan / nieczytelny XML / wykryte nazwy jednostek).
+        const d = r as unknown as { scanned?: number; xmlUndecryptable?: number; withSubunits?: number; sampleSubunits?: string[] };
+        const parts = [
+          `zeskanowano ${d.scanned ?? 0}`,
+          d.xmlUndecryptable ? `XML nieczytelny: ${d.xmlUndecryptable}` : null,
+          `z nazwą jednostki: ${d.withSubunits ?? 0}`,
+        ].filter(Boolean).join(" · ");
+        const sample = (d.sampleSubunits ?? []).length ? ` | Wykryte nazwy: ${d.sampleSubunits!.join(" ; ")}` : "";
+        toast({ title: "Brak nowych sugestii", description: parts + "." + sample });
       },
       onError: () => toast({ variant: "destructive", title: "Błąd", description: "Nie udało się przeliczyć sugestii" }),
     });
