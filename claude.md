@@ -65,6 +65,18 @@ Wykresy: recharts
 16. **`rate_limited_until`** — sprawdzaj PRZED każdym KSeF sync. Jeśli ustawione i w przyszłości — przerwij i poinformuj użytkownika.
 
 17. **`conversations.ts` i `messages.ts`** — pliki istnieją w `lib/db/src/schema/` ale nie są eksportowane w `index.ts`. To martwe pliki — nie używaj ich.
+
+18. **Kolejność middleware w `app.ts`** — CORS musi być PRZED helmet i rate-limit. Nie zmieniaj tej kolejności (hotfix 2026-06-30).
+
+19. **Compression pomija SSE** — `compression` ma wykluczenie dla `text/event-stream`. Bez tego sync KSeF się wiesza. Nie usuwaj tego wyjątku.
+
+20. **KSeF sync działa przez SSE** — postęp streamowany na dashboard, bez 30s timeoutu. Nie dodawaj timeoutów na streamie.
+
+21. **Rate-limit pomija `/api/healthz`** — ścieżka skip musi odpowiadać faktycznemu route.
+
+22. **Sugestie centrów kosztów** — `resuggestForUser` (`routes/cost-centers.ts`) używa `inArray`, NIE surowego `ANY(${ids})` (Drizzle nie serializuje tablicy JS → wyjątek, sugestie nigdy się nie liczą). Przeliczanie po dodaniu/edycji aliasów robi FRONTEND (`useResuggestCostCenters`) — nie dubluj w backendzie. Sugestia idzie do `suggestedCostCenterId` (nie `costCenterId`) — user akceptuje; auto-import z KSeF NIE auto-przypisuje.
+
+23. **XXE / parser XML** — parser KSeF jest regexowy (bez DOM). Odrzucaj XML z `<!DOCTYPE`/`<!ENTITY`: guard jest w `parseFA3Xml` (throw) oraz w imporcie ręcznym faktur (400). Nie podmieniaj na parser DOM bez wyłączenia DTD/encji zewnętrznych.
 ---
 
 ## Struktura projektu
@@ -140,6 +152,22 @@ new Date(date).toLocaleDateString('pl-PL')
 - Admin panel — lista użytkowników, statystyki, blokowanie, usuwanie
 - User categories — nadpisywanie nazw kategorii przez użytkownika
 - Product corrections — zapamiętywanie ręcznych korekt kategorii
+- Paginacja serwerowa — Produkty i Faktury (search, kategoria, sort po stronie API)
+- Wyszukiwarka globalna + paleta komend Cmd+K (`routes/search.ts`)
+- KSeF sync przez SSE — live progress na dashboardzie, czytelny wynik po sync
+- Onboarding (`welcome-onboarding.tsx`) + landing page (`home.tsx`)
+- Strony błędów — `not-found.tsx`, `server-error.tsx`, `error-boundary.tsx`
+- Auto-sugestia centrum kosztów z KSeF XML (aliasy per centrum)
+- Cross-linki — alert → wykres cen, kategoria raportu → produkty; modal historii cen z najtańszym dostawcą i fakturami źródłowymi
+- Modal faktury — link do dostawcy, kopiowanie numeru, mark paid, print/PDF; porównanie dwóch faktur w AI CFO (z eksportem PDF)
+- Faktury korygujące — obsługa + filtrowanie korekt w historii cen
+- Bezpieczne usuwanie konta
+- Kategorie: dodane Sprzęt/Wyposażenie i Orzechy/Bakalie; backfill kategorii przy starcie prod
+- Security hardening (2026-06) — tenant isolation w food-cost, KSeF: NIP tenancy + token proof + per-NIP lock, ochrona przed nadużyciem AI
+- Szklany (glass) wygląd na wszystkich stronach panelu (2026-07) — aurora + mennica `#3DDC97`, spójnie z landingiem; utility `.glass` w `index.css`
+- Kalendarz w „Do przeglądu" (2026-07) — heatmapa faktur oczekujących po dniach (klik dnia → filtr listy), liczony klientowo bez nowego zapytania
+- Sugestie centrów kosztów działające (2026-07) — przeliczane po każdym sync i po edycji aliasów; oparte na aliasach `Podmiot3`/opisu → domyślnym centrum dostawcy → historii; chip „Sugerowane" + „Zastosuj sugestie" (suggest-only, user akceptuje)
+- XXE hardening (2026-07) — odrzucanie XML z `<!DOCTYPE`/`<!ENTITY` (parser regexowy, patrz reguła 23)
 
 ### ⚠️ Do weryfikacji
 - `ocr-faktur.tsx` — strona istnieje, wymaga sprawdzenia czy działa end-to-end
@@ -147,10 +175,12 @@ new Date(date).toLocaleDateString('pl-PL')
 - Mapowanie dostawca/produkt — logika w bazie, UI niekompletne
 
 ### 🟡 Dług techniczny
-- Pliki do rozbicia: `ksef.ts` (1585 linii), `ai-cfo.ts` (1300), `invoices.ts` (1037), `invoices.tsx` (2068), `reports.tsx` (1967), `products.tsx` (1966)
-- Brak testów (unit / integration / e2e)
-- Paginacja w tabeli Produktów
-- Toast po synchronizacji KSeF
+- Pliki do rozbicia: `ksef.ts` (1592 linie), `ai-cfo.ts` (1300), `invoices.ts` (1180), `invoices.tsx` (2271), `reports.tsx` (1981), `products.tsx` (2085)
+- Testy: jest tylko jeden e2e (`scripts/src/e2e/ksef-sync.spec.ts`) — brak unit i integration
+
+### ✔️ Zrobione (usunięte z długu)
+- Paginacja w tabeli Produktów — serwerowa (2026-06-30)
+- Toast po synchronizacji KSeF — zastąpione przez SSE z czytelnym wynikiem (2026-07-02)
 
 ---
 
@@ -161,6 +191,7 @@ new Date(date).toLocaleDateString('pl-PL')
 - W odpowiedzi API pokazuj token zamaskowany do ostatnich 4 znaków
 - Wszystkie endpointy muszą być zabezpieczone Clerk middleware
 - Nigdy nie loguj tokenów ani haseł do konsoli
+- XML z KSeF / importu ręcznego: odrzucaj `<!DOCTYPE`/`<!ENTITY` (guard w `parseFA3Xml` + import ręczny). Parser jest regexowy — nie podmieniaj na DOM bez wyłączenia encji (XXE)
 
 ---
 
