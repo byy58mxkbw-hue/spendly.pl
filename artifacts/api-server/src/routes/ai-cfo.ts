@@ -267,6 +267,87 @@ async function fetchInvoiceCompareData(userId: string, question: string): Promis
   return `\nDANE FAKTUR DO PORÓWNANIA:\n${fmtInv(invA, "A")}\n\n${fmtInv(invB, "B")}`;
 }
 
+// Historia ceny jednostkowej KONKRETNEGO produktu w czasie (faktura po fakturze).
+// Odpowiada na „cena/porównaj cenę/trend cytryny z ostatnich N faktur" — czego stary
+// kod nie umiał (miał tylko porównanie DWÓCH całych faktur, stąd zmyślony widżet A/B).
+async function fetchProductPriceHistory(userId: string, question: string): Promise<string | null> {
+  const lowerQ = question.toLowerCase();
+
+  // Intencja: pytanie o cenę / historię / trend produktu (bez wymogu słowa „porównaj").
+  const hasPriceIntent = [
+    "cena", "cenę", "ceny", "cenie", "kosztuje", "kosztował", "podroż", "potani",
+    "drożej", "taniej", "historia cen", "historię cen", "trend", "po ile", "ile płac",
+  ].some((k) => lowerQ.includes(k));
+  if (!hasPriceIntent) return null;
+
+  // Tokeny-kandydaci (≥5 znaków, bez interpunkcji, bez słów-śmieci).
+  const STOP = new Set([
+    "ostatnich", "ostatnie", "ostatniej", "faktur", "faktury", "fakturach", "fakturze",
+    "porównanie", "porównaj", "porówna", "jednostkowa", "jednostkowej", "jednostkowe",
+    "dostawcy", "dostawca", "dostawców", "produkt", "produktu", "produkty", "miesiąc",
+    "miesiąca", "miesięcy", "wszystkie", "pokaż", "podaj", "zestawienie",
+    // Wypełniacze/fraza „chodzi mi o…" — inaczej „chodz" trafia w „poCHODZenia" z nazw.
+    "chodzi", "właśnie", "znaczy", "między", "kwota", "kwoty",
+  ]);
+  const tokens = Array.from(new Set(
+    lowerQ.split(/\s+/)
+      .map((t) => t.replace(/[^a-ząćęłńóśźż0-9]/gi, ""))
+      .filter((t) => t.length >= 5 && !STOP.has(t)),
+  ));
+  if (tokens.length === 0) return null;
+
+  // Dopasowanie produktu tolerancyjne na polską odmianę: prefiks 5 znaków w nazwie
+  // (np. „cytryny" → „cytry" → „CYTRYNA…"). Najczęściej kupowany / najkrótsza nazwa wygrywa.
+  let product: { id: number; name: string } | null = null;
+  for (const t of tokens) {
+    const pref = t.slice(0, 5); // po sanityzacji tylko [a-ząćęłńóśźż0-9] — bez metaznaków regex
+    // Dopasowanie prefiksu na POCZĄTKU słowa w nazwie (nie w środku), żeby „chodz"
+    // nie trafiał w „poCHODZenia", a „cytry" trafiał w „CYTRYNA…". Case-insensitive.
+    const res = await db.execute(sql`
+      SELECT p.id, p.name, COUNT(ii.id)::int AS uses
+      FROM products p
+      LEFT JOIN invoice_items ii ON ii.product_id = p.id
+      WHERE p.user_id = ${userId} AND lower(p.name) ~ ${"(^|[^a-ząćęłńóśźż])" + pref}
+      GROUP BY p.id, p.name
+      ORDER BY uses DESC, length(p.name) ASC
+      LIMIT 1
+    `);
+    const row = res.rows[0] as { id: number; name: string } | undefined;
+    if (row) { product = { id: row.id, name: row.name }; break; }
+  }
+  if (!product) return null;
+
+  // „ostatnich 5" / „5 faktur" → N; domyślnie 12, twardy zakres 2..24.
+  const nMatch = lowerQ.match(/ostatnich?\s+(\d{1,2})|(\d{1,2})\s+faktur/);
+  const limit = Math.min(24, Math.max(2, nMatch ? parseInt(nMatch[1] ?? nMatch[2], 10) : 12));
+
+  const hist = await db.execute(sql`
+    SELECT inv.invoice_date AS date,
+           ii.unit_price::text AS price,
+           inv.invoice_number AS invoice_number,
+           s.name AS supplier_name
+    FROM invoice_items ii
+    JOIN invoices inv ON ii.invoice_id = inv.id
+    JOIN suppliers s ON inv.supplier_id = s.id
+    WHERE ii.product_id = ${product.id}
+      AND inv.user_id = ${userId}
+      AND inv.excluded = false
+      AND inv.parent_invoice_id IS NULL
+      AND (inv.invoice_type IS DISTINCT FROM 'KOR')
+      AND ii.quantity::numeric > 0
+      AND ii.unit_price::numeric > 0
+    ORDER BY inv.invoice_date DESC, inv.id DESC
+    LIMIT ${sql.raw(String(limit))}
+  `);
+  const rows = hist.rows as Array<{ date: string; price: string; invoice_number: string; supplier_name: string }>;
+  if (rows.length === 0) return null;
+
+  const lines = rows.map(
+    (r) => `  - ${r.date} | ${r.invoice_number} | ${r.supplier_name} | ${parseFloat(r.price).toFixed(2)} zł/jedn.`,
+  );
+  return `\nDANE HISTORII CENY PRODUKTU: ${product.name} [ID:${product.id}] (ostatnie ${rows.length} zakupów, od najnowszych):\n${lines.join("\n")}`;
+}
+
 // ─── Route: POST /ai-cfo/chat ─────────────────────────────────────────────────
 
 async function buildChatContext(userId: string, sinceStr: string): Promise<string> {
@@ -439,14 +520,18 @@ router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
   }
 
   const sinceStr = since90Days();
-  const [context, invoiceCompareBlock] = await Promise.all([
+  const [context, productHistBlock, invoiceCompareRaw] = await Promise.all([
     buildChatContext(userId, sinceStr),
+    fetchProductPriceHistory(userId, question.trim()),
     fetchInvoiceCompareData(userId, question.trim()),
   ]);
+  // Pytanie o cenę produktu ma priorytet — nie wstrzykujemy wtedy bloku porównania faktur,
+  // żeby model nie skręcił w invoice_comparison (przyczyna zmyślonego widżetu A/B).
+  const dataBlock = productHistBlock ?? invoiceCompareRaw ?? "";
 
   const systemPrompt = `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur i dostarczasz precyzyjne rekomendacje finansowe.
 
-${context}${invoiceCompareBlock ?? ""}
+${context}${dataBlock}
 
 MOŻLIWOŚCI ANALIZY:
 - Porównanie dostawców KWOTOWO: który dostawca generuje największe wydatki w PLN
@@ -455,6 +540,12 @@ MOŻLIWOŚCI ANALIZY:
 - Analiza wg CENTRÓW KOSZTÓW: faktury przypisane do konkretnych obszarów restauracji
 - Trendy miesięczne: jak zmieniają się wydatki miesiąc do miesiąca
 - Raporty produktowe: które produkty kupujemy najczęściej i w największych ilościach
+
+ZASADA NADRZĘDNA (anty-fabrykacja):
+Używaj WYŁĄCZNIE liczb, faktur i pozycji obecnych w kontekście i blokach „DANE …".
+NIGDY nie wymyślaj faktur, cen ani pozycji. Gdy brak danych do pytania — type: "general"
+i napisz krótko, czego brakuje. NIE używaj type "invoice_comparison", jeśli w kontekście
+NIE MA bloku „DANE FAKTUR DO PORÓWNANIA".
 
 INSTRUKCJA ODPOWIEDZI:
 Odpowiadaj ZAWSZE jako JSON (bez markdown, bez tekstu poza JSON):
@@ -478,6 +569,18 @@ ZASADY TABEL — dla porównania dostawców zawsze pokazuj obie kolumny:
 - Porównanie kwotowe: kolumny "Dostawca", "Wydatki (PLN)", "Udział %", "Faktury"
 - Porównanie ilościowe: kolumny "Dostawca", "Wolumen (j.)", "Produkty", "Śr. cena jedn."
 - Kategorie: kolumny "Kategoria", "Wydatki (PLN)", "Wolumen (j.)", "Produkty"
+
+INSTRUKCJA DLA HISTORII CENY PRODUKTU (type: "product_analysis"):
+Gdy kontekst zawiera blok "DANE HISTORII CENY PRODUKTU":
+- Użyj type: "product_analysis"
+- table.headers: ["Data", "Faktura", "Dostawca", "Cena jedn.", "Zmiana %"]
+- table.rows: KAŻDY zakup z bloku jako osobny wiersz (od najnowszego). "Zmiana %" liczona
+  względem POPRZEDNIEGO (starszego) zakupu tego produktu: (cena_nowsza - cena_starsza)/cena_starsza*100;
+  format "+X,X%" wzrost, "-X,X%" spadek, "0%" bez zmian, "—" dla najstarszego wiersza.
+- kpiCards: ["Ostatnia cena", "Najniższa", "Najwyższa", "Trend"] — wyłącznie z liczb bloku.
+- summary: ostatnia cena jednostkowa, zakres min–max i kierunek trendu (po polsku, z liczbami).
+- actions: [{"label":"Zobacz produkt","href":"/products?id={ID z nagłówka bloku}"}]
+- Używaj wyłącznie cen i faktur z bloku — nie dopisuj żadnych spoza niego.
 
 INSTRUKCJA DLA PORÓWNANIA FAKTUR (type: "invoice_comparison"):
 Gdy kontekst zawiera blok "DANE FAKTUR DO PORÓWNANIA":
