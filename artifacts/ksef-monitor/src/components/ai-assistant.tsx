@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
-import { useUser } from "@clerk/react";
+import { useAuth, useUser } from "@clerk/react";
 import {
   usePostAiCfoChat,
   type AiCfoChatResponse,
@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { apiUrl } from "@/lib/api-base";
 import {
   Bot,
   Send,
@@ -157,6 +158,21 @@ export function AiAssistant() {
   const chat = usePostAiCfoChat();
   const scrollRef = useRef<HTMLDivElement>(null);
   const userId = user?.id;
+  const { getToken } = useAuth();
+  const [usage, setUsage] = useState<{ plan: string; used: number; limit: number | null } | null>(null);
+
+  // Zużycie AI w tym miesiącu (wspólna pula czat + OCR) — do licznika w nagłówku.
+  const refreshUsage = useCallback(async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(apiUrl("/api/ai-cfo/usage"), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) setUsage(await res.json());
+    } catch { /* licznik jest pomocniczy — brak nie blokuje czatu */ }
+  }, [getToken]);
+
+  useEffect(() => { if (open) void refreshUsage(); }, [open, refreshUsage]);
 
   useEffect(() => {
     if (userId) setMessages(loadMessages(userId));
@@ -193,14 +209,16 @@ export function AiAssistant() {
       {
         onSuccess: (data) => {
           setMessages((prev) => [...prev, { role: "assistant", data }]);
+          void refreshUsage();
         },
         onError: (err: unknown) => {
-          // ApiError z customFetch niesie sparsowane body błędu w .data
+          // ApiError z customFetch niesie sparsowane body błędu w .data (też komunikat 429 o limicie planu)
           const serverMsg = (err as { data?: { error?: string } })?.data?.error;
           setMessages((prev) => [
             ...prev,
             { role: "error", text: serverMsg ?? "Nie udało się uzyskać odpowiedzi. Spróbuj ponownie za chwilę." },
           ]);
+          void refreshUsage();
         },
       },
     );
@@ -247,6 +265,21 @@ export function AiAssistant() {
                 Analizuje Twoje faktury i ceny
               </p>
             </div>
+            {usage && usage.limit != null && (
+              <span
+                className={cn(
+                  "shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full tabular-nums",
+                  usage.used >= usage.limit
+                    ? "bg-destructive/15 text-destructive"
+                    : usage.used / usage.limit >= 0.8
+                      ? "bg-amber-500/15 text-amber-600"
+                      : "bg-secondary text-muted-foreground",
+                )}
+                title="Zużycie AI w tym miesiącu (czat + skany faktur)"
+              >
+                {usage.used}/{usage.limit}
+              </span>
+            )}
             {messages.length > 0 && (
               <button
                 onClick={clearChat}

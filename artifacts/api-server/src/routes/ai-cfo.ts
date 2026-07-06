@@ -3,8 +3,29 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
 import { PostAiCfoChatBody } from "@workspace/api-zod";
+import { AI_MONTHLY_LIMIT, normalizePlan, currentPeriod } from "../lib/ai-plan.js";
 
 const router: IRouter = Router();
+
+// Zużycie AI bieżącego użytkownika w tym miesiącu (wspólna pula: czat + OCR).
+// Do wyświetlenia licznika „X / Y" w UI. Sam endpoint nie jest limitowany.
+router.get("/ai-cfo/usage", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const plan = normalizePlan(req.plan);
+  const limit = AI_MONTHLY_LIMIT[plan];
+  const period = currentPeriod();
+  const r = await db.execute(
+    sql`SELECT count FROM ai_usage WHERE user_id = ${userId} AND period = ${period}`,
+  );
+  const used = Number((r.rows[0] as { count: number } | undefined)?.count ?? 0);
+  res.json({
+    plan,
+    used,
+    limit,
+    remaining: limit == null ? null : Math.max(0, limit - used),
+    period,
+  });
+});
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

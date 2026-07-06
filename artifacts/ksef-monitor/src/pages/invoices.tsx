@@ -1811,8 +1811,10 @@ function ImportInvoiceDialog({
         setCorrectedInvoiceNumber(data.correctedInvoiceNumber ?? "");
       }
       toast({ title: "Skan gotowy", description: `Rozpoznano ${data.items.length} pozycji.` });
-    } catch {
-      toast({ variant: "destructive", title: "Błąd skanowania", description: "Nie udało się przetworzyć obrazu." });
+    } catch (err) {
+      // Komunikat serwera (m.in. 429 o wyczerpaniu miesięcznego limitu AI planu).
+      const serverMsg = (err as { data?: { error?: string } })?.data?.error;
+      toast({ variant: "destructive", title: "Błąd skanowania", description: serverMsg ?? "Nie udało się przetworzyć obrazu." });
     }
   }
 
