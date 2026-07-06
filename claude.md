@@ -77,6 +77,8 @@ Wykresy: recharts
 22. **Sugestie centrów kosztów** — `resuggestForUser` (`routes/cost-centers.ts`) używa `inArray`, NIE surowego `ANY(${ids})` (Drizzle nie serializuje tablicy JS → wyjątek, sugestie nigdy się nie liczą). Przeliczanie po dodaniu/edycji aliasów robi FRONTEND (`useResuggestCostCenters`) — nie dubluj w backendzie. Sugestia idzie do `suggestedCostCenterId` (nie `costCenterId`) — user akceptuje; auto-import z KSeF NIE auto-przypisuje.
 
 23. **XXE / parser XML** — parser KSeF jest regexowy (bez DOM). Odrzucaj XML z `<!DOCTYPE`/`<!ENTITY`: guard jest w `parseFA3Xml` (throw) oraz w imporcie ręcznym faktur (400). Nie podmieniaj na parser DOM bez wyłączenia DTD/encji zewnętrznych.
+
+24. **Limity AI zależne od planu** — plan w Clerk `publicMetadata.plan` (`free|pro|business`, brak=free), `requireUser` ustawia `req.plan`. Limity miesięczne w `lib/ai-plan.ts` (free 50 / pro 1000 / business ∞). Zliczanie w tabeli `ai_usage` (Postgres, klucz `period` 'YYYY-MM' — NIE in-memory, bo redeploye zerują pamięć). Middleware `aiQuota` na `/ai-cfo/chat` i `/invoices/scan-receipt` (za `requireUser`); inkrement tylko przy statusie <400. Plan nadaje admin (`PATCH /admin/users/:id/plan`). Reset miesięczny automatyczny (nowy period).
 ---
 
 ## Struktura projektu
@@ -168,6 +170,7 @@ new Date(date).toLocaleDateString('pl-PL')
 - Kalendarz w „Do przeglądu" (2026-07) — heatmapa faktur oczekujących po dniach (klik dnia → filtr listy), liczony klientowo bez nowego zapytania
 - Sugestie centrów kosztów działające (2026-07) — przeliczane po każdym sync i po edycji aliasów; oparte na aliasach `Podmiot3`/opisu → domyślnym centrum dostawcy → historii; chip „Sugerowane" + „Zastosuj sugestie" (suggest-only, user akceptuje)
 - XXE hardening (2026-07) — odrzucanie XML z `<!DOCTYPE`/`<!ENTITY` (parser regexowy, patrz reguła 23)
+- Limity AI per plan (2026-07) — miesięczny limit czatu AI CFO + OCR wg planu (free/pro/business) liczony w tabeli `ai_usage`; plan nadawany w panelu admina (patrz reguła 24)
 
 ### ⚠️ Do weryfikacji
 - `ocr-faktur.tsx` — strona istnieje, wymaga sprawdzenia czy działa end-to-end
