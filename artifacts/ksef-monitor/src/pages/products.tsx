@@ -1661,7 +1661,7 @@ export default function Products() {
         )}
 
         {/* Mobile card list */}
-        <div className="md:hidden bg-card border border-border rounded-xl overflow-hidden">
+        <div className="md:hidden glass rounded-xl overflow-hidden">
           {isLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 7 }).map((_, i) => (
@@ -1803,7 +1803,7 @@ export default function Products() {
         </div>
 
         {/* Desktop table */}
-        <div className="hidden md:block bg-card border border-border rounded-xl overflow-x-auto">
+        <div className="hidden md:block glass rounded-xl overflow-x-auto">
           <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[860px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30">
             <div>Produkt</div>
             <div className="text-right w-28">Ostatnia cena</div>

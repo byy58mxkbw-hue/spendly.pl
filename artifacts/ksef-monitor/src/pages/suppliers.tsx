@@ -259,7 +259,7 @@ export default function Suppliers() {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-6">
+              <div key={i} className="glass rounded-xl p-6">
                 <Skeleton className="h-5 w-40 mb-2" />
                 <Skeleton className="h-4 w-24 mb-4" />
                 <Skeleton className="h-4 w-full mb-2" />
@@ -277,7 +277,7 @@ export default function Suppliers() {
               <div
                 key={supplier.id}
                 className={cn(
-                  "bg-card border border-border rounded-xl p-6 transition-colors group relative",
+                  "glass rounded-xl p-6 transition-colors group relative",
                   tab === "active" && "hover:border-primary/40",
                   tab === "deleted" && "opacity-75"
                 )}
@@ -489,7 +489,7 @@ export default function Suppliers() {
             ))}
           </div>
         ) : (
-          <div className="bg-card border border-border rounded-xl p-12 text-center">
+          <div className="glass rounded-xl p-12 text-center">
             <Building2 className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             {tab === "active" ? (
               <>

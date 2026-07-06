@@ -139,7 +139,7 @@ export default function SettingsKsef() {
           subtitle="Skonfiguruj integrację z Krajowym Systemem e-Faktur (Produkcja)"
         />
 
-        <div className="bg-card border border-border rounded-xl p-6 mb-6">
+        <div className="glass rounded-xl p-6 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-primary" />
             Aktualna konfiguracja
@@ -257,7 +257,7 @@ export default function SettingsKsef() {
         </div>
 
         {config && (
-          <div className="bg-card border border-border rounded-xl p-6 mb-6">
+          <div className="glass rounded-xl p-6 mb-6">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -306,7 +306,7 @@ export default function SettingsKsef() {
           </div>
         )}
 
-        <form onSubmit={onSave} className="bg-card border border-border rounded-xl p-6 space-y-4">
+        <form onSubmit={onSave} className="glass rounded-xl p-6 space-y-4">
           <h2 className="text-sm font-semibold text-foreground">
             {config ? "Zaktualizuj token" : "Skonfiguruj integrację"}
           </h2>

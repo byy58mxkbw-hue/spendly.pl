@@ -153,7 +153,7 @@ function KpiCard({
   iconBg?: string;
 }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 md:p-5 flex items-start gap-3 md:gap-4">
+    <div className="glass rounded-xl p-4 md:p-5 flex items-start gap-3 md:gap-4">
       <div
         className={cn(
           "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
@@ -215,7 +215,7 @@ function AiSummaryBlock({
     : "";
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 md:p-5 mb-5 md:mb-6">
+    <div className="glass rounded-xl p-4 md:p-5 mb-5 md:mb-6">
       <div className="flex items-start gap-3">
         <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-600 flex items-center justify-center shrink-0 mt-0.5">
           <Sparkles className="w-4 h-4" />
@@ -779,7 +779,7 @@ function SectionCard({
   className?: string;
 }) {
   return (
-    <div className={cn("bg-card border border-border rounded-xl overflow-hidden", className)}>
+    <div className={cn("glass rounded-xl overflow-hidden", className)}>
       <div className="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>
@@ -811,7 +811,7 @@ function SupplierCard({
   const visibleProducts = supplier.topProducts.slice(0, showAll ? 15 : 5);
 
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className="glass rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full text-left px-4 md:px-6 pt-4 pb-3 hover:bg-secondary/20 transition-colors"
@@ -1160,7 +1160,7 @@ function CategoryBarChart({ month }: { month: string }) {
 
   if (isLoading) return <Skeleton className="h-80 rounded-xl" />;
   if (!groups.length) return (
-    <div className="bg-card border border-border rounded-xl py-16 text-center">
+    <div className="glass rounded-xl py-16 text-center">
       <p className="text-sm text-muted-foreground">Brak danych kategorii za {monthLabel(month)}</p>
     </div>
   );
@@ -1174,7 +1174,7 @@ function CategoryBarChart({ month }: { month: string }) {
   const barHeight = Math.max(260, groups.length * 44);
 
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className="glass rounded-xl overflow-hidden">
       {/* Summary header */}
       <div className="px-5 py-4 border-b border-border flex flex-wrap items-center gap-x-8 gap-y-2">
         <div>
@@ -1441,7 +1441,7 @@ function SpendHero({ bridge, monthName }: { bridge: SpendBridge; monthName: stri
       ? ((bridge.currentSpend - bridge.avgMonthlySpend) / bridge.avgMonthlySpend) * 100
       : null;
   return (
-    <div className="bg-card border border-border rounded-xl p-5 md:p-6">
+    <div className="glass rounded-xl p-5 md:p-6">
       <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Wydatki · {monthName}</p>
       <p className="text-3xl md:text-4xl font-bold text-foreground tabular-nums mt-1">{formatPrice(bridge.currentSpend)}</p>
       <div className="flex flex-wrap gap-2 mt-3">
@@ -1853,7 +1853,7 @@ export default function Reports() {
 
             {/* Empty state */}
             {!isLoading && (!data || data.totalSpend === 0) && (
-              <div className="bg-card border border-border rounded-xl py-20 text-center px-4">
+              <div className="glass rounded-xl py-20 text-center px-4">
                 <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-medium mb-1">
                   Brak danych za {monthLabel(month)}
@@ -1870,7 +1870,7 @@ export default function Reports() {
             {isLoading ? (
               <Skeleton className="h-64 rounded-xl" />
             ) : allProducts.length > 0 ? (
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
+              <div className="glass rounded-xl overflow-hidden">
                 <div className="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-foreground">Produkty · {allProducts.length}</h3>
@@ -1883,7 +1883,7 @@ export default function Reports() {
                 <ProductsTable products={allProducts} />
               </div>
             ) : (
-              <div className="bg-card border border-border rounded-xl py-20 text-center px-4">
+              <div className="glass rounded-xl py-20 text-center px-4">
                 <Package className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-medium mb-1">Brak produktów za {monthLabel(month)}</p>
                 <p className="text-sm text-muted-foreground">Zaimportuj faktury, aby zobaczyć produkty.</p>
@@ -1909,7 +1909,7 @@ export default function Reports() {
                 ))}
               </div>
             ) : (
-              <div className="bg-card border border-border rounded-xl py-20 text-center px-4">
+              <div className="glass rounded-xl py-20 text-center px-4">
                 <Users className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-medium mb-1">Brak dostawców za {monthLabel(month)}</p>
               </div>

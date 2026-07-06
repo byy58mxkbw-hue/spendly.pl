@@ -454,7 +454,7 @@ export default function PriceAlerts() {
             )}
 
             {/* Configured alerts list */}
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="glass rounded-xl overflow-hidden">
               <div className="px-4 md:px-6 py-4 border-b border-border flex items-center justify-between">
                 <h2 className="font-semibold text-foreground">
                   Skonfigurowane alerty
@@ -600,7 +600,7 @@ export default function PriceAlerts() {
           </>
         ) : (
           /* History tab */
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="glass rounded-xl overflow-hidden">
             <div className="px-4 md:px-6 py-4 border-b border-border">
               <h2 className="font-semibold text-foreground">
                 Historia potwierdzonych przekroczeń

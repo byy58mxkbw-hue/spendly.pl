@@ -187,7 +187,7 @@ function formatCurrency(value: string | number): string {
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: number | string; icon: React.ElementType }) {
   return (
-    <div className="bg-card border border-border rounded-xl px-5 py-4 flex items-center gap-4">
+    <div className="glass rounded-xl px-5 py-4 flex items-center gap-4">
       <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
         <Icon className="w-5 h-5" />
       </div>
@@ -610,7 +610,7 @@ export default function AdminUsers() {
                   <StatCard label="Produkty" value={stats.totalProducts} icon={Package} />
                 </div>
 
-                <div className="bg-card border border-border rounded-xl p-5">
+                <div className="glass rounded-xl p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-4">
                     Nowe rejestracje — ostatnie 12 miesięcy
                   </h3>

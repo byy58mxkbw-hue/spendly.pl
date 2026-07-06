@@ -33,7 +33,7 @@ function StatCard({
       ? "bg-emerald-50 text-emerald-600"
       : "bg-primary/10 text-primary";
   return (
-    <div className="bg-card border border-border rounded-xl p-5 flex items-start gap-4">
+    <div className="glass rounded-xl p-5 flex items-start gap-4">
       <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", toneClasses)}>
         <Icon className="w-5 h-5" />
       </div>
@@ -76,13 +76,13 @@ type Row = {
 function ProductTable({ rows, direction }: { rows: Row[]; direction: "up" | "down" }) {
   if (rows.length === 0) {
     return (
-      <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">
+      <div className="glass rounded-xl p-8 text-center text-sm text-muted-foreground">
         Brak danych — za mało historii cen, aby przewidzieć zmiany w tym kierunku.
       </div>
     );
   }
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden">
+    <div className="glass rounded-xl overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

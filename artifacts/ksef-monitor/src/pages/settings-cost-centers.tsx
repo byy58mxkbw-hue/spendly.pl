@@ -141,7 +141,7 @@ function OnboardingWizard({ onCreated, onOpenAdd }: { onCreated: () => void; onO
 
   if (step === "done") {
     return (
-      <div className="bg-card border border-border rounded-xl p-12 text-center">
+      <div className="glass rounded-xl p-12 text-center">
         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
           <Layers className="w-6 h-6 text-primary" />
         </div>
@@ -159,7 +159,7 @@ function OnboardingWizard({ onCreated, onOpenAdd }: { onCreated: () => void; onO
   }
 
   return (
-    <div className="bg-card border border-border rounded-xl p-8 md:p-12">
+    <div className="glass rounded-xl p-8 md:p-12">
       <div className="max-w-lg mx-auto">
         <div className="text-center mb-8">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -348,7 +348,7 @@ export default function SettingsCostCenters() {
             {centers.map((c) => (
               <div
                 key={c.id}
-                className="flex items-center gap-4 px-5 py-4 rounded-xl bg-card border border-border group"
+                className="flex items-center gap-4 px-5 py-4 rounded-xl glass group"
               >
                 <div
                   className="w-4 h-4 rounded-full shrink-0"

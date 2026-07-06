@@ -97,7 +97,7 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
 
             {/* ── Stats + Contact row ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="glass rounded-xl p-6">
                 <h3 className="text-sm font-medium text-muted-foreground mb-4">Informacje kontaktowe</h3>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm">
@@ -119,7 +119,7 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
                 </div>
               </div>
 
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div className="glass rounded-xl p-6">
                 <h3 className="text-sm font-medium text-muted-foreground mb-4">Statystyki</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
@@ -139,7 +139,7 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
             </div>
 
             {/* ── Monthly spend chart ── */}
-            <div className="bg-card border border-border rounded-xl p-6 mb-6">
+            <div className="glass rounded-xl p-6 mb-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h2 className="text-sm font-semibold text-foreground">Wydatki miesięczne</h2>
@@ -182,7 +182,7 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
             </div>
 
             {/* ── Top 5 products ── */}
-            <div className="bg-card border border-border rounded-xl mb-6">
+            <div className="glass rounded-xl mb-6">
               <div className="px-6 py-4 border-b border-border">
                 <h2 className="font-semibold text-foreground">Top 5 produktów</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">Produkty najczęściej kupowane u tego dostawcy według wartości</p>
@@ -227,7 +227,7 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
             </div>
 
             {/* ── Invoices list ── */}
-            <div className="bg-card border border-border rounded-xl">
+            <div className="glass rounded-xl">
               <div className="px-6 py-4 border-b border-border">
                 <h2 className="font-semibold text-foreground">Historia faktur</h2>
               </div>

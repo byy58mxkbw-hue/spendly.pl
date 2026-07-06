@@ -164,7 +164,7 @@ function SupplierTile({
         : "faktur";
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+    <div className="glass rounded-xl shadow-sm overflow-hidden">
       {/* Header — clickable div for expand, with separate action buttons */}
       <div
         className="px-4 py-3.5 md:px-5 md:py-4 flex items-start gap-3 md:gap-4 hover:bg-muted/30 transition-colors cursor-pointer"
@@ -595,7 +595,7 @@ export default function PendingInvoices() {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-card border border-border rounded-xl p-5 space-y-3">
+              <div key={i} className="glass rounded-xl p-5 space-y-3">
                 <div className="flex items-center gap-3">
                   <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
                   <div className="flex-1 space-y-1.5">
@@ -608,7 +608,7 @@ export default function PendingInvoices() {
             ))}
           </div>
         ) : (pending?.length ?? 0) === 0 ? (
-          <div className="bg-card border border-border rounded-xl py-16 text-center">
+          <div className="glass rounded-xl py-16 text-center">
             <Inbox className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-foreground font-medium mb-1">
               {status === "pending"
@@ -672,7 +672,7 @@ export default function PendingInvoices() {
             </div>
 
             {groups.length === 0 ? (
-              <div className="bg-card border border-border rounded-xl py-12 text-center">
+              <div className="glass rounded-xl py-12 text-center">
                 <Inbox className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-medium mb-1">Brak faktur w tym miesiącu</p>
                 <p className="text-sm text-muted-foreground">

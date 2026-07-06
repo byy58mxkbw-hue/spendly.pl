@@ -573,7 +573,7 @@ function DishCard({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left rounded-2xl p-4 transition-colors bg-card border border-border hover:border-primary/30 hover:bg-primary/5 group"
+      className="w-full text-left rounded-2xl p-4 transition-colors glass hover:border-primary/30 hover:bg-primary/5 group"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -684,7 +684,7 @@ export default function FoodCostPage() {
               { label: lowMarginCount > 0 ? String(lowMarginCount) : "0", sub: "do uwagi", warn: lowMarginCount > 0 },
               { label: avgFoodCost != null ? `${avgFoodCost.toFixed(1)}%` : "—", sub: "śr. food cost", color: avgFoodCost != null ? foodCostColor(avgFoodCost) : undefined },
             ].map(({ label, sub, warn, color }) => (
-              <div key={sub} className="rounded-xl px-4 py-3 flex items-center justify-between bg-card border border-border">
+              <div key={sub} className="rounded-xl px-4 py-3 flex items-center justify-between glass">
                 <span className="text-xs text-muted-foreground">{sub}</span>
                 <span className={cn("text-sm font-bold", !color && !warn && "text-foreground")} style={color || warn ? { color: color ?? "#d97706" } : undefined}>{label}</span>
               </div>
