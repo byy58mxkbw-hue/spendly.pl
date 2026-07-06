@@ -97,6 +97,13 @@ function normalizeDate(raw: string | null): string | null {
  * flat layouts.
  */
 export function parseFA3Xml(xml: string, ksefNumber: string | null = null): ParsedFa3 {
+  // Bezpieczeństwo (XXE / entity-bomb): odrzucamy XML z deklaracją DTD/encji zanim
+  // zaczniemy parsować. Parser jest regexowy (nie rozwija encji), ale to
+  // defense-in-depth — na wypadek podmiany na parser DOM i blokada payloadów
+  // typu billion-laughs u źródła. Legalne faktury KSeF FA nie mają DOCTYPE/ENTITY.
+  if (/<!DOCTYPE|<!ENTITY/i.test(xml)) {
+    throw new KsefParseError("XML zawiera deklarację DOCTYPE/ENTITY — odrzucono ze względów bezpieczeństwa.");
+  }
   try {
     const stripped = stripNamespaces(xml);
 

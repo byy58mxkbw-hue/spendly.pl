@@ -831,6 +831,14 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
 
   const { supplierId, xmlContent, invoiceNumber, invoiceDate, force, items: manualItems, paymentMethod, paymentDueDate, correctedInvoiceNumber: manualCorrectedNumber } = parsed.data;
 
+  // Bezpieczeństwo (XXE / entity-bomb): przesłany XML nie może zawierać deklaracji
+  // DTD/encji. Parser jest regexowy (nie rozwija encji), ale to defense-in-depth —
+  // legalne faktury KSeF FA nigdy nie mają DOCTYPE/ENTITY.
+  if (xmlContent && /<!DOCTYPE|<!ENTITY/i.test(xmlContent)) {
+    res.status(400).json({ error: "XML zawiera niedozwoloną deklarację DOCTYPE/ENTITY." });
+    return;
+  }
+
   const [supplier] = await db
     .select()
     .from(suppliersTable)
