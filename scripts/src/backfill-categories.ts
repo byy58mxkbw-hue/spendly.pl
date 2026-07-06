@@ -74,6 +74,11 @@ ${CATEGORIES}${categoryHint}
 Produkt: ${name}
 Znormalizowana nazwa: ${canonicalName}`;
 
+  // Bez klucza API klient jest null — zwracamy bezpieczny fallback (jak categorize-ai.ts).
+  if (!openai) {
+    return { category: existingCategory ?? "inne", subcategory: null, confidence: 0 };
+  }
+
   try {
     const resp = await openai.chat.completions.create({
       model: "gpt-4o-mini",

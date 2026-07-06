@@ -93,13 +93,8 @@ router.post("/cost-centers", async (req, res): Promise<void> => {
     .insert(costCentersTable)
     .values({ userId, name: parsed.data.name, color: parsed.data.color ?? "#14B8A6", aliases: parsed.data.aliases ?? [] })
     .returning();
-
-  // Nowe centrum z aliasami może pasować do już zaimportowanych faktur — od razu
-  // przeliczamy sugestie, żeby chip „Sugerowane" pojawił się bez czekania na kolejny sync.
-  if ((row.aliases?.length ?? 0) > 0) {
-    try { await resuggestForUser(userId, req.log); }
-    catch (err) { req.log.warn({ err: String(err) }, "resuggestForUser po utworzeniu centrum nieudany"); }
-  }
+  // Przeliczenie sugestii po dodaniu aliasów robi frontend (useResuggestCostCenters),
+  // razem z toastem i unieważnieniem listy faktur — nie dublujemy tego tutaj.
   res.status(201).json(row);
 });
 
@@ -126,13 +121,8 @@ router.patch("/cost-centers/:id", async (req, res): Promise<void> => {
     .returning();
 
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
-
-  // Zmiana aliasów wpływa na dopasowania — przeliczamy sugestie dla nieprzypisanych
-  // faktur, żeby użytkownik od razu zobaczył (i zaakceptował) sugestie oparte na nowych aliasach.
-  if (parsed.data.aliases !== undefined) {
-    try { await resuggestForUser(userId, req.log); }
-    catch (err) { req.log.warn({ err: String(err) }, "resuggestForUser po edycji aliasów nieudany"); }
-  }
+  // Przeliczenie sugestii po zmianie aliasów robi frontend (useResuggestCostCenters) —
+  // nie dublujemy tego tutaj (unikamy podwójnego skanu nieprzypisanych faktur).
   res.json(row);
 });
 
