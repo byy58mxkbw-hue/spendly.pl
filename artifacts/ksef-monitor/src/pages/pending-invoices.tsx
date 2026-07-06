@@ -64,6 +64,8 @@ import {
   Receipt,
   Trash2,
   ArrowUpDown,
+  CalendarDays,
+  List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -319,6 +321,123 @@ function SupplierTile({
   );
 }
 
+// ─── Kalendarz „Do przeglądu" (heatmapa) ──────────────────────────────────────
+// Zasilany danymi już w pamięci (pending z bieżącego miesiąca) — bez nowego
+// zapytania do API. Wizualnie spójny z kalendarzem na stronie Faktur.
+
+const HEAT_CLASSES = [
+  "bg-foreground/[0.04]",
+  "bg-teal-900/70",
+  "bg-teal-700/80",
+  "bg-teal-500/90",
+  "bg-teal-400",
+];
+const DOW_LABELS = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
+
+function formatAmountShort(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(".", ",")}k`;
+  return `${Math.round(n)}`;
+}
+
+function PendingCalendarView({
+  month,
+  rows,
+  selectedDay,
+  onDayClick,
+}: {
+  month: string;
+  rows: Array<{ invoiceDate?: string | null; totalGross?: number | null }>;
+  selectedDay: string | null;
+  onDayClick: (date: string) => void;
+}) {
+  const dayMap = useMemo(() => {
+    const m = new Map<string, { count: number; total: number }>();
+    for (const r of rows) {
+      if (!r.invoiceDate) continue;
+      const e = m.get(r.invoiceDate) ?? { count: 0, total: 0 };
+      e.count += 1;
+      e.total += r.totalGross ?? 0;
+      m.set(r.invoiceDate, e);
+    }
+    return m;
+  }, [rows]);
+
+  const maxAmount = useMemo(() => {
+    let max = 1;
+    for (const v of dayMap.values()) if (v.total > max) max = v.total;
+    return max;
+  }, [dayMap]);
+
+  if (!month) return null;
+  const [year, mo] = month.split("-").map(Number);
+  const firstDay = new Date(year, mo - 1, 1);
+  const daysInMonth = new Date(year, mo, 0).getDate();
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6;
+
+  const cells: Array<{ date: string | null; dayNum: number | null }> = [
+    ...Array(startDow).fill({ date: null, dayNum: null }),
+    ...Array.from({ length: daysInMonth }, (_, i) => {
+      const d = i + 1;
+      return { date: `${month}-${String(d).padStart(2, "0")}`, dayNum: d };
+    }),
+  ];
+
+  return (
+    <div className="glass rounded-xl p-4 md:p-5">
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {DOW_LABELS.map((d) => (
+          <div key={d} className="text-center text-xs text-foreground/40 font-medium py-1">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((cell, i) => {
+          if (!cell.date) return <div key={`pad-${i}`} className="h-14 sm:h-16" />;
+          const info = dayMap.get(cell.date);
+          const amount = info?.total ?? 0;
+          const level = amount === 0 ? 0 : Math.min(4, Math.ceil((amount / maxAmount) * 4));
+          const isSelected = selectedDay === cell.date;
+
+          return (
+            <button
+              key={cell.date}
+              onClick={() => (info ? onDayClick(cell.date!) : undefined)}
+              className={cn(
+                "h-14 sm:h-16 rounded-lg flex flex-col items-center justify-center gap-0 transition-all duration-150 px-0.5",
+                HEAT_CLASSES[level],
+                info ? "hover:scale-105 hover:shadow-md cursor-pointer" : "cursor-default",
+                isSelected && "ring-2 ring-primary ring-offset-1 ring-offset-background",
+              )}
+            >
+              <span className={cn("text-xs font-semibold leading-tight", level >= 3 ? "text-white" : "text-foreground/50")}>
+                {cell.dayNum}
+              </span>
+              {info && info.count > 0 && (
+                <>
+                  <span className={cn("text-[9px] font-bold leading-tight", level >= 3 ? "text-foreground/80" : "text-teal-600")}>
+                    {info.count} fakt.
+                  </span>
+                  <span className={cn("text-[9px] leading-tight tabular-nums", level >= 2 ? "text-foreground/70" : "text-foreground/40")}>
+                    {formatAmountShort(info.total)}
+                  </span>
+                </>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-1.5 mt-5 justify-end">
+        <span className="text-xs text-foreground/30">Mniej</span>
+        {HEAT_CLASSES.map((cls, i) => (
+          <div key={i} className={cn("w-4 h-4 rounded", cls, i === 0 && "border border-border")} />
+        ))}
+        <span className="text-xs text-foreground/30">Więcej</span>
+      </div>
+    </div>
+  );
+}
+
 export default function PendingInvoices() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -334,6 +453,8 @@ export default function PendingInvoices() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; label: string } | null>(null);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [view, setView] = useState<"list" | "kalendarz">("list");
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const deleteAll = useDeleteAllKsefPending();
   const deleteSingle = useDeleteKsefPending();
@@ -371,17 +492,25 @@ export default function PendingInvoices() {
 
   useEffect(() => {
     setExpandedKey(null);
-  }, [selectedMonth]);
+    setSelectedDay(null);
+  }, [selectedMonth, status]);
 
+  // Miesiąc — dane pod kalendarz i licznik miesięczny.
   const filteredPending = useMemo(() => {
     if (!pending || !selectedMonth) return pending ?? [];
     return pending.filter((row) => row.invoiceDate?.startsWith(selectedMonth));
   }, [pending, selectedMonth]);
 
+  // Lista — zawężona do wybranego dnia (klik w kalendarzu), jeśli ustawiony.
+  const listPending = useMemo(() => {
+    if (!selectedDay) return filteredPending;
+    return filteredPending.filter((row) => row.invoiceDate === selectedDay);
+  }, [filteredPending, selectedDay]);
+
   const groups = useMemo((): SupplierGroupData[] => {
-    if (!filteredPending) return [];
+    if (!listPending) return [];
     const map = new Map<string, SupplierGroupData>();
-    for (const row of filteredPending) {
+    for (const row of listPending) {
       const nip = row.sellerNip?.replace(/[\s\-]/g, "") ?? null;
       const key = nip ?? row.sellerName ?? "unknown";
       if (!map.has(key)) {
@@ -413,7 +542,7 @@ export default function PendingInvoices() {
       b.latestCreatedAt.localeCompare(a.latestCreatedAt) ||
       a.sellerName.localeCompare(b.sellerName, "pl"),
     );
-  }, [filteredPending, knownNips]);
+  }, [listPending, knownNips]);
 
   const totalAmount = useMemo(
     () => groups.reduce((sum, g) => sum + g.totalGross, 0),
@@ -633,7 +762,7 @@ export default function PendingInvoices() {
                 <span className="text-muted-foreground/50">·</span>
                 <strong className="text-foreground">{groups.length}</strong> dost.
                 <span className="text-muted-foreground/50">·</span>
-                <strong className="text-foreground">{filteredPending.length}</strong> fakt.
+                <strong className="text-foreground">{listPending.length}</strong> fakt.
               </div>
               <div className="hidden md:flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3.5 py-2">
@@ -650,37 +779,87 @@ export default function PendingInvoices() {
                 </div>
                 <div className="bg-card border border-border rounded-lg px-3.5 py-2">
                   <span className="text-sm text-muted-foreground">
-                    <strong className="text-foreground">{filteredPending.length}</strong>{" "}
-                    {filteredPending.length === 1
+                    <strong className="text-foreground">{listPending.length}</strong>{" "}
+                    {listPending.length === 1
                       ? "faktura"
-                      : filteredPending.length < 5
+                      : listPending.length < 5
                         ? "faktury"
                         : "faktur"}
                   </span>
                 </div>
               </div>
 
-              {allMonths.length > 0 && (
-                <div className="flex justify-center md:block">
+              <div className="flex items-center justify-center md:justify-end gap-2">
+                <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
+                  {([
+                    ["list", "Lista", List],
+                    ["kalendarz", "Kalendarz", CalendarDays],
+                  ] as const).map(([value, label, Icon]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setView(value)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-md text-xs md:text-sm whitespace-nowrap transition-colors",
+                        view === value
+                          ? "bg-card shadow-sm text-foreground font-medium"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                      data-testid={`tab-pending-view-${value}`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {allMonths.length > 0 && (
                   <MonthNav
                     months={allMonths}
                     selected={selectedMonth}
                     onChange={(m) => setSelectedMonth(m)}
                   />
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            {groups.length === 0 ? (
-              <div className="glass rounded-xl py-12 text-center">
-                <Inbox className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                <p className="text-foreground font-medium mb-1">Brak faktur w tym miesiącu</p>
-                <p className="text-sm text-muted-foreground">
-                  Użyj nawigacji aby wybrać inny miesiąc.
-                </p>
-              </div>
+            {view === "kalendarz" ? (
+              <PendingCalendarView
+                month={selectedMonth}
+                rows={filteredPending}
+                selectedDay={selectedDay}
+                onDayClick={(d) => {
+                  setSelectedDay(d);
+                  setView("list");
+                }}
+              />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <>
+                {selectedDay && (
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Wybrany dzień:</span>
+                    <button
+                      onClick={() => setSelectedDay(null)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
+                    >
+                      {formatDate(selectedDay)}
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+                {groups.length === 0 ? (
+                  <div className="glass rounded-xl py-12 text-center">
+                    <Inbox className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-foreground font-medium mb-1">
+                      {selectedDay ? "Brak faktur w wybranym dniu" : "Brak faktur w tym miesiącu"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedDay
+                        ? "Wyczyść wybór dnia lub wybierz inny w kalendarzu."
+                        : "Użyj nawigacji aby wybrać inny miesiąc."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {groups.map((group) => (
                   <SupplierTile
                     key={group.key}
@@ -704,7 +883,9 @@ export default function PendingInvoices() {
                     importing={importingKey === group.key}
                   />
                 ))}
-              </div>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
