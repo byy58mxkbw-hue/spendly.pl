@@ -129,10 +129,19 @@ function computeDishCost(
   return { portionCost, marginPct: null, confidencePct, ingredientCosts };
 }
 
-// ─── List dishes ──────────────────────────────────────────────────────────────
-router.get("/food-cost/dishes", async (req, res): Promise<void> => {
-  const userId = req.userId!;
+// ─── Marże wszystkich dań (reużywane przez trasę listy ORAZ AI CFO) ────────────
+export interface DishMargin {
+  id: number;
+  name: string;
+  sellPrice: number;
+  category: string | null;
+  portionCost: number | null;
+  marginPct: number | null;
+  confidencePct: number;
+  ingredientCount: number;
+}
 
+export async function computeAllDishMargins(userId: string): Promise<DishMargin[]> {
   const dishes = await db
     .select()
     .from(dishesTable)
@@ -153,7 +162,7 @@ router.get("/food-cost/dishes", async (req, res): Promise<void> => {
   const allProductIds = [...new Set(ingredients.map((i) => i.productId))];
   const prices = await getLatestPrices(userId, allProductIds);
 
-  const result = dishes.map((dish) => {
+  return dishes.map((dish) => {
     const ings = ingredients.filter((i) => i.dishId === dish.id).map((i) => ({
       productId: i.productId,
       quantity: parseFloat(i.quantity as string),
@@ -173,8 +182,11 @@ router.get("/food-cost/dishes", async (req, res): Promise<void> => {
       ingredientCount: ings.length,
     };
   });
+}
 
-  res.json(result);
+// ─── List dishes ──────────────────────────────────────────────────────────────
+router.get("/food-cost/dishes", async (req, res): Promise<void> => {
+  res.json(await computeAllDishMargins(req.userId!));
 });
 
 // ─── Get dish detail ──────────────────────────────────────────────────────────

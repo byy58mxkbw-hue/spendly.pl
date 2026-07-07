@@ -5,6 +5,7 @@ import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
 import { PostAiCfoChatBody } from "@workspace/api-zod";
 import { AI_MONTHLY_LIMIT, normalizePlan, currentPeriod } from "../lib/ai-plan.js";
 import { computeTriggeredAlerts } from "../services/alert-checker.js";
+import { computeAllDishMargins } from "./food-cost.js";
 
 const router: IRouter = Router();
 
@@ -460,6 +461,33 @@ async function fetchTriggeredAlerts(userId: string, question: string): Promise<s
   return `\nDANE: AKTYWNE ALERTY CENOWE (przekroczony próg):\n${lines.join("\n")}`;
 }
 
+// „Food cost / marża dań — które dania mają najgorszą marżę" — reużywa computeAllDishMargins
+// (ta sama kalkulacja co strona Food cost). Dane dań nie są w kontekście czatu → bez tego
+// bloku model by zmyślał. Sortuje od najniższej marży.
+async function fetchDishMargins(userId: string, question: string): Promise<string | null> {
+  const lowerQ = question.toLowerCase();
+  const hasIntent = [
+    "food cost", "foodcost", "food-cost", "marża", "marże", "marży", "marżą", "rentown",
+    "opłacaln", "które dania", "najgorsza marża", "najlepsza marża", "koszt dania", "koszt potrawy",
+  ].some((k) => lowerQ.includes(k));
+  if (!hasIntent) return null;
+
+  const dishes = await computeAllDishMargins(userId);
+  if (dishes.length === 0) {
+    return "\nDANE: MARŻE DAŃ: brak zdefiniowanych dań (moduł Food cost jest pusty).";
+  }
+  const withMargin = dishes
+    .filter((d) => d.marginPct != null)
+    .sort((a, b) => (a.marginPct ?? 0) - (b.marginPct ?? 0));
+  if (withMargin.length === 0) {
+    return "\nDANE: MARŻE DAŃ: dania istnieją, ale brak cen składników do wyliczenia marży.";
+  }
+  const lines = withMargin.slice(0, 12).map(
+    (d) => `  - ${d.name}: cena ${d.sellPrice.toFixed(2)} zł, koszt porcji ${d.portionCost != null ? d.portionCost.toFixed(2) : "?"} zł, marża ${d.marginPct}% (pewność ${d.confidencePct}%)`,
+  );
+  return `\nDANE: MARŻE DAŃ (od najniższej marży):\n${lines.join("\n")}`;
+}
+
 // ─── Route: POST /ai-cfo/chat ─────────────────────────────────────────────────
 
 async function buildChatContext(userId: string, sinceStr: string): Promise<string> {
@@ -632,17 +660,18 @@ router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
   }
 
   const sinceStr = since90Days();
-  const [context, cheapestBlock, productHistBlock, priceIncreasesBlock, alertsBlock, invoiceCompareRaw] = await Promise.all([
+  const [context, cheapestBlock, productHistBlock, priceIncreasesBlock, alertsBlock, dishMarginsBlock, invoiceCompareRaw] = await Promise.all([
     buildChatContext(userId, sinceStr),
     fetchCheapestSupplier(userId, question.trim()),
     fetchProductPriceHistory(userId, question.trim()),
     fetchPriceIncreases(userId, question.trim()),
     fetchTriggeredAlerts(userId, question.trim()),
+    fetchDishMargins(userId, question.trim()),
     fetchInvoiceCompareData(userId, question.trim()),
   ]);
-  // Precedencja bloków: najtańszy dostawca > historia ceny > podwyżki > alerty > porównanie faktur.
+  // Precedencja bloków: najtańszy dostawca > historia ceny > podwyżki > alerty > marże dań > porównanie faktur.
   // Wstrzykujemy DOKŁADNIE JEDEN blok, żeby model nie mieszał narzędzi ani nie zmyślał A/B.
-  const dataBlock = cheapestBlock ?? productHistBlock ?? priceIncreasesBlock ?? alertsBlock ?? invoiceCompareRaw ?? "";
+  const dataBlock = cheapestBlock ?? productHistBlock ?? priceIncreasesBlock ?? alertsBlock ?? dishMarginsBlock ?? invoiceCompareRaw ?? "";
 
   const systemPrompt = `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur i dostarczasz precyzyjne rekomendacje finansowe.
 
@@ -684,6 +713,16 @@ ZASADY TABEL — dla porównania dostawców zawsze pokazuj obie kolumny:
 - Porównanie kwotowe: kolumny "Dostawca", "Wydatki (PLN)", "Udział %", "Faktury"
 - Porównanie ilościowe: kolumny "Dostawca", "Wolumen (j.)", "Produkty", "Śr. cena jedn."
 - Kategorie: kolumny "Kategoria", "Wydatki (PLN)", "Wolumen (j.)", "Produkty"
+
+INSTRUKCJA DLA MARŻ DAŃ / FOOD COST (type: "cost_analysis"):
+Gdy kontekst zawiera blok "DANE: MARŻE DAŃ":
+- Użyj type: "cost_analysis"
+- table.headers: ["Danie", "Cena", "Koszt porcji", "Marża %", "Pewność"]
+- table.rows: KAŻDE danie z bloku (od najniższej marży). Wyłącznie liczby z bloku.
+- summary: wskaż 2-3 dania z najniższą marżą (z %) i ryzyko rentowności, po polsku.
+- recommendation: np. podnieść cenę lub obniżyć koszt składników w najmniej rentownych daniach.
+- actions: [{"label":"Zobacz Food cost","href":"/food-cost"}]
+Gdy blok mówi „brak…" — type: "general" i przekaż tę informację, bez tabeli.
 
 INSTRUKCJA DLA ALERTÓW CENOWYCH (type: "product_analysis"):
 Gdy kontekst zawiera blok "DANE: AKTYWNE ALERTY CENOWE":
