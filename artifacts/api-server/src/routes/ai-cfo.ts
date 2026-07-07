@@ -267,6 +267,84 @@ async function fetchInvoiceCompareData(userId: string, question: string): Promis
   return `\nDANE FAKTUR DO PORÓWNANIA:\n${fmtInv(invA, "A")}\n\n${fmtInv(invB, "B")}`;
 }
 
+// Wspólny resolver: znajdź produkt użytkownika po nazwie z pytania. Tolerancja polskiej
+// odmiany — dopasowanie 5-znakowego prefiksu tokenu na POCZĄTKU słowa w nazwie
+// („cytryny"→„cytry"→„CYTRYNA…"; „chodz" NIE trafia w „poCHODZenia"). Zwraca null gdy brak.
+async function resolveProductFromQuestion(
+  userId: string,
+  question: string,
+): Promise<{ id: number; name: string } | null> {
+  const lowerQ = question.toLowerCase();
+  const STOP = new Set([
+    "ostatnich", "ostatnie", "ostatniej", "faktur", "faktury", "fakturach", "fakturze",
+    "porównanie", "porównaj", "porówna", "jednostkowa", "jednostkowej", "jednostkowe",
+    "dostawcy", "dostawca", "dostawców", "produkt", "produktu", "produkty", "miesiąc",
+    "miesiąca", "miesięcy", "wszystkie", "pokaż", "podaj", "zestawienie", "najtaniej",
+    "najtańszy", "najtańszego", "najlepsza", "najlepszej", "kupić", "kupię", "gdzie",
+    // Wypełniacze/fraza „chodzi mi o…" — inaczej „chodz" trafia w „poCHODZenia" z nazw.
+    "chodzi", "właśnie", "znaczy", "między", "kwota", "kwoty",
+  ]);
+  const tokens = Array.from(new Set(
+    lowerQ.split(/\s+/)
+      .map((t) => t.replace(/[^a-ząćęłńóśźż0-9]/gi, ""))
+      .filter((t) => t.length >= 5 && !STOP.has(t)),
+  ));
+  if (tokens.length === 0) return null;
+
+  for (const t of tokens) {
+    const pref = t.slice(0, 5); // po sanityzacji tylko [a-ząćęłńóśźż0-9] — bez metaznaków regex
+    const res = await db.execute(sql`
+      SELECT p.id, p.name, COUNT(ii.id)::int AS uses
+      FROM products p
+      LEFT JOIN invoice_items ii ON ii.product_id = p.id
+      WHERE p.user_id = ${userId} AND lower(p.name) ~ ${"(^|[^a-ząćęłńóśźż])" + pref}
+      GROUP BY p.id, p.name
+      ORDER BY uses DESC, length(p.name) ASC
+      LIMIT 1
+    `);
+    const row = res.rows[0] as { id: number; name: string } | undefined;
+    if (row) return { id: row.id, name: row.name };
+  }
+  return null;
+}
+
+// „Gdzie kupię X najtaniej / u kogo taniej / oszczędności na X" — porównanie dostawców
+// dla KONKRETNEGO produktu (śr./min cena jedn. per dostawca). Sedno wartości Spendly.
+async function fetchCheapestSupplier(userId: string, question: string): Promise<string | null> {
+  const lowerQ = question.toLowerCase();
+  const hasIntent = [
+    "najtaniej", "najtańsz", "gdzie kupić", "gdzie kupię", "u kogo", "gdzie najtaniej",
+    "taniej kupić", "oszczęd", "najlepsza cena", "najlepszej cenie", "który dostawca tańsz",
+  ].some((k) => lowerQ.includes(k));
+  if (!hasIntent) return null;
+
+  const product = await resolveProductFromQuestion(userId, question);
+  if (!product) return null;
+
+  const res = await db.execute(sql`
+    SELECT s.name AS supplier,
+      ROUND(AVG(ii.unit_price::numeric), 2)::text AS avg_price,
+      ROUND(MIN(ii.unit_price::numeric), 2)::text AS min_price,
+      COUNT(DISTINCT inv.id)::int AS purchases,
+      MAX(inv.invoice_date) AS last_date
+    FROM invoice_items ii
+    JOIN invoices inv ON ii.invoice_id = inv.id
+    JOIN suppliers s ON inv.supplier_id = s.id
+    WHERE ii.product_id = ${product.id} AND inv.user_id = ${userId} AND inv.excluded = false
+      AND inv.parent_invoice_id IS NULL AND (inv.invoice_type IS DISTINCT FROM 'KOR')
+      AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+    GROUP BY inv.supplier_id, s.name
+    ORDER BY avg_price ASC
+  `);
+  const rows = res.rows as Array<{ supplier: string; avg_price: string; min_price: string; purchases: number; last_date: string }>;
+  if (rows.length === 0) return null;
+
+  const lines = rows.map(
+    (r) => `  - ${r.supplier}: śr. ${parseFloat(r.avg_price).toFixed(2)} zł/jedn., min ${parseFloat(r.min_price).toFixed(2)} zł (${r.purchases} zak., ostatni ${r.last_date})`,
+  );
+  return `\nDANE: DOSTAWCY PRODUKTU WG CENY: ${product.name} [ID:${product.id}] (od najtańszego wg średniej ceny jedn.):\n${lines.join("\n")}`;
+}
+
 // Historia ceny jednostkowej KONKRETNEGO produktu w czasie (faktura po fakturze).
 // Odpowiada na „cena/porównaj cenę/trend cytryny z ostatnich N faktur" — czego stary
 // kod nie umiał (miał tylko porównanie DWÓCH całych faktur, stąd zmyślony widżet A/B).
@@ -280,41 +358,7 @@ async function fetchProductPriceHistory(userId: string, question: string): Promi
   ].some((k) => lowerQ.includes(k));
   if (!hasPriceIntent) return null;
 
-  // Tokeny-kandydaci (≥5 znaków, bez interpunkcji, bez słów-śmieci).
-  const STOP = new Set([
-    "ostatnich", "ostatnie", "ostatniej", "faktur", "faktury", "fakturach", "fakturze",
-    "porównanie", "porównaj", "porówna", "jednostkowa", "jednostkowej", "jednostkowe",
-    "dostawcy", "dostawca", "dostawców", "produkt", "produktu", "produkty", "miesiąc",
-    "miesiąca", "miesięcy", "wszystkie", "pokaż", "podaj", "zestawienie",
-    // Wypełniacze/fraza „chodzi mi o…" — inaczej „chodz" trafia w „poCHODZenia" z nazw.
-    "chodzi", "właśnie", "znaczy", "między", "kwota", "kwoty",
-  ]);
-  const tokens = Array.from(new Set(
-    lowerQ.split(/\s+/)
-      .map((t) => t.replace(/[^a-ząćęłńóśźż0-9]/gi, ""))
-      .filter((t) => t.length >= 5 && !STOP.has(t)),
-  ));
-  if (tokens.length === 0) return null;
-
-  // Dopasowanie produktu tolerancyjne na polską odmianę: prefiks 5 znaków w nazwie
-  // (np. „cytryny" → „cytry" → „CYTRYNA…"). Najczęściej kupowany / najkrótsza nazwa wygrywa.
-  let product: { id: number; name: string } | null = null;
-  for (const t of tokens) {
-    const pref = t.slice(0, 5); // po sanityzacji tylko [a-ząćęłńóśźż0-9] — bez metaznaków regex
-    // Dopasowanie prefiksu na POCZĄTKU słowa w nazwie (nie w środku), żeby „chodz"
-    // nie trafiał w „poCHODZenia", a „cytry" trafiał w „CYTRYNA…". Case-insensitive.
-    const res = await db.execute(sql`
-      SELECT p.id, p.name, COUNT(ii.id)::int AS uses
-      FROM products p
-      LEFT JOIN invoice_items ii ON ii.product_id = p.id
-      WHERE p.user_id = ${userId} AND lower(p.name) ~ ${"(^|[^a-ząćęłńóśźż])" + pref}
-      GROUP BY p.id, p.name
-      ORDER BY uses DESC, length(p.name) ASC
-      LIMIT 1
-    `);
-    const row = res.rows[0] as { id: number; name: string } | undefined;
-    if (row) { product = { id: row.id, name: row.name }; break; }
-  }
+  const product = await resolveProductFromQuestion(userId, question);
   if (!product) return null;
 
   // „ostatnich 5" / „5 faktur" → N; domyślnie 12, twardy zakres 2..24.
@@ -520,14 +564,15 @@ router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
   }
 
   const sinceStr = since90Days();
-  const [context, productHistBlock, invoiceCompareRaw] = await Promise.all([
+  const [context, cheapestBlock, productHistBlock, invoiceCompareRaw] = await Promise.all([
     buildChatContext(userId, sinceStr),
+    fetchCheapestSupplier(userId, question.trim()),
     fetchProductPriceHistory(userId, question.trim()),
     fetchInvoiceCompareData(userId, question.trim()),
   ]);
-  // Pytanie o cenę produktu ma priorytet — nie wstrzykujemy wtedy bloku porównania faktur,
-  // żeby model nie skręcił w invoice_comparison (przyczyna zmyślonego widżetu A/B).
-  const dataBlock = productHistBlock ?? invoiceCompareRaw ?? "";
+  // Precedencja bloków: „najtańszy dostawca" > historia ceny > porównanie faktur.
+  // Wstrzykujemy DOKŁADNIE JEDEN blok, żeby model nie mieszał narzędzi ani nie zmyślał A/B.
+  const dataBlock = cheapestBlock ?? productHistBlock ?? invoiceCompareRaw ?? "";
 
   const systemPrompt = `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur i dostarczasz precyzyjne rekomendacje finansowe.
 
@@ -569,6 +614,17 @@ ZASADY TABEL — dla porównania dostawców zawsze pokazuj obie kolumny:
 - Porównanie kwotowe: kolumny "Dostawca", "Wydatki (PLN)", "Udział %", "Faktury"
 - Porównanie ilościowe: kolumny "Dostawca", "Wolumen (j.)", "Produkty", "Śr. cena jedn."
 - Kategorie: kolumny "Kategoria", "Wydatki (PLN)", "Wolumen (j.)", "Produkty"
+
+INSTRUKCJA DLA DOSTAWCÓW PRODUKTU WG CENY (type: "supplier_comparison"):
+Gdy kontekst zawiera blok "DANE: DOSTAWCY PRODUKTU WG CENY":
+- Użyj type: "supplier_comparison"
+- table.headers: ["Dostawca", "Śr. cena jedn.", "Min", "Zakupy", "Ostatni zakup"]
+- table.rows: KAŻDY dostawca z bloku (od najtańszego). Wyłącznie liczby z bloku.
+- kpiCards: ["Najtańszy", "Najdroższy", "Różnica", "Potencjał oszczędności"] — różnicę i potencjał
+  licz z danych bloku (najdroższa śr. − najtańsza śr.), bez wymyślania.
+- summary: wskaż najtańszego dostawcę i o ile taniej od najdroższego (PLN i %), po polsku.
+- recommendation: konkretna sugestia (np. „kupuj u {najtańszy} — oszczędność ~X zł/jedn.").
+- actions: [{"label":"Zobacz produkt","href":"/products?id={ID z nagłówka bloku}"}]
 
 INSTRUKCJA DLA HISTORII CENY PRODUKTU (type: "product_analysis"):
 Gdy kontekst zawiera blok "DANE HISTORII CENY PRODUKTU":
