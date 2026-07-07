@@ -5,5 +5,7 @@
     "rootDir": "src",
     "types": ["node"]
   },
-  "include": ["src"]
+  "include": ["src"],
+  "// eval": "eval importuje czysty moduł z api-server (poza rootDir) — uruchamiany przez tsx, poza tsc",
+  "exclude": ["src/ai-cfo-intent.eval.ts"]
 }

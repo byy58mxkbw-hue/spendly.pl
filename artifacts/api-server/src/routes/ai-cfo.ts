@@ -6,6 +6,10 @@ import { PostAiCfoChatBody } from "@workspace/api-zod";
 import { AI_MONTHLY_LIMIT, normalizePlan, currentPeriod } from "../lib/ai-plan.js";
 import { computeTriggeredAlerts } from "../services/alert-checker.js";
 import { computeAllDishMargins } from "./food-cost.js";
+import {
+  isCheapestSupplierQuery, isProductPriceHistoryQuery, isPriceIncreasesQuery,
+  isPriceAlertsQuery, isDishMarginsQuery, isInvoiceCompareQuery,
+} from "../lib/ai-cfo-intent.js";
 
 const router: IRouter = Router();
 
@@ -132,11 +136,8 @@ async function enrichActions(
 // ─── Invoice compare: detect intent + fetch items ────────────────────────────
 
 async function fetchInvoiceCompareData(userId: string, question: string): Promise<string | null> {
-  const lowerQ = question.toLowerCase();
-
-  // Detect comparison intent
-  const hasIntent = ["porównaj", "porówna", "zestawien", "zestawie", "porównan"].some(k => lowerQ.includes(k));
-  if (!hasIntent) return null;
+  // Intencja porównania faktur — słowa-klucze w ai-cfo-intent.ts.
+  if (!isInvoiceCompareQuery(question)) return null;
 
   const tokens = question.split(/\s+/);
   let invoiceIds: number[] = [];
@@ -313,12 +314,7 @@ async function resolveProductFromQuestion(
 // „Gdzie kupię X najtaniej / u kogo taniej / oszczędności na X" — porównanie dostawców
 // dla KONKRETNEGO produktu (śr./min cena jedn. per dostawca). Sedno wartości Spendly.
 async function fetchCheapestSupplier(userId: string, question: string): Promise<string | null> {
-  const lowerQ = question.toLowerCase();
-  const hasIntent = [
-    "najtaniej", "najtańsz", "gdzie kupić", "gdzie kupię", "u kogo", "gdzie najtaniej",
-    "taniej kupić", "oszczęd", "najlepsza cena", "najlepszej cenie", "który dostawca tańsz",
-  ].some((k) => lowerQ.includes(k));
-  if (!hasIntent) return null;
+  if (!isCheapestSupplierQuery(question)) return null;
 
   const product = await resolveProductFromQuestion(userId, question);
   if (!product) return null;
@@ -352,13 +348,7 @@ async function fetchCheapestSupplier(userId: string, question: string): Promise<
 // kod nie umiał (miał tylko porównanie DWÓCH całych faktur, stąd zmyślony widżet A/B).
 async function fetchProductPriceHistory(userId: string, question: string): Promise<string | null> {
   const lowerQ = question.toLowerCase();
-
-  // Intencja: pytanie o cenę / historię / trend produktu (bez wymogu słowa „porównaj").
-  const hasPriceIntent = [
-    "cena", "cenę", "ceny", "cenie", "kosztuje", "kosztował", "podroż", "potani",
-    "drożej", "taniej", "historia cen", "historię cen", "trend", "po ile", "ile płac",
-  ].some((k) => lowerQ.includes(k));
-  if (!hasPriceIntent) return null;
+  if (!isProductPriceHistoryQuery(question)) return null;
 
   const product = await resolveProductFromQuestion(userId, question);
   if (!product) return null;
@@ -398,12 +388,7 @@ async function fetchProductPriceHistory(userId: string, question: string): Promi
 // ceny jednostkowej (ostatni zakup vs poprzedni). Globalne (bez konkretnego produktu).
 // Wcześniej brak tych danych w kontekście → model by je zmyślał.
 async function fetchPriceIncreases(userId: string, question: string): Promise<string | null> {
-  const lowerQ = question.toLowerCase();
-  const hasIntent = [
-    "podrożał", "podrożec", "podwyżk", "drożej", "wzrost cen", "wzrosły ceny",
-    "co zdrożało", "zdrożał", "rosną ceny", "największe podwyżki", "co poszło w górę",
-  ].some((k) => lowerQ.includes(k));
-  if (!hasIntent) return null;
+  if (!isPriceIncreasesQuery(question)) return null;
 
   const res = await db.execute(sql`
     WITH ranked AS (
@@ -444,12 +429,7 @@ async function fetchPriceIncreases(userId: string, question: string): Promise<st
 // Reużywa computeTriggeredAlerts (ten sam mechanizm co dashboard) — dane ugruntowane.
 // Zwraca też jawny „brak alertów", żeby model nie zmyślał przy pustym wyniku.
 async function fetchTriggeredAlerts(userId: string, question: string): Promise<string | null> {
-  const lowerQ = question.toLowerCase();
-  const hasIntent = [
-    "alert", "alerty", "alertów", "próg", "progu", "progi", "przekroczył", "przekroczen",
-    "monitoruj", "powiadomieni", "co się uruchomiło",
-  ].some((k) => lowerQ.includes(k));
-  if (!hasIntent) return null;
+  if (!isPriceAlertsQuery(question)) return null;
 
   const alerts = await computeTriggeredAlerts(userId);
   if (alerts.length === 0) {
@@ -465,12 +445,7 @@ async function fetchTriggeredAlerts(userId: string, question: string): Promise<s
 // (ta sama kalkulacja co strona Food cost). Dane dań nie są w kontekście czatu → bez tego
 // bloku model by zmyślał. Sortuje od najniższej marży.
 async function fetchDishMargins(userId: string, question: string): Promise<string | null> {
-  const lowerQ = question.toLowerCase();
-  const hasIntent = [
-    "food cost", "foodcost", "food-cost", "marża", "marże", "marży", "marżą", "rentown",
-    "opłacaln", "które dania", "najgorsza marża", "najlepsza marża", "koszt dania", "koszt potrawy",
-  ].some((k) => lowerQ.includes(k));
-  if (!hasIntent) return null;
+  if (!isDishMarginsQuery(question)) return null;
 
   const dishes = await computeAllDishMargins(userId);
   if (dishes.length === 0) {
