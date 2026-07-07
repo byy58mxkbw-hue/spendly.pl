@@ -392,6 +392,52 @@ async function fetchProductPriceHistory(userId: string, question: string): Promi
   return `\nDANE HISTORII CENY PRODUKTU: ${product.name} [ID:${product.id}] (ostatnie ${rows.length} zakupów, od najnowszych):\n${lines.join("\n")}`;
 }
 
+// „Co podrożało / największe podwyżki / co drożeje" — produkty z największym wzrostem
+// ceny jednostkowej (ostatni zakup vs poprzedni). Globalne (bez konkretnego produktu).
+// Wcześniej brak tych danych w kontekście → model by je zmyślał.
+async function fetchPriceIncreases(userId: string, question: string): Promise<string | null> {
+  const lowerQ = question.toLowerCase();
+  const hasIntent = [
+    "podrożał", "podrożec", "podwyżk", "drożej", "wzrost cen", "wzrosły ceny",
+    "co zdrożało", "zdrożał", "rosną ceny", "największe podwyżki", "co poszło w górę",
+  ].some((k) => lowerQ.includes(k));
+  if (!hasIntent) return null;
+
+  const res = await db.execute(sql`
+    WITH ranked AS (
+      SELECT p.id AS product_id, p.name, ii.unit_price::numeric AS price,
+             ROW_NUMBER() OVER (PARTITION BY p.id ORDER BY inv.invoice_date DESC, inv.id DESC) AS rn
+      FROM invoice_items ii
+      JOIN invoices inv ON ii.invoice_id = inv.id
+      JOIN products p ON ii.product_id = p.id
+      WHERE inv.user_id = ${userId} AND inv.excluded = false AND inv.parent_invoice_id IS NULL
+        AND (inv.invoice_type IS DISTINCT FROM 'KOR')
+        AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+    ),
+    pairs AS (
+      SELECT product_id, name,
+             MAX(price) FILTER (WHERE rn = 1) AS latest,
+             MAX(price) FILTER (WHERE rn = 2) AS prev
+      FROM ranked WHERE rn <= 2
+      GROUP BY product_id, name
+      HAVING COUNT(*) = 2
+    )
+    SELECT name, latest::text AS latest, prev::text AS prev,
+           ROUND((latest - prev) / prev * 100, 1)::text AS change_pct
+    FROM pairs
+    WHERE latest > prev
+    ORDER BY (latest - prev) / prev DESC
+    LIMIT 10
+  `);
+  const rows = res.rows as Array<{ name: string; latest: string; prev: string; change_pct: string }>;
+  if (rows.length === 0) return null;
+
+  const lines = rows.map(
+    (r) => `  - ${r.name}: ${parseFloat(r.prev).toFixed(2)} → ${parseFloat(r.latest).toFixed(2)} zł/jedn. (+${r.change_pct}%)`,
+  );
+  return `\nDANE: NAJWIĘKSZE PODWYŻKI CEN (ostatni zakup vs poprzedni, od największej):\n${lines.join("\n")}`;
+}
+
 // ─── Route: POST /ai-cfo/chat ─────────────────────────────────────────────────
 
 async function buildChatContext(userId: string, sinceStr: string): Promise<string> {
@@ -564,15 +610,16 @@ router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
   }
 
   const sinceStr = since90Days();
-  const [context, cheapestBlock, productHistBlock, invoiceCompareRaw] = await Promise.all([
+  const [context, cheapestBlock, productHistBlock, priceIncreasesBlock, invoiceCompareRaw] = await Promise.all([
     buildChatContext(userId, sinceStr),
     fetchCheapestSupplier(userId, question.trim()),
     fetchProductPriceHistory(userId, question.trim()),
+    fetchPriceIncreases(userId, question.trim()),
     fetchInvoiceCompareData(userId, question.trim()),
   ]);
-  // Precedencja bloków: „najtańszy dostawca" > historia ceny > porównanie faktur.
+  // Precedencja bloków: „najtańszy dostawca" > historia ceny > największe podwyżki > porównanie faktur.
   // Wstrzykujemy DOKŁADNIE JEDEN blok, żeby model nie mieszał narzędzi ani nie zmyślał A/B.
-  const dataBlock = cheapestBlock ?? productHistBlock ?? invoiceCompareRaw ?? "";
+  const dataBlock = cheapestBlock ?? productHistBlock ?? priceIncreasesBlock ?? invoiceCompareRaw ?? "";
 
   const systemPrompt = `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur i dostarczasz precyzyjne rekomendacje finansowe.
 
@@ -614,6 +661,16 @@ ZASADY TABEL — dla porównania dostawców zawsze pokazuj obie kolumny:
 - Porównanie kwotowe: kolumny "Dostawca", "Wydatki (PLN)", "Udział %", "Faktury"
 - Porównanie ilościowe: kolumny "Dostawca", "Wolumen (j.)", "Produkty", "Śr. cena jedn."
 - Kategorie: kolumny "Kategoria", "Wydatki (PLN)", "Wolumen (j.)", "Produkty"
+
+INSTRUKCJA DLA PODWYŻEK CEN (type: "product_analysis"):
+Gdy kontekst zawiera blok "DANE: NAJWIĘKSZE PODWYŻKI CEN":
+- Użyj type: "product_analysis"
+- table.headers: ["Produkt", "Poprzednia", "Ostatnia", "Zmiana %"]
+- table.rows: KAŻDY produkt z bloku (od największej podwyżki). Wyłącznie liczby z bloku.
+- kpiCards: ["Produktów w górę", "Największa podwyżka", "Śr. wzrost"] — z danych bloku.
+- summary: wskaż 2-3 produkty z największym wzrostem ceny jednostkowej (z %), po polsku.
+- recommendation: np. sprawdzić alternatywnych dostawców dla najbardziej drożejących pozycji.
+- actions: [{"label":"Zobacz alerty cenowe","href":"/price-alerts"}]
 
 INSTRUKCJA DLA DOSTAWCÓW PRODUKTU WG CENY (type: "supplier_comparison"):
 Gdy kontekst zawiera blok "DANE: DOSTAWCY PRODUKTU WG CENY":
