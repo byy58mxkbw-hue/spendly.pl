@@ -245,8 +245,9 @@ router.post("/cost-centers/resuggest", async (req, res): Promise<void> => {
   } catch (err) {
     // Zamiast generycznego 500 zwracamy treść błędu (200), żeby UI mógł ją pokazać
     // i żeby dało się zdiagnozować przyczynę na produkcji bez dostępu do logów.
+    // Surowy błąd tylko do logów serwera; do klienta generyk (bez wycieku detali DB).
     req.log.error({ err: String(err) }, "resuggest endpoint error");
-    res.json({ suggested: 0, scanned: 0, xmlMissing: 0, xmlUndecryptable: 0, withSubunits: 0, sampleSubunits: [], error: String(err) });
+    res.json({ suggested: 0, scanned: 0, xmlMissing: 0, xmlUndecryptable: 0, withSubunits: 0, sampleSubunits: [], error: "Nie udało się przeliczyć sugestii — spróbuj ponownie." });
   }
 });
 
