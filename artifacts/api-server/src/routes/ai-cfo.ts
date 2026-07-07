@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
 import { PostAiCfoChatBody } from "@workspace/api-zod";
 import { AI_MONTHLY_LIMIT, normalizePlan, currentPeriod } from "../lib/ai-plan.js";
+import { computeTriggeredAlerts } from "../services/alert-checker.js";
 
 const router: IRouter = Router();
 
@@ -438,6 +439,27 @@ async function fetchPriceIncreases(userId: string, question: string): Promise<st
   return `\nDANE: NAJWIĘKSZE PODWYŻKI CEN (ostatni zakup vs poprzedni, od największej):\n${lines.join("\n")}`;
 }
 
+// „Jakie mam alerty / co przekroczyło próg" — aktywne alerty cenowe (przekroczone progi).
+// Reużywa computeTriggeredAlerts (ten sam mechanizm co dashboard) — dane ugruntowane.
+// Zwraca też jawny „brak alertów", żeby model nie zmyślał przy pustym wyniku.
+async function fetchTriggeredAlerts(userId: string, question: string): Promise<string | null> {
+  const lowerQ = question.toLowerCase();
+  const hasIntent = [
+    "alert", "alerty", "alertów", "próg", "progu", "progi", "przekroczył", "przekroczen",
+    "monitoruj", "powiadomieni", "co się uruchomiło",
+  ].some((k) => lowerQ.includes(k));
+  if (!hasIntent) return null;
+
+  const alerts = await computeTriggeredAlerts(userId);
+  if (alerts.length === 0) {
+    return "\nDANE: ALERTY CENOWE: brak aktywnych alertów — żaden monitorowany produkt nie przekroczył ustawionego progu.";
+  }
+  const lines = alerts.map(
+    (a) => `  - ${a.productName}${a.supplierName ? ` (${a.supplierName})` : ""}: ${a.previousPrice.toFixed(2)} → ${a.currentPrice.toFixed(2)} zł/jedn. (+${a.changePercent.toFixed(1)}%, próg ${a.thresholdPercent}%)`,
+  );
+  return `\nDANE: AKTYWNE ALERTY CENOWE (przekroczony próg):\n${lines.join("\n")}`;
+}
+
 // ─── Route: POST /ai-cfo/chat ─────────────────────────────────────────────────
 
 async function buildChatContext(userId: string, sinceStr: string): Promise<string> {
@@ -610,16 +632,17 @@ router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
   }
 
   const sinceStr = since90Days();
-  const [context, cheapestBlock, productHistBlock, priceIncreasesBlock, invoiceCompareRaw] = await Promise.all([
+  const [context, cheapestBlock, productHistBlock, priceIncreasesBlock, alertsBlock, invoiceCompareRaw] = await Promise.all([
     buildChatContext(userId, sinceStr),
     fetchCheapestSupplier(userId, question.trim()),
     fetchProductPriceHistory(userId, question.trim()),
     fetchPriceIncreases(userId, question.trim()),
+    fetchTriggeredAlerts(userId, question.trim()),
     fetchInvoiceCompareData(userId, question.trim()),
   ]);
-  // Precedencja bloków: „najtańszy dostawca" > historia ceny > największe podwyżki > porównanie faktur.
+  // Precedencja bloków: najtańszy dostawca > historia ceny > podwyżki > alerty > porównanie faktur.
   // Wstrzykujemy DOKŁADNIE JEDEN blok, żeby model nie mieszał narzędzi ani nie zmyślał A/B.
-  const dataBlock = cheapestBlock ?? productHistBlock ?? priceIncreasesBlock ?? invoiceCompareRaw ?? "";
+  const dataBlock = cheapestBlock ?? productHistBlock ?? priceIncreasesBlock ?? alertsBlock ?? invoiceCompareRaw ?? "";
 
   const systemPrompt = `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur i dostarczasz precyzyjne rekomendacje finansowe.
 
@@ -661,6 +684,15 @@ ZASADY TABEL — dla porównania dostawców zawsze pokazuj obie kolumny:
 - Porównanie kwotowe: kolumny "Dostawca", "Wydatki (PLN)", "Udział %", "Faktury"
 - Porównanie ilościowe: kolumny "Dostawca", "Wolumen (j.)", "Produkty", "Śr. cena jedn."
 - Kategorie: kolumny "Kategoria", "Wydatki (PLN)", "Wolumen (j.)", "Produkty"
+
+INSTRUKCJA DLA ALERTÓW CENOWYCH (type: "product_analysis"):
+Gdy kontekst zawiera blok "DANE: AKTYWNE ALERTY CENOWE":
+- Użyj type: "product_analysis"
+- table.headers: ["Produkt", "Dostawca", "Poprzednia", "Aktualna", "Zmiana %", "Próg"]
+- table.rows: KAŻDY alert z bloku. Wyłącznie liczby z bloku.
+- summary: ile alertów się uruchomiło i które produkty najmocniej przekroczyły próg.
+- actions: [{"label":"Zobacz alerty cenowe","href":"/price-alerts"}]
+Gdy blok mówi „brak aktywnych alertów" — type: "general", summary: brak przekroczeń progów, bez tabeli.
 
 INSTRUKCJA DLA PODWYŻEK CEN (type: "product_analysis"):
 Gdy kontekst zawiera blok "DANE: NAJWIĘKSZE PODWYŻKI CEN":
