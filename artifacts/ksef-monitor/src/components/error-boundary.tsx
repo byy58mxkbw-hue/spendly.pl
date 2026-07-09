@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import * as Sentry from "@sentry/react";
 import ServerError from "@/pages/server-error";
 
 interface Props {
@@ -25,8 +26,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: unknown): void {
-    // Loguj do konsoli — w przyszłości można podpiąć Sentry itp.
     console.error("ErrorBoundary caught:", error, info);
+    // No-op gdy Sentry nieaktywne (brak VITE_SENTRY_DSN).
+    Sentry.captureException(error, { extra: { info } });
   }
 
   handleReset = (): void => {

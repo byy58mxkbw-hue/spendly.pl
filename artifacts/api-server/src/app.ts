@@ -4,6 +4,7 @@ import helmet from "helmet";
 import compression from "compression";
 import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
+import * as Sentry from "@sentry/node";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import {
@@ -183,6 +184,13 @@ app.use(
 );
 
 app.use("/api", router);
+
+// ── Sentry: przechwytywanie błędów ────────────────────────────────────────────
+// Po route'ach, PRZED naszym handlerem błędów (Sentry przepuszcza błąd dalej).
+// Aktywne tylko gdy SENTRY_DSN ustawione (instrument.ts zainicjalizował klienta).
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // ── Globalny handler błędów ───────────────────────────────────────────────────
 // Express 5 przekazuje tu odrzucone Promisy z handlerów async. Na produkcji

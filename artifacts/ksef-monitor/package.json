@@ -84,6 +84,7 @@
     "@capacitor/status-bar": "^8.0.2",
     "@clerk/react": "^6.6.0",
     "@clerk/themes": "^2.4.57",
+    "@sentry/react": "^10.64.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8"
   }

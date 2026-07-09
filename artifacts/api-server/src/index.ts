@@ -1,3 +1,4 @@
+import "./instrument.js"; // MUSI być pierwszy — inicjalizuje Sentry przed importem app/route'ów
 import app from "./app";
 import { logger } from "./lib/logger";
 import { runCategoryBackfill } from "./services/backfill-categories.js";
