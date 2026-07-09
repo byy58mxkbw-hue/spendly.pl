@@ -14,6 +14,17 @@ export default defineConfig({
         test: {
           name: "api",
           environment: "node",
+          // Dummy env, by import modułów serwera (encryption, clerk, db) nie wywrócił się bez sekretów.
+          // pg/openai łączą się leniwie (dopiero przy zapytaniu), więc smoke /healthz nie potrzebuje żywej bazy.
+          env: {
+            NODE_ENV: "test",
+            DATABASE_URL: "postgres://user:pass@localhost:5432/spendly_test",
+            KSEF_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef",
+            CLERK_SECRET_KEY: "sk_test_dummy",
+            CLERK_PUBLISHABLE_KEY: "pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk",
+            OPENAI_API_KEY: "sk-dummy",
+            ALLOWED_ORIGIN: "http://localhost",
+          },
           include: ["artifacts/api-server/**/*.test.ts", "lib/**/*.test.ts", "scripts/**/*.test.ts"],
         },
       },
