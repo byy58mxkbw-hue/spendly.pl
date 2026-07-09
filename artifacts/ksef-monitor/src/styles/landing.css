@@ -185,9 +185,61 @@ html { scroll-behavior: smooth; }
 
 @media(max-width:860px){
   .spendly-site .nav-links{display:none;}
-  .spendly-site .mb-grid,.spendly-site .ksef,.spendly-site .feat-grid,.spendly-site .price-grid,.spendly-site .band,.spendly-site .foot-grid{grid-template-columns:1fr;}
+  .spendly-site .mb-grid,.spendly-site .ksef,.spendly-site .feat-grid,.spendly-site .price-grid,.spendly-site .foot-grid{grid-template-columns:1fr;}
   .spendly-site .mb-kpis{grid-template-columns:1fr 1fr;}
-  .spendly-site .band{gap:28px;}
+  /* 4 statystyki jako czytelna siatka 2×2 zamiast wieży */
+  .spendly-site .band{grid-template-columns:1fr 1fr;gap:28px 20px;padding:36px 28px;}
+}
+
+/* ── Telefony ── porządne rozmieszczenie na wąskich ekranach */
+@media(max-width:560px){
+  .spendly-site .wrap{padding:0 16px;}
+
+  /* NAV: zmieść wordmark + motyw + CTA w jednym pasku.
+     Login chowamy z paska (dostępny na stronie rejestracji i w stopce),
+     żeby dwa przyciski nie wypychały się poza ekran. */
+  .spendly-site .nav-in{gap:10px;padding:9px 12px;margin-top:8px !important;border-radius:14px;}
+  .spendly-site .nav-right{gap:8px;}
+  .spendly-site .nav-right .btn-ghost{display:none;}
+  .spendly-site .nav-right .btn-primary{padding:9px 14px;font-size:13px;}
+  .spendly-site .tgl{width:36px;height:36px;}
+
+  /* HERO: mniej pustki nad i pod, węższe odstępy */
+  .spendly-site .hero{padding:104px 0 44px;}
+  .spendly-site .eyebrow{margin-bottom:20px;}
+  .spendly-site h1{margin-bottom:16px;}
+  .spendly-site .lead{margin-bottom:26px;}
+  /* CTA na pełną szerokość, jeden pod drugim — czytelniej niż zawijanie na środku */
+  .spendly-site .hero-cta{flex-direction:column;align-items:stretch;}
+  .spendly-site .hero-cta .btn{width:100%;justify-content:center;}
+  .spendly-site .hero-cta .btn-lg{padding:14px 18px;}
+  .spendly-site .mock{margin-top:36px;padding:10px;}
+  .spendly-site .mb-top{padding:12px 14px;}
+  .spendly-site .mb-grid{padding:12px;gap:12px;}
+
+  /* Sekcje: mniejsze odstępy pionowe */
+  .spendly-site section.blk{padding:52px 0;}
+  .spendly-site .sec-head{margin-bottom:36px;}
+  .spendly-site .trust{padding:32px 0;}
+  .spendly-site .trust-row{gap:22px 28px;}
+
+  /* Karty i pasek statystyk */
+  .spendly-site .feat{padding:22px;}
+  .spendly-site .band{padding:30px 22px;gap:26px 16px;}
+  .spendly-site .ksef-card{padding:22px;}
+  .spendly-site .plan{padding:26px 22px;}
+  .spendly-site .cta-final{padding:40px 22px;}
+  .spendly-site .cta-final p{font-size:15px;}
+
+  /* FAQ + stopka */
+  .spendly-site .qa{padding:18px 18px;}
+  .spendly-site .foot-bottom{flex-direction:column;align-items:flex-start;gap:8px;}
+}
+
+@media(max-width:380px){
+  /* Bardzo wąskie ekrany — statystyki w jednej kolumnie czytają się lepiej niż ściśnięte 2×2 */
+  .spendly-site .band{grid-template-columns:1fr;}
+  .spendly-site .mb-kpis{grid-template-columns:1fr 1fr;}
 }
 
 @media (prefers-reduced-motion: reduce){
