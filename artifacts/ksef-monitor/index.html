@@ -165,50 +165,57 @@
   </head>
   <body>
     <div id="root">
-      <!-- Static prerender for crawlers and AI bots — replaced by React on hydration -->
-      <div style="background:#0B0F14;min-height:100vh;font-family:'Inter',system-ui,sans-serif;color:#F5F7FA;">
+      <!-- Static prerender for crawlers and AI bots — replaced by React on hydration.
+           Utrzymuj pierwszy ekran (nav + hero) spójny z home.tsx, żeby przejście
+           prerender → React było płynne (bez flasha innej wersji landingu). -->
+      <style>
+        @media (max-width: 760px) {
+          #pre-nav-links { display: none !important; }
+          #pre-login { display: none !important; }
+        }
+      </style>
+      <div style="background:radial-gradient(ellipse 90% 55% at 50% -8%, rgba(61,220,151,0.10), transparent 60%), #0B0F14;min-height:100vh;font-family:'Inter',system-ui,sans-serif;color:#F5F7FA;">
 
         <!-- NAV -->
-        <header style="position:sticky;top:0;z-index:50;background:rgba(11,15,20,0.9);border-bottom:1px solid rgba(255,255,255,0.08);">
+        <header style="position:sticky;top:0;z-index:50;background:rgba(11,15,20,0.72);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,0.08);">
           <div style="max-width:1200px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;">
-            <span style="font-size:18px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;">SPENDLY<span style="color:#F5F7FA;">.</span></span>
-            <nav aria-label="Nawigacja główna" style="display:flex;gap:28px;">
+            <span style="font-size:20px;font-weight:900;letter-spacing:-0.045em;color:#F5F7FA;">spend<span style="color:#3DDC97;">ly.</span></span>
+            <nav id="pre-nav-links" aria-label="Nawigacja główna" style="display:flex;gap:28px;">
               <a href="#jak-to-dziala" style="color:#9BA6B2;text-decoration:none;font-size:13px;">Jak to działa</a>
               <a href="#funkcje" style="color:#9BA6B2;text-decoration:none;font-size:13px;">Funkcje</a>
               <a href="#cennik" style="color:#9BA6B2;text-decoration:none;font-size:13px;">Cennik</a>
               <a href="#faq" style="color:#9BA6B2;text-decoration:none;font-size:13px;">FAQ</a>
             </nav>
             <div style="display:flex;gap:8px;">
-              <a href="/sign-in" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid rgba(255,255,255,0.08);color:#9BA6B2;text-decoration:none;">Zaloguj</a>
-              <a href="/sign-up" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;background:#3DDC97;color:#0B0F14;text-decoration:none;">Rozpocznij za darmo</a>
+              <a id="pre-login" href="/sign-in" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid rgba(255,255,255,0.08);color:#9BA6B2;text-decoration:none;">Zaloguj się</a>
+              <a href="/sign-up" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;background:#3DDC97;color:#06231a;text-decoration:none;">Wypróbuj za darmo</a>
             </div>
           </div>
         </header>
 
         <!-- HERO -->
-        <section style="max-width:1200px;margin:0 auto;padding:72px 24px 80px;">
+        <section style="max-width:1200px;margin:0 auto;padding:72px 24px 80px;text-align:center;">
           <div>
-            <div style="margin-bottom:20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              <span style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#9BA6B2;font-size:12px;font-weight:500;">
-                KSeF + kontrola kosztów gastronomii
+            <div style="margin-bottom:24px;display:flex;justify-content:center;">
+              <span style="display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:999px;border:1px solid rgba(61,220,151,0.30);background:rgba(61,220,151,0.10);color:#3DDC97;font-size:12px;font-weight:600;">
+                Zintegrowane z KSeF — gotowe na 2026
               </span>
-              <span style="display:inline-flex;padding:5px 12px;border-radius:999px;border:1px solid rgba(61,220,151,0.12);background:rgba(61,220,151,0.12);color:#3DDC97;font-size:12px;font-weight:600;">Okres testowy — bezpłatnie</span>
             </div>
-            <h1 style="font-size:clamp(2.2rem,5vw,3.5rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:20px;color:#F5F7FA;">
-              Kontroluj koszty restauracji<br />
-              <span style="color:#3DDC97;">w czasie rzeczywistym</span>
+            <h1 style="font-size:clamp(2.2rem,6.4vw,4.5rem);font-weight:800;letter-spacing:-0.035em;line-height:1.02;margin-bottom:22px;color:#F5F7FA;">
+              Kontroluj koszty<br />
+              zanim <span style="color:#3DDC97;">zjedzą Twoją marżę</span>
             </h1>
-            <p style="font-size:17px;color:#9BA6B2;line-height:1.7;max-width:480px;margin-bottom:36px;">
-              Spendly automatycznie importuje faktury z KSeF, kontroluje food cost i alarmuje o podwyżkach — zanim uderzą w marżę Twojej restauracji.
+            <p style="font-size:17px;color:#9BA6B2;line-height:1.6;max-width:620px;margin:0 auto 34px;">
+              Spendly pobiera faktury z KSeF, rozpoznaje pozycje i pilnuje cen dostawców. Wiesz o podwyżce w dniu, w którym się pojawia — nie na koniec miesiąca.
             </p>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px;">
-              <a href="/sign-up" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;background:#3DDC97;color:#0B0F14;text-decoration:none;">Rozpocznij za darmo</a>
-              <a href="#jak-to-dziala" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:500;background:none;border:1px solid rgba(255,255,255,0.08);color:#F5F7FA;text-decoration:none;">Zobacz jak działa</a>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:18px;">
+              <a href="/sign-up" style="display:inline-flex;align-items:center;gap:8px;padding:14px 26px;border-radius:13px;font-size:15px;font-weight:600;background:#3DDC97;color:#06231a;text-decoration:none;">Rozpocznij za darmo</a>
+              <a href="#jak-to-dziala" style="display:inline-flex;align-items:center;gap:8px;padding:14px 26px;border-radius:13px;font-size:15px;font-weight:500;background:none;border:1px solid rgba(255,255,255,0.08);color:#F5F7FA;text-decoration:none;">Zobacz jak działa</a>
             </div>
-            <ul style="list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px 20px;">
-              <li style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9BA6B2;">Bez wdrożenia</li>
-              <li style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9BA6B2;">Gotowe w kilka minut</li>
-              <li style="display:flex;align-items:center;gap:6px;font-size:12px;color:#9BA6B2;">Działa z KSeF</li>
+            <ul style="list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:center;">
+              <li style="display:flex;align-items:center;gap:6px;font-size:13px;color:#9BA6B2;">14 dni za darmo</li>
+              <li style="display:flex;align-items:center;gap:6px;font-size:13px;color:#9BA6B2;">Bez karty</li>
+              <li style="display:flex;align-items:center;gap:6px;font-size:13px;color:#9BA6B2;">Konfiguracja w 10 minut</li>
             </ul>
           </div>
         </section>
