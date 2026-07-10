@@ -4,6 +4,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import type { Logger } from "pino";
 import { categorizeProduct, BUILTIN_CATEGORY_DEFS } from "./categorize.js";
+import { matchBrand } from "./brand-map.js";
 
 export interface ClassificationResult {
   category: string;
@@ -144,6 +145,14 @@ export async function categorizeProductWithAI(
     };
   }
 
+  // Step 1.5 (Z6): rozpoznanie marki/nazwy własnej → kategoria + gotowa subcategory.
+  // Przed keywordami, bo daje granularną podkategorię (np. „cheddar" → Nabiał/ser cheddar).
+  const brand = matchBrand(canonicalName) ?? matchBrand(productName.toLowerCase());
+  if (brand) {
+    logger?.info({ productName, category: brand.category, subcategory: brand.subcategory }, "categorize: brand match");
+    return { category: brand.category, subcategory: brand.subcategory, confidence: 0.92, canonicalName };
+  }
+
   // Step 2: Fast keyword matching on normalized + original.
   // Runs BEFORE the supplier default so a reliable keyword hit (e.g. "płyn do naczyń"
   // → środki czystości, "energia elektryczna" → koszty stałe) wins even when the
@@ -192,12 +201,13 @@ export async function categorizeProductWithAI(
   const prompt = `Jesteś asystentem restauracji. Klasyfikuj produkt spożywczy lub gastronomiczny.
 
 Zwróć WYŁĄCZNIE obiekt JSON (bez markdown, bez komentarzy):
-{"category":"<id kategorii>","subcategory":"<podkategoria po polsku lub null>","confidence":<0.0-1.0>}
+{"category":"<id kategorii>","subcategory":"<podkategoria po polsku lub null>","detectedBrand":"<marka/nazwa własna lub null>","confidence":<0.0-1.0>}
 
 Zasady:
 - category: DOKŁADNIE jedno ID z listy poniżej — nic innego. Jeśli żadna kategoria nie pasuje, użyj "inne"
-- subcategory: szczegółowa podkategoria (np. "mozzarella", "filet z łososia", "kurczak pierś") lub null
-- confidence: pewność klasyfikacji od 0.0 do 1.0
+- subcategory: JAK NAJBARDZIEJ SZCZEGÓŁOWA podkategoria po polsku (np. "ser cheddar" a nie "ser"; "filet z łososia" a nie "ryba"; "kurczak pierś" a nie "mięso") lub null
+- detectedBrand: rozpoznana marka lub nazwa własna produktu (np. "Hochland", "Barilla", "Coca-Cola"), albo null jeśli brak
+- confidence: SZCZERA pewność 0.0–1.0. Nie zawyżaj — gdy nie masz pewności, daj niską wartość (pozycja trafi do weryfikacji)
 
 Dostępne kategorie (jedyne dopuszczalne wartości dla "category"):
 ${categoryList}
@@ -213,7 +223,7 @@ Znormalizowana nazwa: ${canonicalName}`;
       {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 80,
+        max_tokens: 120,
         temperature: 0,
         response_format: { type: "json_object" },
       },
@@ -222,12 +232,17 @@ Znormalizowana nazwa: ${canonicalName}`;
     clearTimeout(timeout);
 
     const raw = resp.choices[0]?.message?.content?.trim() ?? "{}";
-    let parsed: { category?: string; subcategory?: string | null; confidence?: number } = {};
+    let parsed: { category?: string; subcategory?: string | null; detectedBrand?: string | null; confidence?: number } = {};
     try {
       parsed = JSON.parse(raw);
     } catch {
       logger?.warn({ productName, raw }, "categorize-ai: failed to parse JSON response");
       return { category: "inne", subcategory: null, confidence: 0.4, canonicalName };
+    }
+
+    // Z7: log wykrytej marki (przydatne do rozbudowy słownika marek / przyszłego uczenia).
+    if (parsed.detectedBrand && parsed.detectedBrand !== "null") {
+      logger?.info({ productName, detectedBrand: parsed.detectedBrand, category: parsed.category }, "categorize-ai: detected brand");
     }
 
     let finalCategory = parsed.category?.trim() ?? "inne";
