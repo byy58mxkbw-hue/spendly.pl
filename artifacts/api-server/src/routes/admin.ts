@@ -212,7 +212,14 @@ router.patch("/admin/users/:userId/block", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Nie można zablokować konta administratora." });
     return;
   }
-  const blocked = (req.body as Record<string, unknown>)?.["blocked"] === true;
+  // Wymagaj jawnego boolean — bez tego puste/złe body cicho ustawiało blocked=false
+  // (czyli odblokowywało usera zamiast zwrócić błąd).
+  const rawBlocked = (req.body as Record<string, unknown>)?.["blocked"];
+  if (typeof rawBlocked !== "boolean") {
+    res.status(400).json({ error: "Pole 'blocked' musi być wartością logiczną (true/false)." });
+    return;
+  }
+  const blocked = rawBlocked;
 
   const r = await clerkApiFetch(`/users/${userId}`);
   if (!r.ok) { res.status(502).json({ error: "Błąd Clerk API" }); return; }
