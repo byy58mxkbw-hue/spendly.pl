@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import {
   Zap, ArrowRight, Play, Check, ScanLine, BellRing, GitCompare,
   UtensilsCrossed, Sparkles, FileCheck2, RefreshCw, FileText, Plus, Moon, Sun,
+  Menu, X,
 } from "lucide-react";
 import "@/styles/landing.css";
 
@@ -64,6 +65,7 @@ export default function Home() {
   });
   const [scrolled, setScrolled] = useState(false);
   const [openFaq, setOpenFaq] = useState<Set<number>>(new Set());
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem("spendly_site_theme", theme); } catch { /* ignore */ }
@@ -102,10 +104,31 @@ export default function Home() {
             <div className="tgl" title="Zmień motyw" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
               {theme === "dark" ? <Moon /> : <Sun />}
             </div>
-            <a className="btn btn-ghost" href="/sign-in" onClick={go("/sign-in")}>Zaloguj się</a>
-            <a className="btn btn-primary" href="/sign-up" onClick={go("/sign-up")}>Wypróbuj za darmo</a>
+            <a className="btn btn-ghost nav-desktop" href="/sign-in" onClick={go("/sign-in")}>Zaloguj się</a>
+            <a className="btn btn-primary nav-desktop" href="/sign-up" onClick={go("/sign-up")}>Wypróbuj za darmo</a>
+            <button
+              className="nav-burger"
+              aria-label="Menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              {menuOpen ? <X /> : <Menu />}
+            </button>
           </div>
         </div>
+
+        {menuOpen && (
+          <div className="nav-mobile glass wrap">
+            <a href="#funkcje" onClick={() => setMenuOpen(false)}>Funkcje</a>
+            <a href="#ksef" onClick={() => setMenuOpen(false)}>KSeF</a>
+            <a href="#cennik" onClick={() => setMenuOpen(false)}>Cennik</a>
+            <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
+            <div className="nav-mobile-cta">
+              <a className="btn btn-ghost" href="/sign-in" onClick={(e) => { setMenuOpen(false); go("/sign-in")(e); }}>Zaloguj się</a>
+              <a className="btn btn-primary" href="/sign-up" onClick={(e) => { setMenuOpen(false); go("/sign-up")(e); }}>Wypróbuj za darmo</a>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* HERO */}

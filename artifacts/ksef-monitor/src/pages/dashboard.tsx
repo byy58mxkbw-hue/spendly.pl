@@ -172,7 +172,7 @@ function KpiCard({
             neutral && "bg-muted text-muted-foreground"
           )}>
             {up ? <ArrowUpRight className="w-3 h-3" /> : down ? <ArrowDownRight className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
-            {formatPercent(Math.abs(change))}
+            {formatPercent(change)}
           </div>
         )}
       </div>
@@ -326,6 +326,15 @@ function DashboardPage() {
     return chartData.reduce((s, m) => s + (Number(m.totalAmount) || 0), 0) / chartData.length;
   }, [chartData]);
 
+  // Dynamiczna etykieta — pokaż tylko tyle miesięcy ile jest danych (nie mylące „12 miesięcy")
+  const monthsLabel = useMemo(() => {
+    const n = chartData.length;
+    const rem10 = n % 10;
+    const rem100 = n % 100;
+    const word = n === 1 ? "miesiąc" : rem10 >= 2 && rem10 <= 4 && !(rem100 >= 12 && rem100 <= 14) ? "miesiące" : "miesięcy";
+    return `ostatnie ${n} ${word}`;
+  }, [chartData]);
+
   return (
     <Layout>
       <div className="px-4 py-5 md:px-6 md:py-6">
@@ -428,7 +437,7 @@ function DashboardPage() {
                 label="Wydatki w miesiącu"
                 value={formatPrice(summary.totalSpendThisMonth)}
                 subValue={summary.spendChangePercent != null
-                  ? `${summary.spendChangePercent > 0 ? "+" : ""}${summary.spendChangePercent.toFixed(1)}% vs poprzedni`
+                  ? `${summary.spendChangePercent > 0 ? "+" : ""}${summary.spendChangePercent.toFixed(1)}% ${month === currentMonth() ? "vs ten sam okres" : "vs poprzedni"}`
                   : undefined}
                 change={summary.spendChangePercent}
                 icon={FileText}
@@ -443,7 +452,7 @@ function DashboardPage() {
                 icon={Users}
               />
               <KpiCard
-                label="Śledzone produkty"
+                label="Produkty łącznie"
                 value={String(summary.trackedProducts)}
                 icon={Package}
               />
@@ -465,7 +474,7 @@ function DashboardPage() {
             <div className="flex items-start justify-between mb-1">
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Wydatki miesięczne</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Łączne wydatki na surowce — ostatnie 12 miesięcy</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Łączne wydatki na surowce — {monthsLabel}</p>
               </div>
               {avgSpend > 0 && (
                 <div className="text-right shrink-0 ml-4">

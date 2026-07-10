@@ -414,6 +414,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
       current_prices AS (
         SELECT DISTINCT ON (ii.product_id)
           ii.product_id, ii.unit_price::numeric AS current_price,
+          regexp_replace(lower(btrim(ii.unit)), '\\.+$', '') AS norm_unit,
           i.invoice_date AS last_date, s.name AS supplier_name
         FROM invoice_items ii
         JOIN invoices i ON ii.invoice_id = i.id
@@ -426,8 +427,10 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
         ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
       ),
       previous_prices AS (
-        SELECT DISTINCT ON (ii.product_id)
-          ii.product_id, ii.unit_price::numeric AS previous_price
+        SELECT DISTINCT ON (ii.product_id, regexp_replace(lower(btrim(ii.unit)), '\\.+$', ''))
+          ii.product_id,
+          regexp_replace(lower(btrim(ii.unit)), '\\.+$', '') AS norm_unit,
+          ii.unit_price::numeric AS previous_price
         FROM invoice_items ii
         JOIN invoices i ON ii.invoice_id = i.id
         WHERE i.user_id = ${userId} AND i.excluded = false
@@ -435,7 +438,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
           AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
           AND i.invoice_date < ${mStart}
           ${ccSql}
-        ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+        ORDER BY ii.product_id, regexp_replace(lower(btrim(ii.unit)), '\\.+$', ''), i.invoice_date DESC, i.id DESC
       )
       SELECT
         p.id AS product_id, p.name AS product_name, p.unit,
@@ -443,7 +446,8 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
         cp.supplier_name, cp.last_date
       FROM products p
       JOIN current_prices cp ON p.id = cp.product_id
-      JOIN previous_prices pp ON p.id = pp.product_id
+      -- Porównuj tylko ceny w tej samej (znormalizowanej) jednostce — inaczej kg vs szt daje fałszywe skoki
+      JOIN previous_prices pp ON p.id = pp.product_id AND pp.norm_unit = cp.norm_unit
       WHERE p.user_id = ${userId}
     `);
     rows = result.rows as ChangeRow[];
@@ -453,6 +457,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
       date_deduped AS (
         SELECT DISTINCT ON (ii.product_id, i.invoice_date)
           ii.product_id, ii.unit_price::numeric AS unit_price,
+          regexp_replace(lower(btrim(ii.unit)), '\\.+$', '') AS norm_unit,
           i.invoice_date, i.id AS invoice_id, s.name AS supplier_name
         FROM invoice_items ii
         JOIN invoices i ON ii.invoice_id = i.id
@@ -463,10 +468,17 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
           ${ccSql}
         ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
       ),
-      ranked AS (
-        SELECT *,
-          ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY invoice_date DESC, invoice_id DESC) AS rn
+      latest_unit AS (
+        SELECT DISTINCT ON (product_id) product_id, norm_unit
         FROM date_deduped
+        ORDER BY product_id, invoice_date DESC, invoice_id DESC
+      ),
+      ranked AS (
+        SELECT dd.*,
+          ROW_NUMBER() OVER (PARTITION BY dd.product_id ORDER BY dd.invoice_date DESC, dd.invoice_id DESC) AS rn
+        FROM date_deduped dd
+        -- Ranking tylko po cenach w tej samej jednostce co najnowsza (bez tego kg vs szt daje fałszywe skoki)
+        JOIN latest_unit lu ON dd.product_id = lu.product_id AND dd.norm_unit = lu.norm_unit
       )
       SELECT
         p.id AS product_id, p.name AS product_name, p.unit,

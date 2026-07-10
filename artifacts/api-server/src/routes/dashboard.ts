@@ -38,6 +38,16 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     periodEnd = new Date(y, m, 1).toISOString().split("T")[0];
     prevPeriodStart = new Date(y, m - 2, 1).toISOString().split("T")[0];
     prevPeriodEnd = periodStart;
+
+    // MTD vs MTD: gdy wybrany miesiąc to bieżący (niepełny), porównuj poprzedni
+    // miesiąc tylko do tego samego dnia — inaczej niepełny bieżący miesiąc
+    // wygląda na gwałtowny spadek względem pełnego poprzedniego (mylący sygnał).
+    const isCurrentMonth = y === now.getFullYear() && m - 1 === now.getMonth();
+    if (isCurrentMonth) {
+      const dayCap = new Date(y, m - 2, now.getDate() + 1);
+      const firstOfCurrent = new Date(y, m - 1, 1);
+      prevPeriodEnd = (dayCap < firstOfCurrent ? dayCap : firstOfCurrent).toISOString().split("T")[0];
+    }
   } else if (days) {
     const start = new Date(now.getTime() - days * 86400000);
     const prevStart = new Date(start.getTime() - days * 86400000);
