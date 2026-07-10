@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "SPENDLY",
-    "slug": "checkit-mobile",
+    "slug": "spendly-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "checkit-mobile",
+    "scheme": "spendly",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -24,7 +24,7 @@
       [
         "expo-router",
         {
-          "origin": "https://replit.com/"
+          "origin": "https://www.spendly.pl/"
         }
       ],
       "expo-font",

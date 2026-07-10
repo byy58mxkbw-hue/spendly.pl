@@ -9,7 +9,7 @@
 
 ## Out of scope
 - Authenticated application routes (`/dashboard`, `/suppliers`, `/products`, `/invoices`, `/price-alerts`, `/reports`, `/predictive`, `/pending-invoices`, `/ai-cfo`, `/settings/**`, `/admin/**`)
-- Mobile app (`artifacts/checkit-mobile/**`)
+- Mobile app (`artifacts/spendly-mobile/**`)
 - API-only routes under `/api/**` except where they influence crawlability of the public app
 
 ## Target audience

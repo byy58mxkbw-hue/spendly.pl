@@ -2,7 +2,7 @@ uploads = []
 
 [[generated]]
 id = "PZ2Fgt7fo_Ee7vXqZw1va"
-uri = "file://artifacts/checkit-mobile/assets/images/icon.png"
+uri = "file://artifacts/spendly-mobile/assets/images/icon.png"
 type = "image"
 title = "generated_image"
 

@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Spendly is a public-facing SaaS for restaurants that stores supplier, invoice, product, menu-cost, and KSeF integration data, then exposes analytics and AI-assisted purchasing workflows through a React frontend and an Express API. The production attack surface is the `/api` backend in `artifacts/api-server/src`, backed by PostgreSQL via Drizzle, authenticated by Clerk, and deployed as a public autoscale Replit app.
+Spendly is a public-facing SaaS for restaurants that stores supplier, invoice, product, menu-cost, and KSeF integration data, then exposes analytics and AI-assisted purchasing workflows through a React frontend and an Express API. The production attack surface is the `/api` backend in `artifacts/api-server/src`, backed by PostgreSQL via Drizzle, authenticated by Clerk, and deployed as a public Railway app.
 
 ## Assets
 

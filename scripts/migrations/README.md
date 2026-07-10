@@ -86,4 +86,4 @@ See `docs/` for sample data structure.
 
 ---
 
-**Last Used**: June 18, 2026 - Migration to Neon from Replit
+**Last Used**: June 18, 2026 - Migration to Neon

@@ -180,7 +180,7 @@ export default function SettingsScreen() {
         <SettingsRow
           icon="globe"
           label="Aplikacja webowa"
-          value="checkit.app"
+          value="spendly.pl"
         />
       </View>
 

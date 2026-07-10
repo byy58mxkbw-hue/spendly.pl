@@ -9,7 +9,7 @@ spendly/
 ├── artifacts/              # Deployable applications
 │   ├── api-server/        # Node.js Express backend (port 8080)
 │   ├── ksef-monitor/      # React frontend dashboard (port 3000)
-│   ├── checkit-mobile/    # React Native mobile app
+│   ├── spendly-mobile/    # React Native mobile app
 │   └── mockup-sandbox/    # Component sandbox
 ├── lib/                   # Shared libraries
 │   ├── api-spec/          # OpenAPI schema
@@ -23,9 +23,9 @@ spendly/
 │   └── migrations/        # Database migration scripts
 ├── docs/                  # Documentation & assets
 │   ├── kod-do-oceny.md    # Code review notes
-│   ├── replit.md          # Replit deployment notes
-│   ├── REPLIT_CONFIG.md   # Original Replit config
-│   ├── assets/            # Attachments from Replit
+│   ├── seo_strategy.md    # SEO planning
+│   ├── threat_model.md    # Security threat analysis
+│   ├── assets/            # Screenshots & design references
 │   └── *.txt              # Data exports
 ├── node_modules/          # Dependencies
 ├── package.json           # Workspace root config
@@ -97,7 +97,7 @@ spendly/
 
 ## 📝 Database Setup
 
-Database was migrated from Replit to Neon (PostgreSQL):
+Database runs on PostgreSQL:
 
 ```bash
 # Load production data (if needed)
@@ -109,10 +109,9 @@ node C:\Users\nowys\spendly\scripts\migrations\load-backup-clean.js
 
 See `docs/` folder:
 - `kod-do-oceny.md` - Code review & architecture notes
-- `replit.md` - Original Replit deployment setup
 - `seo_strategy.md` - SEO planning
 - `threat_model.md` - Security threat analysis
-- `assets/` - Screenshots and attachments from Replit
+- `assets/` - Screenshots and design references
 
 ## 🧪 Testing
 
