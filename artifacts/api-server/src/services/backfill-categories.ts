@@ -142,6 +142,61 @@ async function reclassifyQueuedInneByKeywords(): Promise<void> {
   }
 }
 
+/**
+ * One-time (idempotent) migration after splitting "sery" out of "nabiał" (Z8).
+ *
+ * Produkty już zaklasyfikowane jako "nabiał" nigdy nie są rewidowane przez pozostałe
+ * kroki (nabiał to poprawna kategoria builtin), więc po dodaniu kategorii "sery"
+ * sery utknęłyby w nabiale i kategoria "Sery" byłaby pusta na froncie (filtr pokazuje
+ * tylko kategorie z produktami). Ten krok re-uruchamia matcher słów kluczowych na
+ * produktach w "nabiał" — reguła "sery" jest PRZED "nabiał", więc sery zwracają "sery"
+ * i są przenoszone. Reszta nabiału zostaje nietknięta.
+ *
+ * Zero AI, bezpieczne przy każdym starcie:
+ *  - przenosi wyłącznie gdy matcher zwróci dokładnie "sery" (nie rusza mleka/jaj),
+ *  - nigdy nie nadpisuje ręcznej korekty usera,
+ *  - idempotentne: po pierwszym przebiegu sery są już w "sery", kolejne = 0 zmian.
+ */
+async function reclassifyNabialToSery(): Promise<void> {
+  try {
+    const rows = await db
+      .select({ id: productsTable.id, name: productsTable.name, userId: productsTable.userId })
+      .from(productsTable)
+      .where(eq(productsTable.category, "nabiał"));
+
+    if (rows.length === 0) {
+      logger.info("backfill-categories: no 'nabiał' products to check for sery split");
+      return;
+    }
+
+    // Respect explicit manual corrections — never override a user's choice.
+    const corrections = await db
+      .select({ userId: productCorrectionsTable.userId, normalizedName: productCorrectionsTable.normalizedName })
+      .from(productCorrectionsTable);
+    const correctedKeys = new Set(corrections.map((c) => `${c.userId}::${c.normalizedName}`));
+
+    let moved = 0;
+    for (const row of rows) {
+      const canonicalName = normalizeProductName(row.name) || row.name.toLowerCase().trim();
+      if (correctedKeys.has(`${row.userId}::${canonicalName}`)) continue;
+      if (categorizeProduct(row.name) !== "sery") continue;
+      await db
+        .update(productsTable)
+        .set({ category: "sery", subcategory: null, canonicalName })
+        .where(eq(productsTable.id, row.id));
+      moved++;
+    }
+
+    if (moved > 0) {
+      logger.info({ moved, scanned: rows.length }, "backfill-categories: migrated cheeses nabiał → sery (no AI)");
+    } else {
+      logger.info({ scanned: rows.length }, "backfill-categories: no cheeses to migrate out of nabiał");
+    }
+  } catch (err) {
+    logger.warn({ err }, "backfill-categories: reclassifyNabialToSery failed (non-fatal)");
+  }
+}
+
 const BATCH_SIZE = 10;
 const BATCH_DELAY_MS = 300;
 
@@ -181,6 +236,9 @@ export async function runCategoryBackfill(): Promise<void> {
   // Step 2: Deterministic, zero-AI keyword reclassification of queued "inne"
   // products — clears most of the review queue before paying for any AI calls.
   await reclassifyQueuedInneByKeywords();
+
+  // Step 2b: Migruj sery zaklasyfikowane jako "nabiał" do nowej kategorii "sery" (Z8).
+  await reclassifyNabialToSery();
 
   try {
     const products = await db
