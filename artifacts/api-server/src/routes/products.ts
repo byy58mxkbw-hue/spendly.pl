@@ -20,6 +20,7 @@ import {
 } from "@workspace/api-zod";
 import { getUserCategories, ensureCustomCategory, saveProductCorrection, normalizeProductName } from "../lib/categorize-ai.js";
 import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
+import { normalizedUnitSql } from "../lib/units.js";
 
 const router: IRouter = Router();
 
@@ -73,6 +74,7 @@ router.get("/products", async (req, res): Promise<void> => {
       latest_base AS (
         SELECT DISTINCT ON (ii.product_id)
           ii.product_id, ii.unit_price::numeric AS latest_price,
+          ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit,
           i.invoice_date AS last_purchase_date, i.supplier_id, s.name AS supplier_name
         FROM invoice_items ii
         JOIN invoices i ON ii.invoice_id = i.id
@@ -85,8 +87,9 @@ router.get("/products", async (req, res): Promise<void> => {
         ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
       ),
       prev_base AS (
-        SELECT DISTINCT ON (ii.product_id)
-          ii.product_id, ii.unit_price::numeric AS previous_price
+        SELECT DISTINCT ON (ii.product_id, ${normalizedUnitSql(sql`ii.unit`)})
+          ii.product_id, ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit,
+          ii.unit_price::numeric AS previous_price
         FROM invoice_items ii
         JOIN invoices i ON ii.invoice_id = i.id
         WHERE i.user_id = ${userId} AND i.excluded = false
@@ -94,7 +97,7 @@ router.get("/products", async (req, res): Promise<void> => {
           AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
           AND i.invoice_date < ${mStart}
           ${supplierSql}${ccSql}
-        ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+        ORDER BY ii.product_id, ${normalizedUnitSql(sql`ii.unit`)}, i.invoice_date DESC, i.id DESC
       ),
       sup_counts AS (
         SELECT ii.product_id, COUNT(DISTINCT i.supplier_id)::int AS supplier_count
@@ -123,7 +126,8 @@ router.get("/products", async (req, res): Promise<void> => {
         qs.total_quantity::text AS "totalQuantity"
       FROM products p
       LEFT JOIN latest_base lb ON p.id = lb.product_id
-      LEFT JOIN prev_base pb ON p.id = pb.product_id
+      -- Poprzednia cena tylko z tej samej znormalizowanej jednostki co najnowsza (bez tego kg vs szt daje fałszywe %)
+      LEFT JOIN prev_base pb ON p.id = pb.product_id AND pb.norm_unit = lb.norm_unit
       LEFT JOIN sup_counts sc ON p.id = sc.product_id
       LEFT JOIN qty_sums qs ON p.id = qs.product_id
       WHERE p.user_id = ${userId}${categorySql}${needsReviewSql}
@@ -136,6 +140,7 @@ router.get("/products", async (req, res): Promise<void> => {
       date_deduped AS (
         SELECT DISTINCT ON (ii.product_id, i.invoice_date)
           ii.product_id, ii.unit_price::numeric AS unit_price,
+          ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit,
           i.invoice_date, i.id AS invoice_id, i.supplier_id, s.name AS supplier_name
         FROM invoice_items ii
         JOIN invoices i ON ii.invoice_id = i.id
@@ -146,10 +151,17 @@ router.get("/products", async (req, res): Promise<void> => {
           ${daysSql}${supplierSql}${ccSql}
         ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
       ),
-      ranked AS (
-        SELECT *,
-          ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY invoice_date DESC, invoice_id DESC) AS rn
+      latest_unit AS (
+        SELECT DISTINCT ON (product_id) product_id, norm_unit
         FROM date_deduped
+        ORDER BY product_id, invoice_date DESC, invoice_id DESC
+      ),
+      ranked AS (
+        SELECT dd.*,
+          ROW_NUMBER() OVER (PARTITION BY dd.product_id ORDER BY dd.invoice_date DESC, dd.invoice_id DESC) AS rn
+        FROM date_deduped dd
+        -- Ranking tylko po pozycjach w tej samej jednostce co najnowsza (bez tego kg vs szt daje fałszywe %)
+        JOIN latest_unit lu ON dd.product_id = lu.product_id AND dd.norm_unit = lu.norm_unit
       ),
       sup_counts AS (
         SELECT ii.product_id, COUNT(DISTINCT i.supplier_id)::int AS supplier_count
@@ -266,6 +278,7 @@ router.get("/products/page", async (req, res): Promise<void> => {
     latest_base AS (
       SELECT DISTINCT ON (ii.product_id)
         ii.product_id, ii.unit_price::numeric AS latest_price,
+        ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit,
         i.invoice_date AS last_purchase_date, i.supplier_id, s.name AS supplier_name
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
@@ -278,8 +291,9 @@ router.get("/products/page", async (req, res): Promise<void> => {
       ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
     ),
     prev_base AS (
-      SELECT DISTINCT ON (ii.product_id)
-        ii.product_id, ii.unit_price::numeric AS previous_price
+      SELECT DISTINCT ON (ii.product_id, ${normalizedUnitSql(sql`ii.unit`)})
+        ii.product_id, ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit,
+        ii.unit_price::numeric AS previous_price
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       WHERE i.user_id = ${userId} AND i.excluded = false
@@ -287,7 +301,7 @@ router.get("/products/page", async (req, res): Promise<void> => {
         AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
         AND i.invoice_date < ${mStart}
         ${supplierSql}${ccSql}
-      ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
+      ORDER BY ii.product_id, ${normalizedUnitSql(sql`ii.unit`)}, i.invoice_date DESC, i.id DESC
     ),
     sup_counts AS (
       SELECT ii.product_id, COUNT(DISTINCT i.supplier_id)::int AS supplier_count
@@ -316,7 +330,8 @@ router.get("/products/page", async (req, res): Promise<void> => {
       qs.total_quantity::text AS "totalQuantity"
     FROM products p
     JOIN latest_base lb ON p.id = lb.product_id
-    LEFT JOIN prev_base pb ON p.id = pb.product_id
+    -- Poprzednia cena tylko z tej samej znormalizowanej jednostki co najnowsza (bez tego kg vs szt daje fałszywe %)
+    LEFT JOIN prev_base pb ON p.id = pb.product_id AND pb.norm_unit = lb.norm_unit
     LEFT JOIN sup_counts sc ON p.id = sc.product_id
     LEFT JOIN qty_sums qs ON p.id = qs.product_id
     WHERE p.user_id = ${userId}${categorySql}${needsReviewSql}${searchSql}

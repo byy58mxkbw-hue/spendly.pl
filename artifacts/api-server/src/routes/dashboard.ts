@@ -11,6 +11,7 @@ import {
 import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams, GetDashboardSummaryQueryParams, GetTopPriceChangesQueryParams } from "@workspace/api-zod";
 import { toNum } from "../lib/parse";
 import { computeTriggeredAlerts } from "../services/alert-checker";
+import { normalizedUnitSql } from "../lib/units";
 
 const router: IRouter = Router();
 
@@ -145,7 +146,8 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
         ii.product_id,
         ii.unit_price::numeric AS price,
         i.invoice_date,
-        ROW_NUMBER() OVER (PARTITION BY ii.product_id ORDER BY i.invoice_date DESC, i.id DESC) AS rn
+        ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit,
+        ROW_NUMBER() OVER (PARTITION BY ii.product_id, ${normalizedUnitSql(sql`ii.unit`)} ORDER BY i.invoice_date DESC, i.id DESC) AS rn
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       WHERE i.user_id = ${userId}
@@ -155,12 +157,12 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
         AND ii.unit_price::numeric > 0
         ${ccAvgSql}
     ),
-    latest_prices AS (SELECT product_id, price FROM ranked_prices WHERE rn = 1),
-    prev_prices   AS (SELECT product_id, price FROM ranked_prices WHERE rn = 2)
+    latest_prices AS (SELECT product_id, norm_unit, price FROM ranked_prices WHERE rn = 1),
+    prev_prices   AS (SELECT product_id, norm_unit, price FROM ranked_prices WHERE rn = 2)
     SELECT
       ROUND(AVG((l.price - p.price) / NULLIF(p.price, 0) * 100)::numeric, 1)::float AS avg_change
     FROM latest_prices l
-    JOIN prev_prices p ON l.product_id = p.product_id
+    JOIN prev_prices p ON l.product_id = p.product_id AND l.norm_unit = p.norm_unit
     WHERE p.price > 0
   `);
 

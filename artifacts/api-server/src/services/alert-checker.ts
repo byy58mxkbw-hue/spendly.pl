@@ -10,6 +10,7 @@ import {
   suppliersTable,
 } from "@workspace/db";
 import { toNum } from "../lib/parse";
+import { normalizeUnit } from "../lib/units";
 
 export interface TriggeredAlert {
   alertId: number;
@@ -59,6 +60,7 @@ export async function computeTriggeredAlerts(userId: string): Promise<TriggeredA
           .select({
             unitPrice: invoiceItemsTable.unitPrice,
             invoiceDate: invoicesTable.invoiceDate,
+            unit: invoiceItemsTable.unit,
           })
           .from(invoiceItemsTable)
           .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
@@ -70,12 +72,18 @@ export async function computeTriggeredAlerts(userId: string): Promise<TriggeredA
             ),
           )
           .orderBy(desc(invoicesTable.invoiceDate))
-          .limit(2);
+          .limit(20);
 
         if (history.length < 2) return null;
 
+        // Poprzednia cena musi być w TEJ SAMEJ znormalizowanej jednostce co najnowsza —
+        // inaczej alert powstałby z rozjazdu jednostek (np. cena/kg vs cena/szt), nie z realnej podwyżki.
+        const currentUnit = normalizeUnit(history[0].unit);
+        const previousEntry = history.slice(1).find((h) => normalizeUnit(h.unit) === currentUnit);
+        if (!previousEntry) return null;
+
         const current = toNum(history[0].unitPrice);
-        const previous = toNum(history[1].unitPrice);
+        const previous = toNum(previousEntry.unitPrice);
         const changePercent = ((current - previous) / previous) * 100;
         const threshold = toNum(alert.thresholdPercent);
 
