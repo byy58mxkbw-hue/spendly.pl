@@ -1981,8 +1981,8 @@ export default function Products() {
 
         {/* Floating bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border border-amber-400/30 bg-background/95 backdrop-blur-sm">
-            <span className="text-sm font-medium text-amber-700">
+          <div className="fixed z-50 flex flex-wrap items-center justify-center gap-2 md:gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-amber-400/30 bg-background/95 backdrop-blur-sm left-3 right-3 md:left-1/2 md:right-auto md:-translate-x-1/2 bottom-[calc(4.25rem_+_env(safe-area-inset-bottom))] md:bottom-6">
+            <span className="text-sm font-medium text-amber-600 dark:text-amber-400 w-full text-center md:w-auto">
               Zaznaczono: {selectedIds.size}
             </span>
             <Button

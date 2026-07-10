@@ -1399,9 +1399,9 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
         <>
           {/* Bulk action bar */}
           {selectedIds.size > 0 && (
-            <div className="flex items-center justify-between px-4 py-2.5 rounded-xl mb-2" style={{ background: "rgba(20,184,166,0.08)", border: "1px solid rgba(20,184,166,0.25)" }}>
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-xl mb-2" style={{ background: "rgba(20,184,166,0.08)", border: "1px solid rgba(20,184,166,0.25)" }}>
               <span className="text-sm text-teal-300 font-medium">{selectedIds.size} zaznaczone</span>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => setSelectedIds(new Set())}
                   className="text-xs text-foreground/40 hover:text-foreground/70 transition-colors px-2"
