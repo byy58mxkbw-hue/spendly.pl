@@ -166,7 +166,9 @@ export async function categorizeProductWithAI(
     return {
       category: supplierDefaultCategory,
       subcategory: null,
-      confidence: 1.0,
+      // Z4: to zgadywanie po dostawcy (nie po nazwie produktu) — niższa pewność niż
+      // keyword (0.9), żeby przy mieszanym asortymencie pozycja trafiła do „Do przeglądu".
+      confidence: 0.6,
       canonicalName,
     };
   }
