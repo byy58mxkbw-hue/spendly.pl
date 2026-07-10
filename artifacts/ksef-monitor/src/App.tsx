@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, ClerkLoading, useClerk } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
@@ -139,6 +139,11 @@ function SignUpPage() {
 function HomeRedirect() {
   return (
     <>
+      {/* Póki Clerk się inicjalizuje, pokaż landing zamiast czarnego ekranu —
+          płynne przejście ze statycznego prerenderu w index.html. */}
+      <ClerkLoading>
+        <Home />
+      </ClerkLoading>
       <Show when="signed-in">
         <Redirect to="/dashboard" />
       </Show>
