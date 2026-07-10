@@ -13,6 +13,20 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pass
+          POSTGRES_DB: spendly_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d spendly_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -34,5 +48,15 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      # Schemat do testowej bazy (serwis postgres powyżej). push-force = nieinteraktywnie.
+      - name: Push DB schema (test)
+        run: pnpm --filter @workspace/db run push-force
+        env:
+          DATABASE_URL: postgres://user:pass@localhost:5432/spendly_test
+
+      # TEST_DATABASE_URL odblokowuje testy DB-zależne (izolacja tenantów).
+      # Lokalnie bez tej zmiennej te testy się pomijają — `pnpm test` zostaje zielony.
       - name: Test
         run: pnpm test
+        env:
+          TEST_DATABASE_URL: postgres://user:pass@localhost:5432/spendly_test
