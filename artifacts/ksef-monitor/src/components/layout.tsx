@@ -493,24 +493,23 @@ function SidebarContent({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            data-testid="btn-logout"
-            onClick={onSignOut}
-            className="flex-1 flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground/80 transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5 shrink-0" />
-            Wyloguj się
-          </button>
-          <button
-            onClick={toggle}
-            title={theme === "light" ? "Tryb ciemny" : "Tryb jasny"}
-            aria-label={theme === "light" ? "Włącz tryb ciemny" : "Włącz tryb jasny"}
-            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground/80 transition-colors"
-          >
-            {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </button>
-        </div>
+        {/* Przełącznik motywu — podpisany, pełna szerokość, żeby był widoczny */}
+        <button
+          onClick={toggle}
+          aria-label={theme === "light" ? "Włącz tryb ciemny" : "Włącz tryb jasny"}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 mb-1 rounded-lg text-xs text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground/80 transition-colors"
+        >
+          {theme === "light" ? <Moon className="w-3.5 h-3.5 shrink-0" /> : <Sun className="w-3.5 h-3.5 shrink-0" />}
+          <span className="flex-1 text-left">{theme === "light" ? "Tryb ciemny" : "Tryb jasny"}</span>
+        </button>
+        <button
+          data-testid="btn-logout"
+          onClick={onSignOut}
+          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground/80 transition-colors"
+        >
+          <LogOut className="w-3.5 h-3.5 shrink-0" />
+          Wyloguj się
+        </button>
       </div>
     </>
   );
