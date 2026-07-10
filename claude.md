@@ -178,7 +178,7 @@ new Date(date).toLocaleDateString('pl-PL')
 ### ⚠️ Do weryfikacji
 - `ocr-faktur.tsx` i `cennik.tsx` — to STATYCZNE strony marketingowe (własny NavBar, hardcoded kolory `#0B0F14`, zero wywołań API). NIE są zepsutymi funkcjami — nie potrzebują backendu. Funkcjonalny OCR jest na stronie Faktur (`/invoices/scan-receipt`). UWAGA: obie tkwią w starym, zawsze-ciemnym motywie (nie używają glass/theme z landingu) — niespójne wizualnie z `home.tsx`.
 - Niespójność cennika: `home.tsx` pokazuje 3 plany (Start 0 / Pro 199 / Sieć wycena), a `cennik.tsx` 1 plan (0 zł, 200 przekreślone). Do ujednolicenia (decyzja biznesowa).
-- Mapowanie dostawca/produkt — logika w bazie, UI niekompletne
+- Mapowanie produktów — DZIAŁA w przepływie akceptacji „Do przeglądu" (`pending-invoices.tsx`): mapowanie pozycji faktury na produkt (`itemMappings`), pomijanie pozycji, tworzenie produktu w locie. Poza tym przepływem brak osobnego ekranu mapowania (i raczej niepotrzebny).
 
 ### 🟡 Dług techniczny
 - Pliki do rozbicia: `ksef.ts` (1592 linie), `ai-cfo.ts` (1300), `invoices.ts` (1180), `invoices.tsx` (2271), `reports.tsx` (1981), `products.tsx` (2085)
