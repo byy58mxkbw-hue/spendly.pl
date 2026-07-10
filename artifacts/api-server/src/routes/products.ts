@@ -429,7 +429,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
       current_prices AS (
         SELECT DISTINCT ON (ii.product_id)
           ii.product_id, ii.unit_price::numeric AS current_price,
-          regexp_replace(lower(btrim(ii.unit)), '\\.+$', '') AS norm_unit,
+          ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit,
           i.invoice_date AS last_date, s.name AS supplier_name
         FROM invoice_items ii
         JOIN invoices i ON ii.invoice_id = i.id
@@ -442,9 +442,9 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
         ORDER BY ii.product_id, i.invoice_date DESC, i.id DESC
       ),
       previous_prices AS (
-        SELECT DISTINCT ON (ii.product_id, regexp_replace(lower(btrim(ii.unit)), '\\.+$', ''))
+        SELECT DISTINCT ON (ii.product_id, ${normalizedUnitSql(sql`ii.unit`)})
           ii.product_id,
-          regexp_replace(lower(btrim(ii.unit)), '\\.+$', '') AS norm_unit,
+          ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit,
           ii.unit_price::numeric AS previous_price
         FROM invoice_items ii
         JOIN invoices i ON ii.invoice_id = i.id
@@ -453,7 +453,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
           AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
           AND i.invoice_date < ${mStart}
           ${ccSql}
-        ORDER BY ii.product_id, regexp_replace(lower(btrim(ii.unit)), '\\.+$', ''), i.invoice_date DESC, i.id DESC
+        ORDER BY ii.product_id, ${normalizedUnitSql(sql`ii.unit`)}, i.invoice_date DESC, i.id DESC
       )
       SELECT
         p.id AS product_id, p.name AS product_name, p.unit,
@@ -472,7 +472,7 @@ router.get("/products/top-price-changes", async (req, res): Promise<void> => {
       date_deduped AS (
         SELECT DISTINCT ON (ii.product_id, i.invoice_date)
           ii.product_id, ii.unit_price::numeric AS unit_price,
-          regexp_replace(lower(btrim(ii.unit)), '\\.+$', '') AS norm_unit,
+          ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit,
           i.invoice_date, i.id AS invoice_id, s.name AS supplier_name
         FROM invoice_items ii
         JOIN invoices i ON ii.invoice_id = i.id
