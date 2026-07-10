@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/layout";
+import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -620,7 +621,7 @@ export default function FoodCostPage() {
   const queryClient = useQueryClient();
   const deleteDish = useDeleteDish();
 
-  const { data: dishes = [], isLoading } = useListDishes();
+  const { data: dishes = [], isLoading, isError, refetch } = useListDishes();
 
   const [showCreate, setShowCreate] = useState(false);
   const [viewDishId, setViewDishId] = useState<number | null>(null);
@@ -715,6 +716,8 @@ export default function FoodCostPage() {
         {/* Dish list */}
         {isLoading ? (
           <div className="py-16 text-center text-muted-foreground text-sm">Ładowanie...</div>
+        ) : isError ? (
+          <ErrorState onRetry={() => refetch()} />
         ) : filtered.length === 0 ? (
           <div className="py-16 text-center space-y-3">
             <p className="text-muted-foreground text-sm">{dishes.length === 0 ? "Brak dań — zacznij od dodania pierwszego." : "Brak wyników."}</p>

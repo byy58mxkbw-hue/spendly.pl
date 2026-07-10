@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/error-state";
 import { ArrowLeft, Building2, Mail, Phone, FileText, Package } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
 import {
@@ -50,7 +51,7 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
   const id = parseInt(params.id, 10);
   const [selectedProduct, setSelectedProduct] = useState<{ id: number; name: string } | null>(null);
 
-  const { data: supplier, isLoading: supplierLoading } = useGetSupplier(id, {
+  const { data: supplier, isLoading: supplierLoading, isError: supplierError, refetch: refetchSupplier } = useGetSupplier(id, {
     query: { enabled: !!id, queryKey: getGetSupplierQueryKey(id) },
   });
   const { data: invoices, isLoading: invoicesLoading } = useListInvoices(
@@ -91,6 +92,8 @@ export default function SupplierDetail({ params }: { params: { id: string } }) {
             <Skeleton className="h-8 w-64" />
             <Skeleton className="h-4 w-48" />
           </div>
+        ) : supplierError ? (
+          <ErrorState onRetry={() => refetchSupplier()} />
         ) : supplier ? (
           <>
             <PageHeader title={supplier.name} subtitle={`NIP: ${supplier.taxId}`} />

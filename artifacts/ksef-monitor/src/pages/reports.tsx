@@ -11,6 +11,7 @@ import {
 import type { ReportProductRow, ReportSupplierRow, SpendBridge } from "@workspace/api-client-react";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -1650,7 +1651,7 @@ export default function Reports() {
   const { selectedId: costCenterId } = useCostCenter();
   const ccParam = costCenterId != null ? { costCenterId } : {};
 
-  const { data, isLoading } = useGetMonthlyReport(
+  const { data, isLoading, isError: monthlyError, refetch: refetchMonthly } = useGetMonthlyReport(
     { month, ...ccParam },
     { query: { queryKey: ["monthly-report", month, costCenterId] } },
   );
@@ -1750,6 +1751,14 @@ export default function Reports() {
             </div>
           </div>
         </div>
+
+        {monthlyError && (
+          <ErrorState
+            onRetry={() => refetchMonthly()}
+            message="Nie udało się pobrać raportu miesięcznego. Spróbuj ponownie."
+            className="glass rounded-xl mb-5"
+          />
+        )}
 
         {/* Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
