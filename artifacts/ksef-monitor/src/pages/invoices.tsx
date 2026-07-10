@@ -95,7 +95,7 @@ import { useToast } from "@/hooks/use-toast";
 // ─── Category labels ──────────────────────────────────────────────────────────
 
 const CATEGORY_LABELS: Record<string, string> = {
-  mieso: "Mięso", ryby: "Ryby", nabiał: "Nabiał", warzywa: "Warzywa",
+  mieso: "Mięso", ryby: "Ryby", nabiał: "Nabiał", sery: "Sery", warzywa: "Warzywa",
   owoce: "Owoce", pieczywo: "Pieczywo", napoje: "Napoje", alkohol: "Alkohol",
   suche: "Suche", inne: "Inne",
 };

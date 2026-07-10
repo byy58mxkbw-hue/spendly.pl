@@ -4,13 +4,13 @@ import { BUILTIN_CATEGORY_DEFS } from "./categorize";
 
 describe("matchBrand: rozpoznanie marek", () => {
   const cases: Array<[string, string, string]> = [
-    ["cheddar hochland 1kg", "nabiał", "ser cheddar"],
+    ["cheddar hochland 1kg", "sery", "ser cheddar"],
     ["coca-cola 1l", "napoje", "cola"],
     ["barilla spaghetti n5", "pieczywo", "makaron"],
     ["ludwik płyn do naczyń", "srodki_czystosci", "płyn do naczyń"],
     ["tabasco sos ostry", "przyprawy", "sos ostry"],
     ["woda cisowianka 1,5l", "napoje", "woda"],
-    ["serek almette naturalny", "nabiał", "serek kremowy"],
+    ["serek almette naturalny", "sery", "serek kremowy"],
   ];
   for (const [name, category, subcategory] of cases) {
     it(`"${name}" → ${category}/${subcategory}`, () => {

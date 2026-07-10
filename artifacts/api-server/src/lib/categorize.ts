@@ -242,6 +242,22 @@ export const CATEGORY_RULES: CategoryRule[] = [
     ],
   },
 
+  // ── Sery (wydzielone z Nabiału, Z8) ─────────────────────────────────────────
+  // MUSI być PRZED regułą "nabiał", żeby serowe nazwy (w tym „serek") trafiały tu.
+  {
+    id: "sery",
+    keywords: [
+      "ser ", "sery", "serow", "serem", "serek",
+      "twaróg", "twarogu",
+      "ricotta", "mozzarella", "burrata", "feta",
+      "camembert", "brie", "gouda", "edam",
+      "parmezan", "grana padano", "pecorino",
+      "halloumi", "cottage", "fromage", "mascarpone",
+      "cheddar", "formagio", "pleśniow",
+      "mix serów", "fellada",
+    ],
+  },
+
   // ── 8. Nabiał i jaja ────────────────────────────────────────────────────────
   {
     id: "nabiał",
@@ -250,20 +266,12 @@ export const CATEGORY_RULES: CategoryRule[] = [
       "śmietan", "śmietank", "kremówka", "double cream",
       "maślank", "kefir", "zsiadłe mleko",
       "masło", "masła", "masłem",
-      "ser ", "sery", "serow", "serem",
       "jogurt", "jogurtu",
-      "twaróg", "twarogu",
-      "ricotta", "mozzarella", "burrata", "feta",
-      "camembert", "brie", "gouda", "edam",
-      "parmezan", "grana padano", "pecorino",
-      "halloumi", "cottage", "fromage", "mascarpone",
       "skyr", "quark",
       "nabiał",
       "jajk", "jaja ", "jaj ", "jajec",
       "jajko", "jajka",
-      // Sery markowe i pleśniowe (uzup. z realnych faktur)
-      "formagio", "pleśniow", "cremefine",
-      "mix serów", "serek", "fellada",
+      "cremefine",
     ],
   },
 
@@ -489,6 +497,7 @@ export const BUILTIN_CATEGORY_DEFS: Record<string, { label: string; emoji: strin
   konserwy: { label: "Konserwy / Przetwory", emoji: "🥫" },
   ryby: { label: "Ryby / Owoce morza", emoji: "🐟" },
   miesa: { label: "Mięsa / Wędliny", emoji: "🥩" },
+  sery: { label: "Sery", emoji: "🧀" },
   nabiał: { label: "Nabiał / Jaja", emoji: "🥛" },
   warzywa: { label: "Warzywa / Owoce / Grzyby", emoji: "🥦" },
   napoje: { label: "Napoje", emoji: "🥤" },

@@ -9,20 +9,21 @@
 export type BrandInfo = { category: string; subcategory: string };
 
 const BRAND_MAP: Record<string, BrandInfo> = {
-  // ── Nabiał / sery ──
-  cheddar: { category: "nabiał", subcategory: "ser cheddar" },
-  mozzarella: { category: "nabiał", subcategory: "mozzarella" },
-  parmezan: { category: "nabiał", subcategory: "parmezan" },
-  "grana padano": { category: "nabiał", subcategory: "parmezan" },
-  gorgonzola: { category: "nabiał", subcategory: "ser pleśniowy" },
-  mascarpone: { category: "nabiał", subcategory: "mascarpone" },
-  ricotta: { category: "nabiał", subcategory: "ricotta" },
-  feta: { category: "nabiał", subcategory: "feta" },
-  gouda: { category: "nabiał", subcategory: "gouda" },
-  camembert: { category: "nabiał", subcategory: "camembert" },
-  hochland: { category: "nabiał", subcategory: "ser topiony" },
-  almette: { category: "nabiał", subcategory: "serek kremowy" },
-  galbani: { category: "nabiał", subcategory: "ser" },
+  // ── Sery (Z8: osobna kategoria) ──
+  cheddar: { category: "sery", subcategory: "ser cheddar" },
+  mozzarella: { category: "sery", subcategory: "mozzarella" },
+  parmezan: { category: "sery", subcategory: "parmezan" },
+  "grana padano": { category: "sery", subcategory: "parmezan" },
+  gorgonzola: { category: "sery", subcategory: "ser pleśniowy" },
+  mascarpone: { category: "sery", subcategory: "mascarpone" },
+  ricotta: { category: "sery", subcategory: "ricotta" },
+  feta: { category: "sery", subcategory: "feta" },
+  gouda: { category: "sery", subcategory: "gouda" },
+  camembert: { category: "sery", subcategory: "camembert" },
+  hochland: { category: "sery", subcategory: "ser topiony" },
+  almette: { category: "sery", subcategory: "serek kremowy" },
+  galbani: { category: "sery", subcategory: "mozzarella" },
+  // ── Nabiał / mleczne ──
   piątnica: { category: "nabiał", subcategory: "nabiał" },
   mlekovita: { category: "nabiał", subcategory: "nabiał" },
   łaciate: { category: "nabiał", subcategory: "mleko" },

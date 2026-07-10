@@ -291,6 +291,23 @@ export const CATEGORIES: Category[] = [
 
   // ── 8. Nabiał i jaja ────────────────────────────────────────────────────────
   {
+    // Sery — wydzielone z Nabiału (Z8). MUSI być PRZED "nabiał", żeby serowe
+    // nazwy (w tym „serek") trafiały tu, a nie do nabiału.
+    id: "sery",
+    label: "Sery",
+    emoji: "🧀",
+    keywords: [
+      "ser ", "sery", "serow", "serem", "serek",
+      "twaróg", "twarogu",
+      "ricotta", "mozzarella", "burrata", "feta",
+      "camembert", "brie", "gouda", "edam",
+      "parmezan", "grana padano", "pecorino",
+      "halloumi", "cottage", "fromage", "mascarpone",
+      "cheddar", "formagio", "pleśniow",
+      "mix serów", "fellada",
+    ],
+  },
+  {
     id: "nabiał",
     label: "Nabiał / Jaja",
     emoji: "🥛",
@@ -301,22 +318,13 @@ export const CATEGORIES: Category[] = [
       "maślank", "kefir", "zsiadłe mleko",
       // Masło
       "masło", "masła", "masłem",
-      // Sery
-      "ser ", "sery", "serow", "serem",
       "jogurt", "jogurtu",
-      "twaróg", "twarogu",
-      "ricotta", "mozzarella", "burrata", "feta",
-      "camembert", "brie", "gouda", "edam",
-      "parmezan", "grana padano", "pecorino",
-      "halloumi", "cottage", "fromage", "mascarpone",
       "skyr", "quark",
       "nabiał",
       // Jaja
       "jajk", "jaja ", "jaj ", "jajec",
       "jajko", "jajka",
-      // Sery markowe i pleśniowe (uzup. z realnych faktur)
-      "formagio", "pleśniow", "cremefine",
-      "mix serów", "serek", "fellada",
+      "cremefine",
     ],
   },
 

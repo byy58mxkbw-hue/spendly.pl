@@ -8,6 +8,7 @@
     "backfill-categories": "tsx ./src/backfill-categories.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "eval:ai-intent": "tsx ./src/ai-cfo-intent.eval.ts",
+    "backfill-sery": "tsx ./src/backfill-sery.ts",
     "e2e": "playwright test --config playwright.config.ts",
     "cleanup-prod-agata-pending": "tsx ./src/cleanup-prod-agata-pending.ts"
   },

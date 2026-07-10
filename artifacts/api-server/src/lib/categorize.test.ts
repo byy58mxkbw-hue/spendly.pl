@@ -8,8 +8,12 @@ describe("categorizeProduct: pewne trafienia", () => {
   const cases: Array<[string, string]> = [
     ["mleko 2%", "nabiał"],
     ["masło extra 82%", "nabiał"],
-    ["serek wiejski", "nabiał"],
-    ["ser cheddar", "nabiał"],
+    ["jogurt naturalny", "nabiał"],
+    // Sery wydzielone z Nabiału (Z8):
+    ["serek wiejski", "sery"],
+    ["ser cheddar", "sery"],
+    ["twaróg", "sery"],
+    ["mozzarella", "sery"],
     ["filet z łososia", "ryby"],
     ["wołowina", "miesa"],
     ["kurczak filet", "miesa"],

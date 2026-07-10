@@ -6,6 +6,6 @@
     "types": ["node"]
   },
   "include": ["src"],
-  "// eval": "eval importuje czysty moduł z api-server (poza rootDir) — uruchamiany przez tsx, poza tsc",
-  "exclude": ["src/ai-cfo-intent.eval.ts"]
+  "// eval": "pliki importujące moduły z api-server (poza rootDir) — uruchamiane przez tsx, poza tsc",
+  "exclude": ["src/ai-cfo-intent.eval.ts", "src/backfill-sery.ts"]
 }
