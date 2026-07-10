@@ -11,12 +11,14 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { ThemeProvider } from "@/hooks/use-theme";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
-import KsefPage from "@/pages/ksef";
+// Strony drugorzędne (linki ze stopki/marketing) ładowane leniwie — nie obciążają
+// głównego bundla, przez co panel i landing startują szybciej. Home zostaje eager.
 const FoodCostPage = lazy(() => import("@/pages/food-cost"));
-import OcrFakturPage from "@/pages/ocr-faktur";
-import CennikPage from "@/pages/cennik";
-import RegulaminPage from "@/pages/regulamin";
-import PolitykaPrywatnosciPage from "@/pages/polityka-prywatnosci";
+const KsefPage = lazy(() => import("@/pages/ksef"));
+const OcrFakturPage = lazy(() => import("@/pages/ocr-faktur"));
+const CennikPage = lazy(() => import("@/pages/cennik"));
+const RegulaminPage = lazy(() => import("@/pages/regulamin"));
+const PolitykaPrywatnosciPage = lazy(() => import("@/pages/polityka-prywatnosci"));
 
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Suppliers = lazy(() => import("@/pages/suppliers"));
@@ -191,6 +193,30 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+// Loader pokazywany podczas ładowania leniwych tras (zamiast pustego ekranu).
+function PageLoading() {
+  return (
+    <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", background: "hsl(var(--background))" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+        <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.045em", color: "hsl(var(--foreground))" }}>
+          spend<span style={{ color: "hsl(var(--primary))" }}>ly.</span>
+        </span>
+        <div
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: "50%",
+            border: "2.5px solid hsl(var(--muted-foreground) / 0.25)",
+            borderTopColor: "hsl(var(--primary))",
+            animation: "sp-spin 0.7s linear infinite",
+          }}
+        />
+      </div>
+      <style>{`@keyframes sp-spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
 function AppRouter() {
   const [, setLocation] = useLocation();
 
@@ -222,7 +248,7 @@ function AppRouter() {
         <CostCenterProvider>
         <TooltipProvider>
           <ClerkQueryClientCacheInvalidator />
-          <Suspense fallback={null}>
+          <Suspense fallback={<PageLoading />}>
             <Switch>
               <Route path="/" component={HomeRedirect} />
               <Route path="/ksef" component={KsefPage} />
