@@ -8,7 +8,7 @@
 
 import { isNull, sql } from "drizzle-orm";
 import { db, productsTable, userCategoriesTable, productCorrectionsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { categorizeProductWithAI, normalizeProductName } from "../lib/categorize-ai.js";
 import { logger } from "../lib/logger.js";
 import { BUILTIN_CATEGORY_DEFS, categorizeProduct } from "../lib/categorize.js";
@@ -145,27 +145,28 @@ async function reclassifyQueuedInneByKeywords(): Promise<void> {
 /**
  * One-time (idempotent) migration after splitting "sery" out of "nabiał" (Z8).
  *
- * Produkty już zaklasyfikowane jako "nabiał" nigdy nie są rewidowane przez pozostałe
- * kroki (nabiał to poprawna kategoria builtin), więc po dodaniu kategorii "sery"
- * sery utknęłyby w nabiale i kategoria "Sery" byłaby pusta na froncie (filtr pokazuje
- * tylko kategorie z produktami). Ten krok re-uruchamia matcher słów kluczowych na
- * produktach w "nabiał" — reguła "sery" jest PRZED "nabiał", więc sery zwracają "sery"
- * i są przenoszone. Reszta nabiału zostaje nietknięta.
+ * Sery były klasyfikowane zanim reguła "sery" powstała, więc utknęły w "nabiał"
+ * (poprawna kategoria builtin — nierewidowana) LUB w "inne" z ustawionym confidence
+ * (nierewidowane, bo needs_review=false). Żaden inny krok backfillu ich nie rusza,
+ * więc kategoria "Sery" jest pusta na froncie (filtr pokazuje tylko kategorie z
+ * produktami). Ten krok re-uruchamia matcher słów kluczowych na produktach w
+ * "nabiał" i "inne" — reguła "sery" jest PRZED "nabiał", więc sery zwracają "sery"
+ * i są przenoszone. Reszta obu kategorii zostaje nietknięta.
  *
  * Zero AI, bezpieczne przy każdym starcie:
  *  - przenosi wyłącznie gdy matcher zwróci dokładnie "sery" (nie rusza mleka/jaj),
  *  - nigdy nie nadpisuje ręcznej korekty usera,
  *  - idempotentne: po pierwszym przebiegu sery są już w "sery", kolejne = 0 zmian.
  */
-async function reclassifyNabialToSery(): Promise<void> {
+async function reclassifyToSery(): Promise<void> {
   try {
     const rows = await db
       .select({ id: productsTable.id, name: productsTable.name, userId: productsTable.userId })
       .from(productsTable)
-      .where(eq(productsTable.category, "nabiał"));
+      .where(inArray(productsTable.category, ["nabiał", "inne"]));
 
     if (rows.length === 0) {
-      logger.info("backfill-categories: no 'nabiał' products to check for sery split");
+      logger.info("backfill-categories: no 'nabiał'/'inne' products to check for sery split");
       return;
     }
 
@@ -182,18 +183,18 @@ async function reclassifyNabialToSery(): Promise<void> {
       if (categorizeProduct(row.name) !== "sery") continue;
       await db
         .update(productsTable)
-        .set({ category: "sery", subcategory: null, canonicalName })
+        .set({ category: "sery", subcategory: null, classificationConfidence: 0.9, canonicalName, needsReview: false })
         .where(eq(productsTable.id, row.id));
       moved++;
     }
 
     if (moved > 0) {
-      logger.info({ moved, scanned: rows.length }, "backfill-categories: migrated cheeses nabiał → sery (no AI)");
+      logger.info({ moved, scanned: rows.length }, "backfill-categories: migrated cheeses → sery (no AI)");
     } else {
-      logger.info({ scanned: rows.length }, "backfill-categories: no cheeses to migrate out of nabiał");
+      logger.info({ scanned: rows.length }, "backfill-categories: no cheeses to migrate into sery");
     }
   } catch (err) {
-    logger.warn({ err }, "backfill-categories: reclassifyNabialToSery failed (non-fatal)");
+    logger.warn({ err }, "backfill-categories: reclassifyToSery failed (non-fatal)");
   }
 }
 
@@ -237,8 +238,8 @@ export async function runCategoryBackfill(): Promise<void> {
   // products — clears most of the review queue before paying for any AI calls.
   await reclassifyQueuedInneByKeywords();
 
-  // Step 2b: Migruj sery zaklasyfikowane jako "nabiał" do nowej kategorii "sery" (Z8).
-  await reclassifyNabialToSery();
+  // Step 2b: Migruj sery zaklasyfikowane jako "nabiał"/"inne" do nowej kategorii "sery" (Z8).
+  await reclassifyToSery();
 
   try {
     const products = await db
