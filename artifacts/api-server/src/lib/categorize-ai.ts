@@ -125,6 +125,9 @@ export async function categorizeProductWithAI(
   userId: string,
   logger?: Logger,
   supplierDefaultCategory?: string | null,
+  // Z3: opcjonalnie przekaż kategorie usera (wbudowane + własne), żeby przy imporcie
+  // wielu pozycji nie odpytywać DB per produkt. Gdy brak — pobierane wewnątrz (ścieżka AI).
+  userCategories?: Array<{ id: string; label: string }>,
 ): Promise<ClassificationResult> {
   const normalizedName = normalizeProductName(productName);
   const canonicalName = normalizedName || productName.toLowerCase().trim();
@@ -179,10 +182,12 @@ export async function categorizeProductWithAI(
   }
 
   // Step 3: AI classification — returns JSON with subcategory + confidence
-  const builtinIds = Object.keys(BUILTIN_CATEGORY_DEFS);
-  const categoryList = Object.entries(BUILTIN_CATEGORY_DEFS)
-    .map(([id, def]) => `${id}: ${def.label}`)
-    .join("\n");
+  // Z3: dopuszczamy własne kategorie usera (nie tylko wbudowane) w promptcie i walidacji.
+  const cats = userCategories ?? (await getUserCategories(userId)).map((c) => ({ id: c.id, label: c.label }));
+  const idByNorm = new Map(
+    cats.map((c) => [c.id.toLowerCase().replace(/[^a-z0-9_ąćęłńóśźż]/g, ""), c.id] as const),
+  );
+  const categoryList = cats.map((c) => `${c.id}: ${c.label}`).join("\n");
 
   const prompt = `Jesteś asystentem restauracji. Klasyfikuj produkt spożywczy lub gastronomiczny.
 
@@ -233,13 +238,14 @@ Znormalizowana nazwa: ${canonicalName}`;
       ? parsed.subcategory.trim().slice(0, 60)
       : null;
 
-    // Validate against built-in category IDs only — reject everything else
+    // Waliduj wobec dozwolonych ID (wbudowane + własne usera); resztę → "inne".
     const normalized = finalCategory.toLowerCase().replace(/[^a-z0-9_ąćęłńóśźż]/g, "");
-    if (!builtinIds.includes(normalized)) {
+    const matchedId = idByNorm.get(normalized);
+    if (!matchedId) {
       logger?.warn({ productName, finalCategory }, "categorize-ai: unknown category ID, using 'inne'");
       finalCategory = "inne";
     } else {
-      finalCategory = normalized;
+      finalCategory = matchedId;
     }
 
     return {

@@ -12,7 +12,7 @@ import {
   DeleteInvoiceParams,
   SetInvoiceCostCenterBody,
 } from "@workspace/api-zod";
-import { categorizeProductWithAI, type ClassificationResult } from "../lib/categorize-ai.js";
+import { categorizeProductWithAI, getUserCategories, type ClassificationResult } from "../lib/categorize-ai.js";
 import { checkAlertsAfterImport } from "../services/alert-checker";
 import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
 import { encryptSecret, decryptSecret } from "../lib/encryption";
@@ -951,8 +951,10 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     quantity: number; unit: string; unitPrice: number; totalPrice: number; vatRate: number | null;
   }> = [];
 
+  // Z3: pobierz kategorie usera RAZ (wbudowane + własne), zamiast per pozycja na ścieżce AI.
+  const userCats = (await getUserCategories(userId)).map((c) => ({ id: c.id, label: c.label }));
   for (const item of parsedItems) {
-    const classification = await categorizeProductWithAI(item.productName, userId, req.log, supplier.defaultCategory ?? undefined);
+    const classification = await categorizeProductWithAI(item.productName, userId, req.log, supplier.defaultCategory ?? undefined, userCats);
     const productId = await findOrCreateProduct(userId, item.productName, item.unit, classification);
 
     const [invoiceItem] = await db
