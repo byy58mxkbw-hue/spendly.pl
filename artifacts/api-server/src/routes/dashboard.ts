@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, desc, and, gte } from "drizzle-orm";
+import { eq, sql, desc, and, gte, inArray } from "drizzle-orm";
 import {
   db,
   suppliersTable,
@@ -274,47 +274,72 @@ router.get("/dashboard/recent-purchases", async (req, res): Promise<void> => {
     return true;
   });
 
-  const enriched = await Promise.all(
-    unique.slice(0, limit).map(async (item) => {
-      let previousPrice: number | null = null;
-      let changePercent: number | null = null;
+  const top = unique.slice(0, limit);
 
-      if (item.productId) {
-        const prevItems = await db
-          .select({ unitPrice: invoiceItemsTable.unitPrice })
-          .from(invoiceItemsTable)
-          .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
-          .where(
-            and(
-              eq(invoiceItemsTable.productId, item.productId),
-              eq(invoicesTable.userId, userId),
-              eq(invoicesTable.excluded, false),
-              sql`${invoicesTable.invoiceDate} < ${item.invoiceDate}`,
-              ccFilter,
-            ),
-          )
-          .orderBy(desc(invoicesTable.invoiceDate))
-          .limit(1);
-
-        if (prevItems.length > 0) {
-          previousPrice = toNum(prevItems[0].unitPrice);
-          const current = toNum(item.unitPrice);
-          changePercent = ((current - previousPrice) / previousPrice) * 100;
-        }
-      }
-
-      return {
-        productId: item.productId,
-        productName: item.productName,
-        unit: item.unit,
-        currentPrice: toNum(item.unitPrice),
-        previousPrice,
-        changePercent,
-        supplierName: item.supplierName,
-        purchaseDate: item.invoiceDate,
-      };
-    }),
+  // Poprzednia cena: zamiast N+1 (jedno zapytanie na pozycję) pobieramy CAŁĄ historię
+  // cen dla wszystkich potrzebnych produktów JEDNYM zapytaniem (te same filtry co dawne
+  // zapytanie „prev": userId, excluded=false, ccFilter, BEZ dateFilter — poprzednia cena
+  // może leżeć poza oknem). Kolejność desc(data, id) = deterministyczny odpowiednik dawnego
+  // orderBy(desc(invoiceDate)).limit(1). Poprzednią wybieramy w pamięci względem daty
+  // bieżącej pozycji (invoice_date < data bieżącej), identycznie jak wcześniej.
+  const productIds = Array.from(
+    new Set(top.map((i) => i.productId).filter((id): id is number => id != null)),
   );
+
+  const historyByProduct = new Map<number, Array<{ invoiceDate: string; unitPrice: string }>>();
+  if (productIds.length > 0) {
+    const priceHistory = await db
+      .select({
+        productId: invoiceItemsTable.productId,
+        invoiceDate: invoicesTable.invoiceDate,
+        unitPrice: invoiceItemsTable.unitPrice,
+      })
+      .from(invoiceItemsTable)
+      .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
+      .where(
+        and(
+          inArray(invoiceItemsTable.productId, productIds),
+          eq(invoicesTable.userId, userId),
+          eq(invoicesTable.excluded, false),
+          ccFilter,
+        ),
+      )
+      .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id));
+
+    for (const row of priceHistory) {
+      if (row.productId == null) continue;
+      const arr = historyByProduct.get(row.productId);
+      if (arr) arr.push({ invoiceDate: row.invoiceDate, unitPrice: row.unitPrice });
+      else historyByProduct.set(row.productId, [{ invoiceDate: row.invoiceDate, unitPrice: row.unitPrice }]);
+    }
+  }
+
+  const enriched = top.map((item) => {
+    let previousPrice: number | null = null;
+    let changePercent: number | null = null;
+
+    if (item.productId != null) {
+      // Historia jest posortowana desc(data,id), więc pierwszy wpis o dacie ściśle
+      // wcześniejszej niż bieżąca pozycja = poprzednia cena (jak dawne limit 1).
+      const prev = historyByProduct.get(item.productId)?.find((h) => h.invoiceDate < item.invoiceDate);
+      if (prev) {
+        previousPrice = toNum(prev.unitPrice);
+        const current = toNum(item.unitPrice);
+        changePercent = ((current - previousPrice) / previousPrice) * 100;
+      }
+    }
+
+    return {
+      productId: item.productId,
+      productName: item.productName,
+      unit: item.unit,
+      currentPrice: toNum(item.unitPrice),
+      previousPrice,
+      changePercent,
+      supplierName: item.supplierName,
+      purchaseDate: item.invoiceDate,
+    };
+  });
 
   res.json(enriched);
 });
