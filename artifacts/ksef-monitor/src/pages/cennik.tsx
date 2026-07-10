@@ -13,25 +13,44 @@ const C = {
   accentDim: "rgba(61,220,151,0.12)",
 };
 
-const FEATURES = [
-  "Integracja z KSeF",
-  "OCR faktur (zdjęcie lub PDF)",
-  "Kontrola food cost w czasie rzeczywistym",
-  "Analiza kosztów per-dostawca i per-produkt",
-  "Alerty o zmianach cen surowców",
-  "Dashboard wydatków",
-  "Raporty miesięczne (eksport CSV)",
-  "Monitoring cen dostawców",
-  "Zbiorcze zarządzanie płatnościami",
-  "Obsługa wielu lokali",
-  "AI CFO — analiza zakupowa",
-  "Bezpieczeństwo AES-256",
+// Plany spójne z landingiem (home.tsx) i backendem (free/pro/business).
+const PLANS = [
+  {
+    name: "Start",
+    price: "0",
+    period: "/mies.",
+    highlight: false,
+    desc: "Dla jednego lokalu, który dopiero zaczyna porządkować faktury.",
+    features: ["1 lokal", "Import z KSeF", "OCR do 50 faktur / mies.", "Podstawowe alerty cenowe"],
+    cta: "Zacznij za darmo",
+    href: "/sign-up",
+  },
+  {
+    name: "Pro",
+    price: "199",
+    period: "/mies.",
+    highlight: true,
+    desc: "Dla restauracji, które chcą realnie kontrolować food cost.",
+    features: ["Do 3 lokali", "Nielimitowany OCR", "Porównanie dostawców", "Food cost i receptury", "Asystent AI"],
+    cta: "Wybierz Pro",
+    href: "/sign-up",
+  },
+  {
+    name: "Sieć",
+    price: "Wycena",
+    period: "",
+    highlight: false,
+    desc: "Dla grup gastronomicznych i hoteli z wieloma lokalami.",
+    features: ["Nielimitowane lokale", "Centra kosztów i role", "Raporty konsolidowane", "Dedykowany opiekun"],
+    cta: "Umów rozmowę",
+    href: "mailto:kontakt@spendly.pl",
+  },
 ];
 
 const FAQS = [
-  { q: "Ile kosztuje Spendly po okresie testowym?", a: "Regularna cena to 200 zł / miesiąc za nielimitowany dostęp do wszystkich funkcji. W trakcie okresu testowego korzystasz ze wszystkiego bezpłatnie — bez podawania karty kredytowej." },
+  { q: "Ile kosztuje Spendly?", a: "Plan Start jest darmowy bezterminowo. Plan Pro to 199 zł / miesiąc za pełną kontrolę food cost, porównania dostawców i asystenta AI. Dla sieci lokali przygotowujemy wycenę indywidualną." },
   { q: "Czy mogę anulować w dowolnym momencie?", a: "Tak. Brak długoterminowych umów ani opłat za rezygnację. Anulujesz kiedy chcesz, bez żadnych konsekwencji." },
-  { q: "Jak długo trwa okres testowy?", a: "Obecnie Spendly jest bezpłatny dla wszystkich nowych użytkowników w ramach otwartego okresu testowego. Poinformujemy Cię z wyprzedzeniem, gdy zmienią się warunki." },
+  { q: "Jak długo trwa okres testowy?", a: "Każdy płatny plan zaczynasz od 14 dni za darmo — bez podawania karty kredytowej. Plan Start pozostaje bezpłatny na stałe." },
   { q: "Czy jest możliwość dostosowania planu dla sieci restauracji?", a: "Tak. Skontaktuj się z nami pod adresem kontakt@spendly.pl — przygotujemy ofertę dedykowaną dla sieci lokali gastronomicznych." },
 ];
 
@@ -117,69 +136,72 @@ export default function CennikPage() {
       {/* HERO */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "72px 24px 64px", textAlign: "center" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 999, border: `1px solid ${C.accentDim}`, background: C.accentDim, color: C.accent, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>
-          Okres testowy — bezpłatnie
+          Bez ukrytych opłat
         </div>
         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 16, color: C.text }}>
-          Prosta cena.<br />
+          Prosty cennik.<br />
           <span style={{ color: C.accent }}>Pełna kontrola kosztów.</span>
         </h1>
         <p style={{ fontSize: 17, color: C.muted, lineHeight: 1.7, maxWidth: 480, margin: "0 auto 0" }}>
-          Okres testowy bezpłatny dla każdego. Bez karty kredytowej. Anuluj w dowolnym momencie.
+          Zacznij za darmo. Każdy płatny plan z 14 dniami próbnymi, bez karty. Anuluj w dowolnym momencie.
         </p>
       </section>
 
-      {/* PRICING CARD */}
-      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 80px" }}>
-        <div style={{ maxWidth: 480, margin: "0 auto" }}>
-          <div style={{ background: C.card, border: "1px solid rgba(61,220,151,0.25)", borderRadius: 24, padding: "40px 36px", boxShadow: "0 0 0 1px rgba(61,220,151,0.08), 0 32px 64px rgba(0,0,0,0.4)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>Spendly Pro</p>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", background: C.accentDim, color: C.accent, padding: "4px 10px", borderRadius: 999 }}>
-                Okres testowy
+      {/* PRICING — 3 plany (spójne z landingiem) */}
+      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20, alignItems: "stretch" }}>
+          {PLANS.map((plan) => (
+            <div
+              key={plan.name}
+              style={{
+                position: "relative",
+                background: C.card,
+                border: plan.highlight ? "1.5px solid rgba(61,220,151,0.45)" : `1px solid ${C.border}`,
+                borderRadius: 20,
+                padding: "32px 28px",
+                display: "flex",
+                flexDirection: "column",
+                boxShadow: plan.highlight ? "0 0 0 1px rgba(61,220,151,0.08), 0 24px 48px rgba(0,0,0,0.4)" : "none",
+              }}
+            >
+              {plan.highlight && (
+                <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", fontSize: 11, fontWeight: 700, padding: "5px 13px", borderRadius: 999, background: C.accent, color: "#0B0F14", whiteSpace: "nowrap" }}>
+                  Najpopularniejszy
+                </div>
+              )}
+              <p style={{ fontSize: 15, fontWeight: 700, color: C.text, margin: 0 }}>{plan.name}</p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6, margin: "14px 0 4px" }}>
+                <span style={{ fontSize: 44, fontWeight: 800, color: C.accent, letterSpacing: "-0.03em", lineHeight: 1 }}>{plan.price}</span>
+                {plan.price !== "Wycena" && <span style={{ fontSize: 15, color: C.muted }}>zł{plan.period}</span>}
               </div>
-            </div>
-
-            {/* Price */}
-            <div style={{ marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontSize: 56, fontWeight: 800, color: C.accent, letterSpacing: "-0.03em", lineHeight: 1 }}>0</span>
-                <span style={{ fontSize: 16, color: C.muted }}>zł / mies.</span>
-                <span style={{ fontSize: 14, color: C.muted, textDecoration: "line-through", alignSelf: "center", marginLeft: 4, opacity: 0.6 }}>200 zł</span>
-              </div>
-              <p style={{ fontSize: 13, color: C.muted, marginTop: 8, marginBottom: 0 }}>
-                Bezpłatnie w całym okresie testowym — dla każdego.
-              </p>
-            </div>
-
-            <div style={{ height: 1, background: C.border, margin: "24px 0" }} />
-
-            {/* Features */}
-            <div style={{ marginBottom: 32 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 16 }}>Co zawiera plan</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 16px" }}>
-                {FEATURES.map(f => (
-                  <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.text }}>
-                    <Check size={13} style={{ color: C.accent, flexShrink: 0 }} />{f}
+              <p style={{ fontSize: 13, color: C.muted, margin: "0 0 20px", minHeight: 38 }}>{plan.desc}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 11, marginBottom: 24, flex: 1 }}>
+                {plan.features.map((f) => (
+                  <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13.5, color: C.text }}>
+                    <Check size={16} style={{ color: C.accent, flexShrink: 0, marginTop: 1 }} />{f}
                   </div>
                 ))}
               </div>
+              {plan.href.startsWith("mailto:") ? (
+                <a href={plan.href} style={{ textDecoration: "none" }}>
+                  <button style={{ width: "100%", padding: "13px", borderRadius: 11, fontSize: 14, fontWeight: 700, cursor: "pointer", border: `1px solid ${C.border}`, background: "none", color: C.text }}>
+                    {plan.cta}
+                  </button>
+                </a>
+              ) : (
+                <Link href={plan.href}>
+                  <button style={{ width: "100%", padding: "13px", borderRadius: 11, fontSize: 14, fontWeight: 700, cursor: "pointer", border: plan.highlight ? "none" : `1px solid ${C.border}`, background: plan.highlight ? C.accent : "none", color: plan.highlight ? "#0B0F14" : C.text }}>
+                    {plan.cta}
+                  </button>
+                </Link>
+              )}
             </div>
-
-            <Link href="/sign-up">
-              <button style={{ width: "100%", padding: "15px", borderRadius: 12, fontSize: 15, fontWeight: 700, background: C.accent, border: "none", color: "#0B0F14", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
-                Rozpocznij za darmo <ArrowRight size={16} />
-              </button>
-            </Link>
-            <p style={{ textAlign: "center", fontSize: 12, color: C.muted, margin: 0 }}>
-              Bez umowy. Bez wdrożenia. Bez ukrytych kosztów.
-            </p>
-          </div>
-
-          <p style={{ textAlign: "center", fontSize: 13, color: C.muted, marginTop: 24 }}>
-            Potrzebujesz dedykowanej integracji lub wsparcia dla sieci lokali?{" "}
-            <a href="mailto:kontakt@spendly.pl" style={{ color: C.accent, textDecoration: "none" }}>Napisz do nas</a>
-          </p>
+          ))}
         </div>
+        <p style={{ textAlign: "center", fontSize: 13, color: C.muted, marginTop: 28 }}>
+          Potrzebujesz dedykowanej integracji lub wsparcia dla sieci lokali?{" "}
+          <a href="mailto:kontakt@spendly.pl" style={{ color: C.accent, textDecoration: "none" }}>Napisz do nas</a>
+        </p>
       </section>
 
       {/* FAQ */}
