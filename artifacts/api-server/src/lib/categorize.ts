@@ -505,10 +505,32 @@ export const BUILTIN_CATEGORY_DEFS: Record<string, { label: string; emoji: strin
  * Fast keyword-based categorization (synchronous).
  * Returns a built-in category ID or "inne" if nothing matched.
  */
+// Z5: twardsze dopasowanie słów kluczowych.
+// - Frazy / słowa ze spacją → zostają na includes (spacja już daje granicę).
+// - Pojedyncze słowa → dopasowanie po GRANICY SŁOWA: start łańcucha lub poprzedzone
+//   nie-literą. Uwzględniamy polskie znaki (ą,ć,ę,ł,…), bo JS `\b` traktuje je jako
+//   nie-słowo. Dzięki temu „por" nie łapie „imPORt", a „sum" nie łapie „konSUMpcyjny".
+//   Granica tylko z przodu (nie z tyłu) — żeby „por" dalej łapało „pory"/„pora".
+const KW_WORD_CHARS = "a-z0-9ąćęłńóśźż";
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+type KeywordMatcher = (normalized: string) => boolean;
+function buildKeywordMatcher(kw: string): KeywordMatcher {
+  const k = kw.toLowerCase();
+  if (k.includes(" ")) return (n) => n.includes(k);
+  const re = new RegExp("(^|[^" + KW_WORD_CHARS + "])" + escapeRegex(k));
+  return (n) => re.test(n);
+}
+// Prekompilacja raz przy starcie (categorizeProduct bywa w gorących pętlach importu).
+const COMPILED_RULES: Array<{ id: string; matchers: KeywordMatcher[] }> = CATEGORY_RULES.map(
+  (rule) => ({ id: rule.id, matchers: rule.keywords.map(buildKeywordMatcher) }),
+);
+
 export function categorizeProduct(name: string): string {
   const normalized = name.toLowerCase().replace(/^#/, "").trim();
-  for (const rule of CATEGORY_RULES) {
-    if (rule.keywords.some((kw) => normalized.includes(kw.toLowerCase()))) {
+  for (const rule of COMPILED_RULES) {
+    if (rule.matchers.some((m) => m(normalized))) {
       return rule.id;
     }
   }
