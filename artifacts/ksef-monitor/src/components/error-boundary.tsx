@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
 import ServerError from "@/pages/server-error";
+import { isChunkLoadError, reloadOnceForStaleChunks } from "@/lib/stale-chunk";
 
 interface Props {
   children: ReactNode;
@@ -26,6 +27,12 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: unknown): void {
+    // Stary chunk po deployu (nie realny bug) — przeładuj po świeży index.html,
+    // nie pokazuj ekranu 500 i nie raportuj do Sentry.
+    if (isChunkLoadError(error)) {
+      reloadOnceForStaleChunks();
+      return;
+    }
     console.error("ErrorBoundary caught:", error, info);
     // No-op gdy Sentry nieaktywne (brak VITE_SENTRY_DSN).
     Sentry.captureException(error, { extra: { info } });
@@ -37,6 +44,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render(): ReactNode {
     if (!this.state.hasError) return this.props.children;
+    // Błąd ładowania chunku → trwa przeładowanie, nie migaj ekranem 500.
+    if (isChunkLoadError(this.state.error)) return null;
     return <ServerError onReset={this.handleReset} />;
   }
 }
