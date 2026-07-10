@@ -18,7 +18,7 @@ import {
   CorrectProductCategoryParams,
   CorrectProductCategoryBody,
 } from "@workspace/api-zod";
-import { getUserCategories, ensureCustomCategory, saveProductCorrection } from "../lib/categorize-ai.js";
+import { getUserCategories, ensureCustomCategory, saveProductCorrection, normalizeProductName } from "../lib/categorize-ai.js";
 import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
 
 const router: IRouter = Router();
@@ -802,7 +802,20 @@ router.patch("/products/:id/correct-category", async (req, res): Promise<void> =
     return;
   }
 
-  const [updated] = await db
+  await saveProductCorrection(userId, params.data.id, product.name, category, subcategory ?? null);
+
+  // Z2: propaguj korektę na WSZYSTKIE produkty usera o tej samej znormalizowanej
+  // nazwie (np. „Ser Cheddar 1kg" i „Ser Cheddar") — inaczej duplikaty zostają błędne.
+  // Match po znormalizowanej nazwie liczymy w JS; UPDATE po inArray (reguła 22, nie ANY()).
+  const targetNorm = normalizeProductName(product.name);
+  const candidates = await db
+    .select({ id: productsTable.id, name: productsTable.name })
+    .from(productsTable)
+    .where(eq(productsTable.userId, userId));
+  const ids = candidates.filter((p) => normalizeProductName(p.name) === targetNorm).map((p) => p.id);
+  if (!ids.includes(params.data.id)) ids.push(params.data.id);
+
+  await db
     .update(productsTable)
     .set({
       category,
@@ -810,12 +823,15 @@ router.patch("/products/:id/correct-category", async (req, res): Promise<void> =
       classificationConfidence: 1.0,
       needsReview: false,
     })
+    .where(and(eq(productsTable.userId, userId), inArray(productsTable.id, ids)));
+
+  const [updated] = await db
+    .select()
+    .from(productsTable)
     .where(eq(productsTable.id, params.data.id))
-    .returning();
+    .limit(1);
 
-  await saveProductCorrection(userId, params.data.id, product.name, category, subcategory ?? null);
-
-  res.json(updated);
+  res.json({ ...updated, updatedCount: ids.length });
 });
 
 router.get("/categories", async (req, res): Promise<void> => {

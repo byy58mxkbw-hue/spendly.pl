@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { userCategoriesTable, productCorrectionsTable } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import type { Logger } from "pino";
 import { categorizeProduct, BUILTIN_CATEGORY_DEFS } from "./categorize.js";
@@ -104,6 +104,7 @@ async function getLatestCorrection(
           eq(productCorrectionsTable.normalizedName, normalizedName),
         ),
       )
+      .orderBy(desc(productCorrectionsTable.createdAt))
       .limit(1);
     return row ?? null;
   } catch {
