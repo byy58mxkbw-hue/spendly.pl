@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { Layout, PageHeader } from "@/components/layout";
+import { ErrorState } from "@/components/error-state";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   useListInvoices,
@@ -1115,7 +1116,7 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
     ...(supplierFilter !== "all" ? { supplierId: Number(supplierFilter) } : {}),
     ...(effectiveCostCenterId != null ? { costCenterId: effectiveCostCenterId } : {}),
   };
-  const { data: pagedData, isLoading } = useListInvoicesPaged(pagedParams, {
+  const { data: pagedData, isLoading, isError, refetch } = useListInvoicesPaged(pagedParams, {
     query: { queryKey: getListInvoicesPagedQueryKey(pagedParams) },
   });
   const invoices = pagedData?.items;
@@ -1376,6 +1377,8 @@ function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick: () =>
         <div className="space-y-2">
           {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={() => refetch()} message="Nie udało się pobrać listy faktur. Spróbuj ponownie." />
       ) : paged.length === 0 ? (
         <div className="py-16 text-center text-foreground/50">
           <FileText className="w-10 h-10 mx-auto mb-2 text-foreground/20" />
