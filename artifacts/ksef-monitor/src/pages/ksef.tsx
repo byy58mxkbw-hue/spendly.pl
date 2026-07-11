@@ -1,95 +1,14 @@
 import { Link } from "wouter";
 import { Check, ArrowRight, RefreshCw, ChevronRight, FileText, ShieldCheck, Zap } from "lucide-react";
-
-const C = {
-  bg: "#0B0F14",
-  card: "#131A22",
-  border: "rgba(255,255,255,0.08)",
-  text: "#F5F7FA",
-  muted: "#9BA6B2",
-  accent: "#3DDC97",
-  accentHover: "#5BFFB5",
-  accentDim: "rgba(61,220,151,0.12)",
-};
-
-function NavBar() {
-  return (
-    <header style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(11,15,20,0.9)", borderBottom: `1px solid ${C.border}`, backdropFilter: "blur(12px)" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60 }}>
-        <Link href="/">
-          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.04em", color: C.accent, cursor: "pointer" }}>
-            SPENDLY<span style={{ color: C.text }}>.</span>
-          </span>
-        </Link>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/sign-in">
-            <button style={{ padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "none", border: `1px solid ${C.border}`, color: C.muted, cursor: "pointer" }}>
-              Zaloguj
-            </button>
-          </Link>
-          <Link href="/sign-up">
-            <button style={{ padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: C.accent, border: "none", color: "#0B0F14", cursor: "pointer" }}>
-              Rozpocznij za darmo
-            </button>
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function PageFooter() {
-  return (
-    <footer style={{ borderTop: `1px solid ${C.border}`, padding: "40px 24px" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32, marginBottom: 32 }}>
-        <div>
-          <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: "-0.04em", color: C.accent }}>
-            SPENDLY<span style={{ color: C.text }}>.</span>
-          </span>
-          <p style={{ fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.6 }}>Kontrola kosztów restauracji z integracją KSeF i OCR faktur.</p>
-        </div>
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Rozwiązania</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { href: "/ksef", label: "Integracja KSeF" },
-              { href: "/food-cost", label: "Kontrola food cost" },
-              { href: "/ocr-faktur", label: "OCR faktur" },
-            ].map(({ href, label }) => (
-              <Link key={href} href={href}>
-                <span style={{ fontSize: 13, color: C.muted, cursor: "pointer", textDecoration: "none" }}>{label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Firma</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { href: "/cennik", label: "Cennik" },
-              { href: "/sign-up", label: "Rejestracja" },
-              { href: "mailto:kontakt@spendly.pl", label: "Kontakt", external: true },
-            ].map(({ href, label, external }) => external ? (
-              <a key={href} href={href} style={{ fontSize: 13, color: C.muted, textDecoration: "none" }}>{label}</a>
-            ) : (
-              <Link key={href} href={href}>
-                <span style={{ fontSize: 13, color: C.muted, cursor: "pointer" }}>{label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div style={{ maxWidth: 1200, margin: "0 auto", paddingTop: 20, borderTop: `1px solid ${C.border}`, textAlign: "center" }}>
-        <span style={{ fontSize: 12, color: C.muted }}>&copy; {new Date().getFullYear()} SPENDLY. Wszelkie prawa zastrzeżone.</span>
-      </div>
-    </footer>
-  );
-}
+import { useMarketingTheme } from "@/lib/marketing-theme";
+import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
 
 export default function KsefPage() {
+  const { theme, c: C, toggle } = useMarketingTheme();
+
   return (
-    <div style={{ background: C.bg, color: C.text, fontFamily: "Inter, system-ui, sans-serif", minHeight: "100vh" }}>
-      <NavBar />
+    <div style={{ background: C.bg, color: C.text, fontFamily: "Inter, system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
+      <MarketingNavBar c={C} theme={theme} onToggle={toggle} />
 
       {/* HERO */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "72px 24px 80px" }}>
@@ -215,7 +134,7 @@ export default function KsefPage() {
         </div>
       </section>
 
-      <PageFooter />
+      <MarketingFooter c={C} />
     </div>
   );
 }
