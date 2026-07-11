@@ -12,3 +12,4 @@ export * from "./user-categories";
 export * from "./product-corrections";
 export * from "./dishes";
 export * from "./ai-usage";
+export * from "./learned-brands";

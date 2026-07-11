@@ -5,6 +5,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import type { Logger } from "pino";
 import { categorizeProduct, BUILTIN_CATEGORY_DEFS } from "./categorize.js";
 import { matchBrand } from "./brand-map.js";
+import { matchLearnedBrand, recordBrandDetection } from "./learned-brands.js";
 
 export interface ClassificationResult {
   category: string;
@@ -153,6 +154,16 @@ export async function categorizeProductWithAI(
     return { category: brand.category, subcategory: brand.subcategory, confidence: 0.92, canonicalName };
   }
 
+  // Step 1.6 (Z9): marki nauczone wcześniej z detekcji AI (patrz Step 3 niżej) —
+  // globalna tabela learned_brands, ta sama logika co statyczny brand-map.ts,
+  // ale wypełniana automatycznie zamiast ręcznie. Niższa pewność (0.85) niż
+  // ręcznie skurowany brand-map (0.92), bo pochodzi z AI, nie z człowieka.
+  const learnedBrand = await matchLearnedBrand(canonicalName) ?? await matchLearnedBrand(productName.toLowerCase());
+  if (learnedBrand) {
+    logger?.info({ productName, category: learnedBrand.category, subcategory: learnedBrand.subcategory }, "categorize: learned brand match");
+    return { category: learnedBrand.category, subcategory: learnedBrand.subcategory, confidence: 0.85, canonicalName };
+  }
+
   // Step 2: Fast keyword matching on normalized + original.
   // Runs BEFORE the supplier default so a reliable keyword hit (e.g. "płyn do naczyń"
   // → środki czystości, "energia elektryczna" → koszty stałe) wins even when the
@@ -240,10 +251,7 @@ Znormalizowana nazwa: ${canonicalName}`;
       return { category: "inne", subcategory: null, confidence: 0.4, canonicalName };
     }
 
-    // Z7: log wykrytej marki (przydatne do rozbudowy słownika marek / przyszłego uczenia).
-    if (parsed.detectedBrand && parsed.detectedBrand !== "null") {
-      logger?.info({ productName, detectedBrand: parsed.detectedBrand, category: parsed.category }, "categorize-ai: detected brand");
-    }
+    const detectedBrand = parsed.detectedBrand && parsed.detectedBrand !== "null" ? parsed.detectedBrand.trim() : null;
 
     let finalCategory = parsed.category?.trim() ?? "inne";
     const finalConfidence = typeof parsed.confidence === "number"
@@ -261,6 +269,15 @@ Znormalizowana nazwa: ${canonicalName}`;
       finalCategory = "inne";
     } else {
       finalCategory = matchedId;
+    }
+
+    // Z9: samo-uczenie — zapisz markę wykrytą przez AI, żeby przyszłe produkty tej
+    // marki nie wymagały ponownego wywołania AI (patrz lib/learned-brands.ts).
+    // Tylko gdy kategoria jest sensowna (nie "inne") i pewność wystarczająco wysoka —
+    // niepewnych detekcji nie warto utrwalać. Fire-and-forget: nie blokuje odpowiedzi.
+    if (detectedBrand && finalCategory !== "inne" && finalConfidence >= 0.7) {
+      recordBrandDetection(detectedBrand, finalCategory, finalSubcategory, finalConfidence, logger)
+        .catch((err) => logger?.warn({ err, detectedBrand }, "categorize-ai: recordBrandDetection failed"));
     }
 
     return {
