@@ -65,6 +65,7 @@ async function buildAll() {
       "@aws-sdk/*",
       "@azure/*",
       "@opentelemetry/*",
+      "import-in-the-middle",
       "@google-cloud/*",
       "@google/*",
       "googleapis",
