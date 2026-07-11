@@ -1,4 +1,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://spendly.app/sitemap.xml
+Sitemap: https://www.spendly.pl/sitemap.xml
