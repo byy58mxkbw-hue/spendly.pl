@@ -198,6 +198,63 @@ async function reclassifyToSery(): Promise<void> {
   }
 }
 
+/**
+ * One-time (idempotent) korekta fałszywych trafień do "sery" sprzed naprawy
+ * matchera słów kluczowych. Klucz "ser " (z końcową spacją) trafiał do gałęzi
+ * "fraza" i leciał na gołym includes bez lewej granicy słowa — łapał się jako
+ * podciąg w środku dłuższych słów, np. olej "[KONESER GO] FRYTURA RZEPAKOWA"
+ * (koneSER go) trafiał do sery. Matcher jest już naprawiony (wymaga granicy
+ * z obu stron) — ten krok re-uruchamia go na produktach już oznaczonych jako
+ * "sery" i przenosi te, które faktycznie nie powinny tam być.
+ *
+ * Bezpieczne przy każdym starcie:
+ *  - rusza tylko produkty, dla których categorizeProduct() NIE zwraca już "sery"
+ *    (prawdziwe sery, np. "ser cheddar", nadal trafiają — zostają bez zmian),
+ *  - nigdy nie nadpisuje ręcznej korekty usera,
+ *  - wynik matchera (inna kategoria lub "inne") trafia z needsReview=true,
+ *    żeby user zweryfikował w kolejce zamiast ślepo ufać automatycznej korekcie,
+ *  - idempotentne: po pierwszym przebiegu fałszywe trafienia są już poprawione.
+ */
+async function fixMiscategorizedSery(): Promise<void> {
+  try {
+    const rows = await db
+      .select({ id: productsTable.id, name: productsTable.name, userId: productsTable.userId })
+      .from(productsTable)
+      .where(eq(productsTable.category, "sery"));
+
+    if (rows.length === 0) {
+      logger.info("backfill-categories: no 'sery' products to re-check");
+      return;
+    }
+
+    const corrections = await db
+      .select({ userId: productCorrectionsTable.userId, normalizedName: productCorrectionsTable.normalizedName })
+      .from(productCorrectionsTable);
+    const correctedKeys = new Set(corrections.map((c) => `${c.userId}::${c.normalizedName}`));
+
+    let fixed = 0;
+    for (const row of rows) {
+      const canonicalName = normalizeProductName(row.name) || row.name.toLowerCase().trim();
+      if (correctedKeys.has(`${row.userId}::${canonicalName}`)) continue;
+      const recategorized = categorizeProduct(row.name);
+      if (recategorized === "sery") continue;
+      await db
+        .update(productsTable)
+        .set({ category: recategorized, subcategory: null, classificationConfidence: null, canonicalName, needsReview: true })
+        .where(eq(productsTable.id, row.id));
+      fixed++;
+    }
+
+    if (fixed > 0) {
+      logger.info({ fixed, scanned: rows.length }, "backfill-categories: fixed false-positive 'sery' matches (no AI)");
+    } else {
+      logger.info({ scanned: rows.length }, "backfill-categories: no false-positive 'sery' matches found");
+    }
+  } catch (err) {
+    logger.warn({ err }, "backfill-categories: fixMiscategorizedSery failed (non-fatal)");
+  }
+}
+
 const BATCH_SIZE = 10;
 const BATCH_DELAY_MS = 300;
 
@@ -240,6 +297,10 @@ export async function runCategoryBackfill(): Promise<void> {
 
   // Step 2b: Migruj sery zaklasyfikowane jako "nabiał"/"inne" do nowej kategorii "sery" (Z8).
   await reclassifyToSery();
+
+  // Step 2c: Napraw falszywe trafienia do "sery" sprzed naprawy matchera slow kluczowych
+  // (np. olej "koneser" lapany jako podciag "ser " bez granicy slowa).
+  await fixMiscategorizedSery();
 
   try {
     const products = await db

@@ -34,6 +34,18 @@ describe("categorizeProduct: granica słowa nie łapie fragmentów", () => {
   it('"konserwa rybna" nie trafia do nabiał', () => {
     expect(categorizeProduct("konserwa rybna")).not.toBe("nabiał");
   });
+  // Regresja: "ser " (z końcową spacją) trafiało do gałęzi "fraza" (bo zawiera
+  // spację) i leciało na gołym includes bez lewej granicy — łapało się w środku
+  // dłuższych słów. "koneser go" / "frytura" to olej, nie ser.
+  it('"[KONESER GO] FRYTURA RZEPAKOWA PŁYNNA" nie trafia do sery', () => {
+    expect(categorizeProduct("[KONESER GO] FRYTURA RZEPAKOWA PŁYNNA 9,5L WIADRO")).not.toBe("sery");
+  });
+  it('"deser czekoladowy" nie trafia do sery', () => {
+    expect(categorizeProduct("deser czekoladowy")).not.toBe("sery");
+  });
+  it('"ser żółty plastry" nadal trafia do sery (prawdziwe trafienie nie ucierpiało)', () => {
+    expect(categorizeProduct("ser żółty plastry")).toBe("sery");
+  });
   // Słowa niespożywcze / nieznane → inne (brak false-positive na fragmencie).
   for (const name of ["import towarów", "konsumpcyjny", "xyz nieznane produkt"]) {
     it(`"${name}" → inne`, () => {

@@ -515,11 +515,17 @@ export const BUILTIN_CATEGORY_DEFS: Record<string, { label: string; emoji: strin
  * Returns a built-in category ID or "inne" if nothing matched.
  */
 // Z5: twardsze dopasowanie słów kluczowych.
-// - Frazy / słowa ze spacją → zostają na includes (spacja już daje granicę).
+// - Frazy wieloczłonowe (spacja W ŚRODKU, np. "grana padano") → zostają na includes,
+//   fraza sama w sobie jest wystarczająco specyficzna.
 // - Pojedyncze słowa → dopasowanie po GRANICY SŁOWA: start łańcucha lub poprzedzone
 //   nie-literą. Uwzględniamy polskie znaki (ą,ć,ę,ł,…), bo JS `\b` traktuje je jako
 //   nie-słowo. Dzięki temu „por" nie łapie „imPORt", a „sum" nie łapie „konSUMpcyjny".
 //   Granica tylko z przodu (nie z tyłu) — żeby „por" dalej łapało „pory"/„pora".
+// - Pojedyncze słowo z KOŃCOWĄ spacją (np. "ser ") → to była (przed naprawą) pułapka:
+//   trafiało do gałęzi "fraza" (bo zawiera spację) i leciało na gołym includes, więc
+//   „ser " łapało się jako podciąg w środku dłuższego słowa („koneSER go", „deSER").
+//   Końcowa spacja miała dawać PRAWĄ granicę, ale bez LEWEJ i tak nic to nie chroniło.
+//   Traktujemy to jak pojedyncze słowo z granicą po OBU stronach.
 const KW_WORD_CHARS = "a-z0-9ąćęłńóśźż";
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -527,8 +533,11 @@ function escapeRegex(s: string): string {
 type KeywordMatcher = (normalized: string) => boolean;
 function buildKeywordMatcher(kw: string): KeywordMatcher {
   const k = kw.toLowerCase();
-  if (k.includes(" ")) return (n) => n.includes(k);
-  const re = new RegExp("(^|[^" + KW_WORD_CHARS + "])" + escapeRegex(k));
+  const trimmed = k.trimEnd();
+  if (trimmed.includes(" ")) return (n) => n.includes(k);
+  const needsRightBoundary = k.endsWith(" ");
+  const rightBoundary = needsRightBoundary ? "(?=[^" + KW_WORD_CHARS + "]|$)" : "";
+  const re = new RegExp("(^|[^" + KW_WORD_CHARS + "])" + escapeRegex(trimmed) + rightBoundary);
   return (n) => re.test(n);
 }
 // Prekompilacja raz przy starcie (categorizeProduct bywa w gorących pętlach importu).

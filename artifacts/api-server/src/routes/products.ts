@@ -864,7 +864,10 @@ router.patch("/products/:id/correct-category", async (req, res): Promise<void> =
 router.get("/categories", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const categories = await getUserCategories(userId);
-  res.set("Cache-Control", "private, max-age=3600");
+  // Krótki cache — lista kategorii (wbudowane + własne usera) potrafi się zmienić
+  // (nowa kategoria, korekta), a zapytanie jest tanie. Godzinny cache (poprzednio)
+  // powodował, że przeglądarka nie widziała nowo dodanych kategorii przez godzinę.
+  res.set("Cache-Control", "private, max-age=60");
   res.json(categories);
 });
 
