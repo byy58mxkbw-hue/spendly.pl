@@ -1,11 +1,11 @@
 import { Link } from "wouter";
 import { ArrowLeft, Sun, Moon } from "lucide-react";
-import { type Palette, useLandingTheme } from "@/lib/landing-theme";
+import { type MarketingPalette, useMarketingTheme } from "@/lib/marketing-theme";
 
 /**
  * Wspólny szkielet stron prawnych (regulamin, polityka prywatności):
  * nagłówek z logo i przełącznikiem motywu, wyśrodkowana treść, stopka.
- * Motyw współdzielony z landingiem (ten sam localStorage).
+ * Motyw współdzielony z landingiem i resztą stron publicznych (ten sam localStorage).
  */
 export function LegalLayout({
   title,
@@ -14,9 +14,9 @@ export function LegalLayout({
 }: {
   title: string;
   updated: string;
-  children: (c: Palette) => React.ReactNode;
+  children: (c: MarketingPalette) => React.ReactNode;
 }) {
-  const { theme, toggle, c } = useLandingTheme();
+  const { theme, toggle, c } = useMarketingTheme();
 
   return (
     <div style={{ background: c.bg, color: c.text, fontFamily: "Inter, system-ui, sans-serif", minHeight: "100vh" }}>
