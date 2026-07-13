@@ -30,7 +30,10 @@ const envOrigins = (process.env.ALLOWED_ORIGIN ?? "")
   .filter(Boolean);
 
 app.use(cors({
-  credentials: true,
+  credentials: true, // wymagane przez Clerk (cookie sesji __session)
+  // Ścisła lista metod i nagłówków zamiast domyślnego reflektowania wszystkiego.
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   origin: (origin, callback) => {
     const allowedOrigins = [
       "http://localhost:3000",
@@ -70,10 +73,22 @@ app.use(helmet({
   },
   frameguard: { action: "deny" }, // X-Frame-Options: DENY
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-  // HSTS tylko na produkcji (HTTP localhost i tak go ignoruje).
-  hsts: isProd ? { maxAge: 15552000, includeSubDomains: true } : false,
+  // HSTS tylko na produkcji (HTTP localhost i tak go ignoruje). 1 rok +
+  // includeSubDomains. `preload` celowo pominięte — dodać dopiero po zgłoszeniu
+  // domeny na hstspreload.org (wymaga HTTPS na WSZYSTKICH subdomenach).
+  hsts: isProd ? { maxAge: 31536000, includeSubDomains: true } : false,
   crossOriginEmbedderPolicy: false,
 }));
+
+// Permissions-Policy — helmet go nie ustawia. API nie potrzebuje żadnych
+// funkcji przeglądarki, więc wyłączamy powszechne wektory.
+app.use((_req, res, next) => {
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+  );
+  next();
+});
 
 // ── Kompresja odpowiedzi (gzip/brotli) ───────────────────────────────────────
 // WAŻNE: pomijamy SSE (text/event-stream) — kompresja buforuje strumień i

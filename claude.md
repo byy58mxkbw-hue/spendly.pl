@@ -79,6 +79,14 @@ Wykresy: recharts
 23. **XXE / parser XML** — parser KSeF jest regexowy (bez DOM). Odrzucaj XML z `<!DOCTYPE`/`<!ENTITY`: guard jest w `parseFA3Xml` (throw) oraz w imporcie ręcznym faktur (400). Nie podmieniaj na parser DOM bez wyłączenia DTD/encji zewnętrznych.
 
 24. **Limity AI zależne od planu** — plan w Clerk `publicMetadata.plan` (`free|pro|business`, brak=free), `requireUser` ustawia `req.plan`. Limity miesięczne w `lib/ai-plan.ts` (free 50 / pro 1000 / business ∞). Zliczanie w tabeli `ai_usage` (Postgres, klucz `period` 'YYYY-MM' — NIE in-memory, bo redeploye zerują pamięć). Middleware `aiQuota` na `/ai-cfo/chat` i `/invoices/scan-receipt` (za `requireUser`); inkrement tylko przy statusie <400. Plan nadaje admin (`PATCH /admin/users/:id/plan`). Reset miesięczny automatyczny (nowy period).
+
+25. **Bundle api-server a ESM** — crash-loop `ERR_MODULE_NOT_FOUND @opentelemetry` (hotfix 2026-07-13) wynikał z zależności nietrafiającej do CJS bundla esbuild. Po zmianie zależności serwera sprawdź, czy build je faktycznie zbundlował (nie zostają jako gołe importy runtime). Api-server startuje z pre-built dist — brakujący moduł = crash-loop na prodzie, nie widać go w dev.
+
+26. **Cache statyków a deploy** — `index.html` MUSI mieć `no-cache` (inaczej stara wersja serwuje nowe hashowane assety → 500 / biały ekran). Assety (JS/CSS z hashem w nazwie) mają długi immutable cache. Front ma auto-reload przy wykryciu nieaktualnego chunka. Prerender pierwszego ekranu trzymaj zsynchronizowany z `home.tsx`, żeby nie było flasha „stara → nowa wersja". Nie skracaj cache assetów ani nie dodawaj cache na `index.html`.
+
+27. **Dopasowanie słów kluczowych kategorii** — zawsze po granicy słowa (word boundary), nigdy `includes()` na surowym stringu. Inaczej „ser " trafia w środku innego wyrazu i myli kategorię (hotfix 2026-07). Cache `/categories` = 1h.
+
+28. **Nagłówki bezpieczeństwa frontu = `vite preview`** — `www.spendly.pl` serwuje `vite preview` (sirv), NIE api-server. Nagłówki bezpieczeństwa (helmet-owe) i cache frontu żyją w `securityHeadersPlugin` w `artifacts/ksef-monitor/vite.config.ts` (`configurePreviewServer`), NIE w `app.ts`. CSP whitelist buduje się z env produkcyjnego (`VITE_API_BASE_URL`/`VITE_CLERK_PROXY_URL`/`VITE_SENTRY_DSN`) — front woła API na innej domenie, więc `connect-src` musi ją zawierać. CSP domyślnie Report-Only; wymuszenie = `CSP_ENFORCE=true` (najpierw dodaj hash inline-skryptu motywu z `*.html`, inaczej zablokuje ustawianie motywu). Nie skracaj HSTS ani nie zdejmuj kompresji gzip.
 ---
 
 ## Struktura projektu
@@ -172,16 +180,25 @@ new Date(date).toLocaleDateString('pl-PL')
 - XXE hardening (2026-07) — odrzucanie XML z `<!DOCTYPE`/`<!ENTITY` (parser regexowy, patrz reguła 23)
 - Limity AI per plan (2026-07) — miesięczny limit czatu AI CFO + OCR wg planu (free/pro/business) liczony w tabeli `ai_usage`; plan nadawany w panelu admina (patrz reguła 24)
 - Testy + CI (2026-07, Faza 0) — Vitest (projekty `api`/`web`, `pnpm test`), root `vitest.config.ts`; CI na GitHub Actions (`.github/workflows/ci.yml`: install→typecheck→build→test, serwis postgres:16 + `push-force` schematu). Testy kolokowane `*.test.ts(x)` wykluczone z produkcyjnego tsc. Testy DB-zależne gate'owane `TEST_DATABASE_URL` (odpalają się tylko w CI). Root `build` wyklucza `mockup-sandbox`/`spendly-mobile` (wymagają env Expo).
-- Monitoring błędów (2026-07, Faza 1) — Sentry na API (`instrument.ts`, no-op bez `SENTRY_DSN`) i froncie (`lib/sentry.ts`, `VITE_SENTRY_DSN`, wpięty w `error-boundary`); readiness `/api/healthz/ready` (SELECT 1). DSN-y do ustawienia w Railway (jeszcze nieustawione).
+- Monitoring błędów (2026-07, Faza 1) — Sentry na API (`instrument.ts`, no-op bez `SENTRY_DSN`) i froncie (`lib/sentry.ts`, `VITE_SENTRY_DSN`, wpięty w `error-boundary`); readiness `/api/healthz/ready` (SELECT 1). DSN-y ustawione w Railway (2026-07-10). Front POTWIERDZONY w produkcji — błąd testowy dotarł do Sentry (projekt SPENDLY-REACT-1, region DE). API (`SENTRY_DSN`) do potwierdzenia realnym błędem.
 - Testy krytyczne (2026-07, Faza 2) — izolacja tenantów (`/api/suppliers`), dedup faktur (`/api/invoices/import`), szyfrowanie tokenu (AES-GCM), limity AI, guard XXE. Wzorzec testu route: mock `@clerk/express` steruje `userId`, uderzenie w prawdziwy endpoint na test-Postgresie.
+- Kategoryzacja inteligentna Z1–Z9 (2026-07) — wielowarstwowy pipeline auto-kategoryzacji: (Z1+Z2) najnowsza ręczna korekta usera ma priorytet + propagacja na duplikaty produktu; (Z3) własne kategorie usera działają w auto-kategoryzacji; (Z4) domyślna kategoria dostawcy jako fallback z realnym confidence 0.6; (Z5) dopasowanie słów kluczowych po granicy słowa (koniec fałszywych trafień typu „ser " w środku wyrazu); (Z6+Z7) słownik marek + AI wykrywa markę i subcategory; (Z8) wydzielona kategoria „Sery" z Nabiału + backfill migrujący sery także z „Inne"; (Z9) samo-ucząca się AI marek — model zapamiętuje rozpoznane marki produktów.
+- Jakość danych — normalizacja jednostek (2026-07) — spójna normalizacja kg vs szt w porównaniach cen i w `top-price-changes` (koniec fałszywych „skoków ceny" przy zmianie jednostki).
+- Wydajność (2026-07) — indeksy na `invoice_items` + eliminacja N+1 w `getRecentPurchases`; lazy-split stron marketingowych, loader zamiast pustego ekranu przy starcie, landing widoczny podczas inicjalizacji Clerka (koniec czarnego ekranu).
+- Deploy/cache poprawny (2026-07) — `index.html` z `no-cache`, assety z długim cache (hash w nazwie); auto-reload przy nieaktualnych chunkach (koniec 500 po deployu); statyczny prerender pierwszego ekranu zsynchronizowany z `home.tsx` (koniec flasha „stara → nowa wersja"). Patrz reguła 26.
+- Motyw spójny wszędzie (2026-07) — panel, strony prawne i marketingowe (cennik/ksef/ocr-faktur) współdzielą klucz `spendly_site_theme` w localStorage z landingiem; wspólny shell dla stron marketingowych; widoczny, podpisany przełącznik motywu w panelu.
+- SEO (2026-07) — poprawiona domena we wszystkich metadanych (`spendly.app` → `www.spendly.pl`).
+- Eksport CSV czytelny w polskim Excelu (2026-07) — uporządkowane kolumny, separatory zgodne z pl-PL.
+- Cleanup (2026-07) — usunięte wszystkie ślady Replit/checkit.
+- Nagłówki bezpieczeństwa + wydajność frontu (2026-07-13) — front (`vite preview`) dostawał F na securityheaders.com, bo sirv nie ustawia nagłówków. Plugin `securityHeadersPlugin` w `vite.config.ts` (`configurePreviewServer`) dokłada HSTS (1 rok), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP, X-Permitted-Cross-Domain-Policies → ocena A. CSP w Report-Only (whitelist z env: API/Clerk-proxy/Sentry + Clerk/Turnstile), przełącznik `CSP_ENFORCE=true` → A+. Kompresja gzip na preview (main 723KB→204KB). API: HSTS 1 rok + Permissions-Policy + domknięty CORS (methods/allowedHeaders). Szczegóły i droga do A+ w `SPRINT.md`. Patrz reguła 28.
 
 ### ⚠️ Do weryfikacji
-- `ocr-faktur.tsx` i `cennik.tsx` — to STATYCZNE strony marketingowe (własny NavBar, hardcoded kolory `#0B0F14`, zero wywołań API). NIE są zepsutymi funkcjami — nie potrzebują backendu. Funkcjonalny OCR jest na stronie Faktur (`/invoices/scan-receipt`). UWAGA: obie tkwią w starym, zawsze-ciemnym motywie (nie używają glass/theme z landingu) — niespójne wizualnie z `home.tsx`.
-- Niespójność cennika: `home.tsx` pokazuje 3 plany (Start 0 / Pro 199 / Sieć wycena), a `cennik.tsx` 1 plan (0 zł, 200 przekreślone). Do ujednolicenia (decyzja biznesowa).
+- `ocr-faktur.tsx` i `cennik.tsx` — to celowo STATYCZNE strony marketingowo-SEO (własny NavBar, zero wywołań API). NIE są zepsutymi funkcjami — nie potrzebują backendu. Funkcjonalny OCR jest na stronie Faktur (`/invoices/scan-receipt`). Motyw: obie mają palety LIGHT/DARK, czytają `spendly_site_theme` z localStorage i mają własny przełącznik — synchronizują się z landingiem (już NIE są zawsze-ciemne).
+- Cennik ujednolicony: `cennik.tsx` ma tablicę `PLANS` z 3 planami (Start 0 / Pro 199 / Sieć „Wycena”), spójną z `home.tsx` i backendem (free/pro/business). Dawna niespójność (1 plan vs 3) naprawiona.
 - Mapowanie produktów — DZIAŁA w przepływie akceptacji „Do przeglądu" (`pending-invoices.tsx`): mapowanie pozycji faktury na produkt (`itemMappings`), pomijanie pozycji, tworzenie produktu w locie. Poza tym przepływem brak osobnego ekranu mapowania (i raczej niepotrzebny).
 
 ### 🟡 Dług techniczny
-- Pliki do rozbicia: `ksef.ts` (1592 linie), `ai-cfo.ts` (1300), `invoices.ts` (1180), `invoices.tsx` (2271), `reports.tsx` (1981), `products.tsx` (2085)
+- Pliki do rozbicia: `ksef.ts` (1698 linii), `invoices.tsx` (2321), `products.tsx` (2085), `reports.tsx` (1953), `invoices.ts` (1200). `ai-cfo.ts` już rozbity (1300 → 835).
 - Testy: jest tylko jeden e2e (`scripts/src/e2e/ksef-sync.spec.ts`) — brak unit i integration
 
 ### ✔️ Zrobione (usunięte z długu)
