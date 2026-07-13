@@ -60,15 +60,17 @@ function buildCsp(scriptHashes: string[]): string {
   // Domeny Clerk (SDK + FAPI gdy proxy nie przechwytuje wszystkiego) i Turnstile.
   const clerk = ["https://*.clerk.accounts.dev", "https://*.clerk.com"];
   const turnstile = "https://challenges.cloudflare.com";
-  // Cookiebot (zgoda na cookies, blockingmode=auto): loader z consent.cookiebot.com,
-  // dialog/CDN z consentcdn.cookiebot.com, obrazki z imgsct.cookiebot.com.
+  // Cookiebot (zgoda na cookies): loader z consent.cookiebot.com, dialog/CDN
+  // z consentcdn.cookiebot.com, obrazki z imgsct.cookiebot.com.
   const cookiebot = ["https://consent.cookiebot.com", "https://consentcdn.cookiebot.com"];
+  // PostHog (EU): SDK/recorder z eu-assets.i.posthog.com, ingestion z eu.i.posthog.com.
+  const posthog = ["https://eu.i.posthog.com", "https://eu-assets.i.posthog.com"];
 
   const uniq = (arr: (string | null)[]) => Array.from(new Set(arr.filter(Boolean) as string[]));
 
-  const connectSrc = uniq(["'self'", api, clerkProxy, sentry, ...clerk, "https://clerk-telemetry.com", turnstile, "https://consentcdn.cookiebot.com"]);
+  const connectSrc = uniq(["'self'", api, clerkProxy, sentry, ...clerk, "https://clerk-telemetry.com", turnstile, "https://consentcdn.cookiebot.com", ...posthog]);
   // Hashe inline-skryptów zamiast 'unsafe-inline' — CSP zostaje realną ochroną XSS.
-  const scriptSrc = uniq(["'self'", clerkProxy, ...clerk, turnstile, ...cookiebot, ...scriptHashes]);
+  const scriptSrc = uniq(["'self'", clerkProxy, ...clerk, turnstile, ...cookiebot, "https://eu-assets.i.posthog.com", ...scriptHashes]);
   const frameSrc = uniq(["'self'", turnstile, ...clerk, "https://consentcdn.cookiebot.com"]);
 
   return [
