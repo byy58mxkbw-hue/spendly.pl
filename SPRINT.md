@@ -120,6 +120,18 @@ kluczy prod), więc TUŻ PO DEPLOYU:
 - ⏳ **Logowanie Clerk** — do potwierdzenia przez Patryka (CSP wymuszone; awaryjnie
   `CSP_REPORT_ONLY=true`). Strona renderuje się poprawnie (potwierdzone wizualnie).
 
+### Pomiar PageSpeed mobile (po Części 1-3) + optymalizacja
+- Zmierzone: **LCP 5,6s** (baza 6,8 → lepiej), **FCP 4,1s** (baza 3,8), **TBT 10ms**
+  i **CLS 0** (idealne), SI 4,1s.
+- Render-blocking 2170ms — rozbicie: **Cookiebot uc.js 1500ms** (dominuje) +
+  Google Fonts 750ms + main.css 480ms (ładowane równolegle → FCP gated przez Cookiebot).
+- ✅ **Cookiebot auto → manual + async** — uc.js przestaje blokować render (−1,5s
+  na mobile). RODO zachowane (banner jest; Clerk=niezbędne; Sentry bez cookies).
+- ✅ **llms.txt** — surowe URL-e → markdown-linki (błąd „Agent Accessibility").
+- Pozostałe render-blockery (po Cookiebocie): Google Fonts 750ms + main.css 480ms —
+  do rozważenia async z graceful degradation (font-fail = fallback, nie psuje strony)
+  albo self-host Inter. Unused JS 114KB = dedykowany entry landingu (największy lever).
+
 ### Incydent (rozwiązany)
 - Wymuszone CSP + async-CSS/font przez inline `onload` → strona bez stylów na prod.
   Fix: usunięty async-onload, entry-CSS render-blocking (gzip 26KB). Reguła 28 w claude.md.
