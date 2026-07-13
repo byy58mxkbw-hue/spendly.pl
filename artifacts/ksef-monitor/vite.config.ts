@@ -2,9 +2,31 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import compression from "compression";
+import { visualizer } from "rollup-plugin-visualizer";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "path";
+
+// ── Async CSS: zdejmuje render-blocking z głównego arkusza ────────────────────
+// Vite wstrzykuje <link rel="stylesheet"> dla entry-CSS (~158KB) do <head>, co
+// blokuje pierwszy paint. Landing renderuje hero w całości na INLINE stylach, więc
+// nie potrzebuje tej CSS do FCP. Zamieniamy blokujący link na preload+onload
+// (z <noscript> fallbackiem) — paint dzieje się od razu, a arkusz doładowuje się
+// równolegle (i tak wygrywa wyścig z 200KB JS przed hydracją Reacta).
+function asyncCssPlugin(): Plugin {
+  return {
+    name: "async-entry-css",
+    enforce: "post",
+    transformIndexHtml(html) {
+      return html.replace(
+        /<link\s+rel="stylesheet"([^>]*?)href="(\/assets\/[^"]+\.css)"([^>]*)>/gi,
+        (_m, pre, href, post) =>
+          `<link rel="preload" as="style"${pre}href="${href}"${post} onload="this.onload=null;this.rel='stylesheet'">` +
+          `<noscript><link rel="stylesheet"${pre}href="${href}"${post}></noscript>`,
+      );
+    },
+  };
+}
 
 // ── CSP: whitelist budowana z env produkcyjnego ──────────────────────────────
 // Front (www.spendly.pl) woła API na INNEJ domenie (VITE_API_BASE_URL), Clerk
@@ -137,7 +159,17 @@ const basePath = process.env.BASE_PATH || "/";
 
 export default defineConfig({
   base: basePath,
-  plugins: [react(), tailwindcss(), securityHeadersPlugin()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    asyncCssPlugin(),
+    securityHeadersPlugin(),
+    // Analiza bundla: `ANALYZE=true pnpm --filter @workspace/ksef-monitor build`
+    // → dist/stats.html (nie generowane w zwykłym buildzie).
+    ...(process.env.ANALYZE === "true"
+      ? [visualizer({ filename: "dist/stats.html", gzipSize: true, brotliSize: true }) as Plugin]
+      : []),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
@@ -149,6 +181,8 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    // Source mapy w produkcji — czytelne stack-trace w konsoli i w Sentry.
+    sourcemap: true,
     rollupOptions: {
       input: {
         main: path.resolve(import.meta.dirname, "index.html"),
@@ -159,6 +193,9 @@ export default defineConfig({
         "ocr-faktur": path.resolve(import.meta.dirname, "ocr-faktur.html"),
         cennik: path.resolve(import.meta.dirname, "cennik.html"),
       },
+      // Bez manualChunks — automatyczny podział Rollupa jest tu lepszy: trzyma
+      // recharts/jspdf/radix w LENIWYCH chunkach per-route, a wymuszone grupowanie
+      // (vendor/react) pogarszało wynik (wciągało lazy-deps do eager-bundla).
     },
   },
   server: {

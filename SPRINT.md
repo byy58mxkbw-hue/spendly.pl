@@ -42,6 +42,44 @@ kluczy prod), więc TUŻ PO DEPLOYU:
 - securityheaders.com dla `https://www.spendly.pl` — porównać F → A.
 - PageSpeed Insights (mobile + desktop) — LCP/CLS/INP przed/po (zysk głównie z gzip).
 
+## 2026-07-13 — Wydajność frontu (PageSpeed mobile 66, LCP 6.8s, FCP 3.8s)
+
+### Zrobione
+- **Async CSS (największy zysk FCP/LCP)** — Vite wstrzykiwał render-blocking
+  `<link rel="stylesheet">` (~158KB) do `<head>`. Landing renderuje hero w całości
+  na inline-stylach, więc ta CSS nie jest potrzebna do pierwszego paintu. Plugin
+  `asyncCssPlugin` (`transformIndexHtml`) zamienia go na `preload`+`onload` z
+  `<noscript>` fallbackiem → paint natychmiast, arkusz doładowuje się równolegle.
+- **Kompresja gzip** (z Części 1) — main 723KB → 204KB transferu.
+- **Font** — usunięta nieużywana grubość Inter 300 (mniej plików woff2 na
+  krytycznej ścieżce); `font-display: swap` i preconnect już były.
+- **Source maps w produkcji** (`build.sourcemap: true`) — czytelne stack-trace w
+  konsoli i w Sentry. (Uwaga: mapy są publiczne; jeśli chcesz je ukryć a zachować
+  w Sentry — `sourcemap: "hidden"` + upload map do Sentry.)
+- **Analiza bundla** — `rollup-plugin-visualizer` gated `ANALYZE=true`
+  (`ANALYZE=true pnpm --filter @workspace/ksef-monitor build` → `dist/stats.html`).
+
+### Forced reflow (Zadanie 6)
+- Brak realnego problemu. Jedyny odczyt layoutu (`scrollHeight`) jest w czacie AI
+  (smooth-scroll na dół), nie na ścieżce renderowania landingu. Nic do batchowania.
+
+### Redukcja JS (Zadanie 5) — analiza + decyzja
+- Bundle: `main` 723KB/204KB gz (eager), `generateCategoricalChart` (recharts+lodash)
+  396KB/110KB gz — **leniwie**, tylko na stronach z wykresami (dobrze). Route-chunki
+  leniwe. Główni „pasażerowie" main: react-dom, @clerk/*, @sentry/*, framer-motion,
+  react-query, wouter.
+- **`manualChunks` przetestowane i ODRZUCONE** — wymuszony `vendor` wciągał leniwe
+  zależności (jspdf, radix z podstron) do eager-bundla i podnosił sumę gzip
+  (204→277KB). Automatyczny podział Rollupa jest tu lepszy. Zostawione bez zmian.
+- **Prawdziwy „320KB unused" = landing ładuje pełny shell aplikacji** (Clerk/Sentry/
+  react-query) mimo że statyczny landing ich nie używa do pierwszego renderu.
+  **Follow-up (większy, osobno):** dedykowany lekki entry landingu bez ClerkProvider/
+  react-query — najczystsza droga do zbicia LCP dalej. Wymaga rozdzielenia roota.
+
+### Weryfikacja (po deployu, Patryk)
+- PageSpeed mobile + desktop — porównać LCP/FCP/score przed/po.
+- Sanity: landing renderuje się natychmiast (bez białego ekranu), brak FOUC.
+
 ### Dług / follow-up
-- `main` chunk 723KB (204KB gzip) — rozważyć `manualChunks` (recharts jest już
-  osobno). Niski priorytet po włączeniu kompresji.
+- Dedykowany entry landingu (bez Clerk/Sentry/react-query) — realne −~250KB z
+  pierwszego renderu. Największy pozostały lever na LCP.
