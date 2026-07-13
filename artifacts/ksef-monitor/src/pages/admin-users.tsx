@@ -39,6 +39,7 @@ import {
   ChevronDown,
   ChevronsUpDown,
   RefreshCw,
+  Copy,
 } from "lucide-react";
 import {
   BarChart,
@@ -229,6 +230,7 @@ function UserDetailsSheet({
   onClose: () => void;
 }) {
   const { data, isLoading } = useAdminUserDetails(user?.id ?? null);
+  const { toast } = useToast();
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -245,6 +247,18 @@ function UserDetailsSheet({
                   {user.email && (
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(user.id);
+                      toast({ description: "Skopiowano Clerk ID — wklej do ADMIN_USER_IDS (Railway) aby nadać admina." });
+                    }}
+                    className="mt-1 flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-foreground max-w-full"
+                    title="Kopiuj Clerk ID (do nadania admina w ADMIN_USER_IDS)"
+                  >
+                    <span className="truncate">{user.id}</span>
+                    <Copy className="h-3 w-3 shrink-0" />
+                  </button>
                 </div>
                 {user.blocked && (
                   <Badge variant="destructive" className="ml-auto shrink-0">Zablokowany</Badge>

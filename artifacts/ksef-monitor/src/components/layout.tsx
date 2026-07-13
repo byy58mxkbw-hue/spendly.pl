@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   ShieldCheck,
+  BarChart3,
   Layers,
   ChevronDown,
   Check,
@@ -443,6 +444,13 @@ function SidebarContent({
               path="/admin/users"
               label="Użytkownicy"
               icon={ShieldCheck}
+              location={location}
+              onNavigate={onNavigate}
+            />
+            <NavLink
+              path="/admin/analytics"
+              label="Analityka"
+              icon={BarChart3}
               location={location}
               onNavigate={onNavigate}
             />

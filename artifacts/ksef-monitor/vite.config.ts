@@ -71,7 +71,7 @@ function buildCsp(scriptHashes: string[]): string {
   const connectSrc = uniq(["'self'", api, clerkProxy, sentry, ...clerk, "https://clerk-telemetry.com", turnstile, "https://consentcdn.cookiebot.com", ...posthog]);
   // Hashe inline-skryptów zamiast 'unsafe-inline' — CSP zostaje realną ochroną XSS.
   const scriptSrc = uniq(["'self'", clerkProxy, ...clerk, turnstile, ...cookiebot, "https://eu-assets.i.posthog.com", ...scriptHashes]);
-  const frameSrc = uniq(["'self'", turnstile, ...clerk, "https://consentcdn.cookiebot.com"]);
+  const frameSrc = uniq(["'self'", turnstile, ...clerk, "https://consentcdn.cookiebot.com", "https://eu.posthog.com"]);
 
   return [
     "default-src 'self'",

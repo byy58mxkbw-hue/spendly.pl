@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, ClerkLoading, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, ClerkLoading, useClerk, useAuth } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
+import { apiUrl } from "@/lib/api-base";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -31,6 +32,7 @@ const Predictive = lazy(() => import("@/pages/predictive"));
 const PendingInvoices = lazy(() => import("@/pages/pending-invoices"));
 const SettingsKsef = lazy(() => import("@/pages/settings-ksef"));
 const AdminUsers = lazy(() => import("@/pages/admin-users"));
+const AdminAnalytics = lazy(() => import("@/pages/admin-analytics"));
 const SettingsCostCenters = lazy(() => import("@/pages/settings-cost-centers"));
 import { CostCenterProvider } from "@/contexts/cost-center-context";
 
@@ -158,6 +160,37 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Show when="signed-in">{children}</Show>
+      <Show when="signed-out"><Redirect to="/" /></Show>
+    </>
+  );
+}
+
+// Bramka admina: wymaga zalogowania ORAZ pozytywnego /api/admin/check (backend
+// zezwala tylko userId z ADMIN_USER_IDS). Nie-admin nie zobaczy nawet szkieletu
+// stron admina — jest przekierowany. Dane i tak chroni backend (403), to warstwa UX.
+function AdminGate({ children }: { children: React.ReactNode }) {
+  const { getToken } = useAuth();
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-check"],
+    queryFn: async () => {
+      const token = await getToken();
+      const res = await fetch(apiUrl("/api/admin/check"), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.ok;
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  if (isLoading) return <PageLoading />;
+  if (data !== true) return <Redirect to="/dashboard" />;
+  return <>{children}</>;
+}
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Show when="signed-in"><AdminGate>{children}</AdminGate></Show>
       <Show when="signed-out"><Redirect to="/" /></Show>
     </>
   );
@@ -303,8 +336,11 @@ function AppRouter() {
               <Route path="/settings/cost-centers">
                 <ProtectedRoute><SettingsCostCenters /></ProtectedRoute>
               </Route>
+              <Route path="/admin/analytics">
+                <AdminRoute><AdminAnalytics /></AdminRoute>
+              </Route>
               <Route path="/admin/users">
-                <ProtectedRoute><AdminUsers /></ProtectedRoute>
+                <AdminRoute><AdminUsers /></AdminRoute>
               </Route>
               <Route component={NotFound} />
             </Switch>
