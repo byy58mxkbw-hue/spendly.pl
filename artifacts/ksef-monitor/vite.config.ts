@@ -2,6 +2,8 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import compression from "compression";
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "path";
 
 // ── CSP: whitelist budowana z env produkcyjnego ──────────────────────────────
@@ -18,7 +20,32 @@ function originFrom(url?: string): string | null {
   }
 }
 
-function buildCsp(): string {
+// Zbiera hashe sha256 wszystkich inline-skryptów (bez `src`, poza JSON-LD, który
+// nie jest wykonywany) ze ZBUDOWANYCH plików HTML. Dzięki temu wymuszone CSP nie
+// blokuje skryptu inicjalizującego motyw, a hash jest liczony z realnego bajtowo
+// outputu (Vite może go zminifikować) — automatycznie, bez ręcznej podmiany.
+function collectInlineScriptHashes(outDir: string): string[] {
+  const hashes = new Set<string>();
+  const scriptRe = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+  try {
+    for (const file of readdirSync(outDir)) {
+      if (!file.endsWith(".html")) continue;
+      const html = readFileSync(path.join(outDir, file), "utf8");
+      for (const [, attrs, body] of html.matchAll(scriptRe)) {
+        if (/\bsrc=/i.test(attrs)) continue; // zewnętrzny — pokrywa go 'self'
+        if (/application\/ld\+json/i.test(attrs)) continue; // dane, nie kod
+        if (!body) continue;
+        const hash = createHash("sha256").update(body, "utf8").digest("base64");
+        hashes.add(`'sha256-${hash}'`);
+      }
+    }
+  } catch (err) {
+    console.warn(`[csp] nie udało się policzyć hashy inline-skryptów: ${(err as Error).message}`);
+  }
+  return [...hashes];
+}
+
+function buildCsp(scriptHashes: string[]): string {
   const api = originFrom(process.env.VITE_API_BASE_URL);
   const clerkProxy = originFrom(process.env.VITE_CLERK_PROXY_URL);
   const sentry = originFrom(process.env.VITE_SENTRY_DSN);
@@ -28,8 +55,9 @@ function buildCsp(): string {
 
   const uniq = (arr: (string | null)[]) => Array.from(new Set(arr.filter(Boolean) as string[]));
 
-  const connectSrc = uniq(["'self'", api, clerkProxy, sentry, ...clerk, "https://clerk-telemetry.com"]);
-  const scriptSrc = uniq(["'self'", clerkProxy, ...clerk, turnstile]);
+  const connectSrc = uniq(["'self'", api, clerkProxy, sentry, ...clerk, "https://clerk-telemetry.com", turnstile]);
+  // Hashe inline-skryptów zamiast 'unsafe-inline' — CSP zostaje realną ochroną XSS.
+  const scriptSrc = uniq(["'self'", clerkProxy, ...clerk, turnstile, ...scriptHashes]);
   const frameSrc = uniq(["'self'", turnstile, ...clerk]);
 
   return [
@@ -43,9 +71,6 @@ function buildCsp(): string {
     // 'unsafe-inline' dla stylów jest konieczne: prerender w index.html i biblioteki
     // (framer-motion) wstrzykują inline style. To niskie ryzyko XSS.
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    // UWAGA: brak 'unsafe-inline' w script-src. Inline skrypt inicjalizujący motyw
-    // w *.html zgłosi naruszenie w trybie Report-Only — przed wymuszeniem CSP
-    // (CSP_ENFORCE=true) dodaj jego hash sha256 lub wynieś do pliku.
     `script-src ${scriptSrc.join(" ")}`,
     `connect-src ${connectSrc.join(" ")}`,
     "worker-src 'self' blob:",
@@ -59,11 +84,14 @@ function buildCsp(): string {
 // (securityheaders.com = F), ani Cache-Control (po deployu losowo stara/nowa
 // wersja). Ten plugin domyka jedno i drugie w jednym miejscu.
 function securityHeadersPlugin(): Plugin {
-  const csp = buildCsp();
-  const enforceCsp = process.env.CSP_ENFORCE === "true";
+  const outDir = path.resolve(import.meta.dirname, "dist/public");
+  // Domyślnie CSP wymuszające. Awaryjny powrót do Report-Only bez zmiany kodu:
+  // ustaw CSP_REPORT_ONLY=true w env frontu na Railway.
+  const reportOnly = process.env.CSP_REPORT_ONLY === "true";
   return {
     name: "security-and-cache-headers",
     configurePreviewServer(server) {
+      const csp = buildCsp(collectInlineScriptHashes(outDir));
       // Kompresja odpowiedzi (gzip) — sirv sam nie kompresuje, a główny chunk to
       // ~700KB nieskompresowane. Dodane jako pierwsze, żeby objąć odpowiedzi sirv.
       server.middlewares.use(compression());
@@ -82,7 +110,7 @@ function securityHeadersPlugin(): Plugin {
         res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
         res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
         res.setHeader(
-          enforceCsp ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only",
+          reportOnly ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy",
           csp,
         );
 
