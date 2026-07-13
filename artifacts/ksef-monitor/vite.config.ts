@@ -7,26 +7,12 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "path";
 
-// ── Async CSS: zdejmuje render-blocking z głównego arkusza ────────────────────
-// Vite wstrzykuje <link rel="stylesheet"> dla entry-CSS (~158KB) do <head>, co
-// blokuje pierwszy paint. Landing renderuje hero w całości na INLINE stylach, więc
-// nie potrzebuje tej CSS do FCP. Zamieniamy blokujący link na preload+onload
-// (z <noscript> fallbackiem) — paint dzieje się od razu, a arkusz doładowuje się
-// równolegle (i tak wygrywa wyścig z 200KB JS przed hydracją Reacta).
-function asyncCssPlugin(): Plugin {
-  return {
-    name: "async-entry-css",
-    enforce: "post",
-    transformIndexHtml(html) {
-      return html.replace(
-        /<link\s+rel="stylesheet"([^>]*?)href="(\/assets\/[^"]+\.css)"([^>]*)>/gi,
-        (_m, pre, href, post) =>
-          `<link rel="preload" as="style"${pre}href="${href}"${post} onload="this.onload=null;this.rel='stylesheet'">` +
-          `<noscript><link rel="stylesheet"${pre}href="${href}"${post}></noscript>`,
-      );
-    },
-  };
-}
+// UWAGA: NIE używamy async-CSS przez inline `onload` (preload+onload). Wymuszone
+// CSP (script-src bez 'unsafe-inline') blokuje inline event-handlery, więc onload
+// nigdy się nie odpala → arkusz nie zostaje zastosowany → strona bez stylów.
+// Entry-CSS zostaje zwykłym render-blocking <link> (przy gzip ~26KB, koszt znikomy).
+// Async-CSS pod strictnym CSP wymagałby 'unsafe-hashes' + hash handlera albo
+// zewnętrznego loadera — TODO jeśli PageSpeed tego zażąda.
 
 // ── CSP: whitelist budowana z env produkcyjnego ──────────────────────────────
 // Front (www.spendly.pl) woła API na INNEJ domenie (VITE_API_BASE_URL), Clerk
@@ -165,7 +151,6 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    asyncCssPlugin(),
     securityHeadersPlugin(),
     // Analiza bundla: `ANALYZE=true pnpm --filter @workspace/ksef-monitor build`
     // → dist/stats.html (nie generowane w zwykłym buildzie).
