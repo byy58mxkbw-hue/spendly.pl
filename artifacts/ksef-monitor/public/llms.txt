@@ -15,14 +15,14 @@ Spendly helps restaurant owners track price changes across their supply chain by
 
 ## Public URLs
 
-- Homepage: https://www.spendly.pl/ — main landing page explaining the full product, how it works, features, and social proof
-- KSeF integration: https://www.spendly.pl/ksef — how Spendly connects to Poland's national e-invoice system (KSeF) to automatically import purchase invoices for a restaurant's NIP number without manual file uploads
-- Food cost control: https://www.spendly.pl/food-cost — automatic food cost calculation based on imported invoices, real-time supplier price monitoring, and alerts when costs approach profitability thresholds
-- OCR invoices: https://www.spendly.pl/ocr-faktur — AI-powered invoice reading from a phone photo or PDF in ~15 seconds; captures supplier, product lines, prices, quantities, VAT rates, and dates automatically
-- Pricing: https://www.spendly.pl/cennik — pricing page; currently free during the open beta period, regular price 200 PLN/month after beta ends; no credit card required
+- [Homepage](https://www.spendly.pl/): main landing page explaining the full product, how it works, features, and social proof
+- [KSeF integration](https://www.spendly.pl/ksef): how Spendly connects to Poland's national e-invoice system (KSeF) to automatically import purchase invoices for a restaurant's NIP number without manual file uploads
+- [Food cost control](https://www.spendly.pl/food-cost): automatic food cost calculation based on imported invoices, real-time supplier price monitoring, and alerts when costs approach profitability thresholds
+- [OCR invoices](https://www.spendly.pl/ocr-faktur): AI-powered invoice reading from a phone photo or PDF in ~15 seconds; captures supplier, product lines, prices, quantities, VAT rates, and dates automatically
+- [Pricing](https://www.spendly.pl/cennik): pricing page; currently free during the open beta period, regular price 200 PLN/month after beta ends; no credit card required
 
 ## Out of scope
 
-- /sign-in — authentication page, no useful content for AI retrieval
-- /sign-up — registration page, no useful content for AI retrieval
-- All authenticated app routes (/dashboard, /suppliers, /products, /invoices, /price-alerts, /reports, /predictive, /pending-invoices, /ai-cfo, /settings/ksef, /settings/cost-centers, /admin/users) — require login, contain tenant-specific data
+- [Sign in](https://www.spendly.pl/sign-in): authentication page, no useful content for AI retrieval
+- [Sign up](https://www.spendly.pl/sign-up): registration page, no useful content for AI retrieval
+- All authenticated app routes (/dashboard, /suppliers, /products, /invoices, /price-alerts, /reports, /predictive, /pending-invoices, /ai-cfo, /settings/ksef, /settings/cost-centers, /admin/users) require login and contain tenant-specific data
