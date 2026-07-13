@@ -95,7 +95,38 @@ kluczy prod), więc TUŻ PO DEPLOYU:
   Clerk=necessary).
 - Po deployu: potwierdzić, że banner zgody się pokazuje i że nie ma błędów CSP w konsoli.
 
+## 2026-07-13 — Dostępność (a11y, WCAG AA)
+
+- ✅ **`<main>` landmark** wokół głównej treści (`home.tsx` + statyczny prerender
+  `index.html`) — aurora/nav/footer poza `<main>`.
+- ✅ **Kolejność nagłówków** bez przeskoków (h1→h2→h3): kroki KSeF `h4→h3`,
+  stopka `h5→h3` (+ selektory CSS `.step h3` / `.foot-col h3`).
+- ✅ **Kontrast WCAG AA** — `--faint` był poniżej progu (dark 3.9:1, light 3.0:1
+  przy AA≥4.5). Podbity: dark `.42→.55` = **5.9:1**, light `.45→.60` = **5.0:1**
+  (wyliczone formułą WCAG). Nagłówki stopki z `--faint` na `--muted` (7.8:1).
+
+## 2026-07-13 — Weryfikacja końcowa (Zadanie 9)
+
+- ✅ **curl -I frontend** (`www.spendly.pl`): HSTS, X-Frame, X-Content-Type,
+  Referrer, Permissions, **CSP (wymuszone)**, COOP, X-Permitted — wszystkie obecne.
+- ✅ **curl -I API** (`api-server-production-de7e.up.railway.app`): HSTS, X-Frame
+  DENY, nosniff, Referrer, Permissions, CSP, X-Permitted; `/api/healthz` = `{"status":"ok"}`.
+- ✅ **CORS** preflight z `www.spendly.pl` → 204 + allow-credentials + methods/headers
+  domknięte + allow-origin poprawny; obcy origin → BRAK allow-origin (whitelista działa).
+- ✅ **Rate limiter** — zweryfikowany mechanizm (429 + `Retry-After: 900s` + JSON);
+  ta sama konfiguracja `standardHeaders:"draft-8"` na prod.
+- ⏳ **PageSpeed mobile** — do zmierzenia przez Patryka (baza 66/100, LCP 6.8s);
+  wdrożone: gzip, brak render-blocking async-onload, source-mapy, trim fontu.
+- ⏳ **Logowanie Clerk** — do potwierdzenia przez Patryka (CSP wymuszone; awaryjnie
+  `CSP_REPORT_ONLY=true`). Strona renderuje się poprawnie (potwierdzone wizualnie).
+
+### Incydent (rozwiązany)
+- Wymuszone CSP + async-CSS/font przez inline `onload` → strona bez stylów na prod.
+  Fix: usunięty async-onload, entry-CSS render-blocking (gzip 26KB). Reguła 28 w claude.md.
+
 ### Dług / follow-up
 - Dedykowany entry landingu (bez Clerk/Sentry/react-query) — realne −~250KB z
   pierwszego renderu. Największy pozostały lever na LCP.
+- Async-CSS pod strict CSP: `'unsafe-hashes'`+hash handlera albo zewnętrzny loader.
 - Ewentualne przejście Cookiebota na manual blocking, jeśli perf tego wymaga.
+- A11y pozostałych stron marketingowych (cennik/ksef/ocr-faktur) — analogiczny audyt.
