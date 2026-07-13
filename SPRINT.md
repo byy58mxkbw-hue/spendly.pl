@@ -80,6 +80,22 @@ kluczy prod), więc TUŻ PO DEPLOYU:
 - PageSpeed mobile + desktop — porównać LCP/FCP/score przed/po.
 - Sanity: landing renderuje się natychmiast (bez białego ekranu), brak FOUC.
 
+## 2026-07-13 — Cookiebot (zgoda na cookies, RODO)
+
+- Wpięty `<script id="Cookiebot" ... data-blockingmode="auto">` jako pierwszy
+  element `<head>` we wszystkich 7 entry-HTML (index + cennik/ksef/ocr-faktur/
+  food-cost/sign-in/sign-up). Tryb **auto** (świadoma decyzja: zgodność out-of-the-box).
+- **CSP zaktualizowane** (inaczej wymuszone CSP z Części 1 zablokowałoby loader):
+  `script-src` += consent.cookiebot.com + consentcdn.cookiebot.com; `frame-src`/
+  `connect-src` += consentcdn.cookiebot.com; `img-src` += imgsct.cookiebot.com +
+  consent.cookiebot.com.
+- **Kompromis perf:** auto-blocking `uc.js` jest render-blocking z założenia (musi
+  wykonać się przed trackerami) → lekki regres FCP/LCP. Jeśli PageSpeed to wypunktuje
+  — przejść na **manual blocking** (uc.js async + ręczne oznaczenie Sentry=statistics,
+  Clerk=necessary).
+- Po deployu: potwierdzić, że banner zgody się pokazuje i że nie ma błędów CSP w konsoli.
+
 ### Dług / follow-up
 - Dedykowany entry landingu (bez Clerk/Sentry/react-query) — realne −~250KB z
   pierwszego renderu. Największy pozostały lever na LCP.
+- Ewentualne przejście Cookiebota na manual blocking, jeśli perf tego wymaga.

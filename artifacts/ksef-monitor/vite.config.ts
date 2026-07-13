@@ -74,13 +74,16 @@ function buildCsp(scriptHashes: string[]): string {
   // Domeny Clerk (SDK + FAPI gdy proxy nie przechwytuje wszystkiego) i Turnstile.
   const clerk = ["https://*.clerk.accounts.dev", "https://*.clerk.com"];
   const turnstile = "https://challenges.cloudflare.com";
+  // Cookiebot (zgoda na cookies, blockingmode=auto): loader z consent.cookiebot.com,
+  // dialog/CDN z consentcdn.cookiebot.com, obrazki z imgsct.cookiebot.com.
+  const cookiebot = ["https://consent.cookiebot.com", "https://consentcdn.cookiebot.com"];
 
   const uniq = (arr: (string | null)[]) => Array.from(new Set(arr.filter(Boolean) as string[]));
 
-  const connectSrc = uniq(["'self'", api, clerkProxy, sentry, ...clerk, "https://clerk-telemetry.com", turnstile]);
+  const connectSrc = uniq(["'self'", api, clerkProxy, sentry, ...clerk, "https://clerk-telemetry.com", turnstile, "https://consentcdn.cookiebot.com"]);
   // Hashe inline-skryptów zamiast 'unsafe-inline' — CSP zostaje realną ochroną XSS.
-  const scriptSrc = uniq(["'self'", clerkProxy, ...clerk, turnstile, ...scriptHashes]);
-  const frameSrc = uniq(["'self'", turnstile, ...clerk]);
+  const scriptSrc = uniq(["'self'", clerkProxy, ...clerk, turnstile, ...cookiebot, ...scriptHashes]);
+  const frameSrc = uniq(["'self'", turnstile, ...clerk, "https://consentcdn.cookiebot.com"]);
 
   return [
     "default-src 'self'",
@@ -88,10 +91,10 @@ function buildCsp(scriptHashes: string[]): string {
     "object-src 'none'",
     "frame-ancestors 'self'",
     "form-action 'self'",
-    "img-src 'self' data: blob: https://img.clerk.com",
+    "img-src 'self' data: blob: https://img.clerk.com https://imgsct.cookiebot.com https://consent.cookiebot.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     // 'unsafe-inline' dla stylów jest konieczne: prerender w index.html i biblioteki
-    // (framer-motion) wstrzykują inline style. To niskie ryzyko XSS.
+    // (framer-motion) + banner Cookiebota wstrzykują inline style. Niskie ryzyko XSS.
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     `script-src ${scriptSrc.join(" ")}`,
     `connect-src ${connectSrc.join(" ")}`,
