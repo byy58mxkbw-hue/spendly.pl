@@ -131,6 +131,7 @@ export default function Home() {
         )}
       </nav>
 
+      <main>
       {/* HERO */}
       <header className="hero wrap">
         <div className="eyebrow"><Zap />Zintegrowane z KSeF — gotowe na 2026</div>
@@ -217,7 +218,7 @@ export default function Home() {
               {STEPS.map((s) => (
                 <div className="step" key={s.n}>
                   <div className="num">{s.n}</div>
-                  <div><h4>{s.h}</h4><p>{s.p}</p></div>
+                  <div><h3>{s.h}</h3><p>{s.p}</p></div>
                 </div>
               ))}
             </div>
@@ -320,6 +321,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </main>
 
       {/* FOOTER */}
       <footer className="wrap">
@@ -329,20 +331,20 @@ export default function Home() {
             <p>Monitoring cen dostawców i kontrola food cost dla restauracji, hoteli i firm gastronomicznych. Zintegrowane z KSeF.</p>
           </div>
           <div className="foot-col">
-            <h5>Produkt</h5>
+            <h3>Produkt</h3>
             <a href="#funkcje">Funkcje</a>
             <a href="#ksef">Integracja KSeF</a>
             <a href="#cennik">Cennik</a>
             <a href="/cennik" onClick={go("/cennik")}>Pełny cennik</a>
           </div>
           <div className="foot-col">
-            <h5>Firma</h5>
+            <h3>Firma</h3>
             <a href="mailto:kontakt@spendly.pl">Kontakt</a>
             <a href="/sign-up" onClick={go("/sign-up")}>Rejestracja</a>
             <a href="/sign-in" onClick={go("/sign-in")}>Logowanie</a>
           </div>
           <div className="foot-col">
-            <h5>Zasoby</h5>
+            <h3>Zasoby</h3>
             <a href="mailto:kontakt@spendly.pl">Pomoc</a>
             <a href="/polityka-prywatnosci" onClick={go("/polityka-prywatnosci")}>Polityka prywatności</a>
             <a href="/regulamin" onClick={go("/regulamin")}>Regulamin</a>
