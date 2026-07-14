@@ -10,6 +10,7 @@ export default function KsefPage() {
     <div style={{ background: C.bg, color: C.text, fontFamily: "Inter, system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
       <MarketingNavBar c={C} theme={theme} onToggle={toggle} />
 
+      <main>
       {/* HERO */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "72px 24px 80px" }}>
         <div style={{ maxWidth: 680 }}>
@@ -19,7 +20,7 @@ export default function KsefPage() {
           </div>
           <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 20, color: C.text }}>
             Automatyczny import faktur<br />
-            <span style={{ color: C.accent }}>z KSeF dla gastronomii</span>
+            <span style={{ color: C.accentText }}>z KSeF dla gastronomii</span>
           </h1>
           <p style={{ fontSize: 17, color: C.muted, lineHeight: 1.7, maxWidth: 560, marginBottom: 36 }}>
             Spendly łączy się bezpośrednio z Krajowym Systemem e-Faktur i pobiera faktury zakupowe dla Twojego NIP-u — bez ręcznego wgrywania plików, bez arkuszy Excel.
@@ -43,7 +44,7 @@ export default function KsefPage() {
       <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, background: "rgba(255,255,255,0.02)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accent, textTransform: "uppercase", marginBottom: 12 }}>Jak działa integracja</p>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accentText, textTransform: "uppercase", marginBottom: 12 }}>Jak działa integracja</p>
             <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, margin: 0 }}>
               Trzy kroki do pełnej automatyzacji
             </h2>
@@ -67,7 +68,7 @@ export default function KsefPage() {
       {/* BENEFITS */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accent, textTransform: "uppercase", marginBottom: 12 }}>Korzyści</p>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accentText, textTransform: "uppercase", marginBottom: 12 }}>Korzyści</p>
           <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, margin: 0 }}>
             Co zyskujesz dzięki integracji KSeF
           </h2>
@@ -133,6 +134,8 @@ export default function KsefPage() {
           </div>
         </div>
       </section>
+
+      </main>
 
       <MarketingFooter c={C} />
     </div>

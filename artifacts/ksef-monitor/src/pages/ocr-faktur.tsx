@@ -10,16 +10,17 @@ export default function OcrFakturPage() {
     <div style={{ background: c.bg, color: c.text, fontFamily: "Inter, system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
       <MarketingNavBar c={c} theme={theme} onToggle={toggle} />
 
+      <main>
       {/* HERO */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "72px 24px 80px" }}>
         <div style={{ maxWidth: 680 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 999, border: `1px solid ${c.accentDim}`, background: c.accentDim, color: c.accent, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 999, border: `1px solid ${c.accentDim}`, background: c.accentDim, color: c.accentText, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>
             <ScanLine size={12} style={{ color: c.accent }} />
             OCR faktur dla gastronomii
           </div>
           <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 20, color: c.text }}>
             Automatyczny odczyt faktur<br />
-            <span style={{ color: c.accent }}>ze zdjęcia lub PDF w 15 sekund</span>
+            <span style={{ color: c.accentText }}>ze zdjęcia lub PDF w 15 sekund</span>
           </h1>
           <p style={{ fontSize: 17, color: c.muted, lineHeight: 1.7, maxWidth: 560, marginBottom: 36 }}>
             Spendly czyta faktury kosztowe bezpośrednio ze zdjęcia zrobionego telefonem lub pliku PDF. Dostawca, produkty, ceny, daty — wszystko trafia do systemu automatycznie, bez ręcznego przepisywania.
@@ -43,7 +44,7 @@ export default function OcrFakturPage() {
       <section style={{ borderTop: `1px solid ${c.border}`, borderBottom: `1px solid ${c.border}`, background: c.panel }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accent, textTransform: "uppercase", marginBottom: 12 }}>Jak działa OCR faktur</p>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accentText, textTransform: "uppercase", marginBottom: 12 }}>Jak działa OCR faktur</p>
             <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, margin: 0 }}>
               Od faktury papierowej do danych w systemie
             </h2>
@@ -67,7 +68,7 @@ export default function OcrFakturPage() {
       {/* FEATURES */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accent, textTransform: "uppercase", marginBottom: 12 }}>Możliwości</p>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accentText, textTransform: "uppercase", marginBottom: 12 }}>Możliwości</p>
           <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, margin: 0 }}>
             Co Spendly odczytuje z faktury
           </h2>
@@ -133,6 +134,8 @@ export default function OcrFakturPage() {
           </div>
         </div>
       </section>
+
+      </main>
 
       <MarketingFooter c={c} />
     </div>

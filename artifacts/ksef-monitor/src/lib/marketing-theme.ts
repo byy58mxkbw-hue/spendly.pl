@@ -12,6 +12,9 @@ export const MARKETING_DARK = {
   text: "#F5F7FA",
   muted: "#9BA6B2",
   accent: "#3DDC97",
+  // accentText = akcent do TEKSTU (WCAG AA). W dark = accent (kontrast 10.9:1 OK);
+  // w light accent #14B8A6 na tekście ma tylko 2.3:1, więc tam ciemniejszy teal.
+  accentText: "#3DDC97",
   accentDim: "rgba(61,220,151,0.12)",
   navBg: "rgba(11,15,20,0.9)",
   panel: "rgba(255,255,255,0.02)",
@@ -25,6 +28,7 @@ export const MARKETING_LIGHT = {
   text: "#0B0F14",
   muted: "#5A6673",
   accent: "#14B8A6",
+  accentText: "#0F766E", // ciemniejszy teal do tekstu — kontrast 5.1:1 na jasnym tle (AA)
   accentDim: "rgba(20,184,166,0.12)",
   navBg: "rgba(244,247,249,0.85)",
   panel: "rgba(11,15,20,0.02)",

@@ -53,14 +53,15 @@ export default function CennikPage() {
     <div style={{ background: c.bg, color: c.text, fontFamily: "Inter, system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
       <MarketingNavBar c={c} theme={theme} onToggle={toggle} />
 
+      <main>
       {/* HERO */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "72px 24px 64px", textAlign: "center" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 999, border: `1px solid ${c.accentDim}`, background: c.accentDim, color: c.accent, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 999, border: `1px solid ${c.accentDim}`, background: c.accentDim, color: c.accentText, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>
           Bez ukrytych opłat
         </div>
         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 16, color: c.text }}>
           Prosty cennik.<br />
-          <span style={{ color: c.accent }}>Pełna kontrola kosztów.</span>
+          <span style={{ color: c.accentText }}>Pełna kontrola kosztów.</span>
         </h1>
         <p style={{ fontSize: 17, color: c.muted, lineHeight: 1.7, maxWidth: 480, margin: "0 auto 0" }}>
           Zacznij za darmo. Każdy płatny plan z 14 dniami próbnymi, bez karty. Anuluj w dowolnym momencie.
@@ -91,7 +92,7 @@ export default function CennikPage() {
               )}
               <p style={{ fontSize: 15, fontWeight: 700, color: c.text, margin: 0 }}>{plan.name}</p>
               <div style={{ display: "flex", alignItems: "baseline", gap: 6, margin: "14px 0 4px" }}>
-                <span style={{ fontSize: 44, fontWeight: 800, color: c.accent, letterSpacing: "-0.03em", lineHeight: 1 }}>{plan.price}</span>
+                <span style={{ fontSize: 44, fontWeight: 800, color: c.accentText, letterSpacing: "-0.03em", lineHeight: 1 }}>{plan.price}</span>
                 {plan.price !== "Wycena" && <span style={{ fontSize: 15, color: c.muted }}>zł{plan.period}</span>}
               </div>
               <p style={{ fontSize: 13, color: c.muted, margin: "0 0 20px", minHeight: 38 }}>{plan.desc}</p>
@@ -120,7 +121,7 @@ export default function CennikPage() {
         </div>
         <p style={{ textAlign: "center", fontSize: 13, color: c.muted, marginTop: 28 }}>
           Potrzebujesz dedykowanej integracji lub wsparcia dla sieci lokali?{" "}
-          <a href="mailto:kontakt@spendly.pl" style={{ color: c.accent, textDecoration: "none" }}>Napisz do nas</a>
+          <a href="mailto:kontakt@spendly.pl" style={{ color: c.accentText, textDecoration: "none" }}>Napisz do nas</a>
         </p>
       </section>
 
@@ -128,7 +129,7 @@ export default function CennikPage() {
       <section style={{ borderTop: `1px solid ${c.border}` }}>
         <div style={{ maxWidth: 760, margin: "0 auto", padding: "80px 24px" }}>
           <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accent, textTransform: "uppercase", marginBottom: 12 }}>FAQ</p>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accentText, textTransform: "uppercase", marginBottom: 12 }}>FAQ</p>
             <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, margin: 0 }}>
               Pytania o cennik i warunki
             </h2>
@@ -167,6 +168,8 @@ export default function CennikPage() {
           </Link>
         </div>
       </section>
+
+      </main>
 
       <MarketingFooter c={c} />
     </div>
