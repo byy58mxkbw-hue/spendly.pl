@@ -98,6 +98,7 @@ export default function Home() {
             <a href="#funkcje">Funkcje</a>
             <a href="#ksef">KSeF</a>
             <a href="#cennik">Cennik</a>
+            <a href="/blog">Blog</a>
             <a href="#faq">FAQ</a>
           </div>
           <div className="nav-right">
@@ -122,6 +123,7 @@ export default function Home() {
             <a href="#funkcje" onClick={() => setMenuOpen(false)}>Funkcje</a>
             <a href="#ksef" onClick={() => setMenuOpen(false)}>KSeF</a>
             <a href="#cennik" onClick={() => setMenuOpen(false)}>Cennik</a>
+            <a href="/blog">Blog</a>
             <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
             <div className="nav-mobile-cta">
               <a className="btn btn-ghost" href="/sign-in" onClick={(e) => { setMenuOpen(false); go("/sign-in")(e); }}>Zaloguj się</a>
@@ -345,6 +347,7 @@ export default function Home() {
           </div>
           <div className="foot-col">
             <h3>Zasoby</h3>
+            <a href="/blog">Blog</a>
             <a href="mailto:kontakt@spendly.pl">Pomoc</a>
             <a href="/polityka-prywatnosci" onClick={go("/polityka-prywatnosci")}>Polityka prywatności</a>
             <a href="/regulamin" onClick={go("/regulamin")}>Regulamin</a>
