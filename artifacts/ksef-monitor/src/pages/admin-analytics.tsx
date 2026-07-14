@@ -4,10 +4,12 @@ import { Layout, PageHeader } from "@/components/layout";
 import { apiUrl } from "@/lib/api-base";
 import { Loader2, ShieldAlert, BarChart3, ExternalLink } from "lucide-react";
 
-// URL osadzenia dashboardu PostHog (Dashboard → Share → Embed → "Share externally").
-// Ustaw jako VITE_POSTHOG_DASHBOARD_URL na Railway (frontend). Bez tego pokazujemy
-// instrukcję zamiast pustego iframe.
-const DASHBOARD_URL = import.meta.env.VITE_POSTHOG_DASHBOARD_URL as string | undefined;
+// URL osadzenia dashboardu PostHog (Dashboard → Share → "Share externally" → Embed).
+// Publiczny embed, więc trzymamy domyślny w kodzie; env VITE_POSTHOG_DASHBOARD_URL
+// może go nadpisać (np. gdy zmienisz dashboard) bez zmiany kodu.
+const DASHBOARD_URL =
+  (import.meta.env.VITE_POSTHOG_DASHBOARD_URL as string | undefined) ||
+  "https://eu.posthog.com/embedded/e_fJTDhkadyqrpd9xNFnQg4N_70Owg";
 
 function useIsAdmin() {
   const { getToken } = useAuth();
@@ -75,6 +77,7 @@ export default function AdminAnalytics() {
               className="h-[80vh] w-full border-0"
               loading="lazy"
               allowFullScreen
+              sandbox="allow-scripts allow-same-origin allow-popups"
             />
           </div>
         )}
