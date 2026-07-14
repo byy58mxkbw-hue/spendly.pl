@@ -98,10 +98,10 @@ function buildCsp(scriptHashes: string[]): string {
     "frame-ancestors 'self'",
     "form-action 'self'",
     `img-src 'self' data: blob: https://img.clerk.com https://imgsct.cookiebot.com https://consent.cookiebot.com${clerkFapi ? " " + clerkFapi : ""}`,
-    "font-src 'self' https://fonts.gstatic.com data:",
+    "font-src 'self' data:",
     // 'unsafe-inline' dla stylów jest konieczne: prerender w index.html i biblioteki
     // (framer-motion) + banner Cookiebota wstrzykują inline style. Niskie ryzyko XSS.
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "style-src 'self' 'unsafe-inline'",
     `script-src ${scriptSrc.join(" ")}`,
     `connect-src ${connectSrc.join(" ")}`,
     "worker-src 'self' blob:",
