@@ -119,23 +119,35 @@ const clerkAppearance = {
 
 function SignInPage() {
   return (
-    <div
-      className="flex min-h-[100dvh] items-center justify-center px-4"
-      style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61,220,151,0.08) 0%, transparent 60%), #0B0F14" }}
-    >
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-    </div>
+    <>
+      {/* Zalogowany user na /sign-in nie może utknąć na ekranie Clerka "jesteś już
+          zalogowany" — od razu wpuszczamy go do apki. Niezalogowany widzi formularz. */}
+      <Show when="signed-in"><Redirect to="/dashboard" /></Show>
+      <Show when="signed-out">
+        <div
+          className="flex min-h-[100dvh] items-center justify-center px-4"
+          style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61,220,151,0.08) 0%, transparent 60%), #0B0F14" }}
+        >
+          <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+        </div>
+      </Show>
+    </>
   );
 }
 
 function SignUpPage() {
   return (
-    <div
-      className="flex min-h-[100dvh] items-center justify-center px-4"
-      style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61,220,151,0.08) 0%, transparent 60%), #0B0F14" }}
-    >
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
-    </div>
+    <>
+      <Show when="signed-in"><Redirect to="/dashboard" /></Show>
+      <Show when="signed-out">
+        <div
+          className="flex min-h-[100dvh] items-center justify-center px-4"
+          style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61,220,151,0.08) 0%, transparent 60%), #0B0F14" }}
+        >
+          <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+        </div>
+      </Show>
+    </>
   );
 }
 
