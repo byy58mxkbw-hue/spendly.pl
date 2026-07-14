@@ -49,6 +49,12 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://www.spendly.pl/blog/inwentaryzacja-w-restauracji</loc>
+    <lastmod>2026-07-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://www.spendly.pl/blog/jak-czytac-fakture-ksef</loc>
     <lastmod>2026-07-14</lastmod>
     <changefreq>monthly</changefreq>
@@ -56,6 +62,18 @@
   </url>
   <url>
     <loc>https://www.spendly.pl/blog/jak-liczyc-food-cost</loc>
+    <lastmod>2026-07-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.spendly.pl/blog/jak-negocjowac-ceny-z-dostawcami</loc>
+    <lastmod>2026-07-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.spendly.pl/blog/jak-wycenic-danie-w-menu</loc>
     <lastmod>2026-07-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
