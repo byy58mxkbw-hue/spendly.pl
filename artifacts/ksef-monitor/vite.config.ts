@@ -28,6 +28,21 @@ function originFrom(url?: string): string | null {
   }
 }
 
+// Dekoduje domenę Clerk Frontend API z klucza publicznego (pk_live_/pk_test_).
+// Klucz = "pk_live_" + base64("clerk.twojadomena.pl$"). Produkcyjny Clerk na
+// custom-domenie (clerk.spendly.pl) serwuje z niej clerk-js i FAPI — MUSI być
+// w CSP, inaczej logowanie nie ładuje się (biały ekran).
+function clerkFapiFromPk(pk?: string): string | null {
+  if (!pk) return null;
+  const b64 = pk.replace(/^pk_(live|test)_/, "");
+  try {
+    const host = Buffer.from(b64, "base64").toString("utf8").replace(/\$+$/, "").trim();
+    return /^[a-z0-9.-]+$/i.test(host) ? `https://${host}` : null;
+  } catch {
+    return null;
+  }
+}
+
 // Zbiera hashe sha256 wszystkich inline-skryptów (bez `src`, poza JSON-LD, który
 // nie jest wykonywany) ze ZBUDOWANYCH plików HTML. Dzięki temu wymuszone CSP nie
 // blokuje skryptu inicjalizującego motyw, a hash jest liczony z realnego bajtowo
@@ -57,8 +72,11 @@ function buildCsp(scriptHashes: string[]): string {
   const api = originFrom(process.env.VITE_API_BASE_URL);
   const clerkProxy = originFrom(process.env.VITE_CLERK_PROXY_URL);
   const sentry = originFrom(process.env.VITE_SENTRY_DSN);
-  // Domeny Clerk (SDK + FAPI gdy proxy nie przechwytuje wszystkiego) i Turnstile.
-  const clerk = ["https://*.clerk.accounts.dev", "https://*.clerk.com"];
+  // Domeny Clerk: wildcardy dev/fallback + PRODUKCYJNA custom-domena FAPI z klucza
+  // (np. clerk.spendly.pl) — bez niej wymuszone CSP blokuje clerk-js i logowanie
+  // pokazuje biały ekran.
+  const clerkFapi = clerkFapiFromPk(process.env.VITE_CLERK_PUBLISHABLE_KEY);
+  const clerk = ["https://*.clerk.accounts.dev", "https://*.clerk.com", clerkFapi].filter(Boolean) as string[];
   const turnstile = "https://challenges.cloudflare.com";
   // Cookiebot (zgoda na cookies): loader z consent.cookiebot.com, dialog/CDN
   // z consentcdn.cookiebot.com, obrazki z imgsct.cookiebot.com.
@@ -79,7 +97,7 @@ function buildCsp(scriptHashes: string[]): string {
     "object-src 'none'",
     "frame-ancestors 'self'",
     "form-action 'self'",
-    "img-src 'self' data: blob: https://img.clerk.com https://imgsct.cookiebot.com https://consent.cookiebot.com",
+    `img-src 'self' data: blob: https://img.clerk.com https://imgsct.cookiebot.com https://consent.cookiebot.com${clerkFapi ? " " + clerkFapi : ""}`,
     "font-src 'self' https://fonts.gstatic.com data:",
     // 'unsafe-inline' dla stylów jest konieczne: prerender w index.html i biblioteki
     // (framer-motion) + banner Cookiebota wstrzykują inline style. Niskie ryzyko XSS.
