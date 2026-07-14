@@ -114,7 +114,7 @@ function SignInPage() {
           className="flex min-h-[100dvh] items-center justify-center px-4"
           style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61,220,151,0.08) 0%, transparent 60%), #0B0F14" }}
         >
-          <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+          <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} fallbackRedirectUrl={`${basePath}/dashboard`} />
         </div>
       </Show>
     </>
@@ -130,7 +130,7 @@ function SignUpPage() {
           className="flex min-h-[100dvh] items-center justify-center px-4"
           style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61,220,151,0.08) 0%, transparent 60%), #0B0F14" }}
         >
-          <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+          <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} fallbackRedirectUrl={`${basePath}/dashboard`} />
         </div>
       </Show>
     </>
@@ -237,6 +237,8 @@ export default function AppShell() {
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
+      signInFallbackRedirectUrl={`${basePath}/dashboard`}
+      signUpFallbackRedirectUrl={`${basePath}/dashboard`}
       localization={{
         signIn: {
           start: {
