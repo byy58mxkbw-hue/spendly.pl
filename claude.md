@@ -198,7 +198,7 @@ new Date(date).toLocaleDateString('pl-PL')
 - Mapowanie produktów — DZIAŁA w przepływie akceptacji „Do przeglądu" (`pending-invoices.tsx`): mapowanie pozycji faktury na produkt (`itemMappings`), pomijanie pozycji, tworzenie produktu w locie. Poza tym przepływem brak osobnego ekranu mapowania (i raczej niepotrzebny).
 
 ### 🟡 Dług techniczny
-- Pliki do rozbicia: `ksef.ts` (1698 linii), `invoices.tsx` (2321), `products.tsx` (2085), `reports.tsx` (1953), `invoices.ts` (1200). `ai-cfo.ts` już rozbity (1300 → 835).
+- Pliki do rozbicia: `ksef.ts` (1698 linii), `products.tsx` (2085), `reports.tsx` (1953), `invoices.ts` (1200). Rozbite: `ai-cfo.ts` (1300 → 835); `invoices.tsx` (2321 → 975, komponenty w `pages/invoices/`: import-invoice-dialog, invoice-detail-modal, faktury-view, constants).
 - Testy: jest tylko jeden e2e (`scripts/src/e2e/ksef-sync.spec.ts`) — brak unit i integration
 
 ### ✔️ Zrobione (usunięte z długu)
