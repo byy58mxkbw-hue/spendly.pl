@@ -16,6 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/posthog";
 import { ShieldCheck, ExternalLink, RefreshCw, RotateCcw, Clock } from "lucide-react";
 import {
   AlertDialog,
@@ -105,6 +106,7 @@ export default function SettingsKsef() {
           queryClient.invalidateQueries();
           setToken("");
           setNip("");
+          track("ksef_connected");
           toast({ title: "Zapisano", description: "Konfiguracja KSeF została zaktualizowana." });
         },
         onError: (err: unknown) => {

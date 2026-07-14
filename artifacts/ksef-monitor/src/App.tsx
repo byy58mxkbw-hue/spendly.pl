@@ -5,6 +5,7 @@ import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiUrl } from "@/lib/api-base";
+import { track, identifyUser } from "@/lib/posthog";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -222,6 +223,18 @@ function ClerkQueryClientCacheInvalidator() {
       const userId = user?.id ?? null;
       if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
         qc.clear();
+      }
+      // PostHog: powiąż zdarzenia z użytkownikiem (Clerk userId, bez PII).
+      // Na przejściu na zalogowanego — identyfikacja + jednorazowy sign_up dla
+      // świeżo utworzonego konta (createdAt < 5 min, guard w localStorage).
+      if (userId && prevUserIdRef.current !== userId) {
+        identifyUser(userId);
+        const createdAt = user?.createdAt ? new Date(user.createdAt).getTime() : 0;
+        const key = `ph_signup_${userId}`;
+        if (createdAt && Date.now() - createdAt < 5 * 60 * 1000 && !localStorage.getItem(key)) {
+          track("sign_up");
+          try { localStorage.setItem(key, "1"); } catch { /* ignore */ }
+        }
       }
       prevUserIdRef.current = userId;
     });

@@ -90,6 +90,7 @@ import { formatPrice, formatDate } from "@/lib/format";
 import { PriceHistoryModal } from "./products";
 import { cn } from "@/lib/utils";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
+import { track } from "@/lib/posthog";
 import { useToast } from "@/hooks/use-toast";
 
 // ─── Category labels ──────────────────────────────────────────────────────────
@@ -1793,6 +1794,7 @@ function ImportInvoiceDialog({
     const { base64, mimeType } = await compressImage(receiptPreviewUrl);
     try {
       const data = await scanReceipt.mutateAsync({ data: { imageBase64: base64, mimeType } });
+      track("ocr_scan");
       setScannedData(data);
       if (data.invoiceNumber && !form.getValues("invoiceNumber")) form.setValue("invoiceNumber", data.invoiceNumber);
       if (data.invoiceDate) form.setValue("invoiceDate", data.invoiceDate);
@@ -1867,6 +1869,7 @@ function ImportInvoiceDialog({
         },
       });
       queryClient.invalidateQueries();
+      track("invoice_imported", { source: importTab });
       toast({ title: "Dodano zakup" });
       form.reset({ supplierId: "", invoiceNumber: "", invoiceDate: new Date().toISOString().split("T")[0], xmlContent: "", paymentMethod: undefined, paymentDueDate: "" });
       setXmlPreview(null); setScannedData(null); setReceiptPreviewUrl(null);

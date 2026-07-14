@@ -60,6 +60,7 @@ import {
 } from "lucide-react";
 import { formatDate, formatPercent, formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/posthog";
 
 const createAlertSchema = z.object({
   productName: z.string().min(1, "Nazwa produktu jest wymagana"),
@@ -161,6 +162,7 @@ export default function PriceAlerts() {
           invalidateAlerts();
           setShowAdd(false);
           createForm.reset();
+          track("alert_created");
         },
       }
     );
