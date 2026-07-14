@@ -7,7 +7,7 @@ import { AlertTriangle, RotateCcw } from "lucide-react";
  */
 export default function ServerError({ onReset }: { onReset?: () => void }) {
   return (
-    <div className="min-h-[100dvh] w-full flex items-center justify-center bg-background px-4">
+    <main className="min-h-[100dvh] w-full flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md text-center">
         <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
           <AlertTriangle className="h-7 w-7 text-destructive" />
@@ -29,6 +29,6 @@ export default function ServerError({ onReset }: { onReset?: () => void }) {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

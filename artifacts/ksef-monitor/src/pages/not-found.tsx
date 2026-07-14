@@ -4,7 +4,7 @@ import { Home, LayoutDashboard } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="min-h-[100dvh] w-full flex items-center justify-center bg-background px-4">
+    <main className="min-h-[100dvh] w-full flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md text-center">
         <p className="text-7xl font-bold text-muted-foreground/30 mb-6">404</p>
         <h1 className="text-2xl font-bold mb-3">Nie znaleziono strony</h1>
@@ -26,6 +26,6 @@ export default function NotFound() {
           </Button>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
