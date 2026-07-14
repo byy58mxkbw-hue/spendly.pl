@@ -14,6 +14,7 @@ const AppShell = lazy(() => import("./app-shell"));
 // Publiczne strony marketingowo-SEO — leniwe, bez żadnych providerów.
 const KsefPage = lazy(() => import("@/pages/ksef"));
 const OcrFakturPage = lazy(() => import("@/pages/ocr-faktur"));
+const FoodCostMarketingPage = lazy(() => import("@/pages/food-cost-marketing"));
 const CennikPage = lazy(() => import("@/pages/cennik"));
 const RegulaminPage = lazy(() => import("@/pages/regulamin"));
 const PolitykaPrywatnosciPage = lazy(() => import("@/pages/polityka-prywatnosci"));
@@ -28,6 +29,7 @@ function App() {
               <Route path="/" component={Home} />
               <Route path="/ksef" component={KsefPage} />
               <Route path="/ocr-faktur" component={OcrFakturPage} />
+              <Route path="/food-cost" component={FoodCostMarketingPage} />
               <Route path="/cennik" component={CennikPage} />
               <Route path="/regulamin" component={RegulaminPage} />
               <Route path="/polityka-prywatnosci" component={PolitykaPrywatnosciPage} />

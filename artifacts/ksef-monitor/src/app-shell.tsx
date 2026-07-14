@@ -262,7 +262,9 @@ export default function AppShell() {
           <ClerkQueryClientCacheInvalidator />
           <Suspense fallback={<PageLoading />}>
             <Switch>
-              <Route path="/food-cost">
+              {/* Funkcja app „Food Cost" żyje pod /koszty-dania. /food-cost jest
+                  PUBLICZNĄ stroną marketingową (SEO) obsługiwaną w App.tsx. */}
+              <Route path="/koszty-dania">
                 <ProtectedRoute><FoodCostPage /></ProtectedRoute>
               </Route>
               <Route path="/sign-in/*?" component={SignInPage} />

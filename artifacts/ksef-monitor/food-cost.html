@@ -50,6 +50,53 @@
     }
     </script>
 
+    <!-- Schema.org: BreadcrumbList -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": "https://www.spendly.pl/" },
+        { "@type": "ListItem", "position": 2, "name": "Kontrola food cost", "item": "https://www.spendly.pl/food-cost" }
+      ]
+    }
+    </script>
+
+    <!-- Schema.org: FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Czym jest food cost i jak go liczyć?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Food cost to udział kosztu surowców w przychodzie ze sprzedaży dania lub restauracji. Wzór: food cost % = (koszt składników ÷ cena sprzedaży) × 100%. Przykład: składniki za 12 zł, cena sprzedaży 40 zł → food cost 30%. Spendly liczy to automatycznie z faktur zakupowych." }
+        },
+        {
+          "@type": "Question",
+          "name": "Ile powinien wynosić food cost w restauracji?",
+          "acceptedAnswer": { "@type": "Answer", "text": "W polskiej gastronomii zdrowy food cost to najczęściej 28–35%. Powyżej 35% marża topnieje, poniżej 25% zwykle oznacza zawyżone ceny lub oszczędzanie na jakości. Optymalny poziom zależy od formatu lokalu." }
+        },
+        {
+          "@type": "Question",
+          "name": "Jak Spendly liczy food cost automatycznie?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Spendly pobiera faktury zakupowe z KSeF lub ze zdjęcia (OCR), rozpoznaje ceny surowców i zestawia je z recepturami. Widzisz realny food cost per danie i per lokal w czasie rzeczywistym — bez ręcznego liczenia w Excelu." }
+        },
+        {
+          "@type": "Question",
+          "name": "Jak obniżyć food cost bez utraty jakości?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Kluczem jest analiza kosztowa: monitoruj ceny surowców, porównuj dostawców i reaguj na podwyżki. Spendly wysyła alerty cenowe i pokazuje gdzie te same produkty są tańsze — to realne oszczędności w gastronomii." }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy food cost różni się dla każdego dania?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Tak. Każde danie ma inną recepturę, więc inny food cost. Spendly liczy koszt każdego dania osobno i wskazuje pozycje menu o najgorszej marży." }
+        }
+      ]
+    }
+    </script>
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
   </head>

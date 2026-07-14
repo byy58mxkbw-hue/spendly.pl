@@ -50,6 +50,53 @@
     }
     </script>
 
+    <!-- Schema.org: FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Od kiedy KSeF jest obowiązkowy dla restauracji?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Krajowy System e-Faktur staje się obowiązkowy w 2026 roku, etapami zależnie od wielkości firmy. Restauracje mogą korzystać z KSeF już teraz — dobrowolnie — by automatycznie pobierać faktury zakupowe od dostawców." }
+        },
+        {
+          "@type": "Question",
+          "name": "Jak podłączyć restaurację do KSeF w Spendly?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Jednorazowo podajesz NIP firmy i token autoryzacyjny wygenerowany w KSeF. Od tego momentu Spendly samodzielnie pobiera nowe faktury zakupowe w tle." }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy Spendly pobiera faktury z KSeF automatycznie?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Tak. Po konfiguracji system regularnie odpytuje API KSeF i importuje nowe faktury zakupowe od wszystkich dostawców zarejestrowanych w systemie — bez ręcznego wgrywania plików." }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy dane i token KSeF są bezpieczne?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Token KSeF jest szyfrowany algorytmem AES-256-GCM. Każdy użytkownik ma dostęp wyłącznie do własnych faktur, a komunikacja odbywa się przez szyfrowane połączenie HTTPS." }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy integracja KSeF działa dla wielu dostawców?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Tak. Spendly pobiera faktury od wszystkich Twoich dostawców zarejestrowanych w KSeF — bez dodatkowej konfiguracji po ich stronie." }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Schema.org: BreadcrumbList -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": "https://www.spendly.pl/" },
+        { "@type": "ListItem", "position": 2, "name": "Integracja KSeF", "item": "https://www.spendly.pl/ksef" }
+      ]
+    }
+    </script>
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
   </head>

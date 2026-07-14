@@ -50,6 +50,53 @@
     }
     </script>
 
+    <!-- Schema.org: FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Jak działa OCR faktur w Spendly?",
+          "acceptedAnswer": { "@type": "Answer", "text": "OCR odczytuje dane z faktury lub paragonu bezpośrednio ze zdjęcia albo pliku PDF — zwykle w około 15 sekund. Nie musisz nic przepisywać ręcznie." }
+        },
+        {
+          "@type": "Question",
+          "name": "Jakie dane rozpoznaje OCR z faktury?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Spendly odczytuje dostawcę, poszczególne pozycje (produkty), ceny jednostkowe, ilości, stawki VAT oraz daty. Dane trafiają wprost do bazy kosztów restauracji." }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy OCR działa ze zdjęcia zrobionego telefonem?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Tak. Wystarczy zdjęcie faktury lub paragonu z telefonu — system poradzi sobie także ze zdjęciem zrobionym pod kątem czy przy słabszym świetle." }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy muszę sprawdzać odczytane dane?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Rozpoznane pozycje możesz zweryfikować i poprawić przed zapisaniem, więc koszty i food cost liczą się na poprawnych danych." }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy OCR obsługuje też paragony, nie tylko faktury?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Tak. OCR działa zarówno dla faktur kosztowych, jak i paragonów — przydatne przy drobnych zakupach, które nie trafiają do KSeF." }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Schema.org: BreadcrumbList -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Strona główna", "item": "https://www.spendly.pl/" },
+        { "@type": "ListItem", "position": 2, "name": "OCR faktur", "item": "https://www.spendly.pl/ocr-faktur" }
+      ]
+    }
+    </script>
+
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
   </head>

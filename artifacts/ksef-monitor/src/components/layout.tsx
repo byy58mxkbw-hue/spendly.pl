@@ -54,7 +54,7 @@ const coreNavItems: NavItem[] = [
 ];
 
 const analyticsNavItems: NavItem[] = [
-  { path: "/food-cost", label: "Food Cost", icon: UtensilsCrossed },
+  { path: "/koszty-dania", label: "Food Cost", icon: UtensilsCrossed },
   { path: "/reports", label: "Raporty", icon: BarChart2 },
   { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
 ];

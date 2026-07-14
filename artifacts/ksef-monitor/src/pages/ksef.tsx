@@ -111,6 +111,28 @@ export default function KsefPage() {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section style={{ maxWidth: 760, margin: "0 auto", padding: "80px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accentText, textTransform: "uppercase", marginBottom: 12 }}>FAQ</p>
+          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, margin: 0 }}>KSeF dla restauracji — najczęstsze pytania</h2>
+        </div>
+        <div style={{ borderTop: `1px solid ${C.border}` }}>
+          {[
+            { q: "Od kiedy KSeF jest obowiązkowy dla restauracji?", a: "Krajowy System e-Faktur staje się obowiązkowy w 2026 roku, etapami zależnie od wielkości firmy. Restauracje i firmy gastronomiczne mogą jednak korzystać z KSeF już teraz — dobrowolnie — by automatycznie pobierać faktury zakupowe od dostawców." },
+            { q: "Jak podłączyć restaurację do KSeF w Spendly?", a: "Jednorazowo podajesz NIP firmy i token autoryzacyjny wygenerowany w KSeF. Od tego momentu Spendly samodzielnie pobiera nowe faktury zakupowe w tle — bez logowania się do KSeF przy każdej fakturze." },
+            { q: "Czy Spendly pobiera faktury z KSeF automatycznie?", a: "Tak. Po konfiguracji system regularnie odpytuje API KSeF i importuje nowe faktury zakupowe od wszystkich dostawców zarejestrowanych w systemie — bez ręcznego wgrywania plików." },
+            { q: "Czy dane i token KSeF są bezpieczne?", a: "Token KSeF jest szyfrowany algorytmem AES-256-GCM w bazie danych. Każdy użytkownik ma dostęp wyłącznie do własnych faktur, a komunikacja odbywa się przez szyfrowane połączenie HTTPS." },
+            { q: "Czy integracja KSeF działa dla wielu dostawców?", a: "Tak. Spendly pobiera faktury od wszystkich Twoich dostawców zarejestrowanych w KSeF — nie wymaga to żadnej dodatkowej konfiguracji po ich stronie." },
+          ].map(({ q, a }) => (
+            <div key={q} style={{ borderBottom: `1px solid ${C.border}`, padding: "20px 0" }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: C.text, margin: "0 0 8px" }}>{q}</h3>
+              <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.7, margin: 0 }}>{a}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 80px", paddingTop: 80 }}>
         <div style={{ background: "linear-gradient(135deg, rgba(61,220,151,0.12) 0%, rgba(61,220,151,0.04) 100%)", border: "1px solid rgba(61,220,151,0.2)", borderRadius: 24, padding: "60px 40px", textAlign: "center" }}>

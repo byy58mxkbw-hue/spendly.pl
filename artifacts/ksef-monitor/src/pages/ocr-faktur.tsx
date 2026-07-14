@@ -111,6 +111,28 @@ export default function OcrFakturPage() {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section style={{ maxWidth: 760, margin: "0 auto", padding: "80px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 48 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accentText, textTransform: "uppercase", marginBottom: 12 }}>FAQ</p>
+          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, margin: 0 }}>OCR faktur — najczęstsze pytania</h2>
+        </div>
+        <div style={{ borderTop: `1px solid ${c.border}` }}>
+          {[
+            { q: "Jak działa OCR faktur w Spendly?", a: "OCR odczytuje dane z faktury lub paragonu bezpośrednio ze zdjęcia albo pliku PDF — zwykle w około 15 sekund. Nie musisz nic przepisywać ręcznie: system sam rozpoznaje treść dokumentu." },
+            { q: "Jakie dane rozpoznaje OCR z faktury?", a: "Spendly odczytuje dostawcę, poszczególne pozycje (produkty), ceny jednostkowe, ilości, stawki VAT oraz daty. Dane trafiają wprost do bazy kosztów Twojej restauracji." },
+            { q: "Czy OCR działa ze zdjęcia zrobionego telefonem?", a: "Tak. Wystarczy zdjęcie faktury lub paragonu z telefonu — system poradzi sobie także ze zdjęciem zrobionym pod kątem czy przy słabszym świetle." },
+            { q: "Czy muszę sprawdzać odczytane dane?", a: "Rozpoznane pozycje możesz zweryfikować i poprawić przed zapisaniem. Dzięki temu masz pewność, że koszty i food cost liczą się na poprawnych danych." },
+            { q: "Czy OCR obsługuje też paragony, nie tylko faktury?", a: "Tak. OCR działa zarówno dla faktur kosztowych, jak i paragonów — przydatne przy drobnych zakupach, które nie trafiają do KSeF." },
+          ].map(({ q, a }) => (
+            <div key={q} style={{ borderBottom: `1px solid ${c.border}`, padding: "20px 0" }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, color: c.text, margin: "0 0 8px" }}>{q}</h3>
+              <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.7, margin: 0 }}>{a}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
         <div style={{ background: "linear-gradient(135deg, rgba(61,220,151,0.12) 0%, rgba(61,220,151,0.04) 100%)", border: `1px solid ${c.accentDim}`, borderRadius: 24, padding: "60px 40px", textAlign: "center" }}>
