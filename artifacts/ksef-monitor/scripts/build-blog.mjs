@@ -489,7 +489,10 @@ function main() {
     const related = posts.filter((p) => p.slug !== post.slug).slice(0, 3);
     writeFileSync(path.join(OUT_DIR, `${post.slug}.html`), renderPost(post, related), "utf8");
   }
-  writeFileSync(path.join(OUT_DIR, "index.html"), renderIndex(posts), "utf8");
+  // Index jako public/blog.html (NIE blog/index.html): sirv z SPA-fallbackiem na
+  // prodzie serwuje bezrozszerzeniowe /blog przez rozszerzenie (.html), tak jak
+  // /ksef → ksef.html. Katalog-index (blog/index.html) łapał się tylko lokalnie.
+  writeFileSync(path.join(ROOT, "public", "blog.html"), renderIndex(posts), "utf8");
   writeSitemap(posts);
 
   console.log(`[blog] wygenerowano ${posts.length} artykuł(ów) + index + sitemap.`);
