@@ -28,23 +28,23 @@ function hexToArgb(hex: string | null | undefined): string {
   return "FF" + h.toUpperCase();
 }
 
-type Row = {
-  cost_center_id: number | null;
-  cc_name: string | null;
-  cc_color: string | null;
+// Znormalizowany wiersz agregatu: grupa (centrum LUB dostawca) + produkt.
+type AggRow = {
+  group_id: number | null;
+  group_name: string | null;
+  group_color: string | null;
   product_name: string;
   unit: string;
   qty: number;
   gross_total: number; // brutto = suma(total_price netto × (1+VAT))
 };
 
-// Zakupy zagregowane per (centrum kosztów, produkt, jednostka) za dany miesiąc.
-// total_price to NETTO (patrz ksef.ts: totalPrice = item.net) → brutto liczymy z VAT.
-async function fetchRows(userId: string, month: string): Promise<Row[]> {
+// Tryb ogólny: agregacja per (centrum kosztów, produkt, jednostka).
+async function fetchByCostCenter(userId: string, month: string): Promise<AggRow[]> {
   const result = await db.execute(sql`
-    SELECT i.cost_center_id,
-           cc.name AS cc_name,
-           cc.color AS cc_color,
+    SELECT i.cost_center_id AS group_id,
+           cc.name AS group_name,
+           cc.color AS group_color,
            ii.product_name,
            ii.unit,
            SUM(ii.quantity::numeric)::float AS qty,
@@ -57,86 +57,93 @@ async function fetchRows(userId: string, month: string): Promise<Row[]> {
       AND i.invoice_date LIKE ${month + "-%"}
     GROUP BY 1, 2, 3, 4, 5
   `);
-  return result.rows as Row[];
+  return result.rows as AggRow[];
 }
 
-router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<void> => {
-  const userId = req.userId!;
-  const month = String(req.query.month ?? "");
-  if (!/^\d{4}-\d{2}$/.test(month)) {
-    res.status(400).json({ error: "Invalid month format. Use YYYY-MM" });
-    return;
-  }
-  const prevMonth = monthMinus(month, 1);
+// Tryb pojedynczego centrum: agregacja per (dostawca, produkt, jednostka),
+// zawężona do wybranego centrum kosztów. Kolor grupy = kolor centrum (dodany w JS).
+async function fetchBySupplier(userId: string, month: string, costCenterId: number): Promise<AggRow[]> {
+  const result = await db.execute(sql`
+    SELECT i.supplier_id AS group_id,
+           s.name AS group_name,
+           NULL::text AS group_color,
+           ii.product_name,
+           ii.unit,
+           SUM(ii.quantity::numeric)::float AS qty,
+           SUM(ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))::float AS gross_total
+    FROM invoices i
+    INNER JOIN invoice_items ii ON ii.invoice_id = i.id
+    INNER JOIN suppliers s ON s.id = i.supplier_id
+    WHERE i.user_id = ${userId}
+      AND i.excluded = false
+      AND i.invoice_date LIKE ${month + "-%"}
+      AND i.cost_center_id = ${costCenterId}
+    GROUP BY 1, 2, 4, 5
+  `);
+  return result.rows as AggRow[];
+}
 
-  const [curr, prev] = await Promise.all([
-    fetchRows(userId, month),
-    fetchRows(userId, prevMonth),
-  ]);
+type Group = { id: number | null; name: string; color: string; rows: AggRow[] };
 
-  // Śr. cena brutto/jedn. z poprzedniego miesiąca: klucz ccId|produkt|jednostka.
-  const prevAvg = new Map<string, number>();
-  for (const r of prev) {
-    if (r.qty > 0) {
-      prevAvg.set(`${r.cost_center_id ?? "null"}|${r.product_name}|${r.unit}`, r.gross_total / r.qty);
-    }
-  }
-
-  // Grupowanie bieżącego miesiąca po centrum kosztów.
-  type Group = { id: number | null; name: string; color: string; rows: Row[] };
-  const groupsMap = new Map<string, Group>();
-  for (const r of curr) {
-    const key = String(r.cost_center_id ?? "null");
-    let g = groupsMap.get(key);
+function buildGroups(rows: AggRow[], fallbackName: string, colorOverride?: string): Group[] {
+  const map = new Map<string, Group>();
+  for (const r of rows) {
+    const key = String(r.group_id ?? "null");
+    let g = map.get(key);
     if (!g) {
       g = {
-        id: r.cost_center_id,
-        name: r.cc_name ?? "Bez centrum kosztów",
-        color: r.cc_color ?? "#64748B",
+        id: r.group_id,
+        name: r.group_name ?? fallbackName,
+        color: colorOverride ?? r.group_color ?? "#64748B",
         rows: [],
       };
-      groupsMap.set(key, g);
+      map.set(key, g);
     }
     g.rows.push(r);
   }
-  // Centra alfabetycznie, "Bez centrum kosztów" (null) na końcu.
-  const groups = [...groupsMap.values()].sort((a, b) => {
+  // Grupy alfabetycznie, null (np. „bez centrum") na końcu.
+  return [...map.values()].sort((a, b) => {
     if (a.id === null) return 1;
     if (b.id === null) return -1;
     return a.name.localeCompare(b.name, "pl");
   });
+}
 
+const CUR = '#,##0.00" zł"';
+const QTY = "#,##0.00";
+const PCT = "+0.0%;-0.0%";
+const HEADERS = [
+  "Produkt", "Ilość", "Jedn.", "Śr. cena brutto",
+  "Wartość brutto", "Śr. cena poprz. mies.", "Zmiana", "Zmiana %",
+];
+
+// Buduje arkusz: tytuł + podtytuł, nagłówek kolumn (zamrożony), a potem grupy
+// (centrum LUB dostawca) pod sobą: nagłówek grupy → produkty → wiersz SUMA.
+// prevAvg: mapa `groupId|produkt|jednostka` → śr. cena brutto z poprz. miesiąca.
+function buildWorkbook(
+  groups: Group[],
+  prevAvg: Map<string, number>,
+  opts: { sheetName: string; title: string; subtitle: string; emptyMsg: string },
+): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Spendly";
   wb.created = new Date();
-  const ws = wb.addWorksheet(`Zakupy ${month}`, {
-    views: [{ state: "frozen", ySplit: 3 }],
-  });
-
-  const CUR = '#,##0.00" zł"';
-  const QTY = "#,##0.00";
-  const PCT = "+0.0%;-0.0%";
-  const HEADERS = [
-    "Produkt", "Ilość", "Jedn.", "Śr. cena brutto",
-    "Wartość brutto", "Śr. cena poprz. mies.", "Zmiana", "Zmiana %",
-  ];
+  const ws = wb.addWorksheet(opts.sheetName, { views: [{ state: "frozen", ySplit: 3 }] });
 
   ws.columns = [
     { width: 42 }, { width: 11 }, { width: 8 }, { width: 16 },
     { width: 16 }, { width: 20 }, { width: 13 }, { width: 11 },
   ];
 
-  // Tytuł + podtytuł (scalone na całą szerokość).
-  const titleRow = ws.addRow([`Zakupy wg centrów kosztów — ${monthLabelPl(month)}`]);
+  const titleRow = ws.addRow([opts.title]);
   ws.mergeCells(titleRow.number, 1, titleRow.number, HEADERS.length);
   titleRow.getCell(1).font = { bold: true, size: 14 };
   titleRow.height = 22;
 
-  const subRow = ws.addRow([`Ceny brutto · porównanie z ${monthLabelPl(prevMonth)}`]);
+  const subRow = ws.addRow([opts.subtitle]);
   ws.mergeCells(subRow.number, 1, subRow.number, HEADERS.length);
   subRow.getCell(1).font = { italic: true, size: 10, color: { argb: "FF64748B" } };
 
-  // Nagłówek kolumn (zamrożony — ySplit:3).
   const header = ws.addRow(HEADERS);
   header.eachCell((c) => {
     c.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -145,21 +152,20 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
   });
 
   for (const g of groups) {
-    // Nagłówek centrum kosztów — scalony, tłem kolor centrum.
-    const ccRow = ws.addRow([g.name.toUpperCase()]);
-    ws.mergeCells(ccRow.number, 1, ccRow.number, HEADERS.length);
-    const cc = ccRow.getCell(1);
-    cc.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
-    cc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: hexToArgb(g.color) } };
-    cc.alignment = { vertical: "middle" };
-    ccRow.height = 18;
+    const gRow = ws.addRow([g.name.toUpperCase()]);
+    ws.mergeCells(gRow.number, 1, gRow.number, HEADERS.length);
+    const gc = gRow.getCell(1);
+    gc.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    gc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: hexToArgb(g.color) } };
+    gc.alignment = { vertical: "middle" };
+    gRow.height = 18;
 
-    let ccTotal = 0;
+    let total = 0;
     const rows = [...g.rows].sort((a, b) => b.gross_total - a.gross_total);
     for (const r of rows) {
       const avg = r.qty > 0 ? r.gross_total / r.qty : 0;
-      const prevA = prevAvg.get(`${r.cost_center_id ?? "null"}|${r.product_name}|${r.unit}`);
-      ccTotal += r.gross_total;
+      const prevA = prevAvg.get(`${r.group_id ?? "null"}|${r.product_name}|${r.unit}`);
+      total += r.gross_total;
 
       const dataRow = ws.addRow([
         r.product_name,
@@ -184,27 +190,85 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
         dataRow.getCell(7).font = { color: { argb: color } };
         dataRow.getCell(8).font = { color: { argb: color } };
       } else {
-        // Produkt nie występował w poprzednim miesiącu — brak porównania.
         dataRow.getCell(7).font = { italic: true, color: { argb: "FF94A3B8" } };
         dataRow.getCell(7).alignment = { horizontal: "right" };
       }
     }
 
-    // Wiersz SUMA centrum (suma wartości brutto w kolumnie „Wartość brutto").
-    const sumRow = ws.addRow([`Suma — ${g.name}`, null, null, null, ccTotal, null, null, null]);
+    const sumRow = ws.addRow([`Suma — ${g.name}`, null, null, null, total, null, null, null]);
     sumRow.getCell(1).font = { bold: true };
     sumRow.getCell(5).numFmt = CUR;
     sumRow.getCell(5).font = { bold: true };
     sumRow.eachCell((c) => {
       c.border = { top: { style: "thin", color: { argb: "FFCBD5E1" } } };
     });
-    ws.addRow([]); // odstęp między centrami
+    ws.addRow([]);
   }
 
-  if (groups.length === 0) {
-    ws.addRow([`Brak zakupów w ${monthLabelPl(month)}.`]);
+  if (groups.length === 0) ws.addRow([opts.emptyMsg]);
+  return wb;
+}
+
+router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const month = String(req.query.month ?? "");
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    res.status(400).json({ error: "Invalid month format. Use YYYY-MM" });
+    return;
+  }
+  const prevMonth = monthMinus(month, 1);
+
+  const ccRaw = req.query.costCenterId;
+  const costCenterId = ccRaw != null && ccRaw !== "" ? parseInt(String(ccRaw), 10) : null;
+  const singleMode = costCenterId != null && !isNaN(costCenterId);
+
+  let groups: Group[];
+  let prevAvg: Map<string, number>;
+  let opts: { sheetName: string; title: string; subtitle: string; emptyMsg: string };
+
+  if (singleMode) {
+    // Nazwa/kolor centrum (tenant-safe: tylko z danych usera).
+    const ccRes = await db.execute(sql`
+      SELECT name, color FROM cost_centers WHERE id = ${costCenterId} AND user_id = ${userId} LIMIT 1
+    `);
+    const cc = ccRes.rows[0] as { name: string; color: string } | undefined;
+    const ccName = cc?.name ?? "Centrum kosztów";
+    const ccColor = cc?.color ?? "#14B8A6";
+
+    const [curr, prev] = await Promise.all([
+      fetchBySupplier(userId, month, costCenterId!),
+      fetchBySupplier(userId, prevMonth, costCenterId!),
+    ]);
+    prevAvg = new Map();
+    for (const r of prev) {
+      if (r.qty > 0) prevAvg.set(`${r.group_id ?? "null"}|${r.product_name}|${r.unit}`, r.gross_total / r.qty);
+    }
+    groups = buildGroups(curr, "Nieznany dostawca", ccColor);
+    opts = {
+      sheetName: `Zakupy ${month}`,
+      title: `Zakupy — ${ccName} wg dostawców — ${monthLabelPl(month)}`,
+      subtitle: `Ceny brutto · porównanie z ${monthLabelPl(prevMonth)}`,
+      emptyMsg: `Brak zakupów dla „${ccName}" w ${monthLabelPl(month)}.`,
+    };
+  } else {
+    const [curr, prev] = await Promise.all([
+      fetchByCostCenter(userId, month),
+      fetchByCostCenter(userId, prevMonth),
+    ]);
+    prevAvg = new Map();
+    for (const r of prev) {
+      if (r.qty > 0) prevAvg.set(`${r.group_id ?? "null"}|${r.product_name}|${r.unit}`, r.gross_total / r.qty);
+    }
+    groups = buildGroups(curr, "Bez centrum kosztów");
+    opts = {
+      sheetName: `Zakupy ${month}`,
+      title: `Zakupy wg centrów kosztów — ${monthLabelPl(month)}`,
+      subtitle: `Ceny brutto · porównanie z ${monthLabelPl(prevMonth)}`,
+      emptyMsg: `Brak zakupów w ${monthLabelPl(month)}.`,
+    };
   }
 
+  const wb = buildWorkbook(groups, prevAvg, opts);
   const buffer = await wb.xlsx.writeBuffer();
   res.setHeader(
     "Content-Type",

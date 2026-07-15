@@ -87,8 +87,11 @@ export default function Reports() {
     setExportingXlsx(true);
     try {
       const token = await getToken();
+      // Gdy wybrane konkretne centrum kosztów → raport zawężony do niego,
+      // rozbity per dostawca. Bez wyboru → ogólny raport wg centrów kosztów.
+      const ccQuery = costCenterId != null ? `&costCenterId=${costCenterId}` : "";
       const res = await fetch(
-        apiUrl(`/api/reports/products-by-cost-center.xlsx?month=${month}`),
+        apiUrl(`/api/reports/products-by-cost-center.xlsx?month=${month}${ccQuery}`),
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!res.ok) {
