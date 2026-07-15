@@ -109,42 +109,65 @@ function buildGroups(rows: AggRow[], fallbackName: string, colorOverride?: strin
   });
 }
 
+// Buduje mapę `groupId|produkt|jednostka` → wartość (śr. cena lub ilość) z wierszy.
+function indexBy(rows: AggRow[], value: (r: AggRow) => number): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of rows) {
+    if (r.qty > 0) m.set(`${r.group_id ?? "null"}|${r.product_name}|${r.unit}`, value(r));
+  }
+  return m;
+}
+
 const CUR = '#,##0.00" zł"';
 const QTY = "#,##0.00";
+const QTY_DELTA = '+#,##0.00;-#,##0.00';
 const PCT = "+0.0%;-0.0%";
-const HEADERS = [
-  "Produkt", "Ilość", "Jedn.", "Śr. cena brutto",
-  "Wartość brutto", "Śr. cena poprz. mies.", "Zmiana", "Zmiana %",
-];
+
+type Compare = { prevAvg: Map<string, number>; prevQty: Map<string, number> };
+type ColMap = {
+  product: number; qty: number; unit: number; avg: number; value: number;
+  pricePrev: number; priceDelta: number; pricePct: number;
+  qtyPrev?: number; qtyDelta?: number;
+};
 
 // Buduje arkusz: tytuł + podtytuł, nagłówek kolumn (zamrożony), a potem grupy
 // (centrum LUB dostawca) pod sobą: nagłówek grupy → produkty → wiersz SUMA.
-// prevAvg: mapa `groupId|produkt|jednostka` → śr. cena brutto z poprz. miesiąca.
+// withQtyCompare (tryb szczegółowy per dostawca) dokłada kolumny porównania ILOŚCI
+// do poprzedniego miesiąca. Ogólny raport wg centrów zostaje bez tych kolumn.
 function buildWorkbook(
   groups: Group[],
-  prevAvg: Map<string, number>,
+  cmp: Compare,
+  withQtyCompare: boolean,
   opts: { sheetName: string; title: string; subtitle: string; emptyMsg: string },
 ): ExcelJS.Workbook {
+  const headers = withQtyCompare
+    ? ["Produkt", "Ilość", "Ilość poprz. mies.", "Zmiana ilości", "Jedn.", "Śr. cena brutto", "Wartość brutto", "Śr. cena poprz. mies.", "Zmiana", "Zmiana %"]
+    : ["Produkt", "Ilość", "Jedn.", "Śr. cena brutto", "Wartość brutto", "Śr. cena poprz. mies.", "Zmiana", "Zmiana %"];
+  const widths = withQtyCompare
+    ? [42, 11, 15, 13, 8, 15, 15, 18, 12, 10]
+    : [42, 11, 8, 16, 16, 20, 13, 11];
+  // Nazwane, 1-indeksowane kolumny — żeby nie pomylić pozycji.
+  const C: ColMap = withQtyCompare
+    ? { product: 1, qty: 2, qtyPrev: 3, qtyDelta: 4, unit: 5, avg: 6, value: 7, pricePrev: 8, priceDelta: 9, pricePct: 10 }
+    : { product: 1, qty: 2, unit: 3, avg: 4, value: 5, pricePrev: 6, priceDelta: 7, pricePct: 8 };
+  const nCols = headers.length;
+
   const wb = new ExcelJS.Workbook();
   wb.creator = "Spendly";
   wb.created = new Date();
   const ws = wb.addWorksheet(opts.sheetName, { views: [{ state: "frozen", ySplit: 3 }] });
-
-  ws.columns = [
-    { width: 42 }, { width: 11 }, { width: 8 }, { width: 16 },
-    { width: 16 }, { width: 20 }, { width: 13 }, { width: 11 },
-  ];
+  ws.columns = widths.map((w) => ({ width: w }));
 
   const titleRow = ws.addRow([opts.title]);
-  ws.mergeCells(titleRow.number, 1, titleRow.number, HEADERS.length);
+  ws.mergeCells(titleRow.number, 1, titleRow.number, nCols);
   titleRow.getCell(1).font = { bold: true, size: 14 };
   titleRow.height = 22;
 
   const subRow = ws.addRow([opts.subtitle]);
-  ws.mergeCells(subRow.number, 1, subRow.number, HEADERS.length);
+  ws.mergeCells(subRow.number, 1, subRow.number, nCols);
   subRow.getCell(1).font = { italic: true, size: 10, color: { argb: "FF64748B" } };
 
-  const header = ws.addRow(HEADERS);
+  const header = ws.addRow(headers);
   header.eachCell((c) => {
     c.font = { bold: true, color: { argb: "FFFFFFFF" } };
     c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F2937" } };
@@ -153,7 +176,7 @@ function buildWorkbook(
 
   for (const g of groups) {
     const gRow = ws.addRow([g.name.toUpperCase()]);
-    ws.mergeCells(gRow.number, 1, gRow.number, HEADERS.length);
+    ws.mergeCells(gRow.number, 1, gRow.number, nCols);
     const gc = gRow.getCell(1);
     gc.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
     gc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: hexToArgb(g.color) } };
@@ -163,42 +186,63 @@ function buildWorkbook(
     let total = 0;
     const rows = [...g.rows].sort((a, b) => b.gross_total - a.gross_total);
     for (const r of rows) {
+      const key = `${r.group_id ?? "null"}|${r.product_name}|${r.unit}`;
       const avg = r.qty > 0 ? r.gross_total / r.qty : 0;
-      const prevA = prevAvg.get(`${r.group_id ?? "null"}|${r.product_name}|${r.unit}`);
+      const prevA = cmp.prevAvg.get(key);
+      const prevQ = cmp.prevQty.get(key);
       total += r.gross_total;
 
-      const dataRow = ws.addRow([
-        r.product_name,
-        r.qty,
-        r.unit,
-        avg,
-        r.gross_total,
-        prevA ?? null,
-        prevA != null ? avg - prevA : "nowy",
-        prevA != null && prevA > 0 ? (avg - prevA) / prevA : null,
-      ]);
-      dataRow.getCell(2).numFmt = QTY;
-      dataRow.getCell(4).numFmt = CUR;
-      dataRow.getCell(5).numFmt = CUR;
+      const vals: (string | number | null)[] = new Array(nCols).fill(null);
+      vals[C.product - 1] = r.product_name;
+      vals[C.qty - 1] = r.qty;
+      vals[C.unit - 1] = r.unit;
+      vals[C.avg - 1] = avg;
+      vals[C.value - 1] = r.gross_total;
+      vals[C.pricePrev - 1] = prevA ?? null;
+      vals[C.priceDelta - 1] = prevA != null ? avg - prevA : "nowy";
+      vals[C.pricePct - 1] = prevA != null && prevA > 0 ? (avg - prevA) / prevA : null;
+      if (withQtyCompare) {
+        vals[C.qtyPrev! - 1] = prevQ ?? null;
+        vals[C.qtyDelta! - 1] = prevQ != null ? r.qty - prevQ : null;
+      }
+
+      const dataRow = ws.addRow(vals);
+      dataRow.getCell(C.qty).numFmt = QTY;
+      dataRow.getCell(C.avg).numFmt = CUR;
+      dataRow.getCell(C.value).numFmt = CUR;
+
+      if (withQtyCompare) {
+        dataRow.getCell(C.qtyPrev!).numFmt = QTY;
+        dataRow.getCell(C.qtyDelta!).numFmt = QTY_DELTA;
+        if (prevQ == null) {
+          // Produkt nie kupowany w poprzednim miesiącu — brak porównania ilości.
+          dataRow.getCell(C.qtyPrev!).value = "—";
+          dataRow.getCell(C.qtyPrev!).alignment = { horizontal: "right" };
+          dataRow.getCell(C.qtyPrev!).font = { color: { argb: "FF94A3B8" } };
+        }
+      }
 
       if (prevA != null) {
-        dataRow.getCell(6).numFmt = CUR;
-        dataRow.getCell(7).numFmt = CUR;
-        dataRow.getCell(8).numFmt = PCT;
+        dataRow.getCell(C.pricePrev).numFmt = CUR;
+        dataRow.getCell(C.priceDelta).numFmt = CUR;
+        dataRow.getCell(C.pricePct).numFmt = PCT;
         const delta = avg - prevA;
         const color = delta > 0 ? "FFDC2626" : delta < 0 ? "FF16A34A" : "FF64748B";
-        dataRow.getCell(7).font = { color: { argb: color } };
-        dataRow.getCell(8).font = { color: { argb: color } };
+        dataRow.getCell(C.priceDelta).font = { color: { argb: color } };
+        dataRow.getCell(C.pricePct).font = { color: { argb: color } };
       } else {
-        dataRow.getCell(7).font = { italic: true, color: { argb: "FF94A3B8" } };
-        dataRow.getCell(7).alignment = { horizontal: "right" };
+        dataRow.getCell(C.priceDelta).font = { italic: true, color: { argb: "FF94A3B8" } };
+        dataRow.getCell(C.priceDelta).alignment = { horizontal: "right" };
       }
     }
 
-    const sumRow = ws.addRow([`Suma — ${g.name}`, null, null, null, total, null, null, null]);
+    const sumVals: (string | number | null)[] = new Array(nCols).fill(null);
+    sumVals[0] = `Suma — ${g.name}`;
+    sumVals[C.value - 1] = total;
+    const sumRow = ws.addRow(sumVals);
     sumRow.getCell(1).font = { bold: true };
-    sumRow.getCell(5).numFmt = CUR;
-    sumRow.getCell(5).font = { bold: true };
+    sumRow.getCell(C.value).numFmt = CUR;
+    sumRow.getCell(C.value).font = { bold: true };
     sumRow.eachCell((c) => {
       c.border = { top: { style: "thin", color: { argb: "FFCBD5E1" } } };
     });
@@ -223,7 +267,7 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
   const singleMode = costCenterId != null && !isNaN(costCenterId);
 
   let groups: Group[];
-  let prevAvg: Map<string, number>;
+  let cmp: Compare;
   let opts: { sheetName: string; title: string; subtitle: string; emptyMsg: string };
 
   if (singleMode) {
@@ -239,36 +283,42 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
       fetchBySupplier(userId, month, costCenterId!),
       fetchBySupplier(userId, prevMonth, costCenterId!),
     ]);
-    prevAvg = new Map();
-    for (const r of prev) {
-      if (r.qty > 0) prevAvg.set(`${r.group_id ?? "null"}|${r.product_name}|${r.unit}`, r.gross_total / r.qty);
-    }
+    cmp = {
+      prevAvg: indexBy(prev, (r) => r.gross_total / r.qty),
+      prevQty: indexBy(prev, (r) => r.qty),
+    };
     groups = buildGroups(curr, "Nieznany dostawca", ccColor);
     opts = {
       sheetName: `Zakupy ${month}`,
       title: `Zakupy — ${ccName} wg dostawców — ${monthLabelPl(month)}`,
-      subtitle: `Ceny brutto · porównanie z ${monthLabelPl(prevMonth)}`,
+      subtitle: `Ceny brutto · porównanie cen i ilości z ${monthLabelPl(prevMonth)}`,
       emptyMsg: `Brak zakupów dla „${ccName}" w ${monthLabelPl(month)}.`,
     };
-  } else {
-    const [curr, prev] = await Promise.all([
-      fetchByCostCenter(userId, month),
-      fetchByCostCenter(userId, prevMonth),
-    ]);
-    prevAvg = new Map();
-    for (const r of prev) {
-      if (r.qty > 0) prevAvg.set(`${r.group_id ?? "null"}|${r.product_name}|${r.unit}`, r.gross_total / r.qty);
-    }
-    groups = buildGroups(curr, "Bez centrum kosztów");
-    opts = {
-      sheetName: `Zakupy ${month}`,
-      title: `Zakupy wg centrów kosztów — ${monthLabelPl(month)}`,
-      subtitle: `Ceny brutto · porównanie z ${monthLabelPl(prevMonth)}`,
-      emptyMsg: `Brak zakupów w ${monthLabelPl(month)}.`,
-    };
+    const wb = buildWorkbook(groups, cmp, true, opts);
+    await send(res, wb, month);
+    return;
   }
 
-  const wb = buildWorkbook(groups, prevAvg, opts);
+  const [curr, prev] = await Promise.all([
+    fetchByCostCenter(userId, month),
+    fetchByCostCenter(userId, prevMonth),
+  ]);
+  cmp = {
+    prevAvg: indexBy(prev, (r) => r.gross_total / r.qty),
+    prevQty: indexBy(prev, (r) => r.qty),
+  };
+  groups = buildGroups(curr, "Bez centrum kosztów");
+  opts = {
+    sheetName: `Zakupy ${month}`,
+    title: `Zakupy wg centrów kosztów — ${monthLabelPl(month)}`,
+    subtitle: `Ceny brutto · porównanie z ${monthLabelPl(prevMonth)}`,
+    emptyMsg: `Brak zakupów w ${monthLabelPl(month)}.`,
+  };
+  const wb = buildWorkbook(groups, cmp, false, opts);
+  await send(res, wb, month);
+});
+
+async function send(res: import("express").Response, wb: ExcelJS.Workbook, month: string): Promise<void> {
   const buffer = await wb.xlsx.writeBuffer();
   res.setHeader(
     "Content-Type",
@@ -277,6 +327,6 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
   res.setHeader("Content-Disposition", `attachment; filename="raport-zakupy-${month}.xlsx"`);
   res.setHeader("Cache-Control", "no-store");
   res.status(200).send(Buffer.from(buffer));
-});
+}
 
 export default router;
