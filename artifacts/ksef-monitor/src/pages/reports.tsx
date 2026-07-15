@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@clerk/react";
 import { apiUrl } from "@/lib/api-base";
+import { useToast } from "@/hooks/use-toast";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useGetMonthlyReport,
@@ -72,12 +73,15 @@ import {
 export default function Reports() {
   const [, navigate] = useLocation();
   const { getToken } = useAuth();
+  const { toast } = useToast();
   const [exportingXlsx, setExportingXlsx] = useState(false);
   const [month, setMonth] = useState(currentMonth);
 
   // Pobranie raportu Excel (binarny endpoint poza Orval) — z tokenem Clerk,
   // bo apka woła API na innej domenie niż front. Grupowanie per centrum kosztów
-  // + porównanie do poprzedniego miesiąca liczy backend.
+  // + porównanie do poprzedniego miesiąca liczy backend. Błędy pokazujemy toastem
+  // (bez tego pobranie padało po cichu). Link dodajemy do DOM przed .click() —
+  // część przeglądarek ignoruje kliknięcie na anchorze spoza drzewa dokumentu.
   async function handleExportXlsx() {
     if (exportingXlsx) return;
     setExportingXlsx(true);
@@ -87,16 +91,29 @@ export default function Reports() {
         apiUrl(`/api/reports/products-by-cost-center.xlsx?month=${month}`),
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status}${body ? ` — ${body.slice(0, 120)}` : ""}`);
+      }
       const blob = await res.blob();
+      if (blob.size === 0) throw new Error("Pusty plik z serwera");
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `raport-zakupy-${month}.xlsx`;
+      a.style.display = "none";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast({ title: "Pobrano raport Excel", description: `raport-zakupy-${month}.xlsx` });
     } catch (err) {
       console.error("Eksport Excel nie powiódł się:", err);
+      toast({
+        variant: "destructive",
+        title: "Nie udało się pobrać raportu Excel",
+        description: err instanceof Error ? err.message : "Nieznany błąd",
+      });
     } finally {
       setExportingXlsx(false);
     }
