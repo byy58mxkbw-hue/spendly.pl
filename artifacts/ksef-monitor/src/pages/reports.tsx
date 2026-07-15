@@ -67,15 +67,69 @@ import {
   AlertsList, CategoryBarChart, CategoryMiniList, CategoryTrendChart, CostCenterComparisonSection,
   PriceBenchmarkList, ProductsTable, QuantityMoversList, RecommendationsList, SectionCard,
   SpendHero, SpendTrendChart, SupplierCard, TopSuppliersTable, WhyBreakdown, computeImpacts,
-  currentMonth, monthLabel, nextMonth, prevMonth, type ProductWithImpact,
+  currentMonth, type ProductWithImpact,
 } from "./reports/components";
+import { PeriodProvider, usePeriod, type PresetKey } from "@/contexts/period-context";
+
+// Selektor okresu: presety + własny zakres dni (input type=date, precyzja dzienna).
+function PeriodSelector() {
+  const { period, preset, setPreset, setCustom } = usePeriod();
+  const presets: [PresetKey, string][] = [
+    ["this-month", "Miesiąc"], ["last-3m", "3 mies"], ["last-6m", "6 mies"], ["year", "Rok"],
+  ];
+  return (
+    <div className="flex items-center gap-1 flex-wrap justify-end">
+      {presets.map(([k, lbl]) => (
+        <button
+          key={k}
+          onClick={() => setPreset(k)}
+          className={cn(
+            "px-2.5 py-1 text-xs rounded-md border transition-colors",
+            preset === k
+              ? "bg-primary text-primary-foreground border-primary"
+              : "border-border text-muted-foreground hover:bg-secondary/50",
+          )}
+        >
+          {lbl}
+        </button>
+      ))}
+      <div
+        className={cn(
+          "flex items-center gap-1 px-1.5 py-0.5 rounded-md border bg-card",
+          preset === "custom" ? "border-primary" : "border-border",
+        )}
+        title="Własny zakres dat"
+      >
+        <input
+          type="date" value={period.from} max={period.to}
+          onChange={(e) => e.target.value && setCustom(e.target.value, period.to)}
+          className="text-xs bg-transparent text-foreground w-[120px] outline-none"
+        />
+        <span className="text-xs text-muted-foreground">–</span>
+        <input
+          type="date" value={period.to} min={period.from}
+          onChange={(e) => e.target.value && setCustom(period.from, e.target.value)}
+          className="text-xs bg-transparent text-foreground w-[120px] outline-none"
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function Reports() {
+  return (
+    <PeriodProvider>
+      <ReportsInner />
+    </PeriodProvider>
+  );
+}
+
+function ReportsInner() {
   const [, navigate] = useLocation();
   const { getToken } = useAuth();
   const { toast } = useToast();
+  const { period, prev, label, prevLabel, preset, setCustom } = usePeriod();
   const [exportingXlsx, setExportingXlsx] = useState(false);
-  const [month, setMonth] = useState(currentMonth);
 
   // Pobranie raportu Excel (binarny endpoint poza Orval) — z tokenem Clerk,
   // bo apka woła API na innej domenie niż front. Grupowanie per centrum kosztów
@@ -91,7 +145,7 @@ export default function Reports() {
       // rozbity per dostawca. Bez wyboru → ogólny raport wg centrów kosztów.
       const ccQuery = costCenterId != null ? `&costCenterId=${costCenterId}` : "";
       const res = await fetch(
-        apiUrl(`/api/reports/products-by-cost-center.xlsx?month=${month}${ccQuery}`),
+        apiUrl(`/api/reports/products-by-cost-center.xlsx?from=${period.from}&to=${period.to}${ccQuery}`),
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!res.ok) {
@@ -100,16 +154,17 @@ export default function Reports() {
       }
       const blob = await res.blob();
       if (blob.size === 0) throw new Error("Pusty plik z serwera");
+      const fname = `raport-zakupy-${period.from}_${period.to}.xlsx`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `raport-zakupy-${month}.xlsx`;
+      a.download = fname;
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast({ title: "Pobrano raport Excel", description: `raport-zakupy-${month}.xlsx` });
+      toast({ title: "Pobrano raport Excel", description: fname });
     } catch (err) {
       console.error("Eksport Excel nie powiódł się:", err);
       toast({
@@ -133,6 +188,10 @@ export default function Reports() {
   );
   useEffect(() => {
     if (autoMonthDone || !trendForDefault) return;
+    setAutoMonthDone(true);
+    // Tylko przy domyślnym „ten miesiąc" — ustaw okres na miesiąc z największymi zakupami
+    // (świeżo zaimportowane faktury bywają z poprzedniego miesiąca → pusty bieżący).
+    if (preset !== "this-month") return;
     const spendByMonth = new Map<string, number>();
     for (const r of trendForDefault) {
       spendByMonth.set(r.month, (spendByMonth.get(r.month) ?? 0) + (r.totalSpend ?? 0));
@@ -140,33 +199,33 @@ export default function Reports() {
     let best: string | null = null;
     let bestSpend = 0;
     for (const [m, s] of spendByMonth) {
-      if (s > bestSpend) {
-        bestSpend = s;
-        best = m;
-      }
+      if (s > bestSpend) { bestSpend = s; best = m; }
     }
-    if (best && best !== currentMonth()) setMonth(best);
-    setAutoMonthDone(true);
-  }, [trendForDefault, autoMonthDone]);
+    if (best && best !== currentMonth()) {
+      const [by, bm] = best.split("-").map(Number);
+      const last = new Date(by, bm, 0).getDate();
+      setCustom(`${best}-01`, `${best}-${String(last).padStart(2, "0")}`);
+    }
+  }, [trendForDefault, autoMonthDone, preset]);
   const [tab, setTab] = useState("podsumowanie");
   const [trendMonths, setTrendMonths] = useState(6);
   const { selectedId: costCenterId } = useCostCenter();
   const ccParam = costCenterId != null ? { costCenterId } : {};
 
   const { data, isLoading, isError: monthlyError, refetch: refetchMonthly } = useGetMonthlyReport(
-    { month, ...ccParam },
-    { query: { queryKey: ["monthly-report", month, costCenterId] } },
+    { from: period.from, to: period.to, ...ccParam },
+    { query: { queryKey: ["monthly-report", period.from, period.to, costCenterId] } },
   );
   const { data: prevData } = useGetMonthlyReport(
-    { month: prevMonth(month), ...ccParam },
-    { query: { queryKey: ["monthly-report", prevMonth(month), costCenterId] } },
+    { from: prev.from, to: prev.to, ...ccParam },
+    { query: { queryKey: ["monthly-report", prev.from, prev.to, costCenterId] } },
   );
   const { data: alerts } = useGetDashboardActiveAlerts({
     query: { queryKey: ["dashboard-active-alerts"] },
   });
   const { data: bridge } = useGetSpendBridge(
-    { month, ...ccParam },
-    { query: { queryKey: ["spend-bridge", month, costCenterId] } },
+    { from: period.from, to: period.to, ...ccParam },
+    { query: { queryKey: ["spend-bridge", period.from, period.to, costCenterId] } },
   );
 
   const allProducts = useMemo<ProductWithImpact[]>(() => {
@@ -188,8 +247,6 @@ export default function Reports() {
   const alertCount = alerts?.length ?? 0;
   const criticalCount = alerts?.filter((a) => a.changePercent > a.thresholdPercent * 1.5).length ?? 0;
 
-  const isCurrentMonth = month === currentMonth();
-
   return (
     <Layout>
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-5 md:py-7">
@@ -198,10 +255,10 @@ export default function Reports() {
           <div className="flex-1 min-w-0">
             <PageHeader title="Raporty" />
             <p className="text-xs text-muted-foreground mt-0.5">
-              Analiza zakupów · {monthLabel(month)}
+              Analiza zakupów · {label}
               {prevMonthTotalSpend > 0 && (
                 <span className="ml-2 text-muted-foreground/70">
-                  Porównaj z: {monthLabel(prevMonth(month))}
+                  Porównaj z: {prevLabel}
                 </span>
               )}
             </p>
@@ -222,7 +279,7 @@ export default function Reports() {
                       p.totalCost,
                     ]),
                   ],
-                  `raport-${month}-${todaySlug()}`,
+                  `raport-${period.from}_${period.to}-${todaySlug()}`,
                 )
               }
               className="gap-1.5 text-xs hidden md:flex"
@@ -246,27 +303,7 @@ export default function Reports() {
               )}
               <span className="hidden sm:inline">Eksport Excel</span>
             </Button>
-            <div className="flex items-center border border-border rounded-lg overflow-hidden bg-card">
-              <button
-                onClick={() => setMonth(prevMonth(month))}
-                className="p-2 hover:bg-secondary/50 transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4 text-muted-foreground" />
-              </button>
-              <span className="text-sm font-medium px-3 text-foreground min-w-[120px] text-center">
-                {monthLabel(month)}
-              </span>
-              <button
-                onClick={() => setMonth(nextMonth(month))}
-                disabled={isCurrentMonth}
-                className={cn(
-                  "p-2 hover:bg-secondary/50 transition-colors",
-                  isCurrentMonth && "opacity-30 cursor-not-allowed",
-                )}
-              >
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              </button>
-            </div>
+            <PeriodSelector />
           </div>
         </div>
 
@@ -294,7 +331,7 @@ export default function Reports() {
               <Skeleton className="h-40 rounded-xl" />
             ) : bridge && (data?.totalSpend ?? 0) > 0 ? (
               <>
-                <SpendHero bridge={bridge} monthName={monthLabel(month)} />
+                <SpendHero bridge={bridge} monthName={label} />
                 <SectionCard
                   title="Dlaczego tyle?"
                   subtitle="Ile z różnicy to zmiany cen, a ile to że kupiłeś więcej lub mniej"
@@ -346,14 +383,14 @@ export default function Reports() {
             )}
 
             {/* 4. Porównanie centrów kosztów (tylko gdy skonfigurowane) */}
-            <CostCenterComparisonSection month={month} />
+            <CostCenterComparisonSection />
 
             {/* 5. Kategorie + dostawcy — spójne bloki (dwie listy) */}
             {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SectionCard title="Wydatki wg kategorii">
                   <div className="p-4 md:p-5">
-                    <CategoryMiniList month={month} />
+                    <CategoryMiniList />
                   </div>
                 </SectionCard>
                 <SectionCard title="Top dostawcy">
@@ -383,7 +420,7 @@ export default function Reports() {
               <div className="glass rounded-xl py-20 text-center px-4">
                 <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-medium mb-1">
-                  Brak danych za {monthLabel(month)}
+                  Brak danych za {label}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Zaimportuj faktury, aby zobaczyć raport.
@@ -412,7 +449,7 @@ export default function Reports() {
             ) : (
               <div className="glass rounded-xl py-20 text-center px-4">
                 <Package className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-foreground font-medium mb-1">Brak produktów za {monthLabel(month)}</p>
+                <p className="text-foreground font-medium mb-1">Brak produktów za {label}</p>
                 <p className="text-sm text-muted-foreground">Zaimportuj faktury, aby zobaczyć produkty.</p>
               </div>
             )}
@@ -438,14 +475,14 @@ export default function Reports() {
             ) : (
               <div className="glass rounded-xl py-20 text-center px-4">
                 <Users className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-foreground font-medium mb-1">Brak dostawców za {monthLabel(month)}</p>
+                <p className="text-foreground font-medium mb-1">Brak dostawców za {label}</p>
               </div>
             )}
           </TabsContent>
 
           {/* ── KATEGORIE ───────────────────────────────────────────────────── */}
           <TabsContent value="kategorie" className="space-y-5">
-            <CategoryBarChart month={month} />
+            <CategoryBarChart />
             <SectionCard title={`Trend wg kategorii · ${trendMonths} miesięcy`}>
               <div className="p-4 md:p-5">
                 <div className="flex justify-end mb-3">

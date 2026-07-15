@@ -10,6 +10,7 @@ import {
 } from "@workspace/api-client-react";
 import type { ReportProductRow, ReportSupplierRow, SpendBridge } from "@workspace/api-client-react";
 import { useCostCenter } from "@/contexts/cost-center-context";
+import { usePeriod } from "@/contexts/period-context";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
@@ -513,13 +514,14 @@ export function SpendTrendChart({ months: numMonths = 6 }: { months?: number }) 
 
 // ─── Category mini list (for Podsumowanie sidebar card) ───────────────────────
 
-export function CategoryMiniList({ month }: { month: string }) {
+export function CategoryMiniList() {
   const { selectedId: costCenterId } = useCostCenter();
+  const { period } = usePeriod();
   const ccParam = costCenterId != null ? { costCenterId } : {};
 
   const { data, isLoading } = useGetCategorySpend(
-    { month, ...ccParam },
-    { query: { queryKey: ["category-spend", month, costCenterId] } },
+    { from: period.from, to: period.to, ...ccParam },
+    { query: { queryKey: ["category-spend", period.from, period.to, costCenterId] } },
   );
 
   const groups = useMemo(() => {
@@ -1141,18 +1143,18 @@ export function CategoryComparisonTable({
 
 // ─── Category Bar Chart ────────────────────────────────────────────────────────
 
-export function CategoryBarChart({ month }: { month: string }) {
+export function CategoryBarChart() {
   const { selectedId: costCenterId } = useCostCenter();
+  const { period, prev, label } = usePeriod();
   const ccParam = costCenterId != null ? { costCenterId } : {};
-  const prevMonthStr = prevMonth(month);
 
   const { data: currentData, isLoading } = useGetCategorySpend(
-    { month, ...ccParam },
-    { query: { queryKey: ["category-spend", month, costCenterId] } },
+    { from: period.from, to: period.to, ...ccParam },
+    { query: { queryKey: ["category-spend", period.from, period.to, costCenterId] } },
   );
   const { data: prevData } = useGetCategorySpend(
-    { month: prevMonthStr, ...ccParam },
-    { query: { queryKey: ["category-spend", prevMonthStr, costCenterId] } },
+    { from: prev.from, to: prev.to, ...ccParam },
+    { query: { queryKey: ["category-spend", prev.from, prev.to, costCenterId] } },
   );
 
   const groups = useCategoryGroupData(currentData, prevData);
@@ -1162,7 +1164,7 @@ export function CategoryBarChart({ month }: { month: string }) {
   if (isLoading) return <Skeleton className="h-80 rounded-xl" />;
   if (!groups.length) return (
     <div className="glass rounded-xl py-16 text-center">
-      <p className="text-sm text-muted-foreground">Brak danych kategorii za {monthLabel(month)}</p>
+      <p className="text-sm text-muted-foreground">Brak danych kategorii za {label}</p>
     </div>
   );
 
@@ -1357,10 +1359,11 @@ export function CategoryTrendChart({ months: numMonths = 6 }: { months?: number 
 
 // ─── Cost center comparison ────────────────────────────────────────────────────
 
-export function CostCenterComparisonSection({ month }: { month: string }) {
+export function CostCenterComparisonSection() {
+  const { period } = usePeriod();
   const { data, isLoading } = useGetReportsCostCenters(
-    { month },
-    { query: { queryKey: ["reports-cost-centers", month] } },
+    { from: period.from, to: period.to },
+    { query: { queryKey: ["reports-cost-centers", period.from, period.to] } },
   );
 
   if (isLoading) return <Skeleton className="h-32 rounded-xl" />;
