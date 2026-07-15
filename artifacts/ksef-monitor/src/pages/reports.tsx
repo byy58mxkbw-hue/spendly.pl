@@ -233,14 +233,15 @@ export default function Reports() {
               onClick={handleExportXlsx}
               disabled={exportingXlsx}
               title="Zakupy per centrum kosztów, z porównaniem do poprzedniego miesiąca"
-              className="gap-1.5 text-xs hidden md:flex"
+              aria-label="Eksport Excel"
+              className="gap-1.5 text-xs flex"
             >
               {exportingXlsx ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <FileSpreadsheet className="w-3.5 h-3.5" />
               )}
-              Eksport Excel
+              <span className="hidden sm:inline">Eksport Excel</span>
             </Button>
             <div className="flex items-center border border-border rounded-lg overflow-hidden bg-card">
               <button
