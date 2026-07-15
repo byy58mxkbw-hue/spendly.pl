@@ -118,12 +118,26 @@ function indexBy(rows: AggRow[], value: (r: AggRow) => number): Map<string, numb
   return m;
 }
 
+// Suma wartości brutto per grupa (groupId) — do porównania SUMA z poprz. miesiącem.
+function groupTotals(rows: AggRow[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of rows) {
+    const k = String(r.group_id ?? "null");
+    m.set(k, (m.get(k) ?? 0) + r.gross_total);
+  }
+  return m;
+}
+
 const CUR = '#,##0.00" zł"';
 const QTY = "#,##0.00";
 const QTY_DELTA = '+#,##0.00;-#,##0.00';
 const PCT = "+0.0%;-0.0%";
 
-type Compare = { prevAvg: Map<string, number>; prevQty: Map<string, number> };
+type Compare = {
+  prevAvg: Map<string, number>;
+  prevQty: Map<string, number>;
+  prevGroupTotal: Map<string, number>;
+};
 type ColMap = {
   product: number; qty: number; unit: number; avg: number; value: number;
   pricePrev: number; priceDelta: number; pricePct: number;
@@ -239,10 +253,27 @@ function buildWorkbook(
     const sumVals: (string | number | null)[] = new Array(nCols).fill(null);
     sumVals[0] = `Suma — ${g.name}`;
     sumVals[C.value - 1] = total;
+    // Porównanie SUMY do poprzedniego miesiąca (kolumny „poprz."/„zmiana"/„%").
+    const prevTotal = cmp.prevGroupTotal.get(String(g.id ?? "null"));
+    if (prevTotal != null) {
+      sumVals[C.pricePrev - 1] = prevTotal;
+      sumVals[C.priceDelta - 1] = total - prevTotal;
+      sumVals[C.pricePct - 1] = prevTotal > 0 ? (total - prevTotal) / prevTotal : null;
+    }
     const sumRow = ws.addRow(sumVals);
     sumRow.getCell(1).font = { bold: true };
     sumRow.getCell(C.value).numFmt = CUR;
     sumRow.getCell(C.value).font = { bold: true };
+    if (prevTotal != null) {
+      sumRow.getCell(C.pricePrev).numFmt = CUR;
+      sumRow.getCell(C.priceDelta).numFmt = CUR;
+      sumRow.getCell(C.pricePct).numFmt = PCT;
+      const d = total - prevTotal;
+      const col = d > 0 ? "FFDC2626" : d < 0 ? "FF16A34A" : "FF64748B";
+      sumRow.getCell(C.pricePrev).font = { bold: true };
+      sumRow.getCell(C.priceDelta).font = { bold: true, color: { argb: col } };
+      sumRow.getCell(C.pricePct).font = { bold: true, color: { argb: col } };
+    }
     sumRow.eachCell((c) => {
       c.border = { top: { style: "thin", color: { argb: "FFCBD5E1" } } };
     });
@@ -286,6 +317,7 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
     cmp = {
       prevAvg: indexBy(prev, (r) => r.gross_total / r.qty),
       prevQty: indexBy(prev, (r) => r.qty),
+      prevGroupTotal: groupTotals(prev),
     };
     groups = buildGroups(curr, "Nieznany dostawca", ccColor);
     opts = {
@@ -306,6 +338,7 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
   cmp = {
     prevAvg: indexBy(prev, (r) => r.gross_total / r.qty),
     prevQty: indexBy(prev, (r) => r.qty),
+    prevGroupTotal: groupTotals(prev),
   };
   groups = buildGroups(curr, "Bez centrum kosztów");
   opts = {
