@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
+import { useAuth } from "@clerk/react";
+import { apiUrl } from "@/lib/api-base";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useGetMonthlyReport,
@@ -52,6 +54,8 @@ import {
   ExternalLink,
   Layers,
   Download,
+  FileSpreadsheet,
+  Loader2,
 } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -67,7 +71,36 @@ import {
 
 export default function Reports() {
   const [, navigate] = useLocation();
+  const { getToken } = useAuth();
+  const [exportingXlsx, setExportingXlsx] = useState(false);
   const [month, setMonth] = useState(currentMonth);
+
+  // Pobranie raportu Excel (binarny endpoint poza Orval) — z tokenem Clerk,
+  // bo apka woła API na innej domenie niż front. Grupowanie per centrum kosztów
+  // + porównanie do poprzedniego miesiąca liczy backend.
+  async function handleExportXlsx() {
+    if (exportingXlsx) return;
+    setExportingXlsx(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(
+        apiUrl(`/api/reports/products-by-cost-center.xlsx?month=${month}`),
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `raport-zakupy-${month}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Eksport Excel nie powiódł się:", err);
+    } finally {
+      setExportingXlsx(false);
+    }
+  }
   // On first load, default the view to the month where the user's data actually is —
   // the month with the highest spend. Freshly imported invoices are usually from a
   // prior month, so defaulting to the (near-empty) current calendar month made the
@@ -176,6 +209,21 @@ export default function Reports() {
             >
               <Download className="w-3.5 h-3.5" />
               Eksport CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportXlsx}
+              disabled={exportingXlsx}
+              title="Zakupy per centrum kosztów, z porównaniem do poprzedniego miesiąca"
+              className="gap-1.5 text-xs hidden md:flex"
+            >
+              {exportingXlsx ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+              )}
+              Eksport Excel
             </Button>
             <div className="flex items-center border border-border rounded-lg overflow-hidden bg-card">
               <button
