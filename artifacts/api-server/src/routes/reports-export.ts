@@ -172,6 +172,18 @@ function buildWorkbook(
   const ws = wb.addWorksheet(opts.sheetName, { views: [{ state: "frozen", ySplit: 3 }] });
   ws.columns = widths.map((w) => ({ width: w }));
 
+  // Ustawienia druku (Ctrl+P w Excelu): poziomo, dopasowane do szerokości strony,
+  // nagłówek kolumn (wiersz 3) powtarzany na każdej stronie, numeracja stron.
+  ws.pageSetup = {
+    orientation: "landscape",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
+    printTitlesRow: "3:3",
+  };
+  ws.headerFooter = { oddFooter: "&C&P / &N", evenFooter: "&C&P / &N" };
+
   const titleRow = ws.addRow([opts.title]);
   ws.mergeCells(titleRow.number, 1, titleRow.number, nCols);
   titleRow.getCell(1).font = { bold: true, size: 14 };
