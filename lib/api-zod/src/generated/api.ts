@@ -1562,6 +1562,8 @@ export const GetRecentPurchasesResponse = zod.array(GetRecentPurchasesResponseIt
  */
 export const GetMonthlyReportQueryParams = zod.object({
   "month": zod.coerce.string().optional().describe('Month in YYYY-MM format (defaults to current month), or \'all\' for all-time data'),
+  "from": zod.coerce.string().optional().describe('Okres od (YYYY-MM-DD). Podane razem z \'to\' nadpisuje \'month\' i włącza tryb zakresu.'),
+  "to": zod.coerce.string().optional().describe('Okres do (YYYY-MM-DD, włącznie).'),
   "costCenterId": zod.coerce.number().optional().describe('Filter results to a specific cost center.')
 })
 
@@ -1611,6 +1613,8 @@ export const GetMonthlyReportResponse = zod.object({
  */
 export const GetSpendBridgeQueryParams = zod.object({
   "month": zod.coerce.string().optional().describe('Month in YYYY-MM format (defaults to current month)'),
+  "from": zod.coerce.string().optional().describe('Okres od (YYYY-MM-DD). Podane razem z \'to\' włącza tryb zakresu (vs poprzedni równy okres).'),
+  "to": zod.coerce.string().optional().describe('Okres do (YYYY-MM-DD, włącznie).'),
   "costCenterId": zod.coerce.number().optional()
 })
 
@@ -1677,6 +1681,8 @@ export const GetSpendBridgeResponse = zod.object({
 export const GetCategorySpendQueryParams = zod.object({
   "days": zod.coerce.number().min(1).optional().describe('Lookback window in days (e.g. 30 for last month). Omit for all-time data.'),
   "month": zod.coerce.string().optional().describe('Month in YYYY-MM format (takes priority over days)'),
+  "from": zod.coerce.string().optional().describe('Okres od (YYYY-MM-DD). Z \'to\' nadpisuje month\/days (tryb zakresu).'),
+  "to": zod.coerce.string().optional().describe('Okres do (YYYY-MM-DD, włącznie).'),
   "costCenterId": zod.coerce.number().optional().describe('Filter results to a specific cost center.')
 })
 
@@ -1717,7 +1723,9 @@ export const GetCategorySpendTrendResponse = zod.array(GetCategorySpendTrendResp
  * @summary Get spending summary grouped by cost center for a given month
  */
 export const GetReportsCostCentersQueryParams = zod.object({
-  "month": zod.coerce.string().optional().describe('Month in YYYY-MM format')
+  "month": zod.coerce.string().optional().describe('Month in YYYY-MM format'),
+  "from": zod.coerce.string().optional().describe('Okres od (YYYY-MM-DD). Z \'to\' włącza tryb zakresu (vs poprzedni równy okres).'),
+  "to": zod.coerce.string().optional().describe('Okres do (YYYY-MM-DD, włącznie).')
 })
 
 export const GetReportsCostCentersResponseItem = zod.object({

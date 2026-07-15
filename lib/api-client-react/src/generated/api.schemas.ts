@@ -1422,6 +1422,14 @@ export type GetMonthlyReportParams = {
  */
 month?: string;
 /**
+ * Okres od (YYYY-MM-DD). Podane razem z 'to' nadpisuje 'month' i włącza tryb zakresu.
+ */
+from?: string;
+/**
+ * Okres do (YYYY-MM-DD, włącznie).
+ */
+to?: string;
+/**
  * Filter results to a specific cost center.
  */
 costCenterId?: number;
@@ -1432,6 +1440,14 @@ export type GetSpendBridgeParams = {
  * Month in YYYY-MM format (defaults to current month)
  */
 month?: string;
+/**
+ * Okres od (YYYY-MM-DD). Podane razem z 'to' włącza tryb zakresu (vs poprzedni równy okres).
+ */
+from?: string;
+/**
+ * Okres do (YYYY-MM-DD, włącznie).
+ */
+to?: string;
 costCenterId?: number;
 };
 
@@ -1445,6 +1461,14 @@ days?: number;
  * Month in YYYY-MM format (takes priority over days)
  */
 month?: string;
+/**
+ * Okres od (YYYY-MM-DD). Z 'to' nadpisuje month/days (tryb zakresu).
+ */
+from?: string;
+/**
+ * Okres do (YYYY-MM-DD, włącznie).
+ */
+to?: string;
 /**
  * Filter results to a specific cost center.
  */
@@ -1466,6 +1490,14 @@ export type GetReportsCostCentersParams = {
  * Month in YYYY-MM format
  */
 month?: string;
+/**
+ * Okres od (YYYY-MM-DD). Z 'to' włącza tryb zakresu (vs poprzedni równy okres).
+ */
+from?: string;
+/**
+ * Okres do (YYYY-MM-DD, włącznie).
+ */
+to?: string;
 };
 
 export type GetPredictiveReportParams = {

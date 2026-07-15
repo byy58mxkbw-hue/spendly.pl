@@ -2,14 +2,9 @@ import { Router, type IRouter } from "express";
 import { toNum } from "../lib/parse";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { periodFromQuery, previousPeriod, type Period } from "../lib/period";
 
 const router: IRouter = Router();
-
-function calcPrevMonthPrefix(month: string): string {
-  const [y, m] = month.split("-").map(Number);
-  const d = new Date(y, m - 2, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 
 // YYYY-MM przesunięte o n miesięcy wstecz.
 function monthMinus(month: string, n: number): string {
@@ -27,17 +22,17 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     ? sql`AND i.cost_center_id = ${costCenterId}`
     : sql.raw("");
 
-  const now = new Date();
-  const isAllTime = monthParam === "all";
-  const month = isAllTime ? "all" : (monthParam || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
-
-  if (!isAllTime && !/^\d{4}-\d{2}$/.test(month)) {
-    res.status(400).json({ error: "Invalid month format. Use YYYY-MM or 'all'" });
-    return;
-  }
-
-  const monthPrefix = isAllTime ? "" : `${month}-`;
-  const prevMonthPrefix = isAllTime ? "" : `${calcPrevMonthPrefix(month)}-`;
+  // Okres [from,to]: from/to w query (YYYY-MM-DD), fallback month=YYYY-MM → cały miesiąc,
+  // dalej bieżący miesiąc. "all" = bez filtra dat (jak dawniej). Pojedynczy miesiąc daje
+  // identyczny zakres i identyczne porównanie (poprzedni miesiąc) co wcześniej.
+  const isAllTime = req.query.from == null && req.query.to == null && monthParam === "all";
+  const period = periodFromQuery(req.query);
+  const prev = previousPeriod(period);
+  const month = period.to.slice(0, 7); // kotwica miesiąca (okno „vs zwykle" + pole month w odpowiedzi)
+  const dateFilter = isAllTime
+    ? sql.raw("")
+    : sql`AND i.invoice_date >= ${period.from} AND i.invoice_date <= ${period.to}`;
+  const prevDateFilter = sql`AND i.invoice_date >= ${prev.from} AND i.invoice_date <= ${prev.to}`;
 
   const summaryResult = await db.execute(sql`
     SELECT
@@ -48,7 +43,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
+      ${dateFilter}
       ${ccSql}
   `);
   const summary = summaryResult.rows[0] as {
@@ -75,7 +70,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       INNER JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId}
         AND i.excluded = false
-        AND i.invoice_date LIKE ${prevMonthPrefix + "%"}
+        ${prevDateFilter}
         ${ccSql}
       GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
     `);
@@ -99,7 +94,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
+      ${dateFilter}
       ${ccSql}
     GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
     ORDER BY total_cost DESC
@@ -137,7 +132,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
           INNER JOIN suppliers s ON i.supplier_id = s.id
           LEFT JOIN products p ON ii.product_id = p.id
           WHERE i.user_id = ${userId} AND i.excluded = false
-            AND i.invoice_date LIKE ${monthPrefix + "%"} ${ccSql}
+            ${dateFilter} ${ccSql}
           GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
         ) x
         ORDER BY name, unit, price ASC
@@ -191,7 +186,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
+      ${dateFilter}
       ${ccSql}
     GROUP BY s.id, s.name
     ORDER BY total_spend DESC
@@ -222,7 +217,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      ${isAllTime ? sql.raw("") : sql`AND i.invoice_date LIKE ${monthPrefix + "%"}`}
+      ${dateFilter}
       ${ccSql}
     GROUP BY i.supplier_id, COALESCE(p.name, ii.product_name), ii.unit
   `);
@@ -267,7 +262,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
   }));
 
   res.json({
-    month,
+    month: isAllTime ? "all" : month,
     totalSpend: summary.total_spend,
     invoiceCount: summary.invoice_count,
     productCount: summary.product_count,
@@ -282,39 +277,35 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
 // produktów (teraz vs poprzedni vs średnia ogólna) oraz ruchy ilościowe.
 router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
   const userId = req.userId!;
-  const now = new Date();
-  const monthParam = req.query.month as string | undefined;
-  const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam)
-    ? monthParam
-    : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  if (!/^\d{4}-\d{2}$/.test(month)) { res.status(400).json({ error: "Invalid month. Use YYYY-MM." }); return; }
+  // Okres bieżący vs poprzedni RÓWNY okres (pojedynczy miesiąc = jak dawniej: vs poprzedni miesiąc).
+  const period = periodFromQuery(req.query);
+  const prevP = previousPeriod(period);
+  const month = period.to.slice(0, 7); // kotwica dla okien „ostatnie 12/6 mies."
 
   const ccIdRaw = req.query.costCenterId;
   const ccId = ccIdRaw != null && ccIdRaw !== "" ? parseInt(String(ccIdRaw), 10) : null;
   const ccSql = ccId != null && !isNaN(ccId) ? sql`AND i.cost_center_id = ${ccId}` : sql.raw("");
 
-  const prev = calcPrevMonthPrefix(month);
-
   type NU = { name: string; unit: string; qty: number; price: number; cost: number };
-  const perProduct = (likePrefix: string) => db.execute(sql`
-    SELECT COALESCE(p.name, ii.product_name) AS name, ii.unit AS unit,
+  const perProduct = (p: Period) => db.execute(sql`
+    SELECT COALESCE(pr.name, ii.product_name) AS name, ii.unit AS unit,
       SUM(ii.quantity::numeric)::float AS qty,
       AVG(ii.unit_price::numeric)::float AS price,
       SUM(ii.total_price::numeric)::float AS cost
     FROM invoice_items ii
     JOIN invoices i ON ii.invoice_id = i.id
-    LEFT JOIN products p ON ii.product_id = p.id
+    LEFT JOIN products pr ON ii.product_id = pr.id
     WHERE i.user_id = ${userId} AND i.excluded = false
-      AND i.invoice_date LIKE ${likePrefix} ${ccSql}
-    GROUP BY COALESCE(p.name, ii.product_name), ii.unit
+      AND i.invoice_date >= ${p.from} AND i.invoice_date <= ${p.to} ${ccSql}
+    GROUP BY COALESCE(pr.name, ii.product_name), ii.unit
   `);
 
   // Średnia ogólna ceny produktu = średnia z miesięcznych średnich (ostatnie 12 mies.).
   const overallFrom = `${monthMinus(month, 11)}-01`;
   const overallEndExcl = `${monthMinus(month, -1)}-01`; // < początek następnego miesiąca
   const [curRes, prevRes, overallRes, trendRes] = await Promise.all([
-    perProduct(`${month}-%`),
-    perProduct(`${prev}-%`),
+    perProduct(period),
+    perProduct(prevP),
     db.execute(sql`
       SELECT name, unit, AVG(mavg)::float AS overall_avg FROM (
         SELECT COALESCE(p.name, ii.product_name) AS name, ii.unit AS unit,
@@ -429,7 +420,7 @@ router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
 
   res.json({
     month,
-    prevMonth: prev,
+    prevMonth: prevP.to.slice(0, 7),
     currentSpend,
     prevSpend,
     deltaSpend,
@@ -641,8 +632,13 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
     ? sql`AND i.cost_center_id = ${costCenterId}`
     : sql.raw("");
 
+  const rangeFrom = typeof req.query.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.from) ? req.query.from : null;
+  const rangeTo = typeof req.query.to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.to) ? req.query.to : null;
+
   let dateCondition;
-  if (month) {
+  if (rangeFrom && rangeTo) {
+    dateCondition = sql`AND i.invoice_date >= ${rangeFrom} AND i.invoice_date <= ${rangeTo}`;
+  } else if (month) {
     const [y, m] = month.split("-").map(Number);
     const mStart = new Date(y, m - 1, 1).toISOString().split("T")[0];
     const mEnd = new Date(y, m, 1).toISOString().split("T")[0];
@@ -755,19 +751,13 @@ router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
 // ─── Cost center spend report ─────────────────────────────────────────────────
 router.get("/reports/cost-centers", async (req, res): Promise<void> => {
   const userId = req.userId!;
-  const { month } = req.query as { month?: string };
-  const now = new Date();
-  const currentMonth = month ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const [y, m] = currentMonth.split("-").map(Number);
-  const startDate = `${currentMonth}-01`;
-  const daysInMonth = new Date(y, m, 0).getDate();
-  const endDate = `${currentMonth}-${String(daysInMonth).padStart(2, "0")}`;
-
-  const prevDate = new Date(y, m - 2, 1);
-  const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, "0")}`;
-  const prevStart = `${prevMonth}-01`;
-  const prevDays = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 0).getDate();
-  const prevEnd = `${prevMonth}-${String(prevDays).padStart(2, "0")}`;
+  // Okres [from,to] (fallback month/bieżący miesiąc) + poprzedni RÓWNY okres do porównania.
+  const period = periodFromQuery(req.query);
+  const prevP = previousPeriod(period);
+  const startDate = period.from;
+  const endDate = period.to;
+  const prevStart = prevP.from;
+  const prevEnd = prevP.to;
 
   const current = await db.execute(sql`
     SELECT i.cost_center_id, cc.name AS cost_center_name, cc.color AS cost_center_color,

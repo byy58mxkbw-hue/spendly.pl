@@ -1657,6 +1657,18 @@ paths:
           description: "Month in YYYY-MM format (defaults to current month), or 'all' for all-time data"
           schema:
             type: string
+        - name: from
+          in: query
+          required: false
+          description: "Okres od (YYYY-MM-DD). Podane razem z 'to' nadpisuje 'month' i włącza tryb zakresu."
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          description: "Okres do (YYYY-MM-DD, włącznie)."
+          schema:
+            type: string
         - name: costCenterId
           in: query
           required: false
@@ -1681,6 +1693,18 @@ paths:
           in: query
           required: false
           description: "Month in YYYY-MM format (defaults to current month)"
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          description: "Okres od (YYYY-MM-DD). Podane razem z 'to' włącza tryb zakresu (vs poprzedni równy okres)."
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          description: "Okres do (YYYY-MM-DD, włącznie)."
           schema:
             type: string
         - name: costCenterId
@@ -1715,6 +1739,18 @@ paths:
           schema:
             type: string
           description: "Month in YYYY-MM format (takes priority over days)"
+        - name: from
+          in: query
+          required: false
+          description: "Okres od (YYYY-MM-DD). Z 'to' nadpisuje month/days (tryb zakresu)."
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          description: "Okres do (YYYY-MM-DD, włącznie)."
+          schema:
+            type: string
         - name: costCenterId
           in: query
           required: false
@@ -1772,6 +1808,18 @@ paths:
           schema:
             type: string
           description: "Month in YYYY-MM format"
+        - name: from
+          in: query
+          required: false
+          description: "Okres od (YYYY-MM-DD). Z 'to' włącza tryb zakresu (vs poprzedni równy okres)."
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          description: "Okres do (YYYY-MM-DD, włącznie)."
+          schema:
+            type: string
       responses:
         "200":
           description: Cost center spending report

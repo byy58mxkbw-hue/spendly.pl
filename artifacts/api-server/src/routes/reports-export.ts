@@ -2,24 +2,9 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import ExcelJS from "exceljs";
+import { periodFromQuery, previousPeriod, periodLabel, type Period } from "../lib/period";
 
 const router: IRouter = Router();
-
-// YYYY-MM przesunięte o n miesięcy wstecz (jak w reports.ts).
-function monthMinus(month: string, n: number): string {
-  const [y, m] = month.split("-").map(Number);
-  const d = new Date(y, m - 1 - n, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-const PL_MONTHS = [
-  "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
-  "lipca", "sierpnia", "września", "października", "listopada", "grudnia",
-];
-function monthLabelPl(month: string): string {
-  const [y, m] = month.split("-").map(Number);
-  return `${PL_MONTHS[m - 1]} ${y}`;
-}
 
 // #RRGGBB -> AARRGGBB (exceljs). Fallback szary, gdy kolor nietypowy.
 function hexToArgb(hex: string | null | undefined): string {
@@ -39,8 +24,8 @@ type AggRow = {
   gross_total: number; // brutto = suma(total_price netto × (1+VAT))
 };
 
-// Tryb ogólny: agregacja per (centrum kosztów, produkt, jednostka).
-async function fetchByCostCenter(userId: string, month: string): Promise<AggRow[]> {
+// Tryb ogólny: agregacja per (centrum kosztów, produkt, jednostka) w okresie [from, to].
+async function fetchByCostCenter(userId: string, p: Period): Promise<AggRow[]> {
   const result = await db.execute(sql`
     SELECT i.cost_center_id AS group_id,
            cc.name AS group_name,
@@ -54,15 +39,15 @@ async function fetchByCostCenter(userId: string, month: string): Promise<AggRow[
     LEFT JOIN cost_centers cc ON cc.id = i.cost_center_id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      AND i.invoice_date LIKE ${month + "-%"}
+      AND i.invoice_date >= ${p.from} AND i.invoice_date <= ${p.to}
     GROUP BY 1, 2, 3, 4, 5
   `);
   return result.rows as AggRow[];
 }
 
-// Tryb pojedynczego centrum: agregacja per (dostawca, produkt, jednostka),
+// Tryb pojedynczego centrum: agregacja per (dostawca, produkt, jednostka) w okresie,
 // zawężona do wybranego centrum kosztów. Kolor grupy = kolor centrum (dodany w JS).
-async function fetchBySupplier(userId: string, month: string, costCenterId: number): Promise<AggRow[]> {
+async function fetchBySupplier(userId: string, p: Period, costCenterId: number): Promise<AggRow[]> {
   const result = await db.execute(sql`
     SELECT i.supplier_id AS group_id,
            s.name AS group_name,
@@ -76,7 +61,7 @@ async function fetchBySupplier(userId: string, month: string, costCenterId: numb
     INNER JOIN suppliers s ON s.id = i.supplier_id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      AND i.invoice_date LIKE ${month + "-%"}
+      AND i.invoice_date >= ${p.from} AND i.invoice_date <= ${p.to}
       AND i.cost_center_id = ${costCenterId}
     GROUP BY 1, 2, 4, 5
   `);
@@ -298,12 +283,11 @@ function buildWorkbook(
 
 router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<void> => {
   const userId = req.userId!;
-  const month = String(req.query.month ?? "");
-  if (!/^\d{4}-\d{2}$/.test(month)) {
-    res.status(400).json({ error: "Invalid month format. Use YYYY-MM" });
-    return;
-  }
-  const prevMonth = monthMinus(month, 1);
+  const period = periodFromQuery(req.query);
+  const prev = previousPeriod(period);
+  const label = periodLabel(period);
+  const prevLabel = periodLabel(prev);
+  const sheetName = `Zakupy ${period.from}`;
 
   const ccRaw = req.query.costCenterId;
   const costCenterId = ccRaw != null && ccRaw !== "" ? parseInt(String(ccRaw), 10) : null;
@@ -322,54 +306,54 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
     const ccName = cc?.name ?? "Centrum kosztów";
     const ccColor = cc?.color ?? "#14B8A6";
 
-    const [curr, prev] = await Promise.all([
-      fetchBySupplier(userId, month, costCenterId!),
-      fetchBySupplier(userId, prevMonth, costCenterId!),
+    const [curr, prevRows] = await Promise.all([
+      fetchBySupplier(userId, period, costCenterId!),
+      fetchBySupplier(userId, prev, costCenterId!),
     ]);
     cmp = {
-      prevAvg: indexBy(prev, (r) => r.gross_total / r.qty),
-      prevQty: indexBy(prev, (r) => r.qty),
-      prevGroupTotal: groupTotals(prev),
+      prevAvg: indexBy(prevRows, (r) => r.gross_total / r.qty),
+      prevQty: indexBy(prevRows, (r) => r.qty),
+      prevGroupTotal: groupTotals(prevRows),
     };
     groups = buildGroups(curr, "Nieznany dostawca", ccColor);
     opts = {
-      sheetName: `Zakupy ${month}`,
-      title: `Zakupy — ${ccName} wg dostawców — ${monthLabelPl(month)}`,
-      subtitle: `Ceny brutto · porównanie cen i ilości z ${monthLabelPl(prevMonth)}`,
-      emptyMsg: `Brak zakupów dla „${ccName}" w ${monthLabelPl(month)}.`,
+      sheetName,
+      title: `Zakupy — ${ccName} wg dostawców — ${label}`,
+      subtitle: `Ceny brutto · porównanie cen i ilości z: ${prevLabel}`,
+      emptyMsg: `Brak zakupów dla „${ccName}" w okresie ${label}.`,
     };
     const wb = buildWorkbook(groups, cmp, true, opts);
-    await send(res, wb, month);
+    await send(res, wb, period);
     return;
   }
 
-  const [curr, prev] = await Promise.all([
-    fetchByCostCenter(userId, month),
-    fetchByCostCenter(userId, prevMonth),
+  const [curr, prevRows] = await Promise.all([
+    fetchByCostCenter(userId, period),
+    fetchByCostCenter(userId, prev),
   ]);
   cmp = {
-    prevAvg: indexBy(prev, (r) => r.gross_total / r.qty),
-    prevQty: indexBy(prev, (r) => r.qty),
-    prevGroupTotal: groupTotals(prev),
+    prevAvg: indexBy(prevRows, (r) => r.gross_total / r.qty),
+    prevQty: indexBy(prevRows, (r) => r.qty),
+    prevGroupTotal: groupTotals(prevRows),
   };
   groups = buildGroups(curr, "Bez centrum kosztów");
   opts = {
-    sheetName: `Zakupy ${month}`,
-    title: `Zakupy wg centrów kosztów — ${monthLabelPl(month)}`,
-    subtitle: `Ceny brutto · porównanie z ${monthLabelPl(prevMonth)}`,
-    emptyMsg: `Brak zakupów w ${monthLabelPl(month)}.`,
+    sheetName,
+    title: `Zakupy wg centrów kosztów — ${label}`,
+    subtitle: `Ceny brutto · porównanie z: ${prevLabel}`,
+    emptyMsg: `Brak zakupów w okresie ${label}.`,
   };
   const wb = buildWorkbook(groups, cmp, false, opts);
-  await send(res, wb, month);
+  await send(res, wb, period);
 });
 
-async function send(res: import("express").Response, wb: ExcelJS.Workbook, month: string): Promise<void> {
+async function send(res: import("express").Response, wb: ExcelJS.Workbook, period: Period): Promise<void> {
   const buffer = await wb.xlsx.writeBuffer();
   res.setHeader(
     "Content-Type",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   );
-  res.setHeader("Content-Disposition", `attachment; filename="raport-zakupy-${month}.xlsx"`);
+  res.setHeader("Content-Disposition", `attachment; filename="raport-zakupy-${period.from}_${period.to}.xlsx"`);
   res.setHeader("Cache-Control", "no-store");
   res.status(200).send(Buffer.from(buffer));
 }
