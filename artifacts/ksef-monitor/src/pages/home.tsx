@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import {
   Zap, ArrowRight, Play, Check, ScanLine, BellRing, GitCompare,
   UtensilsCrossed, Sparkles, FileCheck2, RefreshCw, FileText, Plus, Moon, Sun,
-  Menu, X,
+  Menu, X, Hotel, Truck, Building2, Lock, Server, KeyRound, ShieldCheck,
 } from "lucide-react";
 import "@/styles/landing.css";
 
@@ -44,6 +44,20 @@ const STATS = [
   { v: "KSeF", l: "Automatyczny import faktur zakupowych" },
   { v: "AES-256", l: "Szyfrowanie danych i tokenów KSeF" },
   { v: "0 zł", l: "Pełny dostęp w okresie testowym" },
+];
+
+const AUDIENCE = [
+  { Icon: UtensilsCrossed, h: "Restauracje i bistra", p: "Pilnuj food costu i cen surowców z faktur, zanim podwyżka zje marżę dania." },
+  { Icon: Hotel, h: "Hotele i pensjonaty", p: "Gastronomia hotelowa, bufet i room service — koszty wielu punktów w jednym miejscu." },
+  { Icon: Truck, h: "Catering i eventy", p: "Zmienne wolumeny zakupów pod imprezy — trzymaj ceny dostawców pod kontrolą." },
+  { Icon: Building2, h: "Sieci i grupy", p: "Wiele lokali, centra kosztów i role — raporty konsolidowane dla całej grupy." },
+];
+
+const SECURITY = [
+  { Icon: Lock, h: "Szyfrowanie AES-256", p: "Faktury i tokeny KSeF szyfrowane w bazie i w tranzycie." },
+  { Icon: Server, h: "Serwery w UE · RODO", p: "Dane przechowywane w Unii Europejskiej, zgodnie z RODO." },
+  { Icon: KeyRound, h: "Autoryzacja odwołalna", p: "Dostęp do KSeF nadajesz Ty i cofniesz go w każdej chwili." },
+  { Icon: ShieldCheck, h: "Twoje dane = Twoje", p: "Nie sprzedajemy ani nie udostępniamy Twoich danych nikomu." },
 ];
 
 const FAQS = [
@@ -210,6 +224,24 @@ export default function Home() {
         </div>
       </section>
 
+      {/* DLA KOGO */}
+      <section className="blk wrap">
+        <div className="sec-head">
+          <div className="sec-eye">Dla kogo</div>
+          <h2>Zbudowane dla gastronomii, która pilnuje kosztów</h2>
+          <p>Wszędzie tam, gdzie faktury i ceny surowców decydują o marży — od pojedynczego bistra po sieć lokali.</p>
+        </div>
+        <div className="feat-grid">
+          {AUDIENCE.map(({ Icon, h, p }) => (
+            <div className="feat glass" key={h}>
+              <div className="fic"><Icon /></div>
+              <h3>{h}</h3>
+              <p>{p}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* KSeF / HOW */}
       <section className="blk wrap" id="ksef">
         <div className="ksef">
@@ -307,6 +339,24 @@ export default function Home() {
             <div className={`qa glass${openFaq.has(i) ? " open" : ""}`} key={f.q} onClick={() => toggleFaq(i)}>
               <div className="q">{f.q}<Plus /></div>
               <div className="a">{f.a}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* BEZPIECZEŃSTWO */}
+      <section className="blk wrap">
+        <div className="sec-head">
+          <div className="sec-eye">Bezpieczeństwo</div>
+          <h2>Twoje dane KSeF pod kontrolą</h2>
+          <p>Dostęp do faktur autoryzujesz Ty — i cofniesz go, kiedy tylko chcesz.</p>
+        </div>
+        <div className="feat-grid">
+          {SECURITY.map(({ Icon, h, p }) => (
+            <div className="feat glass" key={h}>
+              <div className="fic"><Icon /></div>
+              <h3>{h}</h3>
+              <p>{p}</p>
             </div>
           ))}
         </div>
