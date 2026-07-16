@@ -172,7 +172,7 @@
       <div class="wrap crumbs"><a href="/">Strona główna</a> › <a href="/blog">Blog</a> › Jak czytać fakturę z KSeF — pola FA(3) krok po kroku</div>
       <article class="post">
         <h1>Jak czytać fakturę z KSeF — pola FA(3) krok po kroku</h1>
-        <div class="post-meta"><span>14 lipca 2026</span><span>2 min czytania</span></div>
+        <div class="post-meta"><span>14 lipca 2026</span><span>3 min czytania</span></div>
         <p class="lead">Faktura z KSeF to nie PDF, tylko ustrukturyzowany plik XML w formacie FA(3). Brzmi technicznie, ale w praktyce to uporządkowany zestaw pól. Pokazujemy, co gdzie jest i jak to czytać.</p>
         <div class="post-body">
 <h2 id="faktura-z-ksef-wygląda-inaczej-niż-zwykła">Faktura z KSeF wygląda inaczej niż zwykła</h2>
@@ -194,6 +194,24 @@
 <ul><li><strong>NazwaTowaru</strong> — opis pozycji (np. „Pierś z kurczaka")</li><li><strong>Ilosc</strong> (<code>Ilosc</code>) i <strong>jednostka miary</strong> (<code>JednostkaMiary</code> — kg, szt, l)</li><li><strong>CenaJednostkowa</strong> netto</li><li><strong>Wartosc</strong> netto pozycji</li><li><strong>StawkaPodatku</strong> — stawka VAT (np. 23%, 8%, 5%, 0%)</li></ul>
 <h3 id="5-podsumowanie-i-płatność">5. Podsumowanie i płatność</h3>
 <ul><li>Sumy netto, VAT i brutto w rozbiciu na stawki</li><li><strong>Forma płatności</strong> i <strong>termin</strong></li><li>Numer rachunku bankowego</li></ul>
+<figure class="diagram">
+<svg role="img" aria-labelledby="faT faD" viewBox="0 0 420 268">
+<title id="faT">Struktura faktury KSeF w formacie FA(3)</title>
+<desc id="faD">Faktura FA(3) składa się z sekcji: nagłówek z numerem i datami, sprzedawca (Podmiot1), nabywca (Podmiot2), pozycje faktury (FaWiersz — najważniejsze dla kontroli kosztów: produkty, ilości, ceny), oraz podsumowanie i płatność.</desc>
+<rect x="40" y="10" width="340" height="42" rx="7" fill="#2a3542"/>
+<rect x="40" y="58" width="340" height="42" rx="7" fill="#2a3542"/>
+<rect x="40" y="106" width="340" height="42" rx="7" fill="#2a3542"/>
+<rect x="40" y="154" width="340" height="42" rx="7" fill="#3DDC97"/>
+<rect x="40" y="202" width="340" height="42" rx="7" fill="#2a3542"/>
+<text x="56" y="36" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">Nagłówek — numer, daty, nr KSeF</text>
+<text x="56" y="84" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">Sprzedawca — Podmiot1 (dostawca)</text>
+<text x="56" y="132" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">Nabywca — Podmiot2 (Ty)</text>
+<text x="56" y="174" fill="#06231a" font-family="sans-serif" font-size="13" font-weight="800">Pozycje — FaWiersz</text>
+<text x="56" y="190" fill="#06231a" font-family="sans-serif" font-size="11">produkty, ilości, ceny jednostkowe, VAT</text>
+<text x="56" y="228" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">Podsumowanie i płatność</text>
+</svg>
+<figcaption>Sekcje faktury FA(3). Dla kontroli kosztów najważniejsze są pozycje (FaWiersz) — nazwa, ilość, jednostka i cena.</figcaption>
+</figure>
 <h2 id="co-jest-najważniejsze-przy-kontroli-kosztów">Co jest najważniejsze przy kontroli kosztów</h2>
 <p>Z perspektywy restauracji kluczowe są <strong>pola pozycji</strong> (<code>FaWiersz</code>): nazwa, ilość, jednostka i cena jednostkowa. To z nich buduje się historię cen surowców. Dwie pułapki, na które trzeba uważać:</p>
 <ol><li><strong>Jednostki miary.</strong> Ten sam produkt raz bywa fakturowany w kg, raz w opakowaniach czy sztukach. Bez normalizacji jednostek porównanie cen wychodzi bez sensu (fałszywy „skok ceny").</li><li><strong>Ceny netto vs brutto.</strong> Do analizy kosztów i food cost używa się kwot <strong>netto</strong> — VAT nie jest Twoim kosztem, jeśli go odliczasz.</li></ol>

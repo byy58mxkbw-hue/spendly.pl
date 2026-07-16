@@ -24,6 +24,21 @@ Co gorsza, food waste jest **niewidoczny w standardowych raportach**. Widać go 
 - **Zwroty z sali** — dania oddane przez gości (za duże porcje, błędy kuchni).
 - **Kradzież i „znikanie"** — trudne do wykrycia bez kontroli zużycia względem sprzedaży.
 
+<figure class="diagram">
+<svg role="img" aria-labelledby="fwT fwD" viewBox="0 0 560 96">
+<title id="fwT">Typowy poziom marnotrawstwa żywności w gastronomii</title>
+<desc id="fwD">Na skali od 0 do 15 procent wartości zakupów marnotrawstwo w gastronomii mieści się zwykle w przedziale od 4 do 10 procent.</desc>
+<rect x="0" y="42" width="560" height="16" rx="8" fill="#2a3542"/>
+<rect x="149" y="42" width="224" height="16" rx="8" fill="#ff8f5c"/>
+<text x="0" y="30" fill="#6b7683" font-family="sans-serif" font-size="12">0%</text>
+<text x="540" y="30" fill="#6b7683" font-family="sans-serif" font-size="12">15%</text>
+<text x="140" y="30" fill="#ff8f5c" font-family="sans-serif" font-size="13" font-weight="800">4%</text>
+<text x="360" y="30" fill="#ff8f5c" font-family="sans-serif" font-size="13" font-weight="800">10%</text>
+<text x="230" y="82" fill="#9BA6B2" font-family="sans-serif" font-size="13">Typowy zakres strat</text>
+</svg>
+<figcaption>Marnotrawstwo pochłania zwykle 4–10% wartości zakupów — im wyżej, tym więcej marży trafia do kosza.</figcaption>
+</figure>
+
 ## Jak zmierzyć food waste
 
 Nie ograniczysz tego, czego nie mierzysz. Trzy poziomy pomiaru:

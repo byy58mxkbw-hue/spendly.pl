@@ -25,6 +25,29 @@ Stan początkowy i końcowy pochodzą z inwentaryzacji, zakupy z faktur. To zuż
 
 > Przykład: stan na start 8 000 zł, zakupy 22 000 zł, stan na koniec 6 000 zł → zużycie 24 000 zł. Jeśli receptury mówiły, że przy tej sprzedaży powinno zejść 21 000 zł, masz **3 000 zł „ubytku"** do wyjaśnienia.
 
+<figure class="diagram">
+<svg role="img" aria-labelledby="invT invD" viewBox="0 0 560 100">
+<title id="invT">Wzór na zużycie surowców w okresie</title>
+<desc id="invD">Zużycie surowców równa się stan początkowy magazynu plus zakupy minus stan końcowy. Przykład: 8000 plus 22000 minus 6000 daje 24000 złotych.</desc>
+<rect x="0" y="28" width="120" height="46" rx="7" fill="#2a3542"/>
+<rect x="138" y="28" width="120" height="46" rx="7" fill="#2a3542"/>
+<rect x="276" y="28" width="120" height="46" rx="7" fill="#2a3542"/>
+<rect x="414" y="28" width="146" height="46" rx="7" fill="#3DDC97"/>
+<text x="60" y="46" text-anchor="middle" fill="#9BA6B2" font-family="sans-serif" font-size="10.5">Stan początkowy</text>
+<text x="60" y="64" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">8 000 zł</text>
+<text x="198" y="46" text-anchor="middle" fill="#9BA6B2" font-family="sans-serif" font-size="10.5">Zakupy</text>
+<text x="198" y="64" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">22 000 zł</text>
+<text x="336" y="46" text-anchor="middle" fill="#9BA6B2" font-family="sans-serif" font-size="10.5">Stan końcowy</text>
+<text x="336" y="64" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">6 000 zł</text>
+<text x="487" y="46" text-anchor="middle" fill="#06231a" font-family="sans-serif" font-size="10.5">Zużycie</text>
+<text x="487" y="64" text-anchor="middle" fill="#06231a" font-family="sans-serif" font-size="13" font-weight="800">24 000 zł</text>
+<text x="129" y="58" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="20">+</text>
+<text x="267" y="58" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="20">−</text>
+<text x="405" y="58" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="20">=</text>
+</svg>
+<figcaption>Zużycie = stan początkowy + zakupy − stan końcowy. To podstawa liczenia realnego food cost.</figcaption>
+</figure>
+
 ## Jak często robić remanent
 
 | Częstotliwość | Kiedy stosować |

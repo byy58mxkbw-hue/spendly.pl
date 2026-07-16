@@ -50,6 +50,25 @@ Najważniejsza część dla kontroli kosztów — lista produktów. Każdy wiers
 - **Forma płatności** i **termin**
 - Numer rachunku bankowego
 
+<figure class="diagram">
+<svg role="img" aria-labelledby="faT faD" viewBox="0 0 420 268">
+<title id="faT">Struktura faktury KSeF w formacie FA(3)</title>
+<desc id="faD">Faktura FA(3) składa się z sekcji: nagłówek z numerem i datami, sprzedawca (Podmiot1), nabywca (Podmiot2), pozycje faktury (FaWiersz — najważniejsze dla kontroli kosztów: produkty, ilości, ceny), oraz podsumowanie i płatność.</desc>
+<rect x="40" y="10" width="340" height="42" rx="7" fill="#2a3542"/>
+<rect x="40" y="58" width="340" height="42" rx="7" fill="#2a3542"/>
+<rect x="40" y="106" width="340" height="42" rx="7" fill="#2a3542"/>
+<rect x="40" y="154" width="340" height="42" rx="7" fill="#3DDC97"/>
+<rect x="40" y="202" width="340" height="42" rx="7" fill="#2a3542"/>
+<text x="56" y="36" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">Nagłówek — numer, daty, nr KSeF</text>
+<text x="56" y="84" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">Sprzedawca — Podmiot1 (dostawca)</text>
+<text x="56" y="132" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">Nabywca — Podmiot2 (Ty)</text>
+<text x="56" y="174" fill="#06231a" font-family="sans-serif" font-size="13" font-weight="800">Pozycje — FaWiersz</text>
+<text x="56" y="190" fill="#06231a" font-family="sans-serif" font-size="11">produkty, ilości, ceny jednostkowe, VAT</text>
+<text x="56" y="228" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">Podsumowanie i płatność</text>
+</svg>
+<figcaption>Sekcje faktury FA(3). Dla kontroli kosztów najważniejsze są pozycje (FaWiersz) — nazwa, ilość, jednostka i cena.</figcaption>
+</figure>
+
 ## Co jest najważniejsze przy kontroli kosztów
 
 Z perspektywy restauracji kluczowe są **pola pozycji** (`FaWiersz`): nazwa, ilość, jednostka i cena jednostkowa. To z nich buduje się historię cen surowców. Dwie pułapki, na które trzeba uważać:

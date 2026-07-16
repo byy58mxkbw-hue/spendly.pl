@@ -15,6 +15,25 @@ lead: Każda zagubiona faktura kosztowa to VAT, którego nie odliczysz — czyli
 
 Kupując towary i usługi do firmy, płacisz cenę z VAT. Ten VAT (tzw. **podatek naliczony**) w większości przypadków możesz **odliczyć** od VAT-u, który sam naliczasz sprzedając (podatek należny). W uproszczeniu do urzędu wpłacasz różnicę.
 
+<figure class="diagram">
+<svg role="img" aria-labelledby="vatT vatD" viewBox="0 0 560 104">
+<title id="vatT">Jak liczy się VAT do zapłaty</title>
+<desc id="vatD">VAT do zapłaty równa się VAT należny ze sprzedaży minus VAT naliczony z zakupów. KSeF zapewnia komplet faktur zakupowych, więc odliczasz pełny VAT naliczony.</desc>
+<rect x="0" y="30" width="168" height="48" rx="7" fill="#2a3542"/>
+<rect x="196" y="30" width="196" height="48" rx="7" fill="#3DDC97"/>
+<rect x="420" y="30" width="140" height="48" rx="7" fill="#2a3542"/>
+<text x="84" y="50" text-anchor="middle" fill="#9BA6B2" font-family="sans-serif" font-size="10.5">VAT należny</text>
+<text x="84" y="68" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="12" font-weight="700">ze sprzedaży</text>
+<text x="294" y="50" text-anchor="middle" fill="#06231a" font-family="sans-serif" font-size="10.5">VAT naliczony (z zakupów)</text>
+<text x="294" y="68" text-anchor="middle" fill="#06231a" font-family="sans-serif" font-size="12" font-weight="800">← KSeF pilnuje kompletu</text>
+<text x="490" y="50" text-anchor="middle" fill="#9BA6B2" font-family="sans-serif" font-size="10.5">Do zapłaty</text>
+<text x="490" y="68" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="12" font-weight="700">do urzędu</text>
+<text x="182" y="61" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="20">−</text>
+<text x="406" y="61" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="20">=</text>
+</svg>
+<figcaption>Im więcej udokumentowanych faktur zakupowych, tym większy VAT naliczony do odliczenia — a KSeF zapewnia ich komplet.</figcaption>
+</figure>
+
 Warunek jest prosty, ale kluczowy: żeby odliczyć VAT z zakupu, musisz **mieć fakturę** i ująć ją w rozliczeniu. Brakująca faktura = brak odliczenia = wyższy podatek do zapłaty.
 
 ## Gdzie restauracje tracą na VAT

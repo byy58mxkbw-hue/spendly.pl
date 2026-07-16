@@ -29,6 +29,26 @@ Obowiązek wchodzi **etapami w 2026 roku**, zależnie od wielkości firmy:
 
 W praktyce większość restauracji i firm gastronomicznych będących czynnymi podatnikami VAT obejmie obowiązek **od 1 kwietnia 2026**. Do tego czasu warto już korzystać z KSeF dobrowolnie — choćby po to, by oswoić proces.
 
+<figure class="diagram">
+<svg role="img" aria-labelledby="tlT tlD" viewBox="0 0 560 130">
+<title id="tlT">Etapy obowiązkowego KSeF w 2026 roku</title>
+<desc id="tlD">Harmonogram: 1 lutego 2026 duzi podatnicy, 1 kwietnia 2026 pozostali podatnicy VAT, 1 stycznia 2027 najmniejsi zwolnieni z VAT. Większość restauracji obejmuje etap z kwietnia 2026.</desc>
+<line x1="30" y1="64" x2="530" y2="64" stroke="#2a3542" stroke-width="4"/>
+<line x1="30" y1="64" x2="300" y2="64" stroke="#3DDC97" stroke-width="4"/>
+<circle cx="110" cy="64" r="9" fill="#3DDC97"/>
+<circle cx="300" cy="64" r="9" fill="#3DDC97"/>
+<circle cx="490" cy="64" r="9" fill="#4f9cff"/>
+<text x="110" y="40" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">1 lut 2026</text>
+<text x="110" y="94" text-anchor="middle" fill="#9BA6B2" font-family="sans-serif" font-size="11">Duzi podatnicy</text>
+<text x="300" y="40" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">1 kwi 2026</text>
+<text x="300" y="94" text-anchor="middle" fill="#9BA6B2" font-family="sans-serif" font-size="11">Pozostali podatnicy VAT</text>
+<text x="490" y="40" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">1 sty 2027</text>
+<text x="490" y="94" text-anchor="middle" fill="#9BA6B2" font-family="sans-serif" font-size="11">Najmniejsi (zwoln. z VAT)</text>
+<text x="205" y="118" text-anchor="middle" fill="#3DDC97" font-family="sans-serif" font-size="11" font-weight="700">Większość restauracji: kwiecień 2026</text>
+</svg>
+<figcaption>Harmonogram wejścia obowiązkowego KSeF. Aktualne terminy weryfikuj na podatki.gov.pl.</figcaption>
+</figure>
+
 ## Co KSeF zmienia w restauracji?
 
 - **Koniec ręcznego zbierania faktur.** Nie musisz prosić dostawców o duplikaty ani przepisywać PDF-ów.
