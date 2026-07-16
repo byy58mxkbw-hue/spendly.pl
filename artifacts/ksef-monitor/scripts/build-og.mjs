@@ -100,6 +100,12 @@ function main() {
     console.log(`  og/${m.file}.png`);
   }
   console.log(`[og] wygenerowano ${files.length + 1 + MARKETING.length} okładek.`);
+
+  // Apple touch icon (ikona na ekranie głównym iOS) z favicon.svg → PNG 180×180.
+  const favSvg = readFileSync(path.join(ROOT, "public", "favicon.svg"), "utf8");
+  const favPng = new Resvg(favSvg, { fitTo: { mode: "width", value: 180 } }).render().asPng();
+  writeFileSync(path.join(ROOT, "public", "apple-touch-icon.png"), favPng);
+  console.log("  apple-touch-icon.png (180×180)");
 }
 
 main();
