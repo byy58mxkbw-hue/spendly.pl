@@ -342,12 +342,14 @@ function renderPost(post, related) {
     <meta property="og:description" content="${escAttr(post.meta.description)}" />
     <meta property="og:site_name" content="Spendly" />
     <meta property="og:locale" content="pl_PL" />
-    <meta property="og:image" content="${SITE}/opengraph.jpg" />
+    <meta property="og:image" content="${SITE}/blog/og/${post.slug}.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="article:published_time" content="${escAttr(post.meta.date)}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escAttr(post.meta.title)}" />
     <meta name="twitter:description" content="${escAttr(post.meta.description)}" />
-    <meta name="twitter:image" content="${SITE}/opengraph.jpg" />
+    <meta name="twitter:image" content="${SITE}/blog/og/${post.slug}.png" />
     <script type="application/ld+json">
 ${jsonLd(blogPosting)}
     </script>
@@ -433,10 +435,12 @@ function renderIndex(posts) {
     <meta property="og:description" content="Praktyczne poradniki dla restauracji: food cost, KSeF, automatyzacja faktur." />
     <meta property="og:site_name" content="Spendly" />
     <meta property="og:locale" content="pl_PL" />
-    <meta property="og:image" content="${SITE}/opengraph.jpg" />
+    <meta property="og:image" content="${SITE}/blog/og/_index.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Blog Spendly — food cost, KSeF i kontrola kosztów" />
-    <meta name="twitter:image" content="${SITE}/opengraph.jpg" />
+    <meta name="twitter:image" content="${SITE}/blog/og/_index.png" />
     <script type="application/ld+json">
 ${jsonLd(blogLd)}
     </script>
