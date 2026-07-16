@@ -12,6 +12,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const CONTENT_DIR = path.join(ROOT, "content", "blog");
 const OUT_DIR = path.join(ROOT, "public", "blog", "og");
+const SITE_OG_DIR = path.join(ROOT, "public", "og");
+
+// Okładki stron marketingowych (ręcznie pisane HTML — nie z content/blog).
+const MARKETING = [
+  { file: "site", category: "Spendly", title: "Kontrola kosztów restauracji z integracją KSeF" },
+  { file: "ksef", category: "Integracja KSeF", title: "Automatyczny import faktur zakupowych z KSeF" },
+  { file: "food-cost", category: "Food cost", title: "Kontrola food cost restauracji w czasie rzeczywistym" },
+  { file: "ocr-faktur", category: "OCR faktur", title: "Rozpoznawanie faktur ze zdjęcia i pliku PDF" },
+  { file: "cennik", category: "Cennik", title: "Bezpłatnie w okresie testowym — pełna kontrola kosztów" },
+];
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -38,7 +48,7 @@ function wrap(text, maxChars) {
   return lines;
 }
 
-function svgFor(title, category) {
+function svgFor(title, category, footer = "www.spendly.pl · blog") {
   const lines = wrap(title, 26).slice(0, 4);
   const fontSize = lines.length >= 4 ? 54 : 62;
   const lh = fontSize + 12;
@@ -61,7 +71,7 @@ function svgFor(title, category) {
   <text x="72" y="192" font-family="Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="3" fill="#3DDC97">${esc((category || "Poradnik").toUpperCase())}</text>
   <text font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="800" fill="#F5F7FA" letter-spacing="-1">${titleTspans}</text>
   <rect x="72" y="556" width="60" height="5" rx="2.5" fill="#3DDC97"/>
-  <text x="72" y="592" font-family="Arial, sans-serif" font-size="24" fill="#9BA6B2">www.spendly.pl · blog</text>
+  <text x="72" y="592" font-family="Arial, sans-serif" font-size="24" fill="#9BA6B2">${esc(footer)}</text>
 </svg>`;
 }
 
@@ -81,8 +91,15 @@ function main() {
   }
   // Okładka indeksu bloga.
   render(svgFor("Blog Spendly — food cost, KSeF i koszty w gastronomii", "Blog"), path.join(OUT_DIR, "_index.png"));
-  console.log(`  og/_index.png`);
-  console.log(`[og] wygenerowano ${files.length + 1} okładek.`);
+  console.log(`  blog/og/_index.png`);
+
+  // Okładki stron marketingowych → public/og/<file>.png
+  mkdirSync(SITE_OG_DIR, { recursive: true });
+  for (const m of MARKETING) {
+    render(svgFor(m.title, m.category, "www.spendly.pl"), path.join(SITE_OG_DIR, `${m.file}.png`));
+    console.log(`  og/${m.file}.png`);
+  }
+  console.log(`[og] wygenerowano ${files.length + 1 + MARKETING.length} okładek.`);
 }
 
 main();
