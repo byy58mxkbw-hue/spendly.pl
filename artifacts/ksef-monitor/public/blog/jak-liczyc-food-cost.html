@@ -116,6 +116,12 @@
       .post-body blockquote p{margin:0}
       .post-body hr{border:0;border-top:1px solid rgba(255,255,255,0.08);margin:32px 0}
       .table-wrap{overflow-x:auto;margin:0 0 22px}
+      .post-body figure{margin:26px 0}
+      .post-body img{max-width:100%;height:auto;border-radius:12px;border:1px solid rgba(255,255,255,0.08);display:block}
+      .post-body figcaption{font-size:13px;color:#6b7683;margin-top:10px;text-align:center}
+      .post-body figure.diagram{background:#0f151c;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:22px 20px}
+      .post-body figure.diagram svg{max-width:100%;height:auto;display:block;margin:0 auto}
+      .post-body figure.diagram img{border:0}
       .post-body table{border-collapse:collapse;width:100%;font-size:14px}
       .post-body th,.post-body td{border:1px solid rgba(255,255,255,0.10);padding:10px 12px;text-align:left}
       .post-body th{background:rgba(255,255,255,0.04);color:#F5F7FA;font-weight:600}
@@ -166,7 +172,7 @@
       <div class="wrap crumbs"><a href="/">Strona główna</a> › <a href="/blog">Blog</a> › Jak liczyć food cost w restauracji — wzór, przykłady i błędy</div>
       <article class="post">
         <h1>Jak liczyć food cost w restauracji — wzór, przykłady i błędy</h1>
-        <div class="post-meta"><span>14 lipca 2026</span><span>3 min czytania</span></div>
+        <div class="post-meta"><span>14 lipca 2026</span><span>4 min czytania</span></div>
         <p class="lead">Food cost to najważniejszy wskaźnik rentowności w gastronomii. Pokazujemy, jak policzyć go poprawnie — od wzoru, przez przykłady, po błędy, które cicho zjadają marżę.</p>
         <div class="post-body">
 <h2 id="czym-jest-food-cost">Czym jest food cost?</h2>
@@ -186,6 +192,20 @@
 <p>Policzmy burgera sprzedawanego za 39 zł (cena netto ok. 36,11 zł przy VAT 8%).</p>
 <div class="table-wrap"><table><thead><tr><th>Składnik</th><th>Ilość</th><th>Cena za kg/szt</th><th>Koszt</th></tr></thead><tbody><tr><td>Wołowina mielona</td><td>150 g</td><td>34 zł/kg</td><td>5,10 zł</td></tr><tr><td>Bułka brioche</td><td>1 szt</td><td>1,80 zł/szt</td><td>1,80 zł</td></tr><tr><td>Ser cheddar</td><td>30 g</td><td>42 zł/kg</td><td>1,26 zł</td></tr><tr><td>Warzywa i sosy</td><td>—</td><td>ryczałt</td><td>2,10 zł</td></tr><tr><td>Frytki (dodatek)</td><td>150 g</td><td>8 zł/kg</td><td>1,20 zł</td></tr></tbody></table></div>
 <p>Koszt składników = <strong>11,46 zł</strong>. Food cost = 11,46 / 36,11 × 100 = <strong>31,7%</strong>.</p>
+<figure class="diagram">
+<svg role="img" aria-labelledby="fcTitle fcDesc" viewBox="0 0 560 120">
+<title id="fcTitle">Rozbicie ceny netto dania na food cost i marżę</title>
+<desc id="fcDesc">Cena netto dania to 100 procent. Około 32 procent stanowi koszt składników (food cost), a pozostałe 68 procent to marża brutto na pokrycie kosztów pracy, najmu i zysku.</desc>
+<text x="0" y="20" fill="#9BA6B2" font-family="sans-serif" font-size="13">Cena netto dania = 100%</text>
+<rect x="0" y="34" width="179" height="42" rx="6" fill="#3DDC97"/>
+<rect x="183" y="34" width="377" height="42" rx="6" fill="#2a3542"/>
+<text x="12" y="61" fill="#06231a" font-family="sans-serif" font-size="14" font-weight="700">Food cost ~32%</text>
+<text x="197" y="61" fill="#F5F7FA" font-family="sans-serif" font-size="14" font-weight="700">Marża ~68%</text>
+<text x="0" y="100" fill="#6b7683" font-family="sans-serif" font-size="12">Koszt składników</text>
+<text x="183" y="100" fill="#6b7683" font-family="sans-serif" font-size="12">Na pracę, najem, media i zysk</text>
+</svg>
+<figcaption>Food cost to udział kosztu składników w cenie netto dania — im niższy, tym więcej zostaje na resztę kosztów i zysk.</figcaption>
+</figure>
 <p>To zdrowy wynik dla burgera. Gdyby wołowina podrożała o 20% (do 40,80 zł/kg), koszt porcji mięsa rośnie do 6,12 zł, a food cost całego dania skacze do <strong>34,5%</strong> — i nikt tego nie zauważy, dopóki nie policzy.</p>
 <h2 id="najczęstsze-błędy-przy-liczeniu-food-cost">Najczęstsze błędy przy liczeniu food cost</h2>
 <ol><li><strong>Liczenie od ceny brutto zamiast netto.</strong> VAT nie jest Twoim przychodem — food cost liczysz zawsze od kwoty netto.</li><li><strong>Pomijanie strat i odpadów.</strong> Obierki, przypalenia, dania oddane do kuchni — realne zużycie jest wyższe niż suma receptur. Doliczaj 3–8% na straty.</li><li><strong>Nieaktualne ceny w recepturach.</strong> Receptura sprzed pół roku z ceną masła „jak kiedyś" kłamie. Ceny surowców zmieniają się co tydzień.</li><li><strong>Uśrednianie zamiast pozycji po pozycji.</strong> Średni food cost 30% może ukrywać danie na 45%, które sprzedaje się najlepiej i najmocniej rozmywa marżę.</li><li><strong>Ignorowanie różnic między dostawcami.</strong> Ten sam produkt u dwóch dostawców potrafi różnić się o 15%. Bez porównania płacisz więcej z przyzwyczajenia.</li></ol>

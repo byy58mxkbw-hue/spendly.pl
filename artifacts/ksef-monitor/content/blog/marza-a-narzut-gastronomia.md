@@ -40,6 +40,23 @@ To dokładnie ta sama transakcja i ten sam zysk (20 zł). Ale narzut wynosi 200%
 
 > Zapamiętaj: **marża zawsze jest mniejsza niż narzut.** Marża nie może przekroczyć 100%, narzut może być dowolnie wysoki.
 
+<figure class="diagram">
+<svg role="img" aria-labelledby="mnTitle mnDesc" viewBox="0 0 560 150">
+<title id="mnTitle">Różnica między narzutem a marżą na przykładzie</title>
+<desc id="mnDesc">Danie kosztuje 10 złotych w składnikach i sprzedawane jest za 30 złotych. Zysk to 20 złotych. Narzut liczony od kosztu wynosi 200 procent, a marża liczona od ceny sprzedaży wynosi 66,7 procent.</desc>
+<text x="0" y="18" fill="#9BA6B2" font-family="sans-serif" font-size="13">Cena sprzedaży = 30 zł</text>
+<rect x="0" y="30" width="187" height="40" rx="6" fill="#2a3542"/>
+<rect x="191" y="30" width="369" height="40" rx="6" fill="#3DDC97"/>
+<text x="12" y="55" fill="#F5F7FA" font-family="sans-serif" font-size="13" font-weight="700">Koszt 10 zł</text>
+<text x="203" y="55" fill="#06231a" font-family="sans-serif" font-size="13" font-weight="700">Zysk 20 zł</text>
+<text x="0" y="106" fill="#3DDC97" font-family="sans-serif" font-size="15" font-weight="800">Narzut 200%</text>
+<text x="0" y="124" fill="#6b7683" font-family="sans-serif" font-size="12">zysk ÷ koszt (20 / 10)</text>
+<text x="300" y="106" fill="#3DDC97" font-family="sans-serif" font-size="15" font-weight="800">Marża 66,7%</text>
+<text x="300" y="124" fill="#6b7683" font-family="sans-serif" font-size="12">zysk ÷ cena (20 / 30)</text>
+</svg>
+<figcaption>Ten sam zysk (20 zł) to narzut 200% (liczony od kosztu) i marża 66,7% (liczona od ceny).</figcaption>
+</figure>
+
 ## Jak przeliczać jedno na drugie
 
 ```

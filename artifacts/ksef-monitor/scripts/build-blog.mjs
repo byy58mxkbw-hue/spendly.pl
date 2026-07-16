@@ -51,6 +51,9 @@ function inline(text) {
   let t = esc(text);
   // `kod`
   t = t.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
+  // ![alt](src) — obraz z tekstem alternatywnym (przed linkami, bo składnia się pokrywa)
+  t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, src) =>
+    `<img src="${escAttr(src)}" alt="${escAttr(alt)}" loading="lazy" />`);
   // [tekst](url)
   t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, txt, url) => {
     const ext = /^https?:\/\//.test(url) && !url.includes("spendly.pl");
@@ -86,6 +89,14 @@ function mdToHtml(md) {
     }
     // hr
     if (/^(-{3,}|_{3,})$/.test(line.trim())) { out.push("<hr />"); i++; continue; }
+    // Surowy blok HTML (np. <figure>, <svg>, <img>) — przepuszczamy bez escapowania
+    // (treść autorska, zaufana). Zbieramy do pustej linii.
+    if (/^\s*<(figure|svg|img|div|picture|table)\b/i.test(line)) {
+      const buf = [];
+      while (i < lines.length && lines[i].trim() !== "") { buf.push(lines[i]); i++; }
+      out.push(buf.join("\n"));
+      continue;
+    }
     // blockquote
     if (/^>\s?/.test(line)) {
       const buf = [];
@@ -196,6 +207,12 @@ const STYLE = `
       .post-body blockquote p{margin:0}
       .post-body hr{border:0;border-top:1px solid rgba(255,255,255,0.08);margin:32px 0}
       .table-wrap{overflow-x:auto;margin:0 0 22px}
+      .post-body figure{margin:26px 0}
+      .post-body img{max-width:100%;height:auto;border-radius:12px;border:1px solid rgba(255,255,255,0.08);display:block}
+      .post-body figcaption{font-size:13px;color:#6b7683;margin-top:10px;text-align:center}
+      .post-body figure.diagram{background:#0f151c;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:22px 20px}
+      .post-body figure.diagram svg{max-width:100%;height:auto;display:block;margin:0 auto}
+      .post-body figure.diagram img{border:0}
       .post-body table{border-collapse:collapse;width:100%;font-size:14px}
       .post-body th,.post-body td{border:1px solid rgba(255,255,255,0.10);padding:10px 12px;text-align:left}
       .post-body th{background:rgba(255,255,255,0.04);color:#F5F7FA;font-weight:600}
