@@ -40,10 +40,10 @@ const INVOICES = [
 ];
 
 const STATS = [
-  { v: "−18%", l: "Średnia redukcja strat kosztowych" },
-  { v: "15 s", l: "rozpoznanie faktury OCR" },
-  { v: "6 h", l: "mniej pracy z fakturami / tydzień" },
-  { v: "2 140 zł", l: "Średnia oszczędność / miesiąc" },
+  { v: "15 s", l: "Rozpoznanie faktury OCR" },
+  { v: "KSeF", l: "Automatyczny import faktur zakupowych" },
+  { v: "AES-256", l: "Szyfrowanie danych i tokenów KSeF" },
+  { v: "0 zł", l: "Pełny dostęp w okresie testowym" },
 ];
 
 const FAQS = [
@@ -144,7 +144,7 @@ export default function Home() {
           <a className="btn btn-ghost btn-lg" href="#ksef"><Play />Zobacz jak działa</a>
         </div>
         <div className="microcopy">
-          <span><Check />14 dni za darmo</span>
+          <span><Check />Bezpłatnie w okresie testowym</span>
           <span><Check />Bez karty</span>
           <span><Check />Konfiguracja w 10 minut</span>
         </div>
@@ -186,9 +186,9 @@ export default function Home() {
 
       {/* TRUST */}
       <div className="trust wrap">
-        <p>Zaufali nam operatorzy gastronomii w całej Polsce</p>
+        <p>Zbudowane pod polską gastronomię i obowiązkowy KSeF 2026</p>
         <div className="trust-row">
-          <span className="b">Bistro&nbsp;Foksal</span><span className="b">Grupa&nbsp;Mielżyński</span><span className="b">Hotel&nbsp;Bryza</span><span className="b">Pizzeria&nbsp;Nonna</span><span className="b">Kawa&nbsp;po&nbsp;Turecku</span>
+          <span className="b">Integracja&nbsp;z&nbsp;KSeF</span><span className="b">Szyfrowanie&nbsp;AES-256</span><span className="b">Serwery&nbsp;w&nbsp;UE&nbsp;·&nbsp;RODO</span><span className="b">Bez&nbsp;karty</span><span className="b">Anuluj&nbsp;kiedy&nbsp;chcesz</span>
         </div>
       </div>
 
@@ -253,7 +253,7 @@ export default function Home() {
         <div className="sec-head">
           <div className="sec-eye">Cennik</div>
           <h2>Prosty cennik, który się zwraca</h2>
-          <p>Bez ukrytych opłat. Anulujesz kiedy chcesz. Każdy plan zaczyna się od 14 dni za darmo.</p>
+          <p>Obecnie pełny dostęp <strong>bezpłatnie w okresie testowym</strong> — ceny poniżej wejdą po jego zakończeniu. Bez ukrytych opłat, anulujesz kiedy chcesz.</p>
         </div>
         <div className="price-grid">
           <div className="plan glass">
@@ -316,7 +316,7 @@ export default function Home() {
       <section className="blk wrap">
         <div className="cta-final glass">
           <h2>Zacznij kontrolować koszty już dziś</h2>
-          <p>14 dni za darmo, bez karty. Podłącz KSeF i zobacz pierwsze oszczędności w tym tygodniu.</p>
+          <p>Bezpłatnie w okresie testowym, bez karty. Podłącz KSeF i wyłap podwyżki cen, zanim wejdą do menu.</p>
           <div className="hero-cta">
             <a className="btn btn-primary btn-lg" href="/sign-up" onClick={go("/sign-up")}>Rozpocznij za darmo <ArrowRight /></a>
             <a className="btn btn-ghost btn-lg" href="mailto:kontakt@spendly.pl">Umów demo</a>
