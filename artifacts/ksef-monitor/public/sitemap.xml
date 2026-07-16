@@ -49,6 +49,24 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://www.spendly.pl/blog/food-waste-w-restauracji</loc>
+    <lastmod>2026-07-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.spendly.pl/blog/ksef-a-odliczenie-vat</loc>
+    <lastmod>2026-07-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.spendly.pl/blog/psychologia-cen-w-menu</loc>
+    <lastmod>2026-07-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://www.spendly.pl/blog/inwentaryzacja-w-restauracji</loc>
     <lastmod>2026-07-14</lastmod>
     <changefreq>monthly</changefreq>
