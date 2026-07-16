@@ -297,6 +297,7 @@ function renderPost(post, related) {
     "@type": "BlogPosting",
     headline: post.meta.title,
     description: post.meta.description,
+    image: [`${SITE}/blog/og/${post.slug}.png`],
     datePublished: post.meta.date,
     dateModified: post.meta.updated || post.meta.date,
     inLanguage: "pl-PL",
