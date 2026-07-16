@@ -50,6 +50,28 @@ Wzór daje punkt startowy, ale ostateczną cenę koryguje rynek i psychologia:
 
 Prawdziwa siła metody to zestawienie **rentowności** (marża) z **popularnością** (ile się sprzedaje). Każde danie wpada do jednej z czterech grup:
 
+<figure class="diagram">
+<svg role="img" aria-labelledby="meT meD" viewBox="0 0 400 300">
+<title id="meT">Menu engineering — cztery grupy dań wg marży i popularności</title>
+<desc id="meD">Dania dzieli się według marży (oś pionowa) i popularności (oś pozioma). Wysoka marża i wysoka sprzedaż to Gwiazdy. Niska marża i wysoka sprzedaż to Konie robocze. Wysoka marża i niska sprzedaż to Zagadki. Niska marża i niska sprzedaż to Psy.</desc>
+<rect x="66" y="26" width="156" height="108" rx="8" fill="#2a3542"/>
+<rect x="226" y="26" width="156" height="108" rx="8" fill="#3DDC97"/>
+<rect x="66" y="138" width="156" height="108" rx="8" fill="#3a2330"/>
+<rect x="226" y="138" width="156" height="108" rx="8" fill="#243b55"/>
+<text x="144" y="78" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="15" font-weight="800">Zagadki</text>
+<text x="144" y="98" text-anchor="middle" fill="#9BA6B2" font-family="sans-serif" font-size="11">promuj, opisz lepiej</text>
+<text x="304" y="78" text-anchor="middle" fill="#06231a" font-family="sans-serif" font-size="15" font-weight="800">Gwiazdy</text>
+<text x="304" y="98" text-anchor="middle" fill="#06231a" font-family="sans-serif" font-size="11">eksponuj, chroń jakość</text>
+<text x="144" y="190" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="15" font-weight="800">Psy</text>
+<text x="144" y="210" text-anchor="middle" fill="#9BA6B2" font-family="sans-serif" font-size="11">przeprojektuj lub usuń</text>
+<text x="304" y="190" text-anchor="middle" fill="#F5F7FA" font-family="sans-serif" font-size="14" font-weight="800">Konie robocze</text>
+<text x="304" y="210" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11">podnieś cenę lub tnij koszt</text>
+<text transform="translate(26,136) rotate(-90)" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="12">Marża →</text>
+<text x="224" y="272" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="12">Popularność →</text>
+</svg>
+<figcaption>Eksponuj Gwiazdy, popraw Konie robocze i Zagadki, a Psy przeprojektuj lub usuń z karty.</figcaption>
+</figure>
+
 | Grupa | Marża | Sprzedaż | Co robić |
 |---|---|---|---|
 | Gwiazdy | wysoka | wysoka | eksponować, chronić jakość |

@@ -24,6 +24,24 @@ Prime cost % = (koszt surowców + koszt pracy) / przychód × 100
 
 > Przykład: przychód miesięczny 120 000 zł. Surowce = 36 000 zł (food cost 30%), koszt pracy = 34 000 zł (28%). Prime cost = 70 000 zł = **58%**. To zdrowy wynik.
 
+<figure class="diagram">
+<svg role="img" aria-labelledby="pcT pcD" viewBox="0 0 560 132">
+<title id="pcT">Struktura przychodu restauracji — prime cost i pozostałe koszty</title>
+<desc id="pcD">Przychód to 100 procent. Około 30 procent to koszt surowców (food cost), 28 procent to koszt pracy — razem tworzą prime cost, około 58 procent. Pozostałe 42 procent pokrywa czynsz, media, marketing i zysk.</desc>
+<text x="0" y="18" fill="#9BA6B2" font-family="sans-serif" font-size="13">Przychód = 100%</text>
+<rect x="0" y="30" width="168" height="40" rx="6" fill="#3DDC97"/>
+<rect x="172" y="30" width="157" height="40" rx="6" fill="#4f9cff"/>
+<rect x="333" y="30" width="227" height="40" rx="6" fill="#2a3542"/>
+<text x="10" y="55" fill="#06231a" font-family="sans-serif" font-size="12" font-weight="700">Food cost 30%</text>
+<text x="182" y="55" fill="#04121f" font-family="sans-serif" font-size="12" font-weight="700">Praca 28%</text>
+<text x="343" y="55" fill="#F5F7FA" font-family="sans-serif" font-size="12" font-weight="700">Reszta + zysk 42%</text>
+<rect x="0" y="84" width="329" height="6" rx="3" fill="#3DDC97" opacity="0.55"/>
+<text x="0" y="112" fill="#3DDC97" font-family="sans-serif" font-size="14" font-weight="800">Prime cost ≈ 58%</text>
+<text x="150" y="112" fill="#6b7683" font-family="sans-serif" font-size="12">surowce + praca · zdrowy cel: 55–65%</text>
+</svg>
+<figcaption>Prime cost to suma kosztu surowców i pracy — dwa największe koszty, które decydują o rentowności lokalu.</figcaption>
+</figure>
+
 ## Ile powinien wynosić prime cost?
 
 | Typ lokalu | Zdrowy prime cost | Uwagi |

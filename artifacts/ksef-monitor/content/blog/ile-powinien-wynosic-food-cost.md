@@ -13,6 +13,21 @@ lead: „Trzydzieści procent" to popularna odpowiedź, ale nie dla każdego lok
 
 Dla większości restauracji zdrowy food cost mieści się w przedziale **28–35%**. To znaczy, że koszt surowców powinien pochłaniać najwyżej jedną trzecią ceny dania. Ale „idealny" food cost zależy od typu lokalu, modelu i struktury pozostałych kosztów.
 
+<figure class="diagram">
+<svg role="img" aria-labelledby="fgT fgD" viewBox="0 0 560 96">
+<title id="fgT">Zdrowy zakres food cost dla restauracji</title>
+<desc id="fgD">Na skali od 0 do 50 procent zdrowy food cost dla większości restauracji mieści się w przedziale od 28 do 35 procent.</desc>
+<rect x="0" y="42" width="560" height="16" rx="8" fill="#2a3542"/>
+<rect x="314" y="42" width="78" height="16" rx="8" fill="#3DDC97"/>
+<text x="0" y="30" fill="#6b7683" font-family="sans-serif" font-size="12">0%</text>
+<text x="540" y="30" fill="#6b7683" font-family="sans-serif" font-size="12">50%</text>
+<text x="300" y="30" fill="#3DDC97" font-family="sans-serif" font-size="13" font-weight="800">28%</text>
+<text x="372" y="30" fill="#3DDC97" font-family="sans-serif" font-size="13" font-weight="800">35%</text>
+<text x="250" y="82" fill="#9BA6B2" font-family="sans-serif" font-size="13">Zdrowy zakres</text>
+</svg>
+<figcaption>Dla większości lokali celuj w food cost 28–35%. Poniżej — bardzo dobrze; powyżej — sygnał do reakcji.</figcaption>
+</figure>
+
 Jeśli nie wiesz, jak w ogóle policzyć swój wskaźnik, zacznij od: [Jak liczyć food cost](/blog/jak-liczyc-food-cost).
 
 ## Widełki food cost według typu lokalu
