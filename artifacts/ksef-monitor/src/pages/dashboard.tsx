@@ -9,6 +9,7 @@ import {
   useGetKsefConfig,
   useListKsefPending,
   useListSuppliers,
+  useListPriceAlerts,
   useDismissPriceAlert,
   getGetDashboardActiveAlertsQueryKey,
   getGetPriceAlertsHistoryQueryKey,
@@ -243,10 +244,23 @@ function DashboardPage() {
   const { data: config } = useGetKsefConfig();
   const { data: pendingList } = useListKsefPending({ status: "pending" });
   const { data: suppliers } = useListSuppliers();
+  const { data: priceAlerts } = useListPriceAlerts();
   const { phase: syncPhase, startSync, isPending: syncPending } = useSyncKsefProgress();
 
   const hasSuppliers = (suppliers?.length ?? 0) > 0;
-  const showOnboarding = !config || !hasSuppliers;
+  const hasAlerts = (priceAlerts?.length ?? 0) > 0;
+  // Checklist aktywacji: widoczna aż WSZYSTKIE 3 kroki gotowe (nie znika po 1.
+  // fakturze), z możliwością ukrycia. Kroki odhaczają się wg realnego stanu.
+  const onbSteps = [!!config, hasSuppliers, hasAlerts];
+  const onbDone = onbSteps.filter(Boolean).length;
+  const [onbHidden, setOnbHidden] = useState<boolean>(() => {
+    try { return localStorage.getItem("spendly_onboarding_hidden") === "1"; } catch { return false; }
+  });
+  const hideOnboarding = () => {
+    setOnbHidden(true);
+    try { localStorage.setItem("spendly_onboarding_hidden", "1"); } catch { /* ignore */ }
+  };
+  const showOnboarding = onbDone < 3 && !onbHidden;
   const pendingCount = pendingList?.length ?? 0;
 
   async function handleSync() {
@@ -386,16 +400,31 @@ function DashboardPage() {
         {/* Powitalny samouczek — raz dla nowego użytkownika */}
         <WelcomeOnboarding ready={suppliers !== undefined} hasData={!!config || hasSuppliers} />
 
-        {/* Onboarding */}
+        {/* Onboarding — checklist aktywacji z realnym postępem */}
         {showOnboarding && (
           <div className="mb-4 glass rounded-xl p-5">
-            <h2 className="font-semibold text-foreground mb-0.5">Zacznij w 3 krokach</h2>
-            <p className="text-sm text-muted-foreground mb-4">Skonfiguruj aplikację, żeby zacząć śledzić ceny surowców.</p>
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <h2 className="font-semibold text-foreground">Zacznij w 3 krokach</h2>
+              <button
+                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0"
+                onClick={hideOnboarding}
+              >
+                Ukryj
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">Skonfiguruj aplikację, żeby zacząć śledzić ceny surowców.</p>
+            {/* Pasek postępu */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${(onbDone / 3) * 100}%` }} />
+              </div>
+              <span className="text-xs font-medium text-muted-foreground shrink-0">{onbDone} z 3</span>
+            </div>
             <div className="space-y-2.5">
               {[
                 { done: !!config, label: "Skonfiguruj KSeF", desc: "Wpisz NIP i token, aby pobierać faktury automatycznie", href: "/settings/ksef", cta: "Ustawienia" },
                 { done: hasSuppliers, label: "Dodaj fakturę lub zsynchronizuj KSeF", desc: "Pobierz z KSeF albo dodaj zakup ręcznie", href: "/invoices", cta: "Faktury" },
-                { done: false, label: "Ustaw alerty cenowe", desc: "Monitoruj wzrosty cen kluczowych surowców", href: "/price-alerts", cta: "Alerty" },
+                { done: hasAlerts, label: "Ustaw alerty cenowe", desc: "Monitoruj wzrosty cen kluczowych surowców", href: "/price-alerts", cta: "Alerty" },
               ].map((step, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <div className={cn("w-5 h-5 flex items-center justify-center shrink-0", step.done ? "text-primary" : "text-border")}>
