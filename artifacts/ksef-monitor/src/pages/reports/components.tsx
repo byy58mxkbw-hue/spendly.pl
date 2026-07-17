@@ -709,7 +709,7 @@ export function RecommendationsList({ products }: { products: ProductWithImpact[
 
     for (const p of topPrice) {
       items.push({
-        text: `Negocjuj cenę ${p.productName} – potencjalna oszczędność ${formatPrice(p.priceImpact)} miesięcznie`,
+        text: `Negocjuj cenę ${p.productName} – potencjalna oszczędność ${formatPrice(p.priceImpact)} w tym okresie`,
       });
     }
 
@@ -720,7 +720,7 @@ export function RecommendationsList({ products }: { products: ProductWithImpact[
 
     for (const p of topQty) {
       items.push({
-        text: `Zmniejsz zakupy ${p.productName} – zakupiono ${p.qtyPct.toFixed(0)}% więcej niż miesiąc temu`,
+        text: `Zmniejsz zakupy ${p.productName} – zakupiono ${p.qtyPct.toFixed(0)}% więcej niż w poprzednim okresie`,
       });
     }
 
@@ -1071,7 +1071,7 @@ export function CategoryBarChartTooltip({
       <p className="text-muted-foreground mt-0.5">{d.pct.toFixed(1)}% budżetu</p>
       {d.trend != null && (
         <p className={cn("mt-1 font-semibold", d.trend > 0 ? "text-red-500" : "text-emerald-600")}>
-          {d.trend > 0 ? "+" : ""}{d.trend.toFixed(1)}% vs poprz. miesiąc
+          {d.trend > 0 ? "+" : ""}{d.trend.toFixed(1)}% vs poprz. okres
         </p>
       )}
     </div>
@@ -1466,12 +1466,12 @@ export function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
       items: bridge.topVolumeDrivers.map((d) => ({ name: d.productName, unit: d.unit, amount: d.amount, pct: d.qtyPct })),
     },
     {
-      key: "nowe", label: "Nowe produkty", hint: "kupione teraz, nie było miesiąc temu",
+      key: "nowe", label: "Nowe produkty", hint: "kupione teraz, nie było w poprzednim okresie",
       amount: bridge.newEffect,
       items: bridge.newProducts.map((d) => ({ name: d.productName, unit: d.unit, amount: d.amount })),
     },
     {
-      key: "drop", label: "Przestałeś kupować", hint: "były miesiąc temu, teraz ich brak",
+      key: "drop", label: "Przestałeś kupować", hint: "były w poprzednim okresie, teraz ich brak",
       amount: bridge.droppedEffect,
       items: bridge.droppedProducts.map((d) => ({ name: d.productName, unit: d.unit, amount: -d.amount })),
     },
@@ -1545,7 +1545,7 @@ export function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
       {namingArtefact && (
         <p className="mx-4 md:mx-5 mb-4 -mt-1 text-[11px] text-muted-foreground bg-secondary/50 rounded-lg px-3 py-2">
           „Nowe produkty" i „przestałeś kupować" bywają wysokie, gdy KSeF nazywa ten sam produkt
-          co miesiąc trochę inaczej — wtedy zwykle się równoważą i nie oznaczają realnej zmiany.
+          w kolejnych okresach trochę inaczej — wtedy zwykle się równoważą i nie oznaczają realnej zmiany.
         </p>
       )}
     </div>

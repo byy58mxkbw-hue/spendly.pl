@@ -240,7 +240,7 @@ function ReportsInner() {
               size="sm"
               onClick={handleExportXlsx}
               disabled={exportingXlsx}
-              title="Zakupy per centrum kosztów, z porównaniem do poprzedniego miesiąca"
+              title="Zakupy per centrum kosztów, z porównaniem do poprzedniego okresu"
               aria-label="Eksport Excel"
               className="gap-1.5 text-xs flex"
             >
@@ -258,7 +258,7 @@ function ReportsInner() {
         {monthlyError && (
           <ErrorState
             onRetry={() => refetchMonthly()}
-            message="Nie udało się pobrać raportu miesięcznego. Spróbuj ponownie."
+            message="Nie udało się pobrać raportu okresu. Spróbuj ponownie."
             className="glass rounded-xl mb-5"
           />
         )}
