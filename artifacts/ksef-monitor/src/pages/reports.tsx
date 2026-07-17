@@ -346,13 +346,13 @@ function ReportsInner() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <SectionCard
                   title="Ceny produktów"
-                  subtitle="Średnia cena teraz vs poprzedni miesiąc i vs zwykle"
+                  subtitle="Średnia cena teraz vs poprzedni okres i vs zwykle"
                 >
                   <PriceBenchmarkList rows={bridge.priceBenchmark} />
                 </SectionCard>
                 <SectionCard
                   title="Ilości produktów"
-                  subtitle="Ile kupiłeś w tym miesiącu vs poprzedni"
+                  subtitle="Ile kupiłeś w tym okresie vs poprzedni"
                 >
                   <QuantityMoversList rows={bridge.quantityMovers} />
                 </SectionCard>
@@ -425,6 +425,14 @@ function ReportsInner() {
                 <p className="text-sm text-muted-foreground">
                   Zaimportuj faktury, aby zobaczyć raport.
                 </p>
+                <div className="mt-4 flex justify-center">
+                  <Link href="/invoices">
+                    <Button size="sm" className="gap-1.5">
+                      <FileText className="w-3.5 h-3.5" />
+                      Przejdź do faktur
+                    </Button>
+                  </Link>
+                </div>
               </div>
             )}
           </TabsContent>
@@ -438,7 +446,7 @@ function ReportsInner() {
                 <div className="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-foreground">Produkty · {allProducts.length}</h3>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">Ceny i ilości w jednym miejscu — vs poprzedni miesiąc, vs zwykle, gdzie taniej</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Ceny i ilości w jednym miejscu — vs poprzedni okres, vs zwykle, gdzie taniej</p>
                   </div>
                   <span className="text-xs text-muted-foreground shrink-0">
                     Łącznie {formatPrice(data?.totalSpend ?? 0)}
