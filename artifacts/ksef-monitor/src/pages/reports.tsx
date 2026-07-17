@@ -18,49 +18,15 @@ import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  LabelList,
-  Legend,
-} from "recharts";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ArrowUp,
-  ArrowDown,
-  AlertTriangle,
-  CheckCircle2,
-  Sparkles,
-  ShoppingCart,
   FileText,
   Package,
-  Bell,
-  TrendingUp,
-  BarChart3,
   Users,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Layers,
   Download,
   FileSpreadsheet,
   Loader2,
 } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { CATEGORIES } from "@/lib/categories";
 import { Link, useLocation } from "wouter";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import {
@@ -234,10 +200,6 @@ function ReportsInner() {
   }, [data]);
 
   const prevMonthTotalSpend = prevData?.totalSpend ?? 0;
-  const momPct =
-    prevMonthTotalSpend > 0
-      ? ((( data?.totalSpend ?? 0) - prevMonthTotalSpend) / prevMonthTotalSpend) * 100
-      : 0;
 
   const totalPriceImpact = useMemo(
     () => allProducts.filter((p) => p.priceImpact > 0).reduce((s, p) => s + p.priceImpact, 0),
