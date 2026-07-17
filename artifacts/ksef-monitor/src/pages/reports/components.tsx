@@ -209,7 +209,7 @@ export function AiSummaryBlock({
   const mainSentence =
     prevSpend > 0
       ? `Wydałeś ${isUp ? "o " + formatPrice(Math.abs(diff)) + " więcej" : "o " + formatPrice(Math.abs(diff)) + " mniej"} niż w poprzednim miesiącu (${isUp ? "+" : ""}${momPct.toFixed(1)}%).${drivers ? ` Główne przyczyny: ${drivers}.` : ""}`
-      : `Łączne zakupy w tym miesiącu: ${formatPrice(totalSpend)}.`;
+      : `Łączne zakupy w wybranym okresie: ${formatPrice(totalSpend)}.`;
 
   const savingsDriver = topImpact.find((p) => p.priceImpact > 200);
   const secondSentence = savingsDriver
@@ -743,7 +743,7 @@ export function RecommendationsList({ products }: { products: ProductWithImpact[
     }
 
     if (items.length === 0) {
-      items.push({ text: "Brak anomalii cenowych w tym miesiącu – utrzymaj obecną strategię zakupów." });
+      items.push({ text: "Brak anomalii cenowych w tym okresie – utrzymaj obecną strategię zakupów." });
     }
 
     return items.slice(0, 4);
@@ -1450,7 +1450,7 @@ export function SpendHero({ bridge, monthName }: { bridge: SpendBridge; monthNam
       <p className="text-3xl md:text-4xl font-bold text-foreground tabular-nums mt-1">{formatPrice(bridge.currentSpend)}</p>
       <div className="flex flex-wrap gap-2 mt-3">
         <span className="inline-flex items-center gap-1.5 rounded-lg bg-secondary/60 px-3 py-1.5 text-sm">
-          <span className="text-muted-foreground">vs poprzedni miesiąc:</span>
+          <span className="text-muted-foreground">vs poprzedni okres:</span>
           <span className={cn("font-semibold", costTone(vsPrev))}>
             {signedPct(vsPrev)} {vsPrev != null && `(${bridge.deltaSpend > 0 ? "+" : ""}${formatPrice(bridge.deltaSpend)})`}
           </span>
@@ -1503,7 +1503,7 @@ export function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
         <span className={cn("font-semibold", costTone(bridge.deltaSpend))}>
           {bridge.deltaSpend > 0 ? "+" : ""}{formatPrice(bridge.deltaSpend)}
         </span>{" "}
-        vs poprzedni miesiąc bierze się z:
+        vs poprzedni okres bierze się z:
       </p>
       <p className="px-4 md:px-5 pt-1 text-[11px] text-muted-foreground">Kliknij wiersz, aby zobaczyć produkty.</p>
       <div className="p-4 md:p-5 space-y-1">
