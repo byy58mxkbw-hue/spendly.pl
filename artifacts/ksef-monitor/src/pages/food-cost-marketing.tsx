@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Check, ArrowRight, ChevronRight, Percent, TrendingDown, Bell, Calculator, RefreshCw } from "lucide-react";
+import { ArrowRight, ChevronRight, Percent, TrendingDown, Bell, Calculator, RefreshCw } from "lucide-react";
 import { useMarketingTheme } from "@/lib/marketing-theme";
 import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
 

@@ -8,8 +8,6 @@ import {
   getGetInvoiceQueryKey,
   getListInvoicesQueryKey,
 } from "@workspace/api-client-react";
-import { PAYMENT_METHOD_LABELS } from "./constants";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {

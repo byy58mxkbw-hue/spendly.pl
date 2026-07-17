@@ -5,10 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useGetMonthlyReport,
-  useGetCategorySpend,
   useGetCategorySpendTrend,
-  useGetDashboardActiveAlerts,
-  useGetReportsCostCenters,
   useGetSpendBridge,
 } from "@workspace/api-client-react";
 import type { ReportProductRow, ReportSupplierRow, SpendBridge } from "@workspace/api-client-react";
@@ -186,9 +183,6 @@ function ReportsInner() {
     { from: prev.from, to: prev.to, ...ccParam },
     { query: { queryKey: ["monthly-report", prev.from, prev.to, costCenterId] } },
   );
-  const { data: alerts } = useGetDashboardActiveAlerts({
-    query: { queryKey: ["dashboard-active-alerts"] },
-  });
   const { data: bridge } = useGetSpendBridge(
     { from: period.from, to: period.to, ...ccParam },
     { query: { queryKey: ["spend-bridge", period.from, period.to, costCenterId] } },
@@ -200,14 +194,6 @@ function ReportsInner() {
   }, [data]);
 
   const prevMonthTotalSpend = prevData?.totalSpend ?? 0;
-
-  const totalPriceImpact = useMemo(
-    () => allProducts.filter((p) => p.priceImpact > 0).reduce((s, p) => s + p.priceImpact, 0),
-    [allProducts],
-  );
-
-  const alertCount = alerts?.length ?? 0;
-  const criticalCount = alerts?.filter((a) => a.changePercent > a.thresholdPercent * 1.5).length ?? 0;
 
   return (
     <Layout>

@@ -1,8 +1,7 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from "react";
-import { Layout, PageHeader } from "@/components/layout";
+import { useState, useMemo } from "react";
+import { Layout } from "@/components/layout";
 import {
   useListInvoices,
-  useImportInvoice,
   useListSuppliers,
   useDeleteAllInvoices,
   useGetKsefConfig,
@@ -20,8 +19,6 @@ import { useSyncKsefProgress, syncPhaseProgress, describeSyncResult, type SyncPh
 import { Progress } from "@/components/ui/progress";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -60,17 +57,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  ChevronLeft, ChevronRight, Plus, FileText, Trash2, Download,
-  RefreshCw, Camera, Loader2, CheckCircle2, Package,
-  X, Search, Eye, EyeOff, Check, Layers, ArrowUpDown, LineChart, Copy,
+  ChevronLeft, ChevronRight, Plus, RefreshCw, Loader2, CheckCircle2, Package,
 } from "lucide-react";
 import { formatPrice, formatDate } from "@/lib/format";
-import { PriceHistoryModal } from "./products";
 import { ImportInvoiceDialog } from "./invoices/import-invoice-dialog";
 import { InvoiceDetailModal } from "./invoices/invoice-detail-modal";
 import { FakturyView } from "./invoices/faktury-view";
 import { cn } from "@/lib/utils";
-import { track } from "@/lib/posthog";
 import { useToast } from "@/hooks/use-toast";
 
 // ─── Category labels ──────────────────────────────────────────────────────────

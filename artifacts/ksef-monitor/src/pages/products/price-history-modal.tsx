@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useGetProductPriceHistory, getGetProductPriceHistoryQueryKey } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";

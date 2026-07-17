@@ -51,7 +51,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  AlertTriangle,
   CheckCircle2,
   X,
   Inbox,
@@ -63,7 +62,6 @@ import {
   ChevronRight,
   Receipt,
   Trash2,
-  ArrowUpDown,
   CalendarDays,
   List,
 } from "lucide-react";

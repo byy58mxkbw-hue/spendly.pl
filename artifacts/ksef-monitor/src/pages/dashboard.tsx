@@ -17,8 +17,6 @@ import {
 import {
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -36,7 +34,6 @@ import {
   Bell,
   ChevronRight,
   RefreshCw,
-  Inbox,
   CheckCircle2,
   Circle,
   AlertTriangle,

@@ -282,8 +282,8 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
               Zastosuj sugestie ({suggestionCount})
             </Button>
           )}
-          <Button variant="outline" size="icon" onClick={handleExport} title="Eksportuj CSV" className="shrink-0">
-            <Download className="w-4 h-4" />
+          <Button variant="outline" size="icon" onClick={handleExport} disabled={isExporting} title="Eksportuj CSV" className="shrink-0">
+            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           </Button>
           <Button variant="outline" size="icon" onClick={onDeleteAllClick} title="Usuń wszystkie" className="shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10">
             <Trash2 className="w-4 h-4" />

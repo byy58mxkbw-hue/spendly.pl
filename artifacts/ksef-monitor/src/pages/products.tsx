@@ -18,7 +18,6 @@ import {
 import { currentMonth } from "@/lib/month";
 import { MonthNavigator } from "@/components/month-navigator";
 import { categorizeProduct } from "@/lib/categories";
-import { useToast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,7 +46,6 @@ import {
   Search,
   TrendingUp,
   TrendingDown,
-  Minus,
   Package,
   ArrowDownAZ,
   ArrowUpZA,
@@ -57,8 +55,6 @@ import {
   ShoppingCart,
   Layers,
   X,
-  Plus,
-  Trash2,
   Download,
   AlertTriangle,
   ChevronDown,
@@ -67,48 +63,20 @@ import {
   CheckSquare,
   CheckCheck,
 } from "lucide-react";
-import { formatPrice, formatPercent, formatDate } from "@/lib/format";
+import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import { PriceChangeBadge } from "./products/shared";
 import { KeywordComparisonModal } from "./products/keyword-comparison-modal";
 import { PriceHistoryModal } from "./products/price-history-modal";
 import { SupplierComparisonModal } from "./products/supplier-comparison-modal";
-import { CreateCategoryModal, RenameCategoryModal, CategoryBadge } from "./products/category-management";
+import { CategoryBadge } from "./products/category-management";
 
 // Re-eksport: PriceHistoryModal jest używany przez inne strony (dashboard, invoices,
 // price-alerts, supplier-detail) przez `from "./products"` — utrzymujemy ścieżkę.
 export { PriceHistoryModal };
 
 type SortKey = "name-asc" | "name-desc" | "price-desc" | "price-asc" | "change-desc" | "supplier-asc" | "quantity-desc" | "quantity-asc";
-function sortProducts<T extends { name: string; supplierName?: string | null; latestPrice?: number | null; priceChangePercent?: number | null; totalQuantity?: number | null }>(
-  list: T[],
-  sort: SortKey
-): T[] {
-  return [...list].sort((a, b) => {
-    switch (sort) {
-      case "name-asc":
-        return a.name.localeCompare(b.name, "pl");
-      case "name-desc":
-        return b.name.localeCompare(a.name, "pl");
-      case "price-desc":
-        return (b.latestPrice ?? 0) - (a.latestPrice ?? 0);
-      case "price-asc":
-        return (a.latestPrice ?? 0) - (b.latestPrice ?? 0);
-      case "change-desc":
-        return Math.abs(b.priceChangePercent ?? 0) - Math.abs(a.priceChangePercent ?? 0);
-      case "supplier-asc":
-        return (a.supplierName ?? "").localeCompare(b.supplierName ?? "", "pl");
-      case "quantity-desc":
-        return (b.totalQuantity ?? 0) - (a.totalQuantity ?? 0);
-      case "quantity-asc":
-        return (a.totalQuantity ?? 0) - (b.totalQuantity ?? 0);
-      default:
-        return 0;
-    }
-  });
-}
-
 type ModalMode = "history" | "comparison";
 
 export default function Products() {

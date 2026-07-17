@@ -1,28 +1,21 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
-  useGetMonthlyReport,
   useGetCategorySpend,
   useGetCategorySpendTrend,
   useGetDashboardActiveAlerts,
   useGetReportsCostCenters,
-  useGetSpendBridge,
 } from "@workspace/api-client-react";
 import type { ReportProductRow, ReportSupplierRow, SpendBridge } from "@workspace/api-client-react";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { usePeriod } from "@/contexts/period-context";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  PieChart,
-  Pie,
   Cell,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -34,30 +27,19 @@ import {
   Legend,
 } from "recharts";
 import {
-  ChevronLeft,
-  ChevronRight,
   ArrowUp,
   ArrowDown,
   AlertTriangle,
   CheckCircle2,
   Sparkles,
-  ShoppingCart,
-  FileText,
-  Package,
-  Bell,
-  TrendingUp,
-  BarChart3,
-  Users,
   ChevronDown,
   ChevronUp,
   ExternalLink,
-  Layers,
-  Download,
 } from "lucide-react";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/categories";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 
 // ─── Month helpers ─────────────────────────────────────────────────────────────
