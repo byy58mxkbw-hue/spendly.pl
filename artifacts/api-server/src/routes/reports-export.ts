@@ -140,8 +140,8 @@ function buildWorkbook(
   opts: { sheetName: string; title: string; subtitle: string; emptyMsg: string },
 ): ExcelJS.Workbook {
   const headers = withQtyCompare
-    ? ["Produkt", "Ilość", "Ilość poprz. mies.", "Zmiana ilości", "Jedn.", "Śr. cena brutto", "Wartość brutto", "Śr. cena poprz. mies.", "Zmiana", "Zmiana %"]
-    : ["Produkt", "Ilość", "Jedn.", "Śr. cena brutto", "Wartość brutto", "Śr. cena poprz. mies.", "Zmiana", "Zmiana %"];
+    ? ["Produkt", "Ilość", "Ilość poprz. okres", "Zmiana ilości", "Jedn.", "Śr. cena brutto", "Wartość brutto", "Śr. cena poprz. okres", "Zmiana", "Zmiana %"]
+    : ["Produkt", "Ilość", "Jedn.", "Śr. cena brutto", "Wartość brutto", "Śr. cena poprz. okres", "Zmiana", "Zmiana %"];
   const widths = withQtyCompare
     ? [42, 11, 15, 13, 8, 15, 15, 18, 12, 10]
     : [42, 11, 8, 16, 16, 20, 13, 11];
