@@ -112,7 +112,7 @@ export async function findOrCreateProductByName(
     .where(
       and(
         eq(productsTable.userId, userId),
-        sql`regexp_replace(LOWER(${productsTable.name}), '\s+', ' ', 'g') = regexp_replace(LOWER(${trimmed}), '\s+', ' ', 'g')`,
+        sql`regexp_replace(LOWER(${productsTable.name}), '\\s+', ' ', 'g') = regexp_replace(LOWER(${trimmed}), '\\s+', ' ', 'g')`,
       ),
     )
     .limit(1);
@@ -161,7 +161,7 @@ export async function tryMatch(userId: string, parsed: ParsedFa3): Promise<Match
       .where(
         and(
           eq(productsTable.userId, userId),
-          sql`regexp_replace(LOWER(${productsTable.name}), '\s+', ' ', 'g') = regexp_replace(LOWER(${item.name}), '\s+', ' ', 'g')`,
+          sql`regexp_replace(LOWER(${productsTable.name}), '\\s+', ' ', 'g') = regexp_replace(LOWER(${item.name}), '\\s+', ' ', 'g')`,
         ),
       )
       .limit(1);
