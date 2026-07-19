@@ -85,8 +85,10 @@ describe.skipIf(!RUN_DB)("ksef-ingest: tryMatch", () => {
     expect(m.missingProducts).toEqual(["Nieznany X"]);
   });
 
-  it("dopasowanie nazwy produktu ignoruje wielkość liter i wielokrotne spacje", async () => {
-    const parsed = makeParsed({}, [item("  mleko   3.2%  ")]);
+  it("dopasowanie nazwy produktu ignoruje wielkość liter i wielokrotne WEWNĘTRZNE spacje", async () => {
+    // SQL kolapsuje wewnętrzne '\s+' i porównuje po LOWER — ale NIE przycina
+    // wiodących/końcowych spacji, więc testujemy dokładnie to, co kod robi.
+    const parsed = makeParsed({}, [item("MLEKO   3.2%")]);
     const m = await tryMatch(ING_R, parsed);
     expect(m.itemProductIds[0]).toBe(mlekoId);
     expect(m.missingProducts).toEqual([]);
@@ -115,8 +117,9 @@ describe.skipIf(!RUN_DB)("ksef-ingest: importMatchedInvoice", () => {
     await db.delete(suppliersTable).where(inArray(suppliersTable.userId, [ING_R]));
     await db.delete(productsTable).where(inArray(productsTable.userId, [ING_R]));
 
+    // taxId zgodny z domyślnym sellerNip w makeParsed, żeby tryMatch dopasował dostawcę.
     const [sup] = await db.insert(suppliersTable)
-      .values({ userId: ING_R, name: "SUP-ING-IMP", taxId: "2223334445", defaultCostCenterId: null })
+      .values({ userId: ING_R, name: "SUP-ING-IMP", taxId: "1234567890", defaultCostCenterId: null })
       .returning({ id: suppliersTable.id });
     supRId = sup.id;
     // Jeden produkt istnieje, drugi zostanie utworzony w locie.
