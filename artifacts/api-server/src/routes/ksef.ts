@@ -409,7 +409,6 @@ async function runSync(
   onProgress({ type: "scanning", windowsDone: 0, windowsTotal: totalWindows });
 
   const allRefsMap = new Map<string, { ksefReferenceNumber: string }>();
-  let truncatedWindow = false;
   let lastSuccessfulWinEnd: Date | null = null;
   // Set when listInvoices is rate-limited — we proceed to import partial results
   // instead of aborting, and let the user re-sync after the cooldown expires.
@@ -486,7 +485,6 @@ async function runSync(
         }
       }
       if (page!.isTruncated) {
-        truncatedWindow = true;
         summary.errors.push(
           `Okno ${dateFrom.slice(0, 10)}–${dateTo.slice(0, 10)} przekroczyło limit KSeF — część faktur pominięta.`,
         );
@@ -495,7 +493,6 @@ async function runSync(
       if (!page!.hasMore || page!.invoices.length === 0) break;
       pageOffset = page!.nextOffset;
       if (pageOffset > MAX_PAGE_OFFSET) {
-        truncatedWindow = true;
         summary.errors.push(
           `Okno ${dateFrom.slice(0, 10)}–${dateTo.slice(0, 10)} przekroczyło ${MAX_PAGE_OFFSET} wyników — część faktur pominięta.`,
         );
@@ -1156,7 +1153,6 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   );
   const acceptPayMethod = (parsed.header.paymentMethod as "gotowka" | "przelew" | "karta" | null | undefined) ?? null;
   const acceptPayDue = acceptPayMethod === "przelew" ? (parsed.header.paymentDueDate ?? null) : null;
-  const acceptNow = new Date();
 
   const created = await db.transaction(async (tx) => {
     const [inv] = await tx
