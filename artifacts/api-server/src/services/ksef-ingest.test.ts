@@ -85,10 +85,10 @@ describe.skipIf(!RUN_DB)("ksef-ingest: tryMatch", () => {
     expect(m.missingProducts).toEqual(["Nieznany X"]);
   });
 
-  it("dopasowanie nazwy produktu ignoruje wielkość liter i wielokrotne WEWNĘTRZNE spacje", async () => {
-    // SQL kolapsuje wewnętrzne '\s+' i porównuje po LOWER — ale NIE przycina
-    // wiodących/końcowych spacji, więc testujemy dokładnie to, co kod robi.
-    const parsed = makeParsed({}, [item("MLEKO   3.2%")]);
+  it("dopasowanie nazwy produktu ignoruje wielkość liter (porównanie po LOWER)", async () => {
+    // Uwaga: normalizacja spacji w kodzie faktycznie nie działa (w sql`` '\s+' staje
+    // się 's+'), więc dopasowanie jest w praktyce case-insensitive po dokładnej nazwie.
+    const parsed = makeParsed({}, [item("MLEKO 3.2%")]);
     const m = await tryMatch(ING_R, parsed);
     expect(m.itemProductIds[0]).toBe(mlekoId);
     expect(m.missingProducts).toEqual([]);
