@@ -204,7 +204,7 @@ new Date(date).toLocaleDateString('pl-PL')
 - Mapowanie produktów — DZIAŁA w przepływie akceptacji „Do przeglądu" (`pending-invoices.tsx`): mapowanie pozycji faktury na produkt (`itemMappings`), pomijanie pozycji, tworzenie produktu w locie. Poza tym przepływem brak osobnego ekranu mapowania (i raczej niepotrzebny).
 
 ### 🟡 Dług techniczny
-- Pliki do rozbicia: `invoices.ts` (1200). Rozbite: `ksef.ts` (1698 → 1272, pipeline ingestii/sesji/rate-limit/matchingu w `services/ksef-ingest.ts` — współdzielony przez runSync i routy kolejki „Do przeglądu"); `ai-cfo.ts` (1300 → 835); `invoices.tsx` (2321 → 975, `pages/invoices/`); `products.tsx` (2085 → 1106, `pages/products/`: shared + keyword/price-history/supplier-comparison modale + category-management; PriceHistoryModal re-eksportowany).
+- Rozbite: `invoices.ts` (1200 → 1078, regexowy parser FA KSeF w `lib/invoice-xml-parse.ts` — czysty, z testami jednostkowymi; guard XXE zostaje w route importu, rule 23); `ksef.ts` (1698 → 1272, pipeline ingestii/sesji/rate-limit/matchingu w `services/ksef-ingest.ts` — współdzielony przez runSync i routy kolejki „Do przeglądu"); `ai-cfo.ts` (1300 → 835); `invoices.tsx` (2321 → 975, `pages/invoices/`); `products.tsx` (2085 → 1106, `pages/products/`: shared + keyword/price-history/supplier-comparison modale + category-management; PriceHistoryModal re-eksportowany).
 - Testy: jest tylko jeden e2e (`scripts/src/e2e/ksef-sync.spec.ts`) — brak unit i integration
 
 ### ✔️ Zrobione (usunięte z długu)
