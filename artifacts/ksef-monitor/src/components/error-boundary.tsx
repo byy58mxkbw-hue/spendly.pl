@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from "react";
-import * as Sentry from "@sentry/react";
+import { captureException } from "@/lib/sentry";
 import ServerError from "@/pages/server-error";
 import { isChunkLoadError, reloadOnceForStaleChunks } from "@/lib/stale-chunk";
 
@@ -34,8 +34,8 @@ export class ErrorBoundary extends Component<Props, State> {
       return;
     }
     console.error("ErrorBoundary caught:", error, info);
-    // No-op gdy Sentry nieaktywne (brak VITE_SENTRY_DSN).
-    Sentry.captureException(error, { extra: { info } });
+    // No-op gdy Sentry nieaktywne (brak VITE_SENTRY_DSN); SDK doładowywane leniwie.
+    captureException(error, { info });
   }
 
   handleReset = (): void => {

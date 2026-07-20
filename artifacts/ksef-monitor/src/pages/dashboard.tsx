@@ -1,4 +1,4 @@
-import { useMemo, useState, Component, type ReactNode } from "react";
+import { useMemo, useState, Component, Suspense, lazy, type ReactNode } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useGetDashboardSummary,
@@ -14,16 +14,6 @@ import {
   getGetDashboardActiveAlertsQueryKey,
   getGetPriceAlertsHistoryQueryKey,
 } from "@workspace/api-client-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
 import {
   TrendingUp,
   TrendingDown,
@@ -43,6 +33,9 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
+
+// Wykres (recharts) ładowany leniwie — nie blokuje pierwszego renderu dashboardu.
+const SpendAreaChart = lazy(() => import("./dashboard/spend-area-chart"));
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -209,17 +202,6 @@ function PriceChangeBadge({ change }: { change: number | null | undefined }) {
       {up ? <TrendingUp className="w-3 h-3" /> : down ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
       {formatPercent(change)}
     </span>
-  );
-}
-
-// ─── Custom tooltip for area chart ────────────────────────────────────────────
-function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg text-xs">
-      <p className="text-muted-foreground mb-1 font-medium">{label}</p>
-      <p className="text-foreground font-bold">{formatPrice(payload[0]?.value ?? 0)}</p>
-    </div>
   );
 }
 
@@ -513,47 +495,9 @@ function DashboardPage() {
             {monthlyLoading ? (
               <Skeleton className="h-56 w-full rounded-lg mt-4" />
             ) : chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={240}>
-                <AreaChart data={chartData} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
-                  />
-                  <Tooltip content={<ChartTooltip />} />
-                  {avgSpend > 0 && (
-                    <ReferenceLine
-                      y={avgSpend}
-                      stroke="hsl(var(--muted-foreground))"
-                      strokeDasharray="4 4"
-                      strokeOpacity={0.5}
-                    />
-                  )}
-                  <Area
-                    type="monotone"
-                    dataKey="totalAmount"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    fill="url(#spendGrad)"
-                    dot={false}
-                    activeDot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 0 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<Skeleton className="h-[240px] w-full rounded-lg mt-4" />}>
+                <SpendAreaChart chartData={chartData} avgSpend={avgSpend} />
+              </Suspense>
             ) : (
               <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">
                 Brak danych. Zaimportuj faktury, aby zobaczyć wykres.
