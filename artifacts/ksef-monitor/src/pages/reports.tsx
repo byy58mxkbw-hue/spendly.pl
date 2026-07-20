@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { useAuth } from "@clerk/react";
 import { apiUrl } from "@/lib/api-base";
 import { useToast } from "@/hooks/use-toast";
@@ -27,12 +27,18 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import {
-  AlertsList, CategoryBarChart, CategoryMiniList, CategoryTrendChart, CostCenterComparisonSection,
+  AlertsList, CategoryMiniList, CostCenterComparisonSection,
   PriceBenchmarkList, ProductsTable, QuantityMoversList, RecommendationsList, SectionCard,
-  SpendHero, SpendTrendChart, SupplierCard, TopSuppliersTable, WhyBreakdown, computeImpacts,
+  SpendHero, SupplierCard, TopSuppliersTable, WhyBreakdown, computeImpacts,
   currentMonth, type ProductWithImpact,
 } from "./reports/components";
 import { PeriodProvider, usePeriod, type PresetKey } from "@/contexts/period-context";
+
+// Wykresy (recharts ~110KB gzip) w osobnym chunku, ładowane leniwie — reszta Raportów
+// (KPI, tabele, listy) renderuje się bez czekania na recharts.
+const SpendTrendChart = lazy(() => import("./reports/charts").then((m) => ({ default: m.SpendTrendChart })));
+const CategoryBarChart = lazy(() => import("./reports/charts").then((m) => ({ default: m.CategoryBarChart })));
+const CategoryTrendChart = lazy(() => import("./reports/charts").then((m) => ({ default: m.CategoryTrendChart })));
 
 // Selektor okresu: presety + własny zakres dni (input type=date, precyzja dzienna).
 function PeriodSelector() {
@@ -325,7 +331,9 @@ function ReportsInner() {
                 }
               >
                 <div className="p-4 md:p-5">
-                  <SpendTrendChart months={trendMonths} />
+                  <Suspense fallback={<Skeleton className="h-48 rounded-xl" />}>
+                    <SpendTrendChart months={trendMonths} />
+                  </Suspense>
                 </div>
               </SectionCard>
             )}
@@ -438,7 +446,9 @@ function ReportsInner() {
 
           {/* ── KATEGORIE ───────────────────────────────────────────────────── */}
           <TabsContent value="kategorie" className="space-y-5">
-            <CategoryBarChart />
+            <Suspense fallback={<Skeleton className="h-80 rounded-xl" />}>
+              <CategoryBarChart />
+            </Suspense>
             <SectionCard title={`Trend wg kategorii · ${trendMonths} miesięcy`}>
               <div className="p-4 md:p-5">
                 <div className="flex justify-end mb-3">
@@ -452,7 +462,9 @@ function ReportsInner() {
                     <option value={12}>12 miesięcy</option>
                   </select>
                 </div>
-                <CategoryTrendChart months={trendMonths} />
+                <Suspense fallback={<Skeleton className="h-56 w-full" />}>
+                  <CategoryTrendChart months={trendMonths} />
+                </Suspense>
               </div>
             </SectionCard>
           </TabsContent>
