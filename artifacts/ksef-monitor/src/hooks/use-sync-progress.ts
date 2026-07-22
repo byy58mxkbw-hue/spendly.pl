@@ -47,6 +47,8 @@ export function useSyncKsefProgress() {
         const decoder = new TextDecoder();
         let buffer = "";
         let result: KsefSyncResult | null = null;
+        // Notka o automatycznym dokończeniu po limicie KSeF (zdarzenie „info" po „done").
+        let continuationNote: string | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -85,12 +87,18 @@ export function useSyncKsefProgress() {
                 message: syncError,
                 status: event.status as number | undefined,
               });
+            } else if (event.type === "info") {
+              continuationNote = (event.message as string) ?? null;
             }
           }
         }
 
         if (syncError) throw new Error(syncError);
         if (!result) throw new Error("Synchronizacja nie zwróciła wyniku.");
+        // Dołącz notkę o auto-dokończeniu do wyniku, by pokazała się w toaście.
+        if (continuationNote) {
+          (result as unknown as Record<string, unknown>).continuationNote = continuationNote;
+        }
         return result;
       } catch (err) {
         if (!(err instanceof Error && syncError)) {
@@ -168,14 +176,19 @@ export function describeSyncResult(res: KsefSyncResult): {
     if (errors.length > 1) description += ` (+${errors.length - 1} ${plPlural(errors.length - 1, "inne", "inne", "innych")})`;
   }
 
-  // Nic nie wpadło, ale były problemy → traktuj jako błąd.
-  const variant = imported === 0 && pending === 0 ? ("destructive" as const) : undefined;
+  // Auto-dokończenie po limicie KSeF — dopisz uspokajającą notkę na końcu.
+  const continuationNote = (res as { continuationNote?: string }).continuationNote;
+  if (continuationNote) description += ` ${continuationNote}`;
+
+  // Nic nie wpadło, ale były problemy → traktuj jako błąd. Jeśli reszta dociągnie się
+  // sama (jest notka), nie strasz „nieudaną" — to tylko limit, dane dopłyną.
+  const variant = imported === 0 && pending === 0 && !continuationNote ? ("destructive" as const) : undefined;
 
   return {
     title: variant ? "Synchronizacja nieudana" : "Synchronizacja zakończona",
     description,
     ...(variant ? { variant } : {}),
-    duration: errors.length > 0 || failed > 0 ? 8000 : 5000,
+    duration: errors.length > 0 || failed > 0 || continuationNote ? 8000 : 5000,
   };
 }
 
