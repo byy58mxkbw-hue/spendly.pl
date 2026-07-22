@@ -30,7 +30,9 @@ export async function startQueue(log: Logger): Promise<void> {
     const b = new PgBoss({ connectionString });
     b.on("error", (err: unknown) => log.error({ err: String(err) }, "pg-boss: błąd instancji"));
     await b.start();
-    await b.createQueue(Q_ALERTS);
+    // Retry z exponential backoff — czysta przewaga nad dawnym inline `.catch()`,
+    // który przy błędzie po prostu gubił sprawdzenie alertów.
+    await b.createQueue(Q_ALERTS, { retryLimit: 5, retryBackoff: true });
     // Handler dostaje batch zadań (Job[]); pojedynczy userId per zadanie.
     await b.work<{ userId: string }>(Q_ALERTS, async (jobs: Job<{ userId: string }>[]) => {
       for (const job of jobs) {
@@ -38,7 +40,12 @@ export async function startQueue(log: Logger): Promise<void> {
       }
     });
     boss = b;
-    log.info("pg-boss: kolejka wystartowała (alerts-check)");
+    // Graceful shutdown — Railway wysyła SIGTERM przy redeployu; czyste zatrzymanie
+    // pg-boss zwalnia locki i dokańcza aktywne zadania zamiast zostawiać je „w locie".
+    const shutdown = () => { void stopQueue(); };
+    process.once("SIGTERM", shutdown);
+    process.once("SIGINT", shutdown);
+    log.info("pg-boss: kolejka wystartowała (alerts-check, retry=5+backoff)");
   })().catch((err) => {
     log.error({ err: String(err) }, "pg-boss: start nieudany — pozostaję na inline fallbacku");
     starting = null;
