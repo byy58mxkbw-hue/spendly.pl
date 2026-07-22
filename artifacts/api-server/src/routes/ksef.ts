@@ -31,7 +31,7 @@ import {
   type ParsedFa3,
 } from "@workspace/ksef-client";
 import { decryptSecret, encryptSecret, maskToken } from "../lib/encryption";
-import { scheduleAlertsCheck } from "../services/queue";
+import { scheduleAlertsCheck, scheduleKsefSyncAfter } from "../services/queue";
 import { resuggestForUser } from "./cost-centers";
 import { buildCostCenterModel, computeCostCenterSuggestion } from "../lib/cost-center-suggest.js";
 import { AdvisoryLock } from "../lib/advisory-lock";
@@ -344,6 +344,23 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
       req.log.warn({ err: String(err) }, "Failed to release ksef_sync advisory lock"),
     );
   }
+
+  // Jeśli KSeF uciął sync limitem (per-NIP), dokończ resztę AUTOMATYCZNIE w tle po
+  // cooldownie — bez ponownego klikania. Reużywa kolejki ksef-autosync (odroczone zadanie).
+  // Żywy pasek postępu pozostaje bez zmian; to dzieje się już po zakończeniu synca.
+  try {
+    const remaining = await nipRateLimitSecondsRemaining(cfg.nip);
+    if (remaining > 0) {
+      const scheduled = await scheduleKsefSyncAfter(userId, remaining + 60, req.log);
+      if (scheduled) {
+        req.log.info({ userId, remaining }, "KSeF ręczny sync: zaplanowano dokończenie w tle po cooldownie");
+        sendEvent({ type: "info", message: `Limit KSeF — resztę faktur dociągnę automatycznie za ~${Math.ceil(remaining / 60)} min.` });
+      }
+    }
+  } catch (err) {
+    req.log.warn({ err: String(err) }, "KSeF ręczny sync: nie udało się zaplanować dokończenia");
+  }
+
   res.end();
 });
 

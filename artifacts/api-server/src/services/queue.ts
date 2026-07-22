@@ -98,6 +98,21 @@ export async function scheduleKsefAutoSync(userId: string, log: Logger): Promise
   );
 }
 
+// Zaplanuj dokończenie synchronizacji KSeF w tle za `delaySeconds` (np. po wygaśnięciu
+// rate-limitu KSeF, który uciął ręczny sync). Reużywa workera ksef-autosync przez
+// odroczone zadanie (startAfter). Zwraca true jeśli zaplanowano.
+// No-op gdy kolejka wyłączona — bez niej nie ma jak odroczyć (ręczny sync zostaje jak dawniej).
+export async function scheduleKsefSyncAfter(userId: string, delaySeconds: number, log: Logger): Promise<boolean> {
+  if (!(ENABLED && boss)) return false;
+  try {
+    await boss.send(Q_KSEF, { userId }, { startAfter: Math.max(1, Math.ceil(delaySeconds)) });
+    return true;
+  } catch (err) {
+    log.warn({ userId, err: String(err) }, "ksef-sync continuation: enqueue nieudany");
+    return false;
+  }
+}
+
 // Łagodne zatrzymanie (np. przy zamykaniu procesu). No-op gdy nie wystartowano.
 export async function stopQueue(): Promise<void> {
   if (boss) {
