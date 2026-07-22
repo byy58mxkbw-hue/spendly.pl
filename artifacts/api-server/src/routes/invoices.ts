@@ -13,7 +13,7 @@ import {
   SetInvoiceCostCenterBody,
 } from "@workspace/api-zod";
 import { categorizeProductWithAI, getUserCategories, type ClassificationResult } from "../lib/categorize-ai.js";
-import { checkAlertsAfterImport } from "../services/alert-checker";
+import { scheduleAlertsCheck } from "../services/queue";
 import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
 import { encryptSecret } from "../lib/encryption";
 import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
@@ -869,7 +869,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   });
 
   if (parsedItems.length > 0) {
-    checkAlertsAfterImport(userId, req.log).catch(() => {});
+    scheduleAlertsCheck(userId, req.log);
   }
 });
 

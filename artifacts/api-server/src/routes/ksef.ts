@@ -31,7 +31,7 @@ import {
   type ParsedFa3,
 } from "@workspace/ksef-client";
 import { decryptSecret, encryptSecret, maskToken } from "../lib/encryption";
-import { checkAlertsAfterImport } from "../services/alert-checker";
+import { scheduleAlertsCheck } from "../services/queue";
 import { resuggestForUser } from "./cost-centers";
 import { buildCostCenterModel, computeCostCenterSuggestion } from "../lib/cost-center-suggest.js";
 import { AdvisoryLock } from "../lib/advisory-lock";
@@ -782,7 +782,7 @@ async function runSync(
 
   // Fire-and-forget: recalculate price alert triggers after new invoices arrive.
   if (summary.imported > 0) {
-    checkAlertsAfterImport(userId, req.log).catch(() => {});
+    scheduleAlertsCheck(userId, req.log);
   }
   // Po imporcie nadaj sugestie centrów kosztów (kod jednostki / opis / dostawca) —
   // faktury wchodzą bez przypisania, użytkownik potwierdza sugestię jednym kliknięciem.
@@ -943,7 +943,7 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
   }
 
   // Reguła: po każdym imporcie faktury sprawdzamy progi alertów cenowych.
-  if (imported > 0) checkAlertsAfterImport(userId, req.log).catch(() => {});
+  if (imported > 0) scheduleAlertsCheck(userId, req.log);
 
   res.json({ imported, stillPending: remainingPending });
 });
@@ -1202,7 +1202,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   });
 
   // Reguła: po każdym imporcie faktury sprawdzamy progi alertów cenowych.
-  checkAlertsAfterImport(userId, req.log).catch(() => {});
+  scheduleAlertsCheck(userId, req.log);
 
   // Faktura wchodzi bez centrum — od razu (synchronicznie) liczymy sugestię do potwierdzenia,
   // żeby chip „Sugerowane" był widoczny natychmiast po odświeżeniu listy.

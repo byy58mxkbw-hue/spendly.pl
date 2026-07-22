@@ -4,6 +4,7 @@ import { logger } from "./lib/logger";
 import { runCategoryBackfill } from "./services/backfill-categories.js";
 import { ensureAutoSyncColumns, startKsefAutoSyncScheduler } from "./services/ksef-scheduler.js";
 import { ensureAiUsageTable } from "./services/ensure-ai-usage.js";
+import { startQueue } from "./services/queue.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
 // Lepiej zawieść głośno od razu niż w trakcie żądania użytkownika.
@@ -66,6 +67,10 @@ app.listen(port, (err) => {
 
   // Tabela miesięcznego zużycia AI (limity per plan) — idempotentne DDL, zawsze.
   ensureAiUsageTable(logger).catch((err) => logger.error({ err }, "ai_usage: migracja nieudana"));
+
+  // Kolejka zadań (pg-boss) — startuje TYLKO gdy PGBOSS_ENABLED=true (PoC).
+  // Samo-gated i samo-obsługujące błędy; przy fladze OFF to no-op.
+  void startQueue(logger);
 
   if (process.env.NODE_ENV !== "development") {
     logger.info("Starting category backfill on startup");
