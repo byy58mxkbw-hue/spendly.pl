@@ -1,7 +1,7 @@
 import type { Logger } from "pino";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { runAutoSyncForUser } from "../routes/ksef";
+import { scheduleKsefAutoSync } from "./queue";
 
 // Idempotentna migracja kolumn auto-sync — uruchamiana na starcie serwera.
 // Postgres wspiera ADD COLUMN IF NOT EXISTS, więc bezpieczne przy każdym boocie.
@@ -41,9 +41,8 @@ async function tick(log: Logger): Promise<void> {
       // Znacznik próby PRZED uruchomieniem — kolejny tik nie odpali tego samego usera,
       // nawet jeśli sync trwa dłużej niż interwał tików.
       await db.execute(sql`UPDATE ksef_config SET last_auto_sync_at = now() WHERE id = ${row.id}`);
-      await runAutoSyncForUser(row.user_id, log).catch((err) =>
-        log.warn({ userId: row.user_id, err: String(err) }, "Auto-sync KSeF: błąd w tle"),
-      );
+      // Enqueue (z retry) gdy kolejka włączona; inaczej inline — jak dotąd.
+      await scheduleKsefAutoSync(row.user_id, log);
     }
   } catch (err) {
     log.warn({ err: String(err) }, "Auto-sync KSeF: tik harmonogramu nieudany");
