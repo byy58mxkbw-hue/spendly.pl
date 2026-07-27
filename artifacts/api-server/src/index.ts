@@ -4,6 +4,8 @@ import { logger } from "./lib/logger";
 import { runCategoryBackfill } from "./services/backfill-categories.js";
 import { ensureAutoSyncColumns, startKsefAutoSyncScheduler } from "./services/ksef-scheduler.js";
 import { ensureAiUsageTable } from "./services/ensure-ai-usage.js";
+import { ensureRevenueTable } from "./services/ensure-revenue.js";
+import { ensureGoposTables } from "./services/ensure-gopos.js";
 import { startQueue } from "./services/queue.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
@@ -67,6 +69,12 @@ app.listen(port, (err) => {
 
   // Tabela miesięcznego zużycia AI (limity per plan) — idempotentne DDL, zawsze.
   ensureAiUsageTable(logger).catch((err) => logger.error({ err }, "ai_usage: migracja nieudana"));
+
+  // Tabela przychodów (do food cost %) — idempotentne DDL, zawsze.
+  ensureRevenueTable(logger).catch((err) => logger.error({ err }, "restaurant_revenue: migracja nieudana"));
+
+  // Tabele integracji GoPOS (config + sprzedaż per pozycja) — idempotentne DDL, zawsze.
+  ensureGoposTables(logger).catch((err) => logger.error({ err }, "gopos: migracja nieudana"));
 
   // Kolejka zadań (pg-boss) — startuje TYLKO gdy PGBOSS_ENABLED=true (PoC).
   // Samo-gated i samo-obsługujące błędy; przy fladze OFF to no-op.

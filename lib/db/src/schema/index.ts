@@ -13,3 +13,6 @@ export * from "./product-corrections";
 export * from "./dishes";
 export * from "./ai-usage";
 export * from "./learned-brands";
+export * from "./restaurant-revenue";
+export * from "./gopos-config";
+export * from "./pos-sales";

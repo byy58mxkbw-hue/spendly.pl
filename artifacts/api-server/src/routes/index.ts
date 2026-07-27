@@ -46,4 +46,13 @@ router.use(adminRouter);
 import foodCostRouter from "./food-cost";
 router.use(foodCostRouter);
 
+import revenueRouter from "./revenue";
+router.use(revenueRouter);
+
+import salesRouter from "./sales";
+router.use(salesRouter);
+
+import goposRouter from "./gopos";
+router.use(goposRouter);
+
 export default router;

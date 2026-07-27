@@ -50,6 +50,21 @@ export function previousPeriod(p: Period): Period {
   return { from: ymdUTC(prevFrom), to: ymdUTC(prevTo) };
 }
 
+// Lista kluczy miesięcy 'YYYY-MM' w zakresie [from,to] (włącznie po miesiącu).
+export function monthsInRange(p: Period): string[] {
+  const out: string[] = [];
+  const [fy, fm] = p.from.slice(0, 7).split("-").map(Number);
+  const endKey = p.to.slice(0, 7);
+  let d = new Date(Date.UTC(fy, fm - 1, 1));
+  for (let i = 0; i < 120; i++) {
+    const key = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`;
+    out.push(key);
+    if (key === endKey) break;
+    d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
+  }
+  return out;
+}
+
 const MONTHS_NOM = [
   "styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec",
   "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień",

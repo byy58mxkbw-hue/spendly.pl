@@ -10,11 +10,11 @@ const ADMIN_IDS = (process.env.ADMIN_USER_IDS ?? "")
   .map((s) => s.trim())
   .filter(Boolean);
 
-function isAdmin(req: Request): boolean {
+export function isAdmin(req: Request): boolean {
   return ADMIN_IDS.length > 0 && ADMIN_IDS.includes(req.userId!);
 }
 
-function denyAdmin(res: Response): void {
+export function denyAdmin(res: Response): void {
   res.status(403).json({ error: "Brak dostępu." });
 }
 
