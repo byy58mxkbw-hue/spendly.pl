@@ -1,4 +1,6 @@
-import { useMemo, useState, Component, Suspense, lazy, type ReactNode } from "react";
+import { useMemo, useState, useEffect, Component, Suspense, lazy, type ReactNode } from "react";
+import { useClerk } from "@clerk/react";
+import { apiUrl } from "@/lib/api-base";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useGetDashboardSummary,
@@ -24,6 +26,7 @@ import {
   Bell,
   ChevronRight,
   RefreshCw,
+  Percent,
   CheckCircle2,
   Circle,
   AlertTriangle,
@@ -241,6 +244,23 @@ function DashboardPage() {
   };
   const showOnboarding = onbDone < 3 && !onbHidden;
   const pendingCount = pendingList?.length ?? 0;
+
+  // Realny food cost % (koszt z KSeF ÷ przychód z GoPOS/ręczny). Widoczny tylko gdy
+  // jest przychód (foodCostPct != null) — więc sam się chowa dla lokali bez sprzedaży.
+  const { session } = useClerk();
+  const [foodCost, setFoodCost] = useState<{ foodCostPct: number | null; prevFoodCostPct: number | null } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await session?.getToken();
+        const res = await fetch(apiUrl(`/api/reports/food-cost-ratio?month=${month}`), { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (res.ok && !cancelled) setFoodCost((await res.json()) as { foodCostPct: number | null; prevFoodCostPct: number | null });
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [month, session]);
+  const foodCostDelta = foodCost?.foodCostPct != null && foodCost.prevFoodCostPct != null ? foodCost.foodCostPct - foodCost.prevFoodCostPct : null;
 
   async function handleSync() {
     if (!config) {
@@ -470,6 +490,15 @@ function DashboardPage() {
                 change={summary.avgPriceChange}
                 icon={TrendingUp}
               />
+              {foodCost?.foodCostPct != null && (
+                <KpiCard
+                  label="Food cost %"
+                  value={`${foodCost.foodCostPct.toFixed(1)}%`}
+                  subValue={foodCostDelta != null ? `${foodCostDelta >= 0 ? "+" : ""}${foodCostDelta.toFixed(1)} p.p. vs poprz.` : "koszt z KSeF ÷ sprzedaż"}
+                  change={foodCostDelta}
+                  icon={Percent}
+                />
+              )}
             </>
           ) : null}
         </div>

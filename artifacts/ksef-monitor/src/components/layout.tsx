@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   BarChart3,
   Store,
+  ShoppingBag,
   Layers,
   ChevronDown,
   Check,
@@ -459,6 +460,13 @@ function SidebarContent({
               path="/admin/gopos"
               label="GoPOS"
               icon={Store}
+              location={location}
+              onNavigate={onNavigate}
+            />
+            <NavLink
+              path="/sprzedaz"
+              label="Sprzedaż"
+              icon={ShoppingBag}
               location={location}
               onNavigate={onNavigate}
             />
