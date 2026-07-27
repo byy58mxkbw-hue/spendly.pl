@@ -3,6 +3,8 @@ import { db, goposConfigTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { encryptSecret } from "../lib/encryption";
 import { isAdmin, denyAdmin } from "./admin";
+import { syncGoposForUser } from "../services/gopos-sync";
+import { GoposError } from "../services/gopos-client";
 
 // Integracja GoPOS — na razie ADMIN-ONLY (do czasu podłączenia i przetestowania API).
 // Przechowuje klucze (client secret zaszyfrowany AES-256-GCM, jak token KSeF, rule 9).
@@ -60,10 +62,22 @@ router.put("/gopos/config", async (req, res): Promise<void> => {
   res.json({ ok: true });
 });
 
-// Placeholder — sync sprzedaży z GoPOS uruchomimy po podłączeniu dokumentacji API.
+// Ręczny sync sprzedaży z GoPOS (admin-only). Pobiera obrót + sprzedaż per pozycja
+// za ostatnie miesiące i zapisuje do restaurant_revenue + pos_sales.
 router.post("/gopos/sync", async (req, res): Promise<void> => {
   if (!isAdmin(req)) { denyAdmin(res); return; }
-  res.status(501).json({ error: "Integracja GoPOS w przygotowaniu — synchronizacja ruszy po podłączeniu API." });
+  const monthsRaw = Number((req.body as { months?: unknown })?.months);
+  const monthsBack = Number.isFinite(monthsRaw) && monthsRaw >= 1 && monthsRaw <= 12 ? Math.floor(monthsRaw) : 3;
+  try {
+    const summary = await syncGoposForUser(req.userId!, req.log, monthsBack);
+    res.json({ ok: true, ...summary });
+  } catch (err) {
+    const status = err instanceof GoposError ? err.status : 500;
+    req.log.warn({ err: String(err) }, "GoPOS sync nieudany");
+    res.status(status >= 400 && status < 600 ? status : 502).json({
+      error: err instanceof Error ? err.message : "Synchronizacja GoPOS nie powiodła się.",
+    });
+  }
 });
 
 export default router;
