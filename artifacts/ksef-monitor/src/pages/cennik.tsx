@@ -12,7 +12,7 @@ const PLANS = [
     period: "/mies.",
     highlight: false,
     desc: "Dla jednego lokalu, który dopiero zaczyna porządkować faktury.",
-    features: ["1 lokal", "Import z KSeF", "OCR do 50 faktur / mies.", "Podstawowe alerty cenowe"],
+    features: ["1 lokal", "Faktury z KSeF bez limitu", "OCR paragonów do 50 / mies.", "Podstawowe alerty cenowe"],
     cta: "Zacznij za darmo",
     href: "/sign-up",
   },
@@ -22,7 +22,7 @@ const PLANS = [
     period: "/mies.",
     highlight: true,
     desc: "Dla restauracji, które chcą realnie kontrolować food cost.",
-    features: ["Do 3 lokali", "Nielimitowany OCR", "Porównanie dostawców", "Food cost i receptury", "Asystent AI"],
+    features: ["Do 3 lokali", "Faktury z KSeF bez limitu", "Nielimitowany OCR paragonów", "Porównanie dostawców", "Food cost i receptury", "Asystent AI"],
     cta: "Wybierz Pro",
     href: "/sign-up",
   },
@@ -65,6 +65,7 @@ export default function CennikPage() {
         </h1>
         <p style={{ fontSize: 17, color: c.muted, lineHeight: 1.7, maxWidth: 480, margin: "0 auto 0" }}>
           Zacznij za darmo. Każdy płatny plan z 14 dniami próbnymi, bez karty. Anuluj w dowolnym momencie.
+          <br /><strong style={{ color: c.text }}>Faktury z KSeF bez limitu stron na każdym planie</strong> — nie płacisz za skanowane strony.
         </p>
       </section>
 

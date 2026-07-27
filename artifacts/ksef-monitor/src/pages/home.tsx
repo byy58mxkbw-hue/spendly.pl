@@ -152,7 +152,7 @@ export default function Home() {
       <header className="hero wrap">
         <div className="eyebrow"><Zap />Zintegrowane z KSeF — gotowe na 2026</div>
         <h1>Kontroluj koszty<br />zanim <span className="g">zjedzą Twoją marżę</span></h1>
-        <p className="lead">Spendly pobiera faktury z KSeF, rozpoznaje pozycje i pilnuje cen dostawców. Wiesz o podwyżce w dniu, w którym się pojawia — nie na koniec miesiąca.</p>
+        <p className="lead">Faktury zakupowe wpadają <strong>automatycznie z KSeF</strong> — bez przepisywania, bez skanowania, bez limitów stron. Spendly pilnuje cen dostawców i alarmuje o podwyżce w dniu, w którym się pojawia — nie na koniec miesiąca.</p>
         <div className="hero-cta">
           <a className="btn btn-primary btn-lg" href="/sign-up" onClick={go("/sign-up")}>Rozpocznij za darmo <ArrowRight /></a>
           <a className="btn btn-ghost btn-lg" href="#ksef"><Play />Zobacz jak działa</a>
@@ -267,6 +267,35 @@ export default function Home() {
                 <div className="amt">{inv.amt}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* OCR vs KSeF — różnik vs konkurencja */}
+      <section className="blk wrap">
+        <div className="sec-head">
+          <div className="sec-eye">Dlaczego Spendly</div>
+          <h2>Faktury z KSeF, nie ręczny skaner</h2>
+          <p>Inne narzędzia każą Ci skanować i wgrywać każdą fakturę — i płacić za limit stron. Spendly bierze je prosto z KSeF: automatycznie i bez limitów.</p>
+        </div>
+        <div className="compare">
+          <div className="cmp-col cmp-con glass">
+            <div className="cmp-h">Ręczny OCR — jak w innych narzędziach</div>
+            <ul>
+              <li><X />Skanujesz lub wgrywasz każdą fakturę ręcznie</li>
+              <li><X />Płacisz za limit stron OCR (np. 100 / 300 mies.)</li>
+              <li><X />Błędy odczytu i ręczne poprawki pozycji</li>
+              <li><X />Łatwo pominąć fakturę, która nie trafi do skanera</li>
+            </ul>
+          </div>
+          <div className="cmp-col cmp-pro glass">
+            <div className="cmp-h">Automat z KSeF — Spendly</div>
+            <ul>
+              <li><Check />Podłączasz KSeF raz — faktury wpadają same</li>
+              <li><Check />Bez limitów stron — cały strumień faktur z KSeF</li>
+              <li><Check />Dane 1:1 z KSeF, bez błędów skanowania</li>
+              <li><Check />Gotowe na obowiązkowy KSeF 2026</li>
+            </ul>
           </div>
         </div>
       </section>

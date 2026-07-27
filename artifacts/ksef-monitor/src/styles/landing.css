@@ -131,6 +131,17 @@ html { scroll-behavior: smooth; }
 .spendly-site .feat h3{font-size:17px;font-weight:700;letter-spacing:-0.02em;margin-bottom:8px;}
 .spendly-site .feat p{font-size:14px;color:var(--muted);line-height:1.6;}
 
+/* compare: OCR vs KSeF */
+.spendly-site .compare{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.spendly-site .cmp-col{padding:26px;border-radius:18px;}
+.spendly-site .cmp-pro{border:1px solid color-mix(in srgb,var(--mint) 32%,transparent);}
+.spendly-site .cmp-h{font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:16px;}
+.spendly-site .cmp-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;}
+.spendly-site .cmp-col li{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--muted);line-height:1.5;}
+.spendly-site .cmp-col li svg{width:18px;height:18px;flex-shrink:0;margin-top:1px;}
+.spendly-site .cmp-con li svg{color:#ff5c5c;}
+.spendly-site .cmp-pro li svg{color:var(--acc);}
+
 /* how / KSeF */
 .spendly-site .ksef{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center;}
 .spendly-site .ksef-steps{display:flex;flex-direction:column;gap:18px;}
@@ -197,7 +208,7 @@ html { scroll-behavior: smooth; }
   .spendly-site .nav-links{display:none;}
   .spendly-site .nav-desktop{display:none;}
   .spendly-site .nav-burger{display:inline-flex;}
-  .spendly-site .mb-grid,.spendly-site .ksef,.spendly-site .feat-grid,.spendly-site .price-grid,.spendly-site .foot-grid{grid-template-columns:1fr;}
+  .spendly-site .mb-grid,.spendly-site .ksef,.spendly-site .feat-grid,.spendly-site .price-grid,.spendly-site .foot-grid,.spendly-site .compare{grid-template-columns:1fr;}
   .spendly-site .mb-kpis{grid-template-columns:1fr 1fr;}
   /* 4 statystyki jako czytelna siatka 2×2 zamiast wieży */
   .spendly-site .band{grid-template-columns:1fr 1fr;gap:28px 20px;padding:36px 28px;}
