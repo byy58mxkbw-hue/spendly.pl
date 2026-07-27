@@ -29,6 +29,7 @@ const SettingsKsef = lazy(() => import("@/pages/settings-ksef"));
 const AdminUsers = lazy(() => import("@/pages/admin-users"));
 const AdminAnalytics = lazy(() => import("@/pages/admin-analytics"));
 const SettingsCostCenters = lazy(() => import("@/pages/settings-cost-centers"));
+const SettingsGopos = lazy(() => import("@/pages/settings-gopos"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -311,6 +312,9 @@ export default function AppShell() {
               </Route>
               <Route path="/admin/users">
                 <AdminRoute><AdminUsers /></AdminRoute>
+              </Route>
+              <Route path="/admin/gopos">
+                <AdminRoute><SettingsGopos /></AdminRoute>
               </Route>
               <Route component={NotFound} />
             </Switch>

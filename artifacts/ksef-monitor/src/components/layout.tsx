@@ -14,6 +14,7 @@ import {
   X,
   ShieldCheck,
   BarChart3,
+  Store,
   Layers,
   ChevronDown,
   Check,
@@ -451,6 +452,13 @@ function SidebarContent({
               path="/admin/analytics"
               label="Analityka"
               icon={BarChart3}
+              location={location}
+              onNavigate={onNavigate}
+            />
+            <NavLink
+              path="/admin/gopos"
+              label="GoPOS"
+              icon={Store}
               location={location}
               onNavigate={onNavigate}
             />
