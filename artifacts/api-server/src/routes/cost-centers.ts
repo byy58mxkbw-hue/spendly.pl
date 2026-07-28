@@ -131,10 +131,20 @@ router.delete("/cost-centers/:id", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const params = DeleteCostCenterParams.safeParse(req.params);
   if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  const id = params.data.id;
+
+  // Odłącz powiązania PRZED usunięciem — niezależnie od stanu FK w bazie (prod bywa bez
+  // ON DELETE SET NULL, przez co samo DELETE rzucało błąd klucza obcego). Idempotentne.
+  await db.update(invoicesTable).set({ costCenterId: null })
+    .where(and(eq(invoicesTable.costCenterId, id), eq(invoicesTable.userId, userId)));
+  await db.update(invoicesTable).set({ suggestedCostCenterId: null })
+    .where(and(eq(invoicesTable.suggestedCostCenterId, id), eq(invoicesTable.userId, userId)));
+  await db.update(suppliersTable).set({ defaultCostCenterId: null })
+    .where(and(eq(suppliersTable.defaultCostCenterId, id), eq(suppliersTable.userId, userId)));
 
   const [row] = await db
     .delete(costCentersTable)
-    .where(and(eq(costCentersTable.id, params.data.id), eq(costCentersTable.userId, userId)))
+    .where(and(eq(costCentersTable.id, id), eq(costCentersTable.userId, userId)))
     .returning();
 
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
