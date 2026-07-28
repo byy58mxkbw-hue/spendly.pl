@@ -309,15 +309,19 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
     salesByNorm.set(key, cur);
   }
   const salesEntries = [...salesByNorm.entries()];
-  // Dopasowanie danie→sprzedaż: ręczne powiązanie (dokładne) → auto exact → zawieranie nazwy.
+  // Dopasowanie danie→sprzedaż. SUMUJE warianty tej samej pozycji: nazwa bazowa
+  // ORAZ „nazwa bazowa + wariant" (np. stek → stek medium/rare/well done) liczą się razem.
   function findSales(dishName: string, override: string | null): { qty: number; net: number } | null {
-    if (override) return salesByNorm.get(normalizeName(override)) ?? { qty: 0, net: 0 };
-    const n = normalizeName(dishName);
-    if (!n) return null;
-    const exact = salesByNorm.get(n);
-    if (exact) return exact;
+    const target = normalizeName(override || dishName);
+    if (!target) return null;
+    let qty = 0, net = 0, found = false;
     for (const [k, v] of salesEntries) {
-      if (k.length >= 4 && n.length >= 4 && (k.includes(n) || n.includes(k))) return v;
+      if (k === target || k.startsWith(target + " ") || target.startsWith(k + " ")) { qty += v.qty; net += v.net; found = true; }
+    }
+    if (found) return { qty, net };
+    // Fallback: luźne zawieranie (pierwsze trafienie) — gdy nazwy różnią się mocniej.
+    for (const [k, v] of salesEntries) {
+      if (k.length >= 4 && target.length >= 4 && (k.includes(target) || target.includes(k))) return v;
     }
     return null;
   }
