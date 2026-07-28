@@ -14,15 +14,21 @@ import {
   useUpdateDish,
   useDeleteDish,
   useListProducts,
+  useGetDishesSales,
   getListDishesQueryKey,
   getGetDishQueryKey,
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import type { DishIngredientInput, DishDetail } from "@workspace/api-client-react";
-import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, ChevronDown, ChevronUp, Sparkles, ChevronLeft, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MenuImportDialog = lazy(() => import("./menu-import-dialog"));
+
+const MONTHS = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
+function currentMonth(): string { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`; }
+function monthLabel(m: string): string { const [y, mm] = m.split("-").map(Number); return `${MONTHS[mm - 1]} ${y}`; }
+function shiftMonth(m: string, d: number): string { const [y, mm] = m.split("-").map(Number); const dt = new Date(Date.UTC(y, mm - 1 + d, 1)); return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}`; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -564,14 +570,17 @@ function DishDetailSheet({
 
 function DishCard({
   dish,
+  sales,
   onClick,
 }: {
   dish: { id: number; name: string; category?: string | null; sellPrice: number; portionCost?: number | null; marginPct?: number | null; confidencePct: number };
+  sales?: { soldQty: number; monthlyCost?: number | null } | null;
   onClick: () => void;
 }) {
   const foodCostPct = dish.portionCost != null && dish.sellPrice > 0
     ? (dish.portionCost / dish.sellPrice) * 100 : null;
   const mc = marginColor(dish.marginPct);
+  const sold = sales?.soldQty ?? 0;
 
   return (
     <button
@@ -612,6 +621,15 @@ function DishCard({
           </span>
         )}
       </div>
+
+      {sold > 0 && (
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-border text-[11px]">
+          <span className="text-muted-foreground">Sprzedano <b className="text-foreground tabular-nums">{new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(sold)}</b> w okresie</span>
+          {sales?.monthlyCost != null && (
+            <span className="text-muted-foreground">koszt <b className="text-foreground tabular-nums">{fmt(sales.monthlyCost)}</b></span>
+          )}
+        </div>
+      )}
     </button>
   );
 }
@@ -624,6 +642,18 @@ export default function FoodCostPage() {
   const deleteDish = useDeleteDish();
 
   const { data: dishes = [], isLoading, isError, refetch } = useListDishes();
+
+  const [month, setMonth] = useState(currentMonth());
+  const { data: salesData } = useGetDishesSales({ month });
+  const salesById = useMemo(
+    () => new Map((salesData?.dishes ?? []).map((d) => [d.id, { soldQty: d.soldQty, monthlyCost: d.monthlyCost ?? null }])),
+    [salesData],
+  );
+  const [hasGopos, setHasGopos] = useState(false);
+  useEffect(() => {
+    const w = salesData?.weighted;
+    if (w && ((w.revenue ?? 0) > 0 || w.dishesSold > 0)) setHasGopos(true);
+  }, [salesData]);
 
   const [showCreate, setShowCreate] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -701,6 +731,42 @@ export default function FoodCostPage() {
           </div>
         )}
 
+        {/* GoPOS: prawdziwy food cost % ważony sprzedażą */}
+        {hasGopos && salesData && (
+          <div className="glass rounded-xl p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-1.5">
+                <ShoppingBag className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">Realny food cost (ze sprzedaży GoPOS)</span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => setMonth(shiftMonth(month, -1))} className="p-1 rounded-lg border border-border hover:bg-secondary/50" aria-label="Poprzedni miesiąc"><ChevronLeft className="w-4 h-4" /></button>
+                <span className="text-xs font-medium px-1.5 min-w-[100px] text-center capitalize">{monthLabel(month)}</span>
+                <button onClick={() => setMonth(shiftMonth(month, 1))} disabled={month >= currentMonth()} className="p-1 rounded-lg border border-border hover:bg-secondary/50 disabled:opacity-40" aria-label="Następny miesiąc"><ChevronRight className="w-4 h-4" /></button>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Prawdziwy food cost</p>
+                <p className="text-lg font-bold tabular-nums" style={{ color: salesData.weighted.foodCostPct != null ? foodCostColor(salesData.weighted.foodCostPct) : undefined }}>
+                  {salesData.weighted.foodCostPct != null ? `${salesData.weighted.foodCostPct.toFixed(1)}%` : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Koszt / przychód</p>
+                <p className="text-sm font-semibold text-foreground tabular-nums mt-1">
+                  {fmt(salesData.weighted.costTotal)} / {fmt(salesData.weighted.revenue)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Dań sprzedanych</p>
+                <p className="text-sm font-semibold text-foreground tabular-nums mt-1">{salesData.weighted.dishesSold}</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">Ważony faktyczną sprzedażą: Σ(koszt porcji × ilość) / przychód netto. Wymaga dopasowania nazw dań do pozycji w GoPOS.</p>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-40 max-w-60">
@@ -738,7 +804,7 @@ export default function FoodCostPage() {
         ) : (
           <div className="space-y-3">
             {filtered.map((dish) => (
-              <DishCard key={dish.id} dish={dish} onClick={() => setViewDishId(dish.id)} />
+              <DishCard key={dish.id} dish={dish} sales={salesById.get(dish.id)} onClick={() => setViewDishId(dish.id)} />
             ))}
           </div>
         )}

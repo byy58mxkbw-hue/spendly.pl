@@ -54,11 +54,13 @@ import type {
   DeleteSupplier200,
   DishDetail,
   DishSummary,
+  DishesSales,
   DismissPriceAlertBody,
   DismissedAlert,
   GetCategorySpendParams,
   GetCategorySpendTrendParams,
   GetDashboardSummaryParams,
+  GetDishesSalesParams,
   GetFoodCostMonthlyParams,
   GetInvoicesCalendarParams,
   GetInvoicesPaymentsParams,
@@ -513,6 +515,90 @@ export const useDeleteDish = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteDishMutationOptions(options));
     }
+
+export const getGetDishesSalesUrl = (params?: GetDishesSalesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/food-cost/dishes-sales?${stringifiedParams}` : `/api/food-cost/dishes-sales`
+}
+
+/**
+ * @summary Dishes joined with GoPOS sales for a period — sold qty, monthly cost, weighted real food cost %
+ */
+export const getDishesSales = async (params?: GetDishesSalesParams, options?: RequestInit): Promise<DishesSales> => {
+
+  return customFetch<DishesSales>(getGetDishesSalesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDishesSalesQueryKey = (params?: GetDishesSalesParams,) => {
+    return [
+    `/api/food-cost/dishes-sales`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetDishesSalesQueryOptions = <TData = Awaited<ReturnType<typeof getDishesSales>>, TError = ErrorType<unknown>>(params?: GetDishesSalesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDishesSales>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDishesSalesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDishesSales>>> = ({ signal }) => getDishesSales(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDishesSales>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDishesSalesQueryResult = NonNullable<Awaited<ReturnType<typeof getDishesSales>>>
+export type GetDishesSalesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Dishes joined with GoPOS sales for a period — sold qty, monthly cost, weighted real food cost %
+ */
+
+export function useGetDishesSales<TData = Awaited<ReturnType<typeof getDishesSales>>, TError = ErrorType<unknown>>(
+ params?: GetDishesSalesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDishesSales>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDishesSalesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getImportMenuUrl = () => {
 

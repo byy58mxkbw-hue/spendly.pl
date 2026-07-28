@@ -1101,6 +1101,40 @@ export interface UpdateDishBody {
   ingredients?: DishIngredientInput[];
 }
 
+export interface DishSales {
+  id: number;
+  name: string;
+  /** @nullable */
+  category?: string | null;
+  sellPrice: number;
+  /** @nullable */
+  portionCost?: number | null;
+  /** @nullable */
+  foodCostPct?: number | null;
+  soldQty: number;
+  /** @nullable */
+  salesNet?: number | null;
+  /** @nullable */
+  monthlyCost?: number | null;
+  matched: boolean;
+}
+
+export interface DishesSalesWeighted {
+  /** @nullable */
+  costTotal?: number | null;
+  revenue: number;
+  /** @nullable */
+  foodCostPct?: number | null;
+  dishesSold: number;
+}
+
+export interface DishesSales {
+  from: string;
+  to: string;
+  weighted: DishesSalesWeighted;
+  dishes: DishSales[];
+}
+
 export interface MenuImportBody {
   /** Data-URL base64 images (menu pages). PDF is rasterised client-side. */
   images: string[];
@@ -1205,6 +1239,12 @@ export interface DishParams {
 
 export type CreateDish201 = {
   id: number;
+};
+
+export type GetDishesSalesParams = {
+from?: string;
+to?: string;
+month?: string;
 };
 
 export type SaveMenuDishes201 = {

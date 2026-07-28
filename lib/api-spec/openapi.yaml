@@ -129,6 +129,35 @@ paths:
         "404":
           description: Not found
 
+  /food-cost/dishes-sales:
+    get:
+      operationId: getDishesSales
+      tags: [food-cost]
+      summary: Dishes joined with GoPOS sales for a period — sold qty, monthly cost, weighted real food cost %
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dishes with sales and weighted food cost
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DishesSales"
+
   /food-cost/import-menu:
     post:
       operationId: importMenu
@@ -4244,6 +4273,70 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DishIngredientInput"
+
+    DishSales:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: ["string", "null"]
+        sellPrice:
+          type: number
+        portionCost:
+          type: ["number", "null"]
+        foodCostPct:
+          type: ["number", "null"]
+        soldQty:
+          type: number
+        salesNet:
+          type: ["number", "null"]
+        monthlyCost:
+          type: ["number", "null"]
+        matched:
+          type: boolean
+      required:
+        - id
+        - name
+        - sellPrice
+        - soldQty
+        - matched
+
+    DishesSalesWeighted:
+      type: object
+      properties:
+        costTotal:
+          type: ["number", "null"]
+        revenue:
+          type: number
+        foodCostPct:
+          type: ["number", "null"]
+        dishesSold:
+          type: integer
+      required:
+        - revenue
+        - dishesSold
+
+    DishesSales:
+      type: object
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+        weighted:
+          $ref: "#/components/schemas/DishesSalesWeighted"
+        dishes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DishSales"
+      required:
+        - from
+        - to
+        - weighted
+        - dishes
 
     MenuImportBody:
       type: object

@@ -1,10 +1,11 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { db, dishesTable, dishIngredientsTable, productsTable, invoiceItemsTable, invoicesTable } from "@workspace/db";
+import { db, dishesTable, dishIngredientsTable, productsTable, invoiceItemsTable, invoicesTable, posSalesTable, restaurantRevenueTable } from "@workspace/db";
 import { CreateDishBody, UpdateDishBody, GetDishParams, UpdateDishParams, DeleteDishParams, ImportMenuBody, SaveMenuDishesBody } from "@workspace/api-zod";
 import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
 import { findOrCreateProductByName } from "../services/ksef-ingest";
 import { normalizeProductName } from "../lib/categorize-ai";
+import { periodFromQuery, monthsInRange } from "../lib/period";
 
 const router: IRouter = Router();
 
@@ -190,6 +191,94 @@ export async function computeAllDishMargins(userId: string): Promise<DishMargin[
 // ─── List dishes ──────────────────────────────────────────────────────────────
 router.get("/food-cost/dishes", async (req, res): Promise<void> => {
   res.json(await computeAllDishMargins(req.userId!));
+});
+
+// ─── Dania × sprzedaż GoPOS: realny food cost ważony sprzedażą ──────────────────
+// Dopasowuje danie do pozycji sprzedaży GoPOS (po nazwie), liczy koszt miesięczny
+// (koszt porcji × ilość sprzedana) i „prawdziwy food cost %" = Σkoszt / przychód.
+router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const period = periodFromQuery(req.query as { from?: unknown; to?: unknown; month?: unknown });
+  const keys = monthsInRange(period);
+
+  const [margins, salesRows, revRows] = await Promise.all([
+    computeAllDishMargins(userId),
+    db
+      .select({
+        productName: posSalesTable.productName,
+        qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
+        net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
+      })
+      .from(posSalesTable)
+      .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, keys)))
+      .groupBy(posSalesTable.productName),
+    db
+      .select({ amountNet: restaurantRevenueTable.amountNet })
+      .from(restaurantRevenueTable)
+      .where(and(eq(restaurantRevenueTable.userId, userId), inArray(restaurantRevenueTable.period, keys))),
+  ]);
+
+  // Indeks sprzedaży po znormalizowanej nazwie pozycji GoPOS
+  const salesByNorm = new Map<string, { qty: number; net: number }>();
+  for (const r of salesRows) {
+    const key = normalizeName(r.productName);
+    const cur = salesByNorm.get(key) ?? { qty: 0, net: 0 };
+    cur.qty += Number(r.qty) || 0;
+    cur.net += Number(r.net) || 0;
+    salesByNorm.set(key, cur);
+  }
+  const salesEntries = [...salesByNorm.entries()];
+  // Dopasowanie danie→sprzedaż: exact → zawieranie całej nazwy (danie w pozycji lub odwrotnie)
+  function findSales(dishName: string): { qty: number; net: number } | null {
+    const n = normalizeName(dishName);
+    if (!n) return null;
+    const exact = salesByNorm.get(n);
+    if (exact) return exact;
+    for (const [k, v] of salesEntries) {
+      if (k.length >= 4 && n.length >= 4 && (k.includes(n) || n.includes(k))) return v;
+    }
+    return null;
+  }
+
+  const revenue = revRows.reduce((s, r) => s + (Number(r.amountNet) || 0), 0);
+
+  let costTotal = 0;
+  let costKnown = false;
+  let dishesSold = 0;
+  const dishes = margins.map((m) => {
+    const s = findSales(m.name);
+    const soldQty = s?.qty ?? 0;
+    const salesNet = s?.net ?? null;
+    const monthlyCost = m.portionCost != null && soldQty > 0 ? Math.round(m.portionCost * soldQty * 100) / 100 : null;
+    if (monthlyCost != null) { costTotal += monthlyCost; costKnown = true; }
+    if (soldQty > 0) dishesSold++;
+    const foodCostPct = m.portionCost != null && m.sellPrice > 0 ? Math.round((m.portionCost / m.sellPrice) * 1000) / 10 : null;
+    return {
+      id: m.id,
+      name: m.name,
+      category: m.category,
+      sellPrice: m.sellPrice,
+      portionCost: m.portionCost != null ? Math.round(m.portionCost * 100) / 100 : null,
+      foodCostPct,
+      soldQty: Math.round(soldQty * 100) / 100,
+      salesNet: salesNet != null ? Math.round(salesNet * 100) / 100 : null,
+      monthlyCost,
+      matched: s != null,
+    };
+  });
+
+  const weightedPct = costKnown && revenue > 0 ? Math.round((costTotal / revenue) * 1000) / 10 : null;
+  res.json({
+    from: period.from,
+    to: period.to,
+    weighted: {
+      costTotal: costKnown ? Math.round(costTotal * 100) / 100 : null,
+      revenue: Math.round(revenue * 100) / 100,
+      foodCostPct: weightedPct,
+      dishesSold,
+    },
+    dishes,
+  });
 });
 
 // ─── Get dish detail ──────────────────────────────────────────────────────────

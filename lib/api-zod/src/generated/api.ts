@@ -103,6 +103,39 @@ export const DeleteDishResponse = zod.void()
 
 
 /**
+ * @summary Dishes joined with GoPOS sales for a period — sold qty, monthly cost, weighted real food cost %
+ */
+export const GetDishesSalesQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "month": zod.coerce.string().optional()
+})
+
+export const GetDishesSalesResponse = zod.object({
+  "from": zod.string(),
+  "to": zod.string(),
+  "weighted": zod.object({
+  "costTotal": zod.number().nullish(),
+  "revenue": zod.number(),
+  "foodCostPct": zod.number().nullish(),
+  "dishesSold": zod.number()
+}),
+  "dishes": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "category": zod.string().nullish(),
+  "sellPrice": zod.number(),
+  "portionCost": zod.number().nullish(),
+  "foodCostPct": zod.number().nullish(),
+  "soldQty": zod.number(),
+  "salesNet": zod.number().nullish(),
+  "monthlyCost": zod.number().nullish(),
+  "matched": zod.boolean()
+}))
+})
+
+
+/**
  * @summary Extract dishes and estimated ingredient grams from menu images (AI vision, preview only)
  */
 export const ImportMenuBody = zod.object({
