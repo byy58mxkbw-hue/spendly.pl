@@ -213,6 +213,8 @@ paths:
                           type: string
                         qty:
                           type: number
+                        variant:
+                          type: boolean
                       required: [name, qty]
                 required: [items]
 

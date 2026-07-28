@@ -154,7 +154,8 @@ export const GetPosItemsQueryParams = zod.object({
 export const GetPosItemsResponse = zod.object({
   "items": zod.array(zod.object({
   "name": zod.string(),
-  "qty": zod.number()
+  "qty": zod.number(),
+  "variant": zod.boolean().optional()
 }))
 })
 

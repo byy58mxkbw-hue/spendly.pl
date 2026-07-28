@@ -269,7 +269,18 @@ router.get("/food-cost/pos-items", async (req, res): Promise<void> => {
   const groups = groupPosByProduct(
     rows.map((r) => ({ name: r.name, posProductId: r.posProductId, qty: Number(r.qty) || 0, net: Number(r.net) || 0 })),
   ).sort((a, b) => b.qty - a.qty);
-  res.json({ items: groups.map((g) => ({ name: g.name, qty: Math.round(g.qty * 100) / 100 })) });
+  // Zbiorcza grupa + (gdy >1 wariant) każdy wariant osobno — user wybiera granulację.
+  const items: Array<{ name: string; qty: number; variant: boolean }> = [];
+  for (const g of groups) {
+    items.push({ name: g.name, qty: Math.round(g.qty * 100) / 100, variant: false });
+    if (g.members.length > 1) {
+      for (const m of [...g.members].sort((a, b) => b.qty - a.qty)) {
+        if (normalizeName(m.name) === normalizeName(g.name)) continue;
+        items.push({ name: m.name, qty: Math.round(m.qty * 100) / 100, variant: true });
+      }
+    }
+  }
+  res.json({ items });
 });
 
 // ─── Dania × sprzedaż GoPOS: realny food cost ważony sprzedażą ──────────────────
@@ -308,25 +319,28 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
   const posGroups = groupPosByProduct(
     salesRows.map((r) => ({ name: r.productName, posProductId: r.posProductId, qty: Number(r.qty) || 0, net: Number(r.net) || 0 })),
   );
-  const salesByNorm = new Map<string, { qty: number; net: number }>();
-  for (const g of posGroups) {
-    const key = normalizeName(g.name);
-    const cur = salesByNorm.get(key) ?? { qty: 0, net: 0 };
-    cur.qty += g.qty;
-    cur.net += g.net;
-    salesByNorm.set(key, cur);
-  }
-  const salesEntries = [...salesByNorm.entries()];
-  // Dopasowanie danie→grupa sprzedaży: JEDNA najlepsza grupa (warianty już zsumowane po id).
-  // exact > „danie = grupa + wariant" > „grupa = danie + wariant" > luźne zawieranie.
+  // Nazwa grupy zbiorczej → suma wariantów (dla steka: „stek…" = 98).
+  const groupByNorm = new Map<string, { qty: number; net: number }>();
+  for (const g of posGroups) groupByNorm.set(normalizeName(g.name), { qty: g.qty, net: g.net });
+  // Pojedynczy wariant → tylko jego wartość (dla herbaty: konkretny smak). Powiązanie per-wariant.
+  const variantByNorm = new Map<string, { qty: number; net: number }>();
+  for (const g of posGroups) for (const m of g.members) variantByNorm.set(normalizeName(m.name), { qty: m.qty, net: m.net });
+  const groupEntries = [...groupByNorm.entries()];
+
+  // Dopasowanie danie→sprzedaż: dokładny wariant (per-smak) → dokładna grupa (zbiorczo) →
+  // auto: najlepsza grupa po prefiksie/zawieraniu. Nie sumuje między grupami.
   function findSales(dishName: string, override: string | null): { qty: number; net: number } | null {
     const target = normalizeName(override || dishName);
     if (!target) return null;
-    const exact = salesByNorm.get(target);
-    if (exact) return exact;
+    // Ręczne powiązanie do konkretnego wariantu (np. „Herbata Sir Williams Owocowa") — tylko on.
+    const variant = variantByNorm.get(target);
+    if (variant && !groupByNorm.has(target)) return variant;
+    const exactGroup = groupByNorm.get(target);
+    if (exactGroup) return exactGroup;
+    if (variant) return variant;
     let best: { qty: number; net: number } | null = null;
     let bestScore = 0;
-    for (const [k, v] of salesEntries) {
+    for (const [k, v] of groupEntries) {
       let score = 0;
       if (target.startsWith(k + " ")) score = 1000 + k.length;
       else if (k.startsWith(target + " ")) score = 500 + target.length;
@@ -606,20 +620,21 @@ function commonWordPrefix(names: string[]): string {
   return out.length > 0 ? out.join(" ") : names[0].trim();
 }
 
-// Grupuje pozycje POS po id produktu (warianty = wspólne id → jedno), sumując ilość i przychód.
-// Bez id (stare dane przed re-syncem) każda pozycja osobno. Nazwa grupy = wspólny prefiks.
-type PosGroup = { name: string; qty: number; net: number };
+// Grupuje pozycje POS po id produktu (warianty = wspólne id), sumując ilość i przychód.
+// Zachowuje też składowe warianty (`members`) — bo część produktów (np. herbata Sir Williams,
+// gdzie wariant = inny smak/koszt) użytkownik chce powiązać per-wariant, nie zbiorczo.
+type PosGroup = { name: string; qty: number; net: number; members: Array<{ name: string; qty: number; net: number }> };
 function groupPosByProduct(rows: Array<{ name: string; posProductId: string | null; qty: number; net: number }>): PosGroup[] {
-  const byKey = new Map<string, { names: string[]; qty: number; net: number }>();
+  const byKey = new Map<string, { members: Array<{ name: string; qty: number; net: number }>; qty: number; net: number }>();
   for (const r of rows) {
     const key = r.posProductId ? `id:${r.posProductId}` : `nm:${normalizeName(r.name)}`;
-    const g = byKey.get(key) ?? { names: [], qty: 0, net: 0 };
-    g.names.push(r.name);
+    const g = byKey.get(key) ?? { members: [], qty: 0, net: 0 };
+    g.members.push({ name: r.name, qty: r.qty, net: r.net });
     g.qty += r.qty;
     g.net += r.net;
     byKey.set(key, g);
   }
-  return [...byKey.values()].map((g) => ({ name: commonWordPrefix(g.names), qty: g.qty, net: g.net }));
+  return [...byKey.values()].map((g) => ({ name: commonWordPrefix(g.members.map((m) => m.name)), qty: g.qty, net: g.net, members: g.members }));
 }
 
 // Tokeny znaczące do dopasowania fuzzy składnik→produkt. Dzielimy na całe słowa

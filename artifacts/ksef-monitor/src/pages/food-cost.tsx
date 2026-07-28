@@ -688,11 +688,13 @@ function PosLinkSection({ dishId, currentLink, onChanged }: { dishId: number; cu
       >
         <option value="">Automatyczne (po nazwie dania)</option>
         {items.map((it) => (
-          <option key={it.name} value={it.name}>{it.name} — {new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(it.qty)} szt</option>
+          <option key={it.name} value={it.name}>{it.variant ? "   ↳ " : ""}{it.name} — {new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(it.qty)} szt</option>
         ))}
       </select>
       <p className="text-[10px] text-muted-foreground mt-1">
-        {currentLink ? `Ręcznie powiązane z „${currentLink}".` : "Dopasowuje po nazwie. Gdy nazwa dania różni się od pozycji w GoPOS — wybierz ją ręcznie."}
+        {currentLink
+          ? `Ręcznie powiązane z: ${currentLink}.`
+          : "Grupa zbiorcza łączy warianty (np. wysmażenia steka). Wariant z wcięciem wybierz, gdy każdy ma inny koszt (np. smaki herbaty)."}
       </p>
     </div>
   );

@@ -1324,6 +1324,7 @@ to?: string;
 export type GetPosItems200ItemsItem = {
   name: string;
   qty: number;
+  variant?: boolean;
 };
 
 export type GetPosItems200 = {
