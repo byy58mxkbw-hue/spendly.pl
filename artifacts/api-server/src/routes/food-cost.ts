@@ -37,35 +37,42 @@ function parsePackageSize(productName: string): { valueInBase: number; base: str
   return best;
 }
 
+// Zwraca koszt składnika LUB null, gdy nie da się rzetelnie przeliczyć jednostek
+// (np. faktura „za szt" bez znanej gramatury opakowania). null → caller użyje szacunku AI.
 function convertIngredientCost(
   qty: number,
   recipeUnit: string,
   invoiceUnit: string,
   unitPrice: number,
   productName: string,
-): number {
+): number | null {
   const recipe = toBase(qty, recipeUnit);
   const invoice = toBase(1, invoiceUnit);
+  const massVol = (b: string) => b === "g" || b === "ml";
 
-  if (recipe.base === invoice.base) {
-    // same family (g/ml) — direct ratio
+  // Ta sama baza (g-g / ml-ml) LUB masa↔objętość wymiennie (gęstość ~1 g/ml).
+  if (recipe.base === invoice.base || (massVol(recipe.base) && massVol(invoice.base))) {
     return (recipe.value / invoice.value) * unitPrice;
   }
 
-  // Invoice is per-piece (szt/opak) but recipe is in g/ml —
-  // try to extract package size from product name to bridge the gap.
-  const isPiece = invoice.base !== "g" && invoice.base !== "ml";
-  const isWeightOrVolume = recipe.base === "g" || recipe.base === "ml";
-  if (isPiece && isWeightOrVolume) {
+  // Faktura za sztukę/opakowanie, a receptura w g/ml → potrzebna gramatura z nazwy.
+  if (!massVol(invoice.base) && massVol(recipe.base)) {
     const pkg = parsePackageSize(productName);
-    if (pkg && pkg.base === recipe.base) {
-      // e.g. recipe: 50ml, package: 700ml, price: 25 zł/szt
-      // cost = (50 / 700) * 25 = 1.79 zł
+    if (pkg && massVol(pkg.base)) {
+      // np. receptura 10 g, opakowanie 5 l (=5000 ml≈5000 g), cena 69,90 zł/szt
+      // koszt = (10 / 5000) * 69,90 = 0,14 zł
       return (recipe.value / pkg.valueInBase) * unitPrice;
     }
+    // Nieznana gramatura opakowania — NIE mnóż gramów × cena/szt (dawało absurdy 699 zł).
+    return null;
   }
 
-  // incompatible and no parse fallback — use qty directly (szt <-> szt)
+  // Receptura w sztukach, a faktura za kg/l → bez wagi sztuki nie przeliczymy.
+  if (massVol(invoice.base) && !massVol(recipe.base)) {
+    return null;
+  }
+
+  // Oba w sztukach/opakowaniach — potraktuj jak tę samą jednostkę.
   return qty * unitPrice;
 }
 
@@ -129,24 +136,25 @@ function computeDishCost(
 
   for (const ing of ingredients) {
     const price = prices.get(ing.productId);
+    // Faktura KSeF ma priorytet — ale tylko gdy da się rzetelnie przeliczyć jednostki.
+    let cost: number | null = null;
+    let source: CostSource = null;
     if (price) {
-      // Faktura KSeF ma priorytet nad szacunkiem AI.
-      const cost = convertIngredientCost(ing.quantity, ing.unit, price.unit, price.unitPrice, price.productName);
-      ingredientCosts.set(ing.productId, cost);
-      ingredientSources.set(ing.productId, "invoice");
+      const c = convertIngredientCost(ing.quantity, ing.unit, price.unit, price.unitPrice, price.productName);
+      if (c != null) { cost = c; source = "invoice"; }
+    }
+    // Fallback: szacowana cena rynkowa AI (za jednostkę estUnit, domyślnie kg).
+    if (cost == null && ing.estUnitPrice != null && ing.estUnitPrice > 0) {
+      const c = convertIngredientCost(ing.quantity, ing.unit, ing.estUnit || "kg", ing.estUnitPrice, "");
+      if (c != null) { cost = c; source = "estimate"; }
+    }
+
+    ingredientCosts.set(ing.productId, cost);
+    ingredientSources.set(ing.productId, source);
+    if (cost != null) {
       totalCost += cost;
-      invoiceCost += cost;
+      if (source === "invoice") invoiceCost += cost;
       known++;
-    } else if (ing.estUnitPrice != null && ing.estUnitPrice > 0) {
-      // Fallback: szacowana cena rynkowa AI (przechowywana za jednostkę estUnit, domyślnie kg).
-      const cost = convertIngredientCost(ing.quantity, ing.unit, ing.estUnit || "kg", ing.estUnitPrice, "");
-      ingredientCosts.set(ing.productId, cost);
-      ingredientSources.set(ing.productId, "estimate");
-      totalCost += cost;
-      known++;
-    } else {
-      ingredientCosts.set(ing.productId, null);
-      ingredientSources.set(ing.productId, null);
     }
   }
 
@@ -684,13 +692,14 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
     const ingredients = d.ingredients.map((ing) => {
       const p = matchFor(ing.name);
       const price = p ? prices.get(p.id) : undefined;
-      // Faktura ma priorytet; brak → szacunek AI (cena za kg).
+      // Faktura ma priorytet (o ile jednostki się przeliczają); brak → szacunek AI (cena za kg).
       let ingredientCost: number | null = null;
       let priceSource: "invoice" | "estimate" | null = null;
       if (p && price) {
-        ingredientCost = convertIngredientCost(ing.grams, "g", price.unit, price.unitPrice, price.productName);
-        priceSource = "invoice";
-      } else if (ing.estPricePerKg != null && ing.estPricePerKg > 0) {
+        const c = convertIngredientCost(ing.grams, "g", price.unit, price.unitPrice, price.productName);
+        if (c != null) { ingredientCost = c; priceSource = "invoice"; }
+      }
+      if (ingredientCost == null && ing.estPricePerKg != null && ing.estPricePerKg > 0) {
         ingredientCost = convertIngredientCost(ing.grams, "g", "kg", ing.estPricePerKg, "");
         priceSource = "estimate";
       }

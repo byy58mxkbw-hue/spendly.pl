@@ -89,11 +89,18 @@ function calcIngredientCost(
   if (!unitPrice) return null;
   const recipe = toBase(qty, recipeUnit);
   const invoice = toBase(1, invoiceUnit);
-  if (recipe.base === invoice.base) return (recipe.value / invoice.value) * unitPrice;
-  if (invoice.base !== "g" && invoice.base !== "ml" && (recipe.base === "g" || recipe.base === "ml")) {
-    const pkg = parsePackageSize(productName);
-    if (pkg && pkg.base === recipe.base) return (recipe.value / pkg.valueInBase) * unitPrice;
+  const massVol = (b: string) => b === "g" || b === "ml";
+  // Ta sama baza LUB masa↔objętość (gęstość ~1 g/ml).
+  if (recipe.base === invoice.base || (massVol(recipe.base) && massVol(invoice.base))) {
+    return (recipe.value / invoice.value) * unitPrice;
   }
+  // Faktura za szt/opak, receptura w g/ml → potrzebna gramatura opakowania z nazwy.
+  if (!massVol(invoice.base) && massVol(recipe.base)) {
+    const pkg = parsePackageSize(productName);
+    if (pkg && massVol(pkg.base)) return (recipe.value / pkg.valueInBase) * unitPrice;
+    return null; // nieznana gramatura opakowania — nie mnóż gramów × cena/szt
+  }
+  if (massVol(invoice.base) && !massVol(recipe.base)) return null;
   return qty * unitPrice;
 }
 
