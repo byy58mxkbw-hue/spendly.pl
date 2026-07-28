@@ -297,6 +297,7 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
       .where(eq(dishesTable.userId, userId)),
   ]);
   const posLinkById = new Map(posLinks.map((d) => [d.id, d.posProductName]));
+  const totalRevenue = revRows.reduce((s, r) => s + (Number(r.amountNet) || 0), 0); // cały obrót GoPOS (kontekst)
 
   // Indeks sprzedaży po znormalizowanej nazwie pozycji GoPOS
   const salesByNorm = new Map<string, { qty: number; net: number }>();
@@ -321,18 +322,17 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
     return null;
   }
 
-  const revenue = revRows.reduce((s, r) => s + (Number(r.amountNet) || 0), 0);
-
   let costTotal = 0;
   let costKnown = false;
   let dishesSold = 0;
+  let dishesRevenue = 0; // przychód z DAŃ, które policzyliśmy (spójny mianownik dla food cost %)
   const dishes = margins.map((m) => {
     const override = posLinkById.get(m.id) ?? null;
     const s = findSales(m.name, override);
     const soldQty = s?.qty ?? 0;
     const salesNet = s?.net ?? null;
     const monthlyCost = m.portionCost != null && soldQty > 0 ? Math.round(m.portionCost * soldQty * 100) / 100 : null;
-    if (monthlyCost != null) { costTotal += monthlyCost; costKnown = true; }
+    if (monthlyCost != null) { costTotal += monthlyCost; costKnown = true; if (salesNet != null) dishesRevenue += salesNet; }
     if (soldQty > 0) dishesSold++;
     const foodCostPct = m.portionCost != null && m.sellPrice > 0 ? Math.round((m.portionCost / m.sellPrice) * 1000) / 10 : null;
     return {
@@ -350,13 +350,15 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
     };
   });
 
-  const weightedPct = costKnown && revenue > 0 ? Math.round((costTotal / revenue) * 1000) / 10 : null;
+  // Food cost % liczony spójnie: koszt policzonych dań / przychód TYCH dań (nie cały obrót).
+  const weightedPct = costKnown && dishesRevenue > 0 ? Math.round((costTotal / dishesRevenue) * 1000) / 10 : null;
   res.json({
     from: period.from,
     to: period.to,
     weighted: {
       costTotal: costKnown ? Math.round(costTotal * 100) / 100 : null,
-      revenue: Math.round(revenue * 100) / 100,
+      revenue: Math.round(dishesRevenue * 100) / 100,
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
       foodCostPct: weightedPct,
       dishesSold,
     },

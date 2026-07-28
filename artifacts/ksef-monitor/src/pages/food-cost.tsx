@@ -1069,17 +1069,20 @@ export default function FoodCostPage() {
                 </p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground mb-0.5">Koszt / przychód</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Koszt / przychód dań</p>
                 <p className="text-sm font-semibold text-foreground tabular-nums mt-1">
                   {fmt(salesData.weighted.costTotal)} / {fmt(salesData.weighted.revenue)}
                 </p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground mb-0.5">Dań sprzedanych</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Dań ze sprzedażą</p>
                 <p className="text-sm font-semibold text-foreground tabular-nums mt-1">{salesData.weighted.dishesSold}</p>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-2">Ważony faktyczną sprzedażą: Σ(koszt porcji × ilość) / przychód netto. Wymaga dopasowania nazw dań do pozycji w GoPOS.</p>
+            <p className="text-[10px] text-muted-foreground mt-2">
+              Σ(koszt porcji × ilość) / przychód netto <b>tych dań</b>. „Dań ze sprzedażą" = ile pozycji menu ma dopasowaną sprzedaż (nie liczba porcji).
+              {(salesData.weighted.totalRevenue ?? 0) > 0 && <> Cały obrót GoPOS w okresie: {fmt(salesData.weighted.totalRevenue ?? 0)}.</>}
+            </p>
           </div>
         )}
 

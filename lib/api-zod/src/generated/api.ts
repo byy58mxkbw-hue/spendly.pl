@@ -200,6 +200,7 @@ export const GetDishesSalesResponse = zod.object({
   "weighted": zod.object({
   "costTotal": zod.number().nullish(),
   "revenue": zod.number(),
+  "totalRevenue": zod.number().optional(),
   "foodCostPct": zod.number().nullish(),
   "dishesSold": zod.number()
 }),

@@ -1144,6 +1144,7 @@ export interface DishesSalesWeighted {
   /** @nullable */
   costTotal?: number | null;
   revenue: number;
+  totalRevenue?: number;
   /** @nullable */
   foodCostPct?: number | null;
   dishesSold: number;
