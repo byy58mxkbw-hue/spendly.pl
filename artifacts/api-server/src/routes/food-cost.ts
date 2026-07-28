@@ -4,6 +4,7 @@ import { db, dishesTable, dishIngredientsTable, productsTable, invoiceItemsTable
 import { CreateDishBody, UpdateDishBody, GetDishParams, UpdateDishParams, DeleteDishParams, ImportMenuBody, SaveMenuDishesBody } from "@workspace/api-zod";
 import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
 import { findOrCreateProductByName } from "../services/ksef-ingest";
+import { normalizeProductName } from "../lib/categorize-ai";
 
 const router: IRouter = Router();
 
@@ -379,6 +380,47 @@ function normalizeName(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+// Tokeny znaczące do dopasowania fuzzy składnik→produkt. Dzielimy na całe słowa
+// (granica słowa — rule 27), odrzucamy krótkie i szumowe, żeby "masło" trafiało
+// w "masło extra", ale nie w środek innego wyrazu.
+const ING_STOPWORDS = new Set([
+  "z", "ze", "do", "na", "w", "we", "i", "oraz", "bez", "typ", "typu", "kg", "szt",
+  "świeży", "świeża", "świeże", "mrożony", "mrożona", "mrożone", "luz", "extra", "premium",
+]);
+function significantTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^a-ząćęłńóśźż0-9\s]/gi, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 3 && !ING_STOPWORDS.has(t));
+}
+
+type ProdIdx = { id: number; name: string; unit: string; tokens: Set<string> };
+
+// exact (nazwa/canonical) → najlepsze pokrycie tokenów (najwięcej wspólnych słów,
+// przy remisie produkt bardziej generyczny = mniej tokenów).
+function matchProduct(ingName: string, exact: Map<string, ProdIdx>, prods: ProdIdx[]): ProdIdx | null {
+  const normIng = normalizeName(ingName);
+  const exactHit = exact.get(normIng);
+  if (exactHit) return exactHit;
+  const ingTokens = significantTokens(normIng);
+  if (ingTokens.length === 0) return null;
+  let best: ProdIdx | null = null;
+  let bestScore = 0;
+  let bestLen = Infinity;
+  for (const p of prods) {
+    let score = 0;
+    for (const t of ingTokens) if (p.tokens.has(t)) score++;
+    if (score === 0) continue;
+    if (score > bestScore || (score === bestScore && p.tokens.size < bestLen)) {
+      best = p;
+      bestScore = score;
+      bestLen = p.tokens.size;
+    }
+  }
+  return best;
+}
+
 const ALLOWED_IMAGE_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 const MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024; // łącznie wszystkie strony menu
 
@@ -470,21 +512,34 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
         .map((i) => ({ name: String(i.name).trim(), grams: typeof i.grams === "number" && i.grams > 0 ? i.grams : 0 })),
     }));
 
-  // Read-only match: wczytaj wszystkie produkty usera raz, dopasuj po znormalizowanej nazwie
+  // Read-only match: wczytaj wszystkie produkty usera raz i zbuduj indeks (exact + tokeny)
   const userProducts = await db
-    .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit })
+    .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit, canonicalName: productsTable.canonicalName })
     .from(productsTable)
     .where(eq(productsTable.userId, userId));
-  const productByNorm = new Map<string, { id: number; name: string; unit: string }>();
+  const exactByNorm = new Map<string, ProdIdx>();
+  const prodIndex: ProdIdx[] = [];
   for (const p of userProducts) {
-    const key = normalizeName(p.name);
-    if (!productByNorm.has(key)) productByNorm.set(key, { id: p.id, name: p.name, unit: p.unit ?? "szt" });
+    const canon = p.canonicalName?.trim() || normalizeProductName(p.name);
+    const idx: ProdIdx = { id: p.id, name: p.name, unit: p.unit ?? "szt", tokens: new Set(significantTokens(canon)) };
+    prodIndex.push(idx);
+    for (const key of [normalizeName(p.name), normalizeName(canon)]) {
+      if (key && !exactByNorm.has(key)) exactByNorm.set(key, idx);
+    }
   }
+  const matchCache = new Map<string, ProdIdx | null>();
+  const matchFor = (name: string): ProdIdx | null => {
+    const key = name.toLowerCase();
+    if (matchCache.has(key)) return matchCache.get(key) ?? null;
+    const m = matchProduct(name, exactByNorm, prodIndex);
+    matchCache.set(key, m);
+    return m;
+  };
 
   // Ceny dla dopasowanych produktów (jedno zapytanie)
   const matchedIds = new Set<number>();
   for (const d of cleanDishes) for (const ing of d.ingredients) {
-    const p = productByNorm.get(normalizeName(ing.name));
+    const p = matchFor(ing.name);
     if (p) matchedIds.add(p.id);
   }
   const prices = await getLatestPrices(userId, [...matchedIds]);
@@ -492,7 +547,7 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
   // Zbuduj podgląd z wstępną wyceną per danie (gramy → unit "g")
   const preview = cleanDishes.map((d) => {
     const ingredients = d.ingredients.map((ing) => {
-      const p = productByNorm.get(normalizeName(ing.name));
+      const p = matchFor(ing.name);
       const price = p ? prices.get(p.id) : undefined;
       const ingredientCost = p && price ? convertIngredientCost(ing.grams, "g", price.unit, price.unitPrice, price.productName) : null;
       return {
