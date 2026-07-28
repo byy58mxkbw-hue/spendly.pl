@@ -577,9 +577,9 @@ function DishDetailSheet({
               )}
             </div>
 
-            {/* Confidence */}
+            {/* Kompletność: ile składników ma jakąkolwiek cenę (faktura lub szacunek AI) */}
             <div className="mx-5 mt-3 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Pewność kalkulacji</span>
+              <span className="text-muted-foreground">Kompletność wyceny</span>
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full" style={{ background: dish.confidencePct >= 80 ? "#059669" : dish.confidencePct >= 50 ? "#d97706" : "#dc2626" }} />
                 <span className="text-muted-foreground">{dish.confidencePct}%</span>

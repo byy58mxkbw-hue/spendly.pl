@@ -238,6 +238,9 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                 const known = costs.filter((c) => c != null) as number[];
                 const portionCost = known.length > 0 ? known.reduce((s, c) => s + c, 0) : null;
                 const foodCostPct = portionCost != null && d.sellPrice ? (portionCost / d.sellPrice) * 100 : null;
+                // Wiarygodność: jaki % kosztu z realnych faktur (reszta = prognoza AI).
+                const invoiceCost = d.ingredients.reduce((s, i) => (i.source === "invoice" ? s + (liveIngredientCost(i) ?? 0) : s), 0);
+                const invoiceShare = portionCost != null && portionCost > 0 ? Math.round((invoiceCost / portionCost) * 100) : 0;
                 return (
                   <div key={d.key} className={cn("rounded-xl border p-3 space-y-2.5", d.selected ? "border-border" : "border-border/40 opacity-55")}>
                     <div className="flex items-start gap-2">
@@ -271,7 +274,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                           {foodCostPct != null && (
                             <span className="font-semibold" style={{ color: foodCostColor(foodCostPct) }}>food cost {foodCostPct.toFixed(0)}%</span>
                           )}
-                          <span className="text-muted-foreground">· pewność {d.confidencePct}%</span>
+                          <span className="text-muted-foreground">· {invoiceShare > 0 ? `${invoiceShare}% z faktur` : "wg prognozy AI"}</span>
                         </div>
                       </div>
                     </div>
