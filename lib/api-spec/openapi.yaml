@@ -4525,6 +4525,8 @@ components:
           type: ["number", "null"]
         estPricePerKg:
           type: ["number", "null"]
+        estPieceGrams:
+          type: ["number", "null"]
         priceSource:
           type: ["string", "null"]
           enum: ["invoice", "manual", "estimate", null]
@@ -4578,6 +4580,8 @@ components:
         productId:
           type: ["integer", "null"]
         estPricePerKg:
+          type: ["number", "null"]
+        estPieceGrams:
           type: ["number", "null"]
       required:
         - name

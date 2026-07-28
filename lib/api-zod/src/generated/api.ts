@@ -242,6 +242,7 @@ export const ImportMenuResponse = zod.object({
   "matchedName": zod.string().nullish(),
   "unitPrice": zod.number().nullish(),
   "estPricePerKg": zod.number().nullish(),
+  "estPieceGrams": zod.number().nullish(),
   "priceSource": zod.union([zod.literal('invoice'),zod.literal('manual'),zod.literal('estimate'),zod.literal(null)]).nullish(),
   "ingredientCost": zod.number().nullish()
 }))
@@ -261,7 +262,8 @@ export const SaveMenuDishesBody = zod.object({
   "name": zod.string(),
   "grams": zod.number(),
   "productId": zod.number().nullish(),
-  "estPricePerKg": zod.number().nullish()
+  "estPricePerKg": zod.number().nullish(),
+  "estPieceGrams": zod.number().nullish()
 }))
 }))
 })

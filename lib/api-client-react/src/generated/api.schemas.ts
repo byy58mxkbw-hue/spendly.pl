@@ -1186,6 +1186,8 @@ export interface MenuPreviewIngredient {
   /** @nullable */
   estPricePerKg?: number | null;
   /** @nullable */
+  estPieceGrams?: number | null;
+  /** @nullable */
   priceSource?: MenuPreviewIngredientPriceSource;
   /** @nullable */
   ingredientCost?: number | null;
@@ -1216,6 +1218,8 @@ export interface SaveMenuIngredient {
   productId?: number | null;
   /** @nullable */
   estPricePerKg?: number | null;
+  /** @nullable */
+  estPieceGrams?: number | null;
 }
 
 export interface SaveMenuDish {

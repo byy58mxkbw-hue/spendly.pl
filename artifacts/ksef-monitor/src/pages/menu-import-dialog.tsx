@@ -60,6 +60,7 @@ type EditIng = {
   matchedProductId: number | null;
   matchedName: string | null;
   estPricePerKg: number | null;
+  estPieceGrams: number | null;
   source: "invoice" | "manual" | "estimate" | null;
 };
 type EditDish = {
@@ -89,6 +90,7 @@ function toEditDishes(preview: MenuImportPreview): EditDish[] {
       matchedProductId: ing.matchedProductId ?? null,
       matchedName: ing.matchedName ?? null,
       estPricePerKg: ing.estPricePerKg ?? null,
+      estPieceGrams: ing.estPieceGrams ?? null,
       source: ing.priceSource ?? null,
     })),
   }));
@@ -162,7 +164,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
         category: d.category,
         ingredients: d.ingredients
           .filter((i) => i.name.trim() && i.grams > 0)
-          .map((i) => ({ name: i.name.trim(), grams: i.grams, productId: i.matchedProductId, estPricePerKg: i.estPricePerKg })),
+          .map((i) => ({ name: i.name.trim(), grams: i.grams, productId: i.matchedProductId, estPricePerKg: i.estPricePerKg, estPieceGrams: i.estPieceGrams })),
       }))
       .filter((d) => d.ingredients.length > 0);
 
