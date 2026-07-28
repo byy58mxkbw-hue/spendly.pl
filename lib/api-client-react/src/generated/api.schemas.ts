@@ -1277,6 +1277,10 @@ export type CreateDish201 = {
   id: number;
 };
 
+export type RepriceDish200 = {
+  repriced: number;
+};
+
 export type GetDishesSalesParams = {
 from?: string;
 to?: string;

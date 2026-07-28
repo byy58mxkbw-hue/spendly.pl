@@ -107,6 +107,18 @@ export const DeleteDishResponse = zod.void()
 
 
 /**
+ * @summary Re-point dish ingredients to purchased (invoice-priced) products — estimates give way to real KSeF prices
+ */
+export const RepriceDishParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RepriceDishResponse = zod.object({
+  "repriced": zod.number()
+})
+
+
+/**
  * @summary Dishes joined with GoPOS sales for a period — sold qty, monthly cost, weighted real food cost %
  */
 export const GetDishesSalesQueryParams = zod.object({

@@ -773,4 +773,56 @@ router.post("/food-cost/dishes/from-menu", async (req, res): Promise<void> => {
   res.status(201).json({ createdIds });
 });
 
+// Przelicz danie z aktualnych faktur: re-dopasuj składniki (bez ceny z faktury)
+// do realnie kupionych produktów z ceną — szacunki AI ustępują cenom z KSeF.
+router.post("/food-cost/dishes/:id/reprice", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [dish] = await db
+    .select({ id: dishesTable.id })
+    .from(dishesTable)
+    .where(and(eq(dishesTable.id, id), eq(dishesTable.userId, userId)))
+    .limit(1);
+  if (!dish) { res.status(404).json({ error: "Dish not found" }); return; }
+
+  const ings = await db
+    .select({ id: dishIngredientsTable.id, productId: dishIngredientsTable.productId, productName: productsTable.name })
+    .from(dishIngredientsTable)
+    .innerJoin(productsTable, and(eq(dishIngredientsTable.productId, productsTable.id), eq(productsTable.userId, userId)))
+    .where(eq(dishIngredientsTable.dishId, id));
+
+  const allProducts = await db
+    .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit, canonicalName: productsTable.canonicalName })
+    .from(productsTable)
+    .where(eq(productsTable.userId, userId));
+  const prices = await getLatestPrices(userId, allProducts.map((p) => p.id));
+
+  // Indeks WYŁĄCZNIE z produktów mających cenę z faktury — cel przepięcia.
+  const exactByNorm = new Map<string, ProdIdx>();
+  const pricedIndex: ProdIdx[] = [];
+  for (const p of allProducts) {
+    if (!prices.has(p.id)) continue;
+    const canon = p.canonicalName?.trim() || normalizeProductName(p.name);
+    const idx: ProdIdx = { id: p.id, name: p.name, unit: p.unit ?? "szt", tokens: new Set(significantTokens(canon)) };
+    pricedIndex.push(idx);
+    for (const key of [normalizeName(p.name), normalizeName(canon)]) {
+      if (key && !exactByNorm.has(key)) exactByNorm.set(key, idx);
+    }
+  }
+
+  let repriced = 0;
+  for (const ing of ings) {
+    if (prices.has(ing.productId)) continue; // już ma realną cenę
+    const m = matchProduct(ing.productName, exactByNorm, pricedIndex);
+    if (m && m.id !== ing.productId) {
+      await db.update(dishIngredientsTable).set({ productId: m.id }).where(eq(dishIngredientsTable.id, ing.id));
+      repriced++;
+    }
+  }
+
+  res.json({ repriced });
+});
+
 export default router;

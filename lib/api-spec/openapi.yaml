@@ -129,6 +129,31 @@ paths:
         "404":
           description: Not found
 
+  /food-cost/dishes/{id}/reprice:
+    post:
+      operationId: repriceDish
+      tags: [food-cost]
+      summary: Re-point dish ingredients to purchased (invoice-priced) products — estimates give way to real KSeF prices
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Repriced ingredient count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repriced:
+                    type: integer
+                required: [repriced]
+        "404":
+          description: Not found
+
   /food-cost/dishes-sales:
     get:
       operationId: getDishesSales

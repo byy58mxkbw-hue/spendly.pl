@@ -15,12 +15,13 @@ import {
   useDeleteDish,
   useListProducts,
   useGetDishesSales,
+  useRepriceDish,
   getListDishesQueryKey,
   getGetDishQueryKey,
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import type { DishIngredientInput, DishDetail } from "@workspace/api-client-react";
-import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, ChevronDown, ChevronUp, Sparkles, ChevronLeft, ShoppingBag } from "lucide-react";
+import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, ChevronDown, ChevronUp, Sparkles, ChevronLeft, ShoppingBag, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MenuImportDialog = lazy(() => import("./menu-import-dialog"));
@@ -477,8 +478,27 @@ function DishDetailSheet({
   onDelete: () => void;
 }) {
   const { data: dish, isLoading } = useGetDish(dishId);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const reprice = useRepriceDish();
   const costPct = dish?.portionCost != null && dish.sellPrice > 0
     ? (dish.portionCost / dish.sellPrice) * 100 : null;
+
+  async function handleReprice() {
+    try {
+      const res = await reprice.mutateAsync({ id: dishId });
+      queryClient.invalidateQueries({ queryKey: getGetDishQueryKey(dishId) });
+      queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() });
+      toast({
+        title: res.repriced > 0 ? `Przeliczono z faktur` : "Brak zmian",
+        description: res.repriced > 0
+          ? `${res.repriced} składnik(i) dostały realną cenę z KSeF.`
+          : "Nie znaleziono nowych dopasowań do kupionych produktów.",
+      });
+    } catch {
+      toast({ variant: "destructive", title: "Nie udało się przeliczyć" });
+    }
+  }
 
   return (
     <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -502,6 +522,9 @@ function DishDetailSheet({
                 {dish.category && <p className="text-xs text-muted-foreground mt-0.5">{dish.category}</p>}
               </div>
               <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                <button onClick={handleReprice} disabled={reprice.isPending} title="Przelicz z aktualnych faktur (szacunki → realne ceny)" className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50">
+                  <RefreshCw className={cn("w-4 h-4", reprice.isPending && "animate-spin")} />
+                </button>
                 <button onClick={onEdit} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                   <Edit2 className="w-4 h-4" />
                 </button>

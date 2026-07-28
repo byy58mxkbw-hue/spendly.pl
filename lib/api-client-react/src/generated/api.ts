@@ -108,6 +108,7 @@ import type {
   PriceHistoryEntry,
   Product,
   RecentPurchase,
+  RepriceDish200,
   ResuggestCostCenters200,
   RetryKsefPendingResult,
   SaveMenuDishes201,
@@ -514,6 +515,76 @@ export const useDeleteDish = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteDishMutationOptions(options));
+    }
+
+export const getRepriceDishUrl = (id: number,) => {
+
+
+
+
+  return `/api/food-cost/dishes/${id}/reprice`
+}
+
+/**
+ * @summary Re-point dish ingredients to purchased (invoice-priced) products — estimates give way to real KSeF prices
+ */
+export const repriceDish = async (id: number, options?: RequestInit): Promise<RepriceDish200> => {
+
+  return customFetch<RepriceDish200>(getRepriceDishUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRepriceDishMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof repriceDish>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof repriceDish>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['repriceDish'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof repriceDish>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  repriceDish(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RepriceDishMutationResult = NonNullable<Awaited<ReturnType<typeof repriceDish>>>
+
+    export type RepriceDishMutationError = ErrorType<void>
+
+    /**
+ * @summary Re-point dish ingredients to purchased (invoice-priced) products — estimates give way to real KSeF prices
+ */
+export const useRepriceDish = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof repriceDish>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof repriceDish>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRepriceDishMutationOptions(options));
     }
 
 export const getGetDishesSalesUrl = (params?: GetDishesSalesParams,) => {
