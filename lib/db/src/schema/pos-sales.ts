@@ -11,6 +11,8 @@ export const posSalesTable = pgTable("pos_sales", {
   userId: text("user_id").notNull(),
   period: text("period").notNull(), // 'YYYY-MM'
   productName: text("product_name").notNull(),
+  // Id produktu z POS — warianty (np. wysmażenia steka) mają wspólne id → łączymy po nim.
+  posProductId: text("pos_product_id"),
   qty: numeric("qty", { precision: 12, scale: 3 }).notNull().default("0"),
   netValue: numeric("net_value", { precision: 12, scale: 2 }).notNull().default("0"),
   source: text("source").notNull().default("gopos"),

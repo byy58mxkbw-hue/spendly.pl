@@ -42,6 +42,7 @@ export async function ensureGoposTables(log: Logger): Promise<void> {
     await db.execute(sql`
       CREATE INDEX IF NOT EXISTS pos_sales_user_period_idx ON pos_sales (user_id, period)
     `);
+    await db.execute(sql`ALTER TABLE IF EXISTS pos_sales ADD COLUMN IF NOT EXISTS pos_product_id text`);
     log.info("gopos_config + pos_sales: tabele gotowe");
   } catch (err) {
     log.error({ err: String(err) }, "Nie udało się zapewnić tabel GoPOS");

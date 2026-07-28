@@ -259,13 +259,17 @@ router.get("/food-cost/pos-items", async (req, res): Promise<void> => {
   const rows = await db
     .select({
       name: posSalesTable.productName,
+      posProductId: posSalesTable.posProductId,
       qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
+      net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
     })
     .from(posSalesTable)
     .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, keys)))
-    .groupBy(posSalesTable.productName)
-    .orderBy(desc(sql`SUM(${posSalesTable.qty}::numeric)`));
-  res.json({ items: rows.map((r) => ({ name: r.name, qty: Math.round((Number(r.qty) || 0) * 100) / 100 })) });
+    .groupBy(posSalesTable.productName, posSalesTable.posProductId);
+  const groups = groupPosByProduct(
+    rows.map((r) => ({ name: r.name, posProductId: r.posProductId, qty: Number(r.qty) || 0, net: Number(r.net) || 0 })),
+  ).sort((a, b) => b.qty - a.qty);
+  res.json({ items: groups.map((g) => ({ name: g.name, qty: Math.round(g.qty * 100) / 100 })) });
 });
 
 // ─── Dania × sprzedaż GoPOS: realny food cost ważony sprzedażą ──────────────────
@@ -281,12 +285,13 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
     db
       .select({
         productName: posSalesTable.productName,
+        posProductId: posSalesTable.posProductId,
         qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
         net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
       })
       .from(posSalesTable)
       .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, keys)))
-      .groupBy(posSalesTable.productName),
+      .groupBy(posSalesTable.productName, posSalesTable.posProductId),
     db
       .select({ amountNet: restaurantRevenueTable.amountNet })
       .from(restaurantRevenueTable)
@@ -299,31 +304,36 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
   const posLinkById = new Map(posLinks.map((d) => [d.id, d.posProductName]));
   const totalRevenue = revRows.reduce((s, r) => s + (Number(r.amountNet) || 0), 0); // cały obrót GoPOS (kontekst)
 
-  // Indeks sprzedaży po znormalizowanej nazwie pozycji GoPOS
+  // Grupuj warianty PO ID PRODUKTU (steki medium/rare = jedno; lunch dnia z własnym id osobno).
+  const posGroups = groupPosByProduct(
+    salesRows.map((r) => ({ name: r.productName, posProductId: r.posProductId, qty: Number(r.qty) || 0, net: Number(r.net) || 0 })),
+  );
   const salesByNorm = new Map<string, { qty: number; net: number }>();
-  for (const r of salesRows) {
-    const key = normalizeName(r.productName);
+  for (const g of posGroups) {
+    const key = normalizeName(g.name);
     const cur = salesByNorm.get(key) ?? { qty: 0, net: 0 };
-    cur.qty += Number(r.qty) || 0;
-    cur.net += Number(r.net) || 0;
+    cur.qty += g.qty;
+    cur.net += g.net;
     salesByNorm.set(key, cur);
   }
   const salesEntries = [...salesByNorm.entries()];
-  // Dopasowanie danie→sprzedaż. SUMUJE warianty tej samej pozycji: nazwa bazowa
-  // ORAZ „nazwa bazowa + wariant" (np. stek → stek medium/rare/well done) liczą się razem.
+  // Dopasowanie danie→grupa sprzedaży: JEDNA najlepsza grupa (warianty już zsumowane po id).
+  // exact > „danie = grupa + wariant" > „grupa = danie + wariant" > luźne zawieranie.
   function findSales(dishName: string, override: string | null): { qty: number; net: number } | null {
     const target = normalizeName(override || dishName);
     if (!target) return null;
-    let qty = 0, net = 0, found = false;
+    const exact = salesByNorm.get(target);
+    if (exact) return exact;
+    let best: { qty: number; net: number } | null = null;
+    let bestScore = 0;
     for (const [k, v] of salesEntries) {
-      if (k === target || k.startsWith(target + " ") || target.startsWith(k + " ")) { qty += v.qty; net += v.net; found = true; }
+      let score = 0;
+      if (target.startsWith(k + " ")) score = 1000 + k.length;
+      else if (k.startsWith(target + " ")) score = 500 + target.length;
+      else if (k.length >= 4 && target.length >= 4 && (k.includes(target) || target.includes(k))) score = Math.min(k.length, target.length);
+      if (score > bestScore) { bestScore = score; best = v; }
     }
-    if (found) return { qty, net };
-    // Fallback: luźne zawieranie (pierwsze trafienie) — gdy nazwy różnią się mocniej.
-    for (const [k, v] of salesEntries) {
-      if (k.length >= 4 && target.length >= 4 && (k.includes(target) || target.includes(k))) return v;
-    }
-    return null;
+    return best;
   }
 
   let costTotal = 0;
@@ -579,6 +589,37 @@ router.delete("/food-cost/dishes/:id", async (req, res): Promise<void> => {
 // dopasowania składników AI do istniejących produktów usera, po stronie JS (1 query).
 function normalizeName(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+// Wspólny prefiks całych słów — nazwa bazowa grupy wariantów (np. „Stek z Polędwicy Wołowej").
+function commonWordPrefix(names: string[]): string {
+  if (names.length === 0) return "";
+  if (names.length === 1) return names[0].trim();
+  const split = names.map((n) => n.trim().replace(/\s+/g, " ").split(" "));
+  const first = split[0];
+  const out: string[] = [];
+  for (let i = 0; i < first.length; i++) {
+    const w = first[i].toLowerCase();
+    if (split.every((s) => (s[i] ?? "").toLowerCase() === w)) out.push(first[i]);
+    else break;
+  }
+  return out.length > 0 ? out.join(" ") : names[0].trim();
+}
+
+// Grupuje pozycje POS po id produktu (warianty = wspólne id → jedno), sumując ilość i przychód.
+// Bez id (stare dane przed re-syncem) każda pozycja osobno. Nazwa grupy = wspólny prefiks.
+type PosGroup = { name: string; qty: number; net: number };
+function groupPosByProduct(rows: Array<{ name: string; posProductId: string | null; qty: number; net: number }>): PosGroup[] {
+  const byKey = new Map<string, { names: string[]; qty: number; net: number }>();
+  for (const r of rows) {
+    const key = r.posProductId ? `id:${r.posProductId}` : `nm:${normalizeName(r.name)}`;
+    const g = byKey.get(key) ?? { names: [], qty: 0, net: 0 };
+    g.names.push(r.name);
+    g.qty += r.qty;
+    g.net += r.net;
+    byKey.set(key, g);
+  }
+  return [...byKey.values()].map((g) => ({ name: commonWordPrefix(g.names), qty: g.qty, net: g.net }));
 }
 
 // Tokeny znaczące do dopasowania fuzzy składnik→produkt. Dzielimy na całe słowa

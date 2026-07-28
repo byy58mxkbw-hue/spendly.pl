@@ -52,10 +52,10 @@ export async function syncGoposForUser(userId: string, log: Logger, monthsBack =
     revenueUpserts++;
 
     // Dedupe po nazwie (GoPOS grupuje po produkcie, ale asekuracyjnie) + bulk upsert.
-    const byName = new Map<string, { qty: number; net: number }>();
-    for (const it of items) byName.set(it.name, { qty: it.qty, net: it.net });
+    const byName = new Map<string, { qty: number; net: number; productId: string | null }>();
+    for (const it of items) byName.set(it.name, { qty: it.qty, net: it.net, productId: it.productId });
     const rows = [...byName.entries()].map(([productName, v]) => ({
-      userId, period, productName, qty: v.qty.toString(), netValue: v.net.toFixed(2), source: "gopos",
+      userId, period, productName, posProductId: v.productId, qty: v.qty.toString(), netValue: v.net.toFixed(2), source: "gopos",
     }));
     if (rows.length > 0) {
       await db
@@ -63,7 +63,7 @@ export async function syncGoposForUser(userId: string, log: Logger, monthsBack =
         .values(rows)
         .onConflictDoUpdate({
           target: [posSalesTable.userId, posSalesTable.period, posSalesTable.productName],
-          set: { qty: sql`excluded.qty`, netValue: sql`excluded.net_value`, source: sql`excluded.source`, updatedAt: sql`now()` },
+          set: { posProductId: sql`excluded.pos_product_id`, qty: sql`excluded.qty`, netValue: sql`excluded.net_value`, source: sql`excluded.source`, updatedAt: sql`now()` },
         });
       itemUpserts += rows.length;
     }

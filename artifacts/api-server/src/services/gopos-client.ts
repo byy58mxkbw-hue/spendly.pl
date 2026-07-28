@@ -31,7 +31,7 @@ export async function getGoposToken(clientId: string, clientSecret: string, orga
   return json.access_token;
 }
 
-export type GoposSalesItem = { name: string; qty: number; net: number };
+export type GoposSalesItem = { name: string; productId: string | null; qty: number; net: number };
 export type GoposMonthlySales = { revenueNet: number; items: GoposSalesItem[] };
 
 // amount z GoPOS bywa liczbą lub {amount, currency} — normalizacja.
@@ -54,7 +54,7 @@ export async function fetchSales(token: string, organizationId: string, from: st
   const json = (await res.json()) as {
     reports?: Array<{
       aggregate?: { sales?: { net_total_money?: unknown } };
-      sub_report?: Array<{ group_by_value?: { name?: string }; aggregate?: { sales?: { product_quantity?: number; net_total_money?: unknown } } }>;
+      sub_report?: Array<{ group_by_value?: { name?: string; id?: string | number }; aggregate?: { sales?: { product_quantity?: number; net_total_money?: unknown } } }>;
     }>;
   };
   const rep = json.reports?.[0];
@@ -62,6 +62,7 @@ export async function fetchSales(token: string, organizationId: string, from: st
   const items: GoposSalesItem[] = (rep?.sub_report ?? [])
     .map((s) => ({
       name: (s.group_by_value?.name ?? "").trim(),
+      productId: s.group_by_value?.id != null ? String(s.group_by_value.id) : null,
       qty: Number(s.aggregate?.sales?.product_quantity ?? 0),
       net: amount(s.aggregate?.sales?.net_total_money),
     }))
