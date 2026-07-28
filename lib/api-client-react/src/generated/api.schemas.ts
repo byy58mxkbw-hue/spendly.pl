@@ -155,6 +155,11 @@ export interface SetProductManualPriceBody {
   manualUnit?: string | null;
 }
 
+export interface SetDishPosLinkBody {
+  /** @nullable */
+  posProductName?: string | null;
+}
+
 export interface CorrectProductCategoryBody {
   category: string;
   /** @nullable */
@@ -1131,6 +1136,8 @@ export interface DishSales {
   /** @nullable */
   monthlyCost?: number | null;
   matched: boolean;
+  /** @nullable */
+  posProductName?: string | null;
 }
 
 export interface DishesSalesWeighted {
@@ -1275,6 +1282,8 @@ export interface DishDetail {
   confidencePct: number;
   /** @nullable */
   invoiceCostPct?: number | null;
+  /** @nullable */
+  posProductName?: string | null;
 }
 
 export interface DishSummary {
@@ -1299,6 +1308,21 @@ export interface DishParams {
 
 export type CreateDish201 = {
   id: number;
+};
+
+export type GetPosItemsParams = {
+month?: string;
+from?: string;
+to?: string;
+};
+
+export type GetPosItems200ItemsItem = {
+  name: string;
+  qty: number;
+};
+
+export type GetPosItems200 = {
+  items: GetPosItems200ItemsItem[];
 };
 
 export type RepriceDish200 = {

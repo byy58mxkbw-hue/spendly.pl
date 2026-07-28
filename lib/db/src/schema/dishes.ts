@@ -9,6 +9,9 @@ export const dishesTable = pgTable("dishes", {
   name: text("name").notNull(),
   sellPrice: numeric("sell_price", { precision: 10, scale: 2 }).notNull().default("0"),
   category: text("category"),
+  // Ręczne powiązanie dania z pozycją sprzedaży GoPOS (nazwa pozycji). Gdy ustawione,
+  // ma priorytet nad automatycznym dopasowaniem po nazwie w /food-cost/dishes-sales.
+  posProductName: text("pos_product_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("dishes_user_id_idx").on(t.userId)]);

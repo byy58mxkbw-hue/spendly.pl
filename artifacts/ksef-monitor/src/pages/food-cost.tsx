@@ -18,6 +18,9 @@ import {
   useRepriceDish,
   useSetProductPackage,
   useSetProductManualPrice,
+  useGetPosItems,
+  useSetDishPosLink,
+  getGetDishesSalesQueryKey,
   getListDishesQueryKey,
   getGetDishQueryKey,
   getListProductsQueryKey,
@@ -658,6 +661,43 @@ function IngredientDetailCard({
   );
 }
 
+// ─── Powiązanie dania z pozycją sprzedaży GoPOS (ręczna korekta) ──────────────
+function PosLinkSection({ dishId, currentLink, onChanged }: { dishId: number; currentLink: string | null; onChanged: () => void }) {
+  const { toast } = useToast();
+  const { data: posData } = useGetPosItems({ month: currentMonth() });
+  const setLink = useSetDishPosLink();
+  const items = posData?.items ?? [];
+  if (items.length === 0) return null; // brak danych GoPOS → nie pokazuj
+
+  async function pick(name: string | null) {
+    try {
+      await setLink.mutateAsync({ id: dishId, data: { posProductName: name } });
+      onChanged();
+      toast({ title: name ? "Powiązano z GoPOS" : "Przywrócono auto-dopasowanie", description: name ?? undefined });
+    } catch { toast({ variant: "destructive", title: "Nie udało się zapisać powiązania" }); }
+  }
+
+  return (
+    <div className="mx-5 mt-4">
+      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Powiązanie ze sprzedażą (GoPOS)</p>
+      <select
+        value={currentLink ?? ""}
+        onChange={(e) => pick(e.target.value === "" ? null : e.target.value)}
+        disabled={setLink.isPending}
+        className="w-full h-9 px-2 text-sm rounded-lg bg-background border border-input text-foreground"
+      >
+        <option value="">Automatyczne (po nazwie dania)</option>
+        {items.map((it) => (
+          <option key={it.name} value={it.name}>{it.name} — {new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(it.qty)} szt</option>
+        ))}
+      </select>
+      <p className="text-[10px] text-muted-foreground mt-1">
+        {currentLink ? `Ręcznie powiązane z „${currentLink}".` : "Dopasowuje po nazwie. Gdy nazwa dania różni się od pozycji w GoPOS — wybierz ją ręcznie."}
+      </p>
+    </div>
+  );
+}
+
 // ─── Dish detail bottom sheet ─────────────────────────────────────────────────
 
 function DishDetailSheet({
@@ -798,6 +838,17 @@ function DishDetailSheet({
               </div>
             )}
 
+            {/* Powiązanie ze sprzedażą GoPOS (ręczna korekta) */}
+            <PosLinkSection
+              dishId={dishId}
+              currentLink={dish.posProductName ?? null}
+              onChanged={() => {
+                queryClient.invalidateQueries({ queryKey: getGetDishQueryKey(dishId) });
+                queryClient.invalidateQueries({ queryKey: getGetDishesSalesQueryKey() });
+                queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() });
+              }}
+            />
+
             {/* Ingredients */}
             <div className="px-5 mt-5">
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
@@ -829,10 +880,12 @@ function DishDetailSheet({
 function DishCard({
   dish,
   sales,
+  monthLabelText,
   onClick,
 }: {
   dish: { id: number; name: string; category?: string | null; sellPrice: number; portionCost?: number | null; marginPct?: number | null; confidencePct: number; invoiceCostPct?: number | null };
   sales?: { soldQty: number; monthlyCost?: number | null } | null;
+  monthLabelText?: string;
   onClick: () => void;
 }) {
   const foodCostPct = dish.portionCost != null && dish.sellPrice > 0
@@ -887,7 +940,7 @@ function DishCard({
 
       {sold > 0 && (
         <div className="flex items-center justify-between mt-2 pt-2 border-t border-dashed border-border text-[11px]">
-          <span className="text-muted-foreground">Sprzedano <b className="text-foreground tabular-nums">{new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(sold)}</b> w okresie</span>
+          <span className="text-muted-foreground">Sprzedano <b className="text-foreground tabular-nums">{new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(sold)}</b>{monthLabelText ? ` w ${monthLabelText}` : " w okresie"}</span>
           {sales?.monthlyCost != null && (
             <span className="text-muted-foreground">koszt <b className="text-foreground tabular-nums">{fmt(sales.monthlyCost)}</b></span>
           )}
@@ -1067,7 +1120,7 @@ export default function FoodCostPage() {
         ) : (
           <div className="space-y-3">
             {filtered.map((dish) => (
-              <DishCard key={dish.id} dish={dish} sales={salesById.get(dish.id)} onClick={() => setViewDishId(dish.id)} />
+              <DishCard key={dish.id} dish={dish} sales={salesById.get(dish.id)} monthLabelText={hasGopos ? monthLabel(month) : undefined} onClick={() => setViewDishId(dish.id)} />
             ))}
           </div>
         )}

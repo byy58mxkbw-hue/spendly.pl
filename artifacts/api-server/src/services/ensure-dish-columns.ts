@@ -12,6 +12,8 @@ export async function ensureDishIngredientColumns(log: Logger): Promise<void> {
         ADD COLUMN IF NOT EXISTS est_unit_price numeric(12,4),
         ADD COLUMN IF NOT EXISTS est_unit       text
     `);
+    // Ręczne powiązanie dania z pozycją GoPOS.
+    await db.execute(sql`ALTER TABLE IF EXISTS dishes ADD COLUMN IF NOT EXISTS pos_product_name text`);
     // Waga/pojemność opakowania na produkcie — do konwersji „za szt" → gramy w recepturach.
     await db.execute(sql`
       ALTER TABLE IF EXISTS products

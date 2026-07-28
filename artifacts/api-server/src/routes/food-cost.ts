@@ -251,6 +251,23 @@ router.get("/food-cost/dishes", async (req, res): Promise<void> => {
   res.json(await computeAllDishMargins(req.userId!));
 });
 
+// Pozycje sprzedaży GoPOS (do ręcznego powiązania dania) — nazwy + ilość w okresie.
+router.get("/food-cost/pos-items", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const period = periodFromQuery(req.query as { from?: unknown; to?: unknown; month?: unknown });
+  const keys = monthsInRange(period);
+  const rows = await db
+    .select({
+      name: posSalesTable.productName,
+      qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
+    })
+    .from(posSalesTable)
+    .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, keys)))
+    .groupBy(posSalesTable.productName)
+    .orderBy(desc(sql`SUM(${posSalesTable.qty}::numeric)`));
+  res.json({ items: rows.map((r) => ({ name: r.name, qty: Math.round((Number(r.qty) || 0) * 100) / 100 })) });
+});
+
 // ─── Dania × sprzedaż GoPOS: realny food cost ważony sprzedażą ──────────────────
 // Dopasowuje danie do pozycji sprzedaży GoPOS (po nazwie), liczy koszt miesięczny
 // (koszt porcji × ilość sprzedana) i „prawdziwy food cost %" = Σkoszt / przychód.
@@ -259,7 +276,7 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
   const period = periodFromQuery(req.query as { from?: unknown; to?: unknown; month?: unknown });
   const keys = monthsInRange(period);
 
-  const [margins, salesRows, revRows] = await Promise.all([
+  const [margins, salesRows, revRows, posLinks] = await Promise.all([
     computeAllDishMargins(userId),
     db
       .select({
@@ -274,7 +291,12 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
       .select({ amountNet: restaurantRevenueTable.amountNet })
       .from(restaurantRevenueTable)
       .where(and(eq(restaurantRevenueTable.userId, userId), inArray(restaurantRevenueTable.period, keys))),
+    db
+      .select({ id: dishesTable.id, posProductName: dishesTable.posProductName })
+      .from(dishesTable)
+      .where(eq(dishesTable.userId, userId)),
   ]);
+  const posLinkById = new Map(posLinks.map((d) => [d.id, d.posProductName]));
 
   // Indeks sprzedaży po znormalizowanej nazwie pozycji GoPOS
   const salesByNorm = new Map<string, { qty: number; net: number }>();
@@ -286,8 +308,9 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
     salesByNorm.set(key, cur);
   }
   const salesEntries = [...salesByNorm.entries()];
-  // Dopasowanie danie→sprzedaż: exact → zawieranie całej nazwy (danie w pozycji lub odwrotnie)
-  function findSales(dishName: string): { qty: number; net: number } | null {
+  // Dopasowanie danie→sprzedaż: ręczne powiązanie (dokładne) → auto exact → zawieranie nazwy.
+  function findSales(dishName: string, override: string | null): { qty: number; net: number } | null {
+    if (override) return salesByNorm.get(normalizeName(override)) ?? { qty: 0, net: 0 };
     const n = normalizeName(dishName);
     if (!n) return null;
     const exact = salesByNorm.get(n);
@@ -304,7 +327,8 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
   let costKnown = false;
   let dishesSold = 0;
   const dishes = margins.map((m) => {
-    const s = findSales(m.name);
+    const override = posLinkById.get(m.id) ?? null;
+    const s = findSales(m.name, override);
     const soldQty = s?.qty ?? 0;
     const salesNet = s?.net ?? null;
     const monthlyCost = m.portionCost != null && soldQty > 0 ? Math.round(m.portionCost * soldQty * 100) / 100 : null;
@@ -321,7 +345,8 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
       soldQty: Math.round(soldQty * 100) / 100,
       salesNet: salesNet != null ? Math.round(salesNet * 100) / 100 : null,
       monthlyCost,
-      matched: s != null,
+      matched: soldQty > 0,
+      posProductName: override,
     };
   });
 
@@ -403,6 +428,7 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
     marginPct,
     confidencePct,
     invoiceCostPct,
+    posProductName: dish.posProductName ?? null,
     ingredients: ingredients.map((i) => ({
       id: i.id,
       productId: i.productId,
@@ -866,6 +892,23 @@ router.post("/food-cost/dishes/:id/reprice", async (req, res): Promise<void> => 
   }
 
   res.json({ repriced });
+});
+
+// Ręczne powiązanie dania z pozycją sprzedaży GoPOS (albo wyczyszczenie = auto po nazwie).
+router.patch("/food-cost/dishes/:id/pos-link", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const raw = (req.body as { posProductName?: unknown }).posProductName;
+  const posProductName = raw == null || raw === "" ? null : String(raw).trim();
+
+  const [updated] = await db
+    .update(dishesTable)
+    .set({ posProductName })
+    .where(and(eq(dishesTable.id, id), eq(dishesTable.userId, userId)))
+    .returning({ id: dishesTable.id });
+  if (!updated) { res.status(404).json({ error: "Dish not found" }); return; }
+  res.status(204).end();
 });
 
 export default router;

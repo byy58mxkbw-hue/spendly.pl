@@ -66,6 +66,8 @@ import type {
   GetInvoicesPaymentsParams,
   GetInvoicesTimelineParams,
   GetMonthlyReportParams,
+  GetPosItems200,
+  GetPosItemsParams,
   GetPredictiveReportParams,
   GetProductPriceHistoryParams,
   GetRecentPurchasesParams,
@@ -116,6 +118,7 @@ import type {
   ScanReceiptBody,
   ScannedReceiptData,
   SearchResults,
+  SetDishPosLinkBody,
   SetInvoiceCostCenterBody,
   SetProductManualPriceBody,
   SetProductPackageBody,
@@ -659,6 +662,161 @@ export const useSetProductManualPrice = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSetProductManualPriceMutationOptions(options));
+    }
+
+export const getGetPosItemsUrl = (params?: GetPosItemsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/food-cost/pos-items?${stringifiedParams}` : `/api/food-cost/pos-items`
+}
+
+/**
+ * @summary GoPOS sales item names for a period (for manual dish↔sales linking)
+ */
+export const getPosItems = async (params?: GetPosItemsParams, options?: RequestInit): Promise<GetPosItems200> => {
+
+  return customFetch<GetPosItems200>(getGetPosItemsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPosItemsQueryKey = (params?: GetPosItemsParams,) => {
+    return [
+    `/api/food-cost/pos-items`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPosItemsQueryOptions = <TData = Awaited<ReturnType<typeof getPosItems>>, TError = ErrorType<unknown>>(params?: GetPosItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPosItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPosItemsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPosItems>>> = ({ signal }) => getPosItems(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPosItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPosItemsQueryResult = NonNullable<Awaited<ReturnType<typeof getPosItems>>>
+export type GetPosItemsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary GoPOS sales item names for a period (for manual dish↔sales linking)
+ */
+
+export function useGetPosItems<TData = Awaited<ReturnType<typeof getPosItems>>, TError = ErrorType<unknown>>(
+ params?: GetPosItemsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPosItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPosItemsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSetDishPosLinkUrl = (id: number,) => {
+
+
+
+
+  return `/api/food-cost/dishes/${id}/pos-link`
+}
+
+/**
+ * @summary Manually link a dish to a GoPOS sales item (or clear = auto by name)
+ */
+export const setDishPosLink = async (id: number,
+    setDishPosLinkBody: SetDishPosLinkBody, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getSetDishPosLinkUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(setDishPosLinkBody)
+  }
+);}
+
+
+
+
+export const getSetDishPosLinkMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setDishPosLink>>, TError,{id: number;data: BodyType<SetDishPosLinkBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setDishPosLink>>, TError,{id: number;data: BodyType<SetDishPosLinkBody>}, TContext> => {
+
+const mutationKey = ['setDishPosLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setDishPosLink>>, {id: number;data: BodyType<SetDishPosLinkBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setDishPosLink(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetDishPosLinkMutationResult = NonNullable<Awaited<ReturnType<typeof setDishPosLink>>>
+    export type SetDishPosLinkMutationBody = BodyType<SetDishPosLinkBody>
+    export type SetDishPosLinkMutationError = ErrorType<void>
+
+    /**
+ * @summary Manually link a dish to a GoPOS sales item (or clear = auto by name)
+ */
+export const useSetDishPosLink = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setDishPosLink>>, TError,{id: number;data: BodyType<SetDishPosLinkBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setDishPosLink>>,
+        TError,
+        {id: number;data: BodyType<SetDishPosLinkBody>},
+        TContext
+      > => {
+      return useMutation(getSetDishPosLinkMutationOptions(options));
     }
 
 export const getRepriceDishUrl = (id: number,) => {

@@ -76,7 +76,8 @@ export const GetDishResponse = zod.object({
   "portionCost": zod.number().nullish(),
   "marginPct": zod.number().nullish(),
   "confidencePct": zod.number(),
-  "invoiceCostPct": zod.number().nullish()
+  "invoiceCostPct": zod.number().nullish(),
+  "posProductName": zod.string().nullish()
 })
 
 
@@ -142,6 +143,37 @@ export const SetProductManualPriceResponse = zod.void()
 
 
 /**
+ * @summary GoPOS sales item names for a period (for manual dish↔sales linking)
+ */
+export const GetPosItemsQueryParams = zod.object({
+  "month": zod.coerce.string().optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetPosItemsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "name": zod.string(),
+  "qty": zod.number()
+}))
+})
+
+
+/**
+ * @summary Manually link a dish to a GoPOS sales item (or clear = auto by name)
+ */
+export const SetDishPosLinkParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetDishPosLinkBody = zod.object({
+  "posProductName": zod.string().nullish()
+})
+
+export const SetDishPosLinkResponse = zod.void()
+
+
+/**
  * @summary Re-point dish ingredients to purchased (invoice-priced) products — estimates give way to real KSeF prices
  */
 export const RepriceDishParams = zod.object({
@@ -181,7 +213,8 @@ export const GetDishesSalesResponse = zod.object({
   "soldQty": zod.number(),
   "salesNet": zod.number().nullish(),
   "monthlyCost": zod.number().nullish(),
-  "matched": zod.boolean()
+  "matched": zod.boolean(),
+  "posProductName": zod.string().nullish()
 }))
 })
 

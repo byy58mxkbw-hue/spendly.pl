@@ -175,6 +175,70 @@ paths:
         "404":
           description: Not found
 
+  /food-cost/pos-items:
+    get:
+      operationId: getPosItems
+      tags: [food-cost]
+      summary: GoPOS sales item names for a period (for manual dish↔sales linking)
+      parameters:
+        - name: month
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: POS item list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        qty:
+                          type: number
+                      required: [name, qty]
+                required: [items]
+
+  /food-cost/dishes/{id}/pos-link:
+    patch:
+      operationId: setDishPosLink
+      tags: [food-cost]
+      summary: Manually link a dish to a GoPOS sales item (or clear = auto by name)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetDishPosLinkBody"
+      responses:
+        "204":
+          description: Saved
+        "404":
+          description: Not found
+
   /food-cost/dishes/{id}/reprice:
     post:
       operationId: repriceDish
@@ -2503,6 +2567,12 @@ components:
         manualUnit:
           type: ["string", "null"]
 
+    SetDishPosLinkBody:
+      type: object
+      properties:
+        posProductName:
+          type: ["string", "null"]
+
     CorrectProductCategoryBody:
       type: object
       properties:
@@ -4384,6 +4454,8 @@ components:
           type: ["number", "null"]
         matched:
           type: boolean
+        posProductName:
+          type: ["string", "null"]
       required:
         - id
         - name
@@ -4603,6 +4675,8 @@ components:
           type: number
         invoiceCostPct:
           type: ["number", "null"]
+        posProductName:
+          type: ["string", "null"]
       required:
         - id
         - name
