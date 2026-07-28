@@ -332,7 +332,8 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
     const soldQty = s?.qty ?? 0;
     const salesNet = s?.net ?? null;
     const monthlyCost = m.portionCost != null && soldQty > 0 ? Math.round(m.portionCost * soldQty * 100) / 100 : null;
-    if (monthlyCost != null) { costTotal += monthlyCost; costKnown = true; if (salesNet != null) dishesRevenue += salesNet; }
+    // Przychód z dań = cena z menu (BRUTTO) × ilość sprzedana — tylko dania, które policzyliśmy.
+    if (monthlyCost != null) { costTotal += monthlyCost; costKnown = true; dishesRevenue += m.sellPrice * soldQty; }
     if (soldQty > 0) dishesSold++;
     const foodCostPct = m.portionCost != null && m.sellPrice > 0 ? Math.round((m.portionCost / m.sellPrice) * 1000) / 10 : null;
     return {

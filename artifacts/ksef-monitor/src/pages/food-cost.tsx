@@ -977,18 +977,26 @@ export default function FoodCostPage() {
   const [editDishId, setEditDishId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [onlyUnmatched, setOnlyUnmatched] = useState(false);
 
   const categories = useMemo(
     () => [...new Set(dishes.map((d) => d.category).filter(Boolean) as string[])].sort(),
     [dishes],
   );
 
+  // Ile dań ma dopasowaną sprzedaż z GoPOS (do licznika/filtra „niepowiązane").
+  const matchedCount = useMemo(
+    () => dishes.filter((d) => (salesById.get(d.id)?.soldQty ?? 0) > 0).length,
+    [dishes, salesById],
+  );
+
   const filtered = useMemo(() => {
     let list = dishes;
     if (search) list = list.filter((d) => d.name.toLowerCase().includes(search.toLowerCase()));
     if (categoryFilter) list = list.filter((d) => d.category === categoryFilter);
+    if (onlyUnmatched) list = list.filter((d) => (salesById.get(d.id)?.soldQty ?? 0) === 0);
     return list;
-  }, [dishes, search, categoryFilter]);
+  }, [dishes, search, categoryFilter, onlyUnmatched, salesById]);
 
   // KPIs
   const withMargin = dishes.filter((d) => d.marginPct != null);
@@ -1069,7 +1077,7 @@ export default function FoodCostPage() {
                 </p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground mb-0.5">Koszt / przychód dań</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Koszt / przychód dań (brutto)</p>
                 <p className="text-sm font-semibold text-foreground tabular-nums mt-1">
                   {fmt(salesData.weighted.costTotal)} / {fmt(salesData.weighted.revenue)}
                 </p>
@@ -1080,9 +1088,21 @@ export default function FoodCostPage() {
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground mt-2">
-              Σ(koszt porcji × ilość) / przychód netto <b>tych dań</b>. „Dań ze sprzedażą" = ile pozycji menu ma dopasowaną sprzedaż (nie liczba porcji).
+              Σ(koszt porcji × ilość) / przychód brutto <b>tych dań</b> (cena z menu × ilość). „Dań ze sprzedażą" = ile pozycji menu ma dopasowaną sprzedaż (nie liczba porcji).
               {(salesData.weighted.totalRevenue ?? 0) > 0 && <> Cały obrót GoPOS w okresie: {fmt(salesData.weighted.totalRevenue ?? 0)}.</>}
             </p>
+            <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
+              <span className="text-[11px] text-muted-foreground">
+                Powiązane: <b className="text-foreground">{matchedCount}</b>/{dishes.length} dań
+                {dishes.length - matchedCount > 0 && <> · <b className="text-amber-600">{dishes.length - matchedCount}</b> bez sprzedaży</>}
+              </span>
+              <button
+                onClick={() => setOnlyUnmatched((v) => !v)}
+                className={cn("text-[11px] font-medium px-2.5 py-1 rounded-lg border transition-colors", onlyUnmatched ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary")}
+              >
+                {onlyUnmatched ? "Pokaż wszystkie" : "Pokaż niepowiązane"}
+              </button>
+            </div>
           </div>
         )}
 
