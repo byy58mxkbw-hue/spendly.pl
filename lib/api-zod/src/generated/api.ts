@@ -18,6 +18,7 @@ export const ListDishesResponseItem = zod.object({
   "portionCost": zod.number().nullish(),
   "marginPct": zod.number().nullish(),
   "confidencePct": zod.number(),
+  "invoiceCostPct": zod.number().nullish(),
   "ingredientCount": zod.number()
 })
 export const ListDishesResponse = zod.array(ListDishesResponseItem)
@@ -69,7 +70,8 @@ export const GetDishResponse = zod.object({
 })),
   "portionCost": zod.number().nullish(),
   "marginPct": zod.number().nullish(),
-  "confidencePct": zod.number()
+  "confidencePct": zod.number(),
+  "invoiceCostPct": zod.number().nullish()
 })
 
 

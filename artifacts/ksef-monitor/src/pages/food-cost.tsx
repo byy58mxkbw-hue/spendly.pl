@@ -48,6 +48,13 @@ function foodCostColor(pct: number): string {
   return "#dc2626";
 }
 
+// Wiarygodność wyceny: im więcej kosztu z realnych faktur, tym pewniej.
+function reliabilityColor(pct: number): string {
+  if (pct >= 67) return "#059669";
+  if (pct >= 34) return "#d97706";
+  return "#6b7280";
+}
+
 // Client-side unit conversion (mirrors backend logic)
 function toBase(qty: number, unit: string): { value: number; base: string } {
   const u = unit.toLowerCase().trim();
@@ -556,6 +563,24 @@ function DishDetailSheet({
               </span>
             </div>
 
+            {/* Wiarygodność wyceny: udział kosztu z realnych faktur vs prognoza AI */}
+            {dish.portionCost != null && dish.invoiceCostPct != null && (
+              <div className="mx-5 mt-2">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-muted-foreground">Wiarygodność wyceny</span>
+                  <span className="font-medium" style={{ color: reliabilityColor(dish.invoiceCostPct) }}>
+                    {dish.invoiceCostPct}% z faktur
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-border overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${dish.invoiceCostPct}%`, background: reliabilityColor(dish.invoiceCostPct) }} />
+                </div>
+                {dish.invoiceCostPct < 100 && (
+                  <p className="text-[10px] text-muted-foreground mt-1">Pozostałe {100 - dish.invoiceCostPct}% kosztu to prognoza AI — dokup te surowce przez KSeF, by uściślić.</p>
+                )}
+              </div>
+            )}
+
             {/* Ingredients */}
             <div className="px-5 mt-5">
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
@@ -581,7 +606,7 @@ function DishCard({
   sales,
   onClick,
 }: {
-  dish: { id: number; name: string; category?: string | null; sellPrice: number; portionCost?: number | null; marginPct?: number | null; confidencePct: number };
+  dish: { id: number; name: string; category?: string | null; sellPrice: number; portionCost?: number | null; marginPct?: number | null; confidencePct: number; invoiceCostPct?: number | null };
   sales?: { soldQty: number; monthlyCost?: number | null } | null;
   onClick: () => void;
 }) {
@@ -623,7 +648,12 @@ function DishCard({
             Food Cost {foodCostPct.toFixed(1)}%
           </span>
         )}
-        {dish.confidencePct < 100 && (
+        {dish.portionCost != null && dish.invoiceCostPct != null && dish.invoiceCostPct < 100 && (
+          <span className="text-[10px] font-medium" style={{ color: reliabilityColor(dish.invoiceCostPct) }} title="Udział kosztu z realnych faktur (reszta to prognoza AI)">
+            {dish.invoiceCostPct}% z faktur
+          </span>
+        )}
+        {dish.portionCost == null && dish.confidencePct < 100 && (
           <span className="text-[10px] text-amber-600 flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" /> niekompletne
           </span>

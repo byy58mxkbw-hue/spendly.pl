@@ -1249,6 +1249,8 @@ export interface DishDetail {
   /** @nullable */
   marginPct?: number | null;
   confidencePct: number;
+  /** @nullable */
+  invoiceCostPct?: number | null;
 }
 
 export interface DishSummary {
@@ -1262,6 +1264,8 @@ export interface DishSummary {
   /** @nullable */
   marginPct?: number | null;
   confidencePct: number;
+  /** @nullable */
+  invoiceCostPct?: number | null;
   ingredientCount: number;
 }
 

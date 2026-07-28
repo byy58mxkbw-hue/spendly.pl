@@ -4504,6 +4504,8 @@ components:
           type: ["number", "null"]
         confidencePct:
           type: number
+        invoiceCostPct:
+          type: ["number", "null"]
       required:
         - id
         - name
@@ -4529,6 +4531,8 @@ components:
           type: ["number", "null"]
         confidencePct:
           type: number
+        invoiceCostPct:
+          type: ["number", "null"]
         ingredientCount:
           type: integer
       required:

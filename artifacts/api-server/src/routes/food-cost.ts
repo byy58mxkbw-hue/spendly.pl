@@ -117,10 +117,12 @@ function computeDishCost(
   portionCost: number | null;
   marginPct: number | null;
   confidencePct: number;
+  invoiceCostPct: number | null;
   ingredientCosts: Map<number, number | null>;
   ingredientSources: Map<number, CostSource>;
 } {
   let totalCost = 0;
+  let invoiceCost = 0;  // część kosztu pochodząca z realnych faktur
   let known = 0;        // składniki z JAKĄKOLWIEK ceną (faktura lub szacunek AI)
   const ingredientCosts = new Map<number, number | null>();
   const ingredientSources = new Map<number, CostSource>();
@@ -133,6 +135,7 @@ function computeDishCost(
       ingredientCosts.set(ing.productId, cost);
       ingredientSources.set(ing.productId, "invoice");
       totalCost += cost;
+      invoiceCost += cost;
       known++;
     } else if (ing.estUnitPrice != null && ing.estUnitPrice > 0) {
       // Fallback: szacowana cena rynkowa AI (przechowywana za jednostkę estUnit, domyślnie kg).
@@ -149,7 +152,9 @@ function computeDishCost(
 
   const confidencePct = ingredients.length > 0 ? Math.round((known / ingredients.length) * 100) : 100;
   const portionCost = known > 0 ? totalCost : null;
-  return { portionCost, marginPct: null, confidencePct, ingredientCosts, ingredientSources };
+  // Wiarygodność wyceny: jaki % kosztu porcji opiera się na realnych fakturach (reszta = prognoza AI).
+  const invoiceCostPct = portionCost != null && totalCost > 0 ? Math.round((invoiceCost / totalCost) * 100) : null;
+  return { portionCost, marginPct: null, confidencePct, invoiceCostPct, ingredientCosts, ingredientSources };
 }
 
 // ─── Marże wszystkich dań (reużywane przez trasę listy ORAZ AI CFO) ────────────
@@ -161,6 +166,7 @@ export interface DishMargin {
   portionCost: number | null;
   marginPct: number | null;
   confidencePct: number;
+  invoiceCostPct: number | null;
   ingredientCount: number;
 }
 
@@ -195,7 +201,7 @@ export async function computeAllDishMargins(userId: string): Promise<DishMargin[
       estUnitPrice: i.estUnitPrice != null ? parseFloat(i.estUnitPrice as string) : null,
       estUnit: i.estUnit,
     }));
-    const { portionCost, confidencePct } = computeDishCost(ings, prices);
+    const { portionCost, confidencePct, invoiceCostPct } = computeDishCost(ings, prices);
     const sellPrice = parseFloat(dish.sellPrice as string);
     const marginPct = portionCost != null && sellPrice > 0 ? ((sellPrice - portionCost) / sellPrice) * 100 : null;
     return {
@@ -206,6 +212,7 @@ export async function computeAllDishMargins(userId: string): Promise<DishMargin[
       portionCost,
       marginPct: marginPct != null ? Math.round(marginPct * 10) / 10 : null,
       confidencePct,
+      invoiceCostPct,
       ingredientCount: ings.length,
     };
   });
@@ -347,7 +354,7 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
     estUnitPrice: i.estUnitPrice != null ? parseFloat(i.estUnitPrice as string) : null,
     estUnit: i.estUnit,
   }));
-  const { portionCost, confidencePct, ingredientCosts, ingredientSources } = computeDishCost(ingsForCalc, prices);
+  const { portionCost, confidencePct, invoiceCostPct, ingredientCosts, ingredientSources } = computeDishCost(ingsForCalc, prices);
 
   const sellPrice = parseFloat(dish.sellPrice as string);
   const marginPct = portionCost != null && sellPrice > 0 ? Math.round(((sellPrice - portionCost) / sellPrice) * 1000) / 10 : null;
@@ -361,6 +368,7 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
     portionCost: portionCost != null ? Math.round(portionCost * 100) / 100 : null,
     marginPct,
     confidencePct,
+    invoiceCostPct,
     ingredients: ingredients.map((i) => ({
       id: i.id,
       productId: i.productId,
