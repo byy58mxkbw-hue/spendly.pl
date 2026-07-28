@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { db, dishesTable, dishIngredientsTable, productsTable, invoiceItemsTable, invoicesTable } from "@workspace/db";
-import { CreateDishBody, UpdateDishBody, GetDishParams, UpdateDishParams, DeleteDishParams } from "@workspace/api-zod";
+import { CreateDishBody, UpdateDishBody, GetDishParams, UpdateDishParams, DeleteDishParams, ImportMenuBody, SaveMenuDishesBody } from "@workspace/api-zod";
+import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
+import { findOrCreateProductByName } from "../services/ksef-ingest";
 
 const router: IRouter = Router();
 
@@ -368,6 +370,196 @@ router.delete("/food-cost/dishes/:id", async (req, res): Promise<void> => {
 
   await db.delete(dishesTable).where(eq(dishesTable.id, params.data.id));
   res.status(204).end();
+});
+
+// ─── Import karty menu: AI odczytuje dania + szacowane gramatury ────────────────
+// Normalizacja nazwy jak w SQL matchu (regexp_replace(LOWER(name),'\s+',' ')) — do
+// dopasowania składników AI do istniejących produktów usera, po stronie JS (1 query).
+function normalizeName(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+const ALLOWED_IMAGE_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+const MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024; // łącznie wszystkie strony menu
+
+const MENU_PROMPT = `Jesteś doświadczonym szefem kuchni i kalkulantem food cost. Na obrazach jest karta menu restauracji. Odczytaj dania i oszacuj ich skład.
+
+Zwróć WYŁĄCZNIE obiekt JSON o strukturze:
+{
+  "dishes": [
+    {
+      "name": "nazwa dania z karty",
+      "sellPrice": number lub null (cena sprzedaży brutto jeśli widoczna, inaczej null),
+      "category": "sekcja menu jeśli jest (np. Zupy, Dania główne, Desery) lub null",
+      "ingredients": [
+        { "name": "surowcowa nazwa składnika", "grams": number (szacowana gramatura na 1 porcję w gramach lub ml) }
+      ]
+    }
+  ]
+}
+
+Zasady:
+- Używaj generycznych, surowcowych nazw składników po polsku (np. "pierś z kurczaka", "ser mozzarella", "mąka pszenna", "pomidory", "ryż") — łatwiejsze dopasowanie do faktur zakupowych.
+- Szacuj realistyczne gramatury na JEDNĄ porcję. To przybliżenie — nie musi być dokładne.
+- Pomijaj przyprawy i dodatki o pomijalnym koszcie (sól, pieprz) albo zgrupuj jako jeden składnik "przyprawy" z małą gramaturą.
+- NIE wymyślaj dań, których nie ma na karcie. Jeśli czegoś nie widać wyraźnie — pomiń.
+- Zwróć poprawny JSON, bez komentarzy.`;
+
+type ExtractedMenuIngredient = { name: string; grams: number };
+type ExtractedMenuDish = { name: string; sellPrice: number | null; category: string | null; ingredients: ExtractedMenuIngredient[] };
+
+// Krok 2 — ekstrakcja z obrazów + read-only dopasowanie do produktów + wstępna wycena (bez zapisu)
+router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const body = ImportMenuBody.safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.message }); return; }
+
+  const images = body.data.images;
+  if (images.length === 0) { res.status(400).json({ error: "Brak obrazów do analizy." }); return; }
+  if (images.length > 8) { res.status(400).json({ error: "Za dużo stron (max 8). Zmniejsz liczbę stron menu." }); return; }
+
+  let totalBytes = 0;
+  for (const img of images) {
+    const m = /^data:([^;]+);base64,(.+)$/s.exec(img);
+    if (!m || !ALLOWED_IMAGE_MIME.includes(m[1].toLowerCase())) {
+      res.status(400).json({ error: "Nieobsługiwany format obrazu. Użyj JPEG, PNG, WebP lub GIF." });
+      return;
+    }
+    totalBytes += Math.floor((m[2].length * 3) / 4);
+  }
+  if (totalBytes > MAX_TOTAL_IMAGE_BYTES) {
+    res.status(400).json({ error: "Obrazy są za duże (max 20 MB łącznie). Zmniejsz pliki i spróbuj ponownie." });
+    return;
+  }
+
+  let dishes: ExtractedMenuDish[];
+  try {
+    const response = await requireOpenAI().chat.completions.create({
+      model: "gpt-4.1",
+      messages: [
+        {
+          role: "user",
+          content: [
+            ...images.map((url) => ({ type: "image_url" as const, image_url: { url, detail: "high" as const } })),
+            { type: "text" as const, text: MENU_PROMPT },
+          ],
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 4000,
+      temperature: 0,
+    });
+    const raw = response.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as { dishes?: unknown };
+    dishes = Array.isArray(parsed.dishes) ? (parsed.dishes as ExtractedMenuDish[]) : [];
+  } catch (err) {
+    req.log.error({ err }, "import-menu: OpenAI Vision error");
+    res.status(500).json({ error: "Nie udało się odczytać karty menu. Sprawdź jakość zdjęcia i spróbuj ponownie." });
+    return;
+  }
+
+  // Sanityzacja + zebranie znormalizowanych nazw składników
+  const cleanDishes = dishes
+    .filter((d) => d && typeof d.name === "string" && d.name.trim())
+    .map((d) => ({
+      name: String(d.name).trim(),
+      sellPrice: typeof d.sellPrice === "number" && d.sellPrice > 0 ? d.sellPrice : null,
+      category: typeof d.category === "string" && d.category.trim() ? d.category.trim() : null,
+      ingredients: (Array.isArray(d.ingredients) ? d.ingredients : [])
+        .filter((i) => i && typeof i.name === "string" && i.name.trim())
+        .map((i) => ({ name: String(i.name).trim(), grams: typeof i.grams === "number" && i.grams > 0 ? i.grams : 0 })),
+    }));
+
+  // Read-only match: wczytaj wszystkie produkty usera raz, dopasuj po znormalizowanej nazwie
+  const userProducts = await db
+    .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit })
+    .from(productsTable)
+    .where(eq(productsTable.userId, userId));
+  const productByNorm = new Map<string, { id: number; name: string; unit: string }>();
+  for (const p of userProducts) {
+    const key = normalizeName(p.name);
+    if (!productByNorm.has(key)) productByNorm.set(key, { id: p.id, name: p.name, unit: p.unit ?? "szt" });
+  }
+
+  // Ceny dla dopasowanych produktów (jedno zapytanie)
+  const matchedIds = new Set<number>();
+  for (const d of cleanDishes) for (const ing of d.ingredients) {
+    const p = productByNorm.get(normalizeName(ing.name));
+    if (p) matchedIds.add(p.id);
+  }
+  const prices = await getLatestPrices(userId, [...matchedIds]);
+
+  // Zbuduj podgląd z wstępną wyceną per danie (gramy → unit "g")
+  const preview = cleanDishes.map((d) => {
+    const ingredients = d.ingredients.map((ing) => {
+      const p = productByNorm.get(normalizeName(ing.name));
+      const price = p ? prices.get(p.id) : undefined;
+      const ingredientCost = p && price ? convertIngredientCost(ing.grams, "g", price.unit, price.unitPrice, price.productName) : null;
+      return {
+        name: ing.name,
+        grams: ing.grams,
+        matchedProductId: p?.id ?? null,
+        matchedName: p?.name ?? null,
+        unitPrice: price?.unitPrice ?? null,
+        ingredientCost,
+      };
+    });
+    const known = ingredients.filter((i) => i.ingredientCost != null);
+    const portionCost = known.length > 0 ? known.reduce((s, i) => s + (i.ingredientCost ?? 0), 0) : null;
+    const confidencePct = ingredients.length > 0 ? Math.round((known.length / ingredients.length) * 100) : 0;
+    const foodCostPct = portionCost != null && d.sellPrice ? Math.round((portionCost / d.sellPrice) * 1000) / 10 : null;
+    return { name: d.name, sellPrice: d.sellPrice, category: d.category, portionCost, foodCostPct, confidencePct, ingredients };
+  });
+
+  res.json({ dishes: preview });
+});
+
+// Krok 3 — zapis zaakceptowanych dań: tworzy brakujące produkty + wstawia dania i składniki (unit "g")
+router.post("/food-cost/dishes/from-menu", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const body = SaveMenuDishesBody.safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.message }); return; }
+  if (body.data.dishes.length === 0) { res.status(400).json({ error: "Brak dań do zapisania." }); return; }
+
+  const createdIds: number[] = [];
+  for (const d of body.data.dishes) {
+    // Rozwiąż productId dla każdego składnika (istniejący lub utwórz z kategoryzacją AI)
+    const ingredientRows: Array<{ productId: number; grams: number }> = [];
+    for (const ing of d.ingredients) {
+      if (!ing.name?.trim() || !(ing.grams > 0)) continue;
+      let productId = ing.productId ?? null;
+      if (productId != null) {
+        // zweryfikuj własność produktu
+        const [owned] = await db
+          .select({ id: productsTable.id })
+          .from(productsTable)
+          .where(and(eq(productsTable.id, productId), eq(productsTable.userId, userId)))
+          .limit(1);
+        if (!owned) productId = null;
+      }
+      if (productId == null) productId = await findOrCreateProductByName(userId, ing.name, "g");
+      ingredientRows.push({ productId, grams: ing.grams });
+    }
+
+    const [dish] = await db
+      .insert(dishesTable)
+      .values({
+        userId,
+        name: d.name.trim(),
+        sellPrice: String(d.sellPrice ?? 0),
+        category: d.category?.trim() || null,
+      })
+      .returning();
+
+    if (ingredientRows.length > 0) {
+      await db.insert(dishIngredientsTable).values(
+        ingredientRows.map((r) => ({ dishId: dish.id, productId: r.productId, quantity: String(r.grams), unit: "g" })),
+      );
+    }
+    createdIds.push(dish.id);
+  }
+
+  res.status(201).json({ createdIds });
 });
 
 export default router;

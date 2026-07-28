@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { Layout } from "@/components/layout";
 import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,10 @@ import {
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import type { DishIngredientInput, DishDetail } from "@workspace/api-client-react";
-import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const MenuImportDialog = lazy(() => import("./menu-import-dialog"));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -624,6 +626,7 @@ export default function FoodCostPage() {
   const { data: dishes = [], isLoading, isError, refetch } = useListDishes();
 
   const [showCreate, setShowCreate] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [viewDishId, setViewDishId] = useState<number | null>(null);
   const [editDishId, setEditDishId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
@@ -671,9 +674,14 @@ export default function FoodCostPage() {
             <h1 className="text-xl font-bold text-foreground tracking-tight">Food Cost</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Receptury i analiza marż</p>
           </div>
-          <Button onClick={() => setShowCreate(true)} className="shrink-0 h-9 text-sm">
-            <Plus className="w-4 h-4 mr-1" /> Dodaj danie
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" onClick={() => setShowImport(true)} className="h-9 text-sm">
+              <Sparkles className="w-4 h-4 mr-1" /> Importuj z menu
+            </Button>
+            <Button onClick={() => setShowCreate(true)} className="h-9 text-sm">
+              <Plus className="w-4 h-4 mr-1" /> Dodaj danie
+            </Button>
+          </div>
         </div>
 
         {/* Compact KPIs */}
@@ -737,6 +745,15 @@ export default function FoodCostPage() {
       </div>
 
       {/* Dialogs / Sheets */}
+      {showImport && (
+        <Suspense fallback={null}>
+          <MenuImportDialog
+            onClose={() => setShowImport(false)}
+            onSaved={() => queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() })}
+          />
+        </Suspense>
+      )}
+
       {showCreate && <DishFormDialog open onClose={() => setShowCreate(false)} />}
 
       {editDishId != null && (

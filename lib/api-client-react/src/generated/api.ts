@@ -91,6 +91,8 @@ import type {
   ListSuppliersParams,
   MarkInvoicePaid200,
   MarkInvoicePaidBody,
+  MenuImportBody,
+  MenuImportPreview,
   MonthlyFoodCost,
   MonthlyReport,
   PaginatedInvoices,
@@ -106,6 +108,8 @@ import type {
   RecentPurchase,
   ResuggestCostCenters200,
   RetryKsefPendingResult,
+  SaveMenuDishes201,
+  SaveMenuDishesBody,
   ScanReceiptBody,
   ScannedReceiptData,
   SearchResults,
@@ -508,6 +512,146 @@ export const useDeleteDish = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteDishMutationOptions(options));
+    }
+
+export const getImportMenuUrl = () => {
+
+
+
+
+  return `/api/food-cost/import-menu`
+}
+
+/**
+ * @summary Extract dishes and estimated ingredient grams from menu images (AI vision, preview only)
+ */
+export const importMenu = async (menuImportBody: MenuImportBody, options?: RequestInit): Promise<MenuImportPreview> => {
+
+  return customFetch<MenuImportPreview>(getImportMenuUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(menuImportBody)
+  }
+);}
+
+
+
+
+export const getImportMenuMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importMenu>>, TError,{data: BodyType<MenuImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importMenu>>, TError,{data: BodyType<MenuImportBody>}, TContext> => {
+
+const mutationKey = ['importMenu'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importMenu>>, {data: BodyType<MenuImportBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importMenu(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportMenuMutationResult = NonNullable<Awaited<ReturnType<typeof importMenu>>>
+    export type ImportMenuMutationBody = BodyType<MenuImportBody>
+    export type ImportMenuMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Extract dishes and estimated ingredient grams from menu images (AI vision, preview only)
+ */
+export const useImportMenu = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importMenu>>, TError,{data: BodyType<MenuImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importMenu>>,
+        TError,
+        {data: BodyType<MenuImportBody>},
+        TContext
+      > => {
+      return useMutation(getImportMenuMutationOptions(options));
+    }
+
+export const getSaveMenuDishesUrl = () => {
+
+
+
+
+  return `/api/food-cost/dishes/from-menu`
+}
+
+/**
+ * @summary Persist accepted menu dishes (creates missing products, inserts dishes + ingredients)
+ */
+export const saveMenuDishes = async (saveMenuDishesBody: SaveMenuDishesBody, options?: RequestInit): Promise<SaveMenuDishes201> => {
+
+  return customFetch<SaveMenuDishes201>(getSaveMenuDishesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(saveMenuDishesBody)
+  }
+);}
+
+
+
+
+export const getSaveMenuDishesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveMenuDishes>>, TError,{data: BodyType<SaveMenuDishesBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveMenuDishes>>, TError,{data: BodyType<SaveMenuDishesBody>}, TContext> => {
+
+const mutationKey = ['saveMenuDishes'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveMenuDishes>>, {data: BodyType<SaveMenuDishesBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveMenuDishes(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveMenuDishesMutationResult = NonNullable<Awaited<ReturnType<typeof saveMenuDishes>>>
+    export type SaveMenuDishesMutationBody = BodyType<SaveMenuDishesBody>
+    export type SaveMenuDishesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Persist accepted menu dishes (creates missing products, inserts dishes + ingredients)
+ */
+export const useSaveMenuDishes = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveMenuDishes>>, TError,{data: BodyType<SaveMenuDishesBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveMenuDishes>>,
+        TError,
+        {data: BodyType<SaveMenuDishesBody>},
+        TContext
+      > => {
+      return useMutation(getSaveMenuDishesMutationOptions(options));
     }
 
 export const getGetAdminUsersUrl = () => {

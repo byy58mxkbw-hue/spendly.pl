@@ -25,6 +25,7 @@ router.use(requireUser);
 // bo potrzebuje req.userId/req.plan; przed routerami, żeby wyprzedzić handlery.
 router.use("/ai-cfo/chat", aiQuota);
 router.use("/invoices/scan-receipt", aiQuota);
+router.use("/food-cost/import-menu", aiQuota);
 
 router.use(suppliersRouter);
 router.use(productsRouter);

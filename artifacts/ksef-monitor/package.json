@@ -87,6 +87,7 @@
     "@clerk/react": "^6.6.0",
     "@clerk/themes": "^2.4.57",
     "@sentry/react": "^10.64.0",
+    "pdfjs-dist": "^6.1.200",
     "posthog-js": "^1.399.2"
   }
 }

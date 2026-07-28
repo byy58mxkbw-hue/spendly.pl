@@ -129,6 +129,50 @@ paths:
         "404":
           description: Not found
 
+  /food-cost/import-menu:
+    post:
+      operationId: importMenu
+      tags: [food-cost]
+      summary: Extract dishes and estimated ingredient grams from menu images (AI vision, preview only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MenuImportBody"
+      responses:
+        "200":
+          description: Extracted dishes preview with rough food cost
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuImportPreview"
+
+  /food-cost/dishes/from-menu:
+    post:
+      operationId: saveMenuDishes
+      tags: [food-cost]
+      summary: Persist accepted menu dishes (creates missing products, inserts dishes + ingredients)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveMenuDishesBody"
+      responses:
+        "201":
+          description: Created dishes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  createdIds:
+                    type: array
+                    items:
+                      type: integer
+                required: [createdIds]
+
   /admin/users:
     get:
       operationId: getAdminUsers
@@ -4200,6 +4244,110 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DishIngredientInput"
+
+    MenuImportBody:
+      type: object
+      properties:
+        images:
+          type: array
+          items:
+            type: string
+          description: Data-URL base64 images (menu pages). PDF is rasterised client-side.
+      required:
+        - images
+
+    MenuPreviewIngredient:
+      type: object
+      properties:
+        name:
+          type: string
+        grams:
+          type: number
+        matchedProductId:
+          type: ["integer", "null"]
+        matchedName:
+          type: ["string", "null"]
+        unitPrice:
+          type: ["number", "null"]
+        ingredientCost:
+          type: ["number", "null"]
+      required:
+        - name
+        - grams
+
+    MenuPreviewDish:
+      type: object
+      properties:
+        name:
+          type: string
+        sellPrice:
+          type: ["number", "null"]
+        category:
+          type: ["string", "null"]
+        portionCost:
+          type: ["number", "null"]
+        foodCostPct:
+          type: ["number", "null"]
+        confidencePct:
+          type: number
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuPreviewIngredient"
+      required:
+        - name
+        - confidencePct
+        - ingredients
+
+    MenuImportPreview:
+      type: object
+      properties:
+        dishes:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuPreviewDish"
+      required:
+        - dishes
+
+    SaveMenuIngredient:
+      type: object
+      properties:
+        name:
+          type: string
+        grams:
+          type: number
+        productId:
+          type: ["integer", "null"]
+      required:
+        - name
+        - grams
+
+    SaveMenuDish:
+      type: object
+      properties:
+        name:
+          type: string
+        sellPrice:
+          type: ["number", "null"]
+        category:
+          type: ["string", "null"]
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaveMenuIngredient"
+      required:
+        - name
+        - ingredients
+
+    SaveMenuDishesBody:
+      type: object
+      properties:
+        dishes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SaveMenuDish"
+      required:
+        - dishes
 
     DishIngredientDetail:
       type: object

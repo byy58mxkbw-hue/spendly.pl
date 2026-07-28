@@ -1101,6 +1101,62 @@ export interface UpdateDishBody {
   ingredients?: DishIngredientInput[];
 }
 
+export interface MenuImportBody {
+  /** Data-URL base64 images (menu pages). PDF is rasterised client-side. */
+  images: string[];
+}
+
+export interface MenuPreviewIngredient {
+  name: string;
+  grams: number;
+  /** @nullable */
+  matchedProductId?: number | null;
+  /** @nullable */
+  matchedName?: string | null;
+  /** @nullable */
+  unitPrice?: number | null;
+  /** @nullable */
+  ingredientCost?: number | null;
+}
+
+export interface MenuPreviewDish {
+  name: string;
+  /** @nullable */
+  sellPrice?: number | null;
+  /** @nullable */
+  category?: string | null;
+  /** @nullable */
+  portionCost?: number | null;
+  /** @nullable */
+  foodCostPct?: number | null;
+  confidencePct: number;
+  ingredients: MenuPreviewIngredient[];
+}
+
+export interface MenuImportPreview {
+  dishes: MenuPreviewDish[];
+}
+
+export interface SaveMenuIngredient {
+  name: string;
+  grams: number;
+  /** @nullable */
+  productId?: number | null;
+}
+
+export interface SaveMenuDish {
+  name: string;
+  /** @nullable */
+  sellPrice?: number | null;
+  /** @nullable */
+  category?: string | null;
+  ingredients: SaveMenuIngredient[];
+}
+
+export interface SaveMenuDishesBody {
+  dishes: SaveMenuDish[];
+}
+
 export interface DishIngredientDetail {
   id: number;
   productId: number;
@@ -1149,6 +1205,10 @@ export interface DishParams {
 
 export type CreateDish201 = {
   id: number;
+};
+
+export type SaveMenuDishes201 = {
+  createdIds: number[];
 };
 
 export type PatchAdminUserBlockBody = {

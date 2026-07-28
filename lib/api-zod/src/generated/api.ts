@@ -103,6 +103,54 @@ export const DeleteDishResponse = zod.void()
 
 
 /**
+ * @summary Extract dishes and estimated ingredient grams from menu images (AI vision, preview only)
+ */
+export const ImportMenuBody = zod.object({
+  "images": zod.array(zod.string()).describe('Data-URL base64 images (menu pages). PDF is rasterised client-side.')
+})
+
+export const ImportMenuResponse = zod.object({
+  "dishes": zod.array(zod.object({
+  "name": zod.string(),
+  "sellPrice": zod.number().nullish(),
+  "category": zod.string().nullish(),
+  "portionCost": zod.number().nullish(),
+  "foodCostPct": zod.number().nullish(),
+  "confidencePct": zod.number(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "grams": zod.number(),
+  "matchedProductId": zod.number().nullish(),
+  "matchedName": zod.string().nullish(),
+  "unitPrice": zod.number().nullish(),
+  "ingredientCost": zod.number().nullish()
+}))
+}))
+})
+
+
+/**
+ * @summary Persist accepted menu dishes (creates missing products, inserts dishes + ingredients)
+ */
+export const SaveMenuDishesBody = zod.object({
+  "dishes": zod.array(zod.object({
+  "name": zod.string(),
+  "sellPrice": zod.number().nullish(),
+  "category": zod.string().nullish(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "grams": zod.number(),
+  "productId": zod.number().nullish()
+}))
+}))
+})
+
+export const SaveMenuDishesResponse = zod.object({
+  "createdIds": zod.array(zod.number())
+})
+
+
+/**
  * @summary List all users with per-user stats and blocked status
  */
 export const GetAdminUsersResponse = zod.object({
