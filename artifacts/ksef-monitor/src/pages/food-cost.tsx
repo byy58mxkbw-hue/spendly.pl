@@ -113,7 +113,24 @@ type IngredientRow = DishIngredientInput & {
   productName?: string;
   unitPrice?: number | null;
   invoiceUnit?: string;
+  // Koszt policzony przez backend (z fallbackiem do szacunku AI + poprawną konwersją
+  // jednostek) dla wyjściowej gramatury — skalowany proporcjonalnie przy edycji.
+  baseCost?: number | null;
+  baseQty?: number;
+  baseUnit?: string;
 };
+
+// Koszt składnika w edytorze: preferuj koszt z backendu skalowany po gramaturze;
+// dla nowo dodanych składników policz z ceny faktury (fix jednostek jak w calcIngredientCost).
+function rowLiveCost(ing: IngredientRow): number | null {
+  if (ing.baseCost != null && ing.baseQty && ing.baseQty > 0) {
+    const b = toBase(ing.baseQty, ing.baseUnit || ing.unit);
+    const c = toBase(ing.quantity, ing.unit);
+    if (b.base === c.base && b.value > 0) return ing.baseCost * (c.value / b.value);
+  }
+  if (ing.unitPrice && ing.invoiceUnit) return calcIngredientCost(ing.quantity, ing.unit, ing.invoiceUnit, ing.unitPrice, ing.productName ?? "");
+  return null;
+}
 
 function EditIngredientRow({
   ing,
@@ -134,10 +151,7 @@ function EditIngredientRow({
     });
   }, [ing.quantity]);
 
-  const liveCost =
-    ing.unitPrice && ing.invoiceUnit
-      ? calcIngredientCost(ing.quantity, ing.unit, ing.invoiceUnit, ing.unitPrice, ing.productName ?? "")
-      : null;
+  const liveCost = rowLiveCost(ing);
 
   return (
     <div className="rounded-xl p-3 space-y-2 bg-secondary/40 border border-border">
@@ -220,6 +234,9 @@ function DishFormDialog({
         unit: ing.unit,
         unitPrice: ing.unitPrice ?? null,
         invoiceUnit: ing.productUnit ?? undefined,
+        baseCost: ing.ingredientCost ?? null,
+        baseQty: ing.quantity,
+        baseUnit: ing.unit,
       })),
     );
   }
@@ -242,10 +259,8 @@ function DishFormDialog({
     let total = 0;
     let known = 0;
     for (const ing of ingredients) {
-      if (ing.unitPrice && ing.invoiceUnit) {
-        const c = calcIngredientCost(ing.quantity, ing.unit, ing.invoiceUnit, ing.unitPrice, ing.productName ?? "");
-        if (c != null) { total += c; known++; }
-      }
+      const c = rowLiveCost(ing);
+      if (c != null) { total += c; known++; }
     }
     return known > 0 ? total : null;
   }, [ingredients]);
