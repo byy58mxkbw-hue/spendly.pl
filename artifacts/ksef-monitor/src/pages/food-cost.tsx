@@ -29,6 +29,8 @@ import type { DishIngredientInput, DishDetail } from "@workspace/api-client-reac
 import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, ChevronDown, ChevronUp, Sparkles, ChevronLeft, ShoppingBag, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { Combobox } from "@/components/ui/combobox";
+
 const MenuImportDialog = lazy(() => import("./menu-import-dialog"));
 
 const MONTHS = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
@@ -677,24 +679,28 @@ function PosLinkSection({ dishId, currentLink, onChanged }: { dishId: number; cu
     } catch { toast({ variant: "destructive", title: "Nie udało się zapisać powiązania" }); }
   }
 
+  const fmtQty = (v: number) => new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(v);
+  const options = [
+    { value: "__auto__", label: "Automatyczne (po nazwie dania)" },
+    ...items.map((it) => ({ value: it.name, label: `${it.variant ? "· " : ""}${it.name} — ${fmtQty(it.qty)} szt` })),
+  ];
+
   return (
     <div className="mx-5 mt-4">
       <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Powiązanie ze sprzedażą (GoPOS)</p>
-      <select
-        value={currentLink ?? ""}
-        onChange={(e) => pick(e.target.value === "" ? null : e.target.value)}
+      <Combobox
+        options={options}
+        value={currentLink ?? "__auto__"}
+        onChange={(v) => pick(v === "__auto__" ? null : v)}
         disabled={setLink.isPending}
-        className="w-full h-9 px-2 text-sm rounded-lg bg-background border border-input text-foreground"
-      >
-        <option value="">Automatyczne (po nazwie dania)</option>
-        {items.map((it) => (
-          <option key={it.name} value={it.name}>{it.variant ? "   ↳ " : ""}{it.name} — {new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(it.qty)} szt</option>
-        ))}
-      </select>
+        className="w-full h-9"
+        placeholder="Automatyczne (po nazwie dania)"
+        searchPlaceholder="Szukaj pozycji GoPOS…"
+      />
       <p className="text-[10px] text-muted-foreground mt-1">
         {currentLink
           ? `Ręcznie powiązane z: ${currentLink}.`
-          : "Grupa zbiorcza łączy warianty (np. wysmażenia steka). Wariant z wcięciem wybierz, gdy każdy ma inny koszt (np. smaki herbaty)."}
+          : "Grupa zbiorcza łączy warianty (np. wysmażenia steka). Pojedynczy wariant (z kropką) wybierz, gdy każdy ma inny koszt (np. smaki herbaty)."}
       </p>
     </div>
   );
