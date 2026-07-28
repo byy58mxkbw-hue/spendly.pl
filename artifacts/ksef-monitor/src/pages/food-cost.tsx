@@ -17,6 +17,7 @@ import {
   useGetDishesSales,
   useRepriceDish,
   useSetProductPackage,
+  useSetProductManualPrice,
   getListDishesQueryKey,
   getGetDishQueryKey,
   getListProductsQueryKey,
@@ -413,9 +414,25 @@ function IngredientDetailCard({
   const [expanded, setExpanded] = useState(false);
   const { toast } = useToast();
   const setPkg = useSetProductPackage();
+  const setManual = useSetProductManualPrice();
   const [pkgQty, setPkgQty] = useState(ing.packageQty != null ? String(ing.packageQty) : "");
   const [pkgUnit, setPkgUnit] = useState("g");
+  const [manualVal, setManualVal] = useState(ing.manualPrice != null ? String(ing.manualPrice) : "");
+  const [manualUnit, setManualUnit] = useState("kg");
   const sharePct = ing.ingredientCost != null && totalCost ? (ing.ingredientCost / totalCost) * 100 : null;
+
+  async function savePrice(e: MouseEvent) {
+    e.stopPropagation();
+    const n = parseFloat(manualVal.replace(",", "."));
+    if (!(n > 0)) { toast({ variant: "destructive", title: "Podaj cenę większą od zera" }); return; }
+    try {
+      await setManual.mutateAsync({ id: ing.productId, data: { manualPrice: n, manualUnit } });
+      toast({ title: "Zapisano cenę", description: `${ing.productName}: ${n} zł/${manualUnit}` });
+      onPackageSaved();
+    } catch {
+      toast({ variant: "destructive", title: "Nie udało się zapisać ceny" });
+    }
+  }
 
   async function savePackage(e: MouseEvent) {
     e.stopPropagation();
@@ -454,6 +471,9 @@ function IngredientDetailCard({
               <span className="text-sm font-semibold text-foreground flex items-center gap-1">
                 {ing.priceSource === "estimate" && (
                   <span className="text-[10px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium" title="Prognoza ceny AI (brak faktury)">szac.</span>
+                )}
+                {ing.priceSource === "manual" && (
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-violet-500/10 text-violet-600 font-medium" title="Cena przypisana ręcznie">ręczna</span>
                 )}
                 {fmt(ing.ingredientCost)}
               </span>
@@ -504,6 +524,34 @@ function IngredientDetailCard({
               <span className="text-[11px] text-muted-foreground">= 1 {ing.invoiceUnit}</span>
               <Button size="sm" onClick={savePackage} disabled={setPkg.isPending} className="h-7 text-xs ml-auto">
                 {setPkg.isPending ? "…" : "Zapisz"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {ing.canSetPrice && (ing.ingredientCost == null || expanded) && (
+          <div className="mt-2 pt-2 border-t border-dashed border-border" onClick={(e) => e.stopPropagation()}>
+            <p className="text-[11px] text-muted-foreground mb-1.5">
+              {ing.priceSource === "estimate" ? "Cena z prognozy AI — możesz przypisać własną:" : "Brak ceny z faktury (np. wyrób własny). Przypisz cenę ręcznie:"}
+            </p>
+            <div className="flex items-center gap-1.5">
+              <Input
+                value={manualVal}
+                onChange={(e) => setManualVal(e.target.value)}
+                inputMode="decimal"
+                placeholder="np. 30"
+                className="h-7 w-20 text-xs"
+              />
+              <span className="text-[11px] text-muted-foreground">zł /</span>
+              <select
+                value={manualUnit}
+                onChange={(e) => setManualUnit(e.target.value)}
+                className="h-7 px-1.5 text-xs rounded-md bg-background border border-input text-foreground"
+              >
+                {["kg", "l", "szt", "g", "ml"].map((u) => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <Button size="sm" onClick={savePrice} disabled={setManual.isPending} className="h-7 text-xs ml-auto">
+                {setManual.isPending ? "…" : "Zapisz"}
               </Button>
             </div>
           </div>

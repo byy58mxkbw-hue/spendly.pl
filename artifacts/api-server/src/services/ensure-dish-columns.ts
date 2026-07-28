@@ -16,7 +16,9 @@ export async function ensureDishIngredientColumns(log: Logger): Promise<void> {
     await db.execute(sql`
       ALTER TABLE IF EXISTS products
         ADD COLUMN IF NOT EXISTS package_qty  numeric(12,4),
-        ADD COLUMN IF NOT EXISTS package_unit text
+        ADD COLUMN IF NOT EXISTS package_unit text,
+        ADD COLUMN IF NOT EXISTS manual_price numeric(12,4),
+        ADD COLUMN IF NOT EXISTS manual_unit  text
     `);
     log.info("dish_ingredients/products: kolumny szacunku i opakowania gotowe");
   } catch (err) {

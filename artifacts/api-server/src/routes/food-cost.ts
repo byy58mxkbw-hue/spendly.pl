@@ -125,10 +125,10 @@ async function getLatestPrices(userId: string, productIds: number[]): Promise<Ma
   return map;
 }
 
-type CostSource = "invoice" | "estimate" | null;
+type CostSource = "invoice" | "manual" | "estimate" | null;
 
 function computeDishCost(
-  ingredients: Array<{ productId: number; quantity: number; unit: string; estUnitPrice?: number | null; estUnit?: string | null }>,
+  ingredients: Array<{ productId: number; quantity: number; unit: string; estUnitPrice?: number | null; estUnit?: string | null; manualPrice?: number | null; manualUnit?: string | null }>,
   prices: Map<number, PriceInfo>,
 ): {
   portionCost: number | null;
@@ -152,6 +152,11 @@ function computeDishCost(
     if (price) {
       const c = convertIngredientCost(ing.quantity, ing.unit, price.unit, price.unitPrice, price.productName, price.pkgOverride);
       if (c != null) { cost = c; source = "invoice"; }
+    }
+    // Cena ręcznie przypisana (np. wyrób własny) — wyżej niż prognoza AI.
+    if (cost == null && ing.manualPrice != null && ing.manualPrice > 0) {
+      const c = convertIngredientCost(ing.quantity, ing.unit, ing.manualUnit || "kg", ing.manualPrice, "");
+      if (c != null) { cost = c; source = "manual"; }
     }
     // Fallback: szacowana cena rynkowa AI (za jednostkę estUnit, domyślnie kg).
     if (cost == null && ing.estUnitPrice != null && ing.estUnitPrice > 0) {
@@ -203,9 +208,12 @@ export async function computeAllDishMargins(userId: string): Promise<DishMargin[
       unit: dishIngredientsTable.unit,
       estUnitPrice: dishIngredientsTable.estUnitPrice,
       estUnit: dishIngredientsTable.estUnit,
+      manualPrice: productsTable.manualPrice,
+      manualUnit: productsTable.manualUnit,
     })
     .from(dishIngredientsTable)
     .innerJoin(dishesTable, eq(dishIngredientsTable.dishId, dishesTable.id))
+    .innerJoin(productsTable, eq(dishIngredientsTable.productId, productsTable.id))
     .where(eq(dishesTable.userId, userId));
 
   const allProductIds = [...new Set(ingredients.map((i) => i.productId))];
@@ -218,6 +226,8 @@ export async function computeAllDishMargins(userId: string): Promise<DishMargin[
       unit: i.unit,
       estUnitPrice: i.estUnitPrice != null ? parseFloat(i.estUnitPrice as string) : null,
       estUnit: i.estUnit,
+      manualPrice: i.manualPrice != null ? parseFloat(i.manualPrice as string) : null,
+      manualUnit: i.manualUnit,
     }));
     const { portionCost, confidencePct, invoiceCostPct } = computeDishCost(ings, prices);
     const sellPrice = parseFloat(dish.sellPrice as string);
@@ -355,6 +365,8 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
       estUnit: dishIngredientsTable.estUnit,
       packageQty: productsTable.packageQty,
       packageUnit: productsTable.packageUnit,
+      manualPrice: productsTable.manualPrice,
+      manualUnit: productsTable.manualUnit,
     })
     .from(dishIngredientsTable)
     .innerJoin(
@@ -373,6 +385,8 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
     unit: i.unit,
     estUnitPrice: i.estUnitPrice != null ? parseFloat(i.estUnitPrice as string) : null,
     estUnit: i.estUnit,
+    manualPrice: i.manualPrice != null ? parseFloat(i.manualPrice as string) : null,
+    manualUnit: i.manualUnit,
   }));
   const { portionCost, confidencePct, invoiceCostPct, ingredientCosts, ingredientSources } = computeDishCost(ingsForCalc, prices);
 
@@ -402,9 +416,12 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
       estUnitPrice: i.estUnitPrice != null ? parseFloat(i.estUnitPrice as string) : null,
       invoiceUnit: prices.get(i.productId)?.unit ?? null,
       packageQty: i.packageQty != null ? parseFloat(i.packageQty as string) : null,
+      manualPrice: i.manualPrice != null ? parseFloat(i.manualPrice as string) : null,
       // UI może zaproponować ustawienie wagi opakowania: jest cena z faktury (na szt/opak),
       // ale nie dało się jej użyć (priceSource ≠ invoice) → brakuje gramatury opakowania.
       needsPackage: prices.has(i.productId) && ingredientSources.get(i.productId) !== "invoice",
+      // UI może pozwolić przypisać cenę ręczną, gdy nie ma ceny z faktury (wyrób własny).
+      canSetPrice: !prices.has(i.productId),
     })),
   });
 });

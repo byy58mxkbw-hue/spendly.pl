@@ -832,6 +832,35 @@ router.patch("/products/:id/package", async (req, res): Promise<void> => {
   res.status(204).end();
 });
 
+// Ręcznie przypisana cena produktu (np. wyrób własny bez faktury: chimichurri, sos).
+// manualUnit: kg/l/szt/g/ml. Pusta wartość = usuń cenę ręczną.
+router.patch("/products/:id/manual-price", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const raw = req.body as { manualPrice?: unknown; manualUnit?: unknown };
+  const ALLOWED = ["kg", "l", "litr", "g", "ml", "dag", "szt", "opak", "por"];
+
+  let manualPrice: string | null = null;
+  let manualUnit: string | null = null;
+  if (raw.manualPrice != null && raw.manualPrice !== "") {
+    const n = Number(raw.manualPrice);
+    if (!Number.isFinite(n) || n <= 0) { res.status(400).json({ error: "manualPrice musi być liczbą > 0 lub pusta." }); return; }
+    const u = String(raw.manualUnit ?? "kg").toLowerCase().trim();
+    if (!ALLOWED.includes(u)) { res.status(400).json({ error: "manualUnit: kg/l/g/ml/szt." }); return; }
+    manualPrice = n.toFixed(4);
+    manualUnit = u;
+  }
+
+  const [updated] = await db
+    .update(productsTable)
+    .set({ manualPrice, manualUnit })
+    .where(and(eq(productsTable.id, id), eq(productsTable.userId, userId)))
+    .returning({ id: productsTable.id });
+  if (!updated) { res.status(404).json({ error: "Product not found" }); return; }
+  res.status(204).end();
+});
+
 router.patch("/products/:id/correct-category", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const params = CorrectProductCategoryParams.safeParse(req.params);

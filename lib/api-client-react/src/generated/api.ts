@@ -117,6 +117,7 @@ import type {
   ScannedReceiptData,
   SearchResults,
   SetInvoiceCostCenterBody,
+  SetProductManualPriceBody,
   SetProductPackageBody,
   SetSupplierDefaultCategoryBody,
   SetSupplierDefaultCostCenterBody,
@@ -587,6 +588,77 @@ export const useSetProductPackage = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getSetProductPackageMutationOptions(options));
+    }
+
+export const getSetProductManualPriceUrl = (id: number,) => {
+
+
+
+
+  return `/api/products/${id}/manual-price`
+}
+
+/**
+ * @summary Manually assign a product price (e.g. house-made items with no invoice)
+ */
+export const setProductManualPrice = async (id: number,
+    setProductManualPriceBody: SetProductManualPriceBody, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getSetProductManualPriceUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(setProductManualPriceBody)
+  }
+);}
+
+
+
+
+export const getSetProductManualPriceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setProductManualPrice>>, TError,{id: number;data: BodyType<SetProductManualPriceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setProductManualPrice>>, TError,{id: number;data: BodyType<SetProductManualPriceBody>}, TContext> => {
+
+const mutationKey = ['setProductManualPrice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setProductManualPrice>>, {id: number;data: BodyType<SetProductManualPriceBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setProductManualPrice(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetProductManualPriceMutationResult = NonNullable<Awaited<ReturnType<typeof setProductManualPrice>>>
+    export type SetProductManualPriceMutationBody = BodyType<SetProductManualPriceBody>
+    export type SetProductManualPriceMutationError = ErrorType<void>
+
+    /**
+ * @summary Manually assign a product price (e.g. house-made items with no invoice)
+ */
+export const useSetProductManualPrice = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setProductManualPrice>>, TError,{id: number;data: BodyType<SetProductManualPriceBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setProductManualPrice>>,
+        TError,
+        {id: number;data: BodyType<SetProductManualPriceBody>},
+        TContext
+      > => {
+      return useMutation(getSetProductManualPriceMutationOptions(options));
     }
 
 export const getRepriceDishUrl = (id: number,) => {

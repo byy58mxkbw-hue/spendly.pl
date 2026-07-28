@@ -16,6 +16,10 @@ export const productsTable = pgTable("products", {
   // w recepturach (gdy nazwa produktu nie zawiera gramatury). packageUnit: g/ml/kg/l.
   packageQty: numeric("package_qty", { precision: 12, scale: 4 }),
   packageUnit: text("package_unit"),
+  // Ręcznie przypisana cena (np. dla wyrobów własnych bez faktury: chimichurri, sosy).
+  // Priorytet: faktura → cena ręczna → prognoza AI. manualUnit domyślnie kg.
+  manualPrice: numeric("manual_price", { precision: 12, scale: 4 }),
+  manualUnit: text("manual_unit"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("products_user_id_idx").on(t.userId),

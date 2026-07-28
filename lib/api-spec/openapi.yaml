@@ -152,6 +152,29 @@ paths:
         "404":
           description: Not found
 
+  /products/{id}/manual-price:
+    patch:
+      operationId: setProductManualPrice
+      tags: [products]
+      summary: Manually assign a product price (e.g. house-made items with no invoice)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetProductManualPriceBody"
+      responses:
+        "204":
+          description: Saved
+        "404":
+          description: Not found
+
   /food-cost/dishes/{id}/reprice:
     post:
       operationId: repriceDish
@@ -2472,6 +2495,14 @@ components:
         packageUnit:
           type: ["string", "null"]
 
+    SetProductManualPriceBody:
+      type: object
+      properties:
+        manualPrice:
+          type: ["number", "null"]
+        manualUnit:
+          type: ["string", "null"]
+
     CorrectProductCategoryBody:
       type: object
       properties:
@@ -4422,7 +4453,7 @@ components:
           type: ["number", "null"]
         priceSource:
           type: ["string", "null"]
-          enum: ["invoice", "estimate", null]
+          enum: ["invoice", "manual", "estimate", null]
         ingredientCost:
           type: ["number", "null"]
       required:
@@ -4526,14 +4557,18 @@ components:
           type: ["number", "null"]
         priceSource:
           type: ["string", "null"]
-          enum: ["invoice", "estimate", null]
+          enum: ["invoice", "manual", "estimate", null]
         estUnitPrice:
           type: ["number", "null"]
         invoiceUnit:
           type: ["string", "null"]
         packageQty:
           type: ["number", "null"]
+        manualPrice:
+          type: ["number", "null"]
         needsPackage:
+          type: boolean
+        canSetPrice:
           type: boolean
       required:
         - id

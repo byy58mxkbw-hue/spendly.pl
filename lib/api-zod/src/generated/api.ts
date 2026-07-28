@@ -65,11 +65,13 @@ export const GetDishResponse = zod.object({
   "unit": zod.string(),
   "unitPrice": zod.number().nullish(),
   "ingredientCost": zod.number().nullish(),
-  "priceSource": zod.union([zod.literal('invoice'),zod.literal('estimate'),zod.literal(null)]).nullish(),
+  "priceSource": zod.union([zod.literal('invoice'),zod.literal('manual'),zod.literal('estimate'),zod.literal(null)]).nullish(),
   "estUnitPrice": zod.number().nullish(),
   "invoiceUnit": zod.string().nullish(),
   "packageQty": zod.number().nullish(),
-  "needsPackage": zod.boolean().optional()
+  "manualPrice": zod.number().nullish(),
+  "needsPackage": zod.boolean().optional(),
+  "canSetPrice": zod.boolean().optional()
 })),
   "portionCost": zod.number().nullish(),
   "marginPct": zod.number().nullish(),
@@ -122,6 +124,21 @@ export const SetProductPackageBody = zod.object({
 })
 
 export const SetProductPackageResponse = zod.void()
+
+
+/**
+ * @summary Manually assign a product price (e.g. house-made items with no invoice)
+ */
+export const SetProductManualPriceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetProductManualPriceBody = zod.object({
+  "manualPrice": zod.number().nullish(),
+  "manualUnit": zod.string().nullish()
+})
+
+export const SetProductManualPriceResponse = zod.void()
 
 
 /**
@@ -191,7 +208,7 @@ export const ImportMenuResponse = zod.object({
   "matchedName": zod.string().nullish(),
   "unitPrice": zod.number().nullish(),
   "estPricePerKg": zod.number().nullish(),
-  "priceSource": zod.union([zod.literal('invoice'),zod.literal('estimate'),zod.literal(null)]).nullish(),
+  "priceSource": zod.union([zod.literal('invoice'),zod.literal('manual'),zod.literal('estimate'),zod.literal(null)]).nullish(),
   "ingredientCost": zod.number().nullish()
 }))
 }))

@@ -148,6 +148,13 @@ export interface SetProductPackageBody {
   packageUnit?: string | null;
 }
 
+export interface SetProductManualPriceBody {
+  /** @nullable */
+  manualPrice?: number | null;
+  /** @nullable */
+  manualUnit?: string | null;
+}
+
 export interface CorrectProductCategoryBody {
   category: string;
   /** @nullable */
@@ -1155,6 +1162,7 @@ export type MenuPreviewIngredientPriceSource = typeof MenuPreviewIngredientPrice
 
 export const MenuPreviewIngredientPriceSource = {
   invoice: 'invoice',
+  manual: 'manual',
   estimate: 'estimate',
 } as const;
 
@@ -1223,6 +1231,7 @@ export type DishIngredientDetailPriceSource = typeof DishIngredientDetailPriceSo
 
 export const DishIngredientDetailPriceSource = {
   invoice: 'invoice',
+  manual: 'manual',
   estimate: 'estimate',
 } as const;
 
@@ -1245,7 +1254,10 @@ export interface DishIngredientDetail {
   invoiceUnit?: string | null;
   /** @nullable */
   packageQty?: number | null;
+  /** @nullable */
+  manualPrice?: number | null;
   needsPackage?: boolean;
+  canSetPrice?: boolean;
 }
 
 export interface DishDetail {

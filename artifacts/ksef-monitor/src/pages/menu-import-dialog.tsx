@@ -60,7 +60,7 @@ type EditIng = {
   matchedProductId: number | null;
   matchedName: string | null;
   estPricePerKg: number | null;
-  source: "invoice" | "estimate" | null;
+  source: "invoice" | "manual" | "estimate" | null;
 };
 type EditDish = {
   key: string;
