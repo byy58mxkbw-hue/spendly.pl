@@ -108,29 +108,48 @@ async function getLatestPrices(userId: string, productIds: number[]): Promise<Ma
   return map;
 }
 
+type CostSource = "invoice" | "estimate" | null;
+
 function computeDishCost(
-  ingredients: Array<{ productId: number; quantity: number; unit: string }>,
+  ingredients: Array<{ productId: number; quantity: number; unit: string; estUnitPrice?: number | null; estUnit?: string | null }>,
   prices: Map<number, { unitPrice: number; unit: string; productName: string }>,
-): { portionCost: number | null; marginPct: number | null; confidencePct: number; ingredientCosts: Map<number, number | null> } {
+): {
+  portionCost: number | null;
+  marginPct: number | null;
+  confidencePct: number;
+  ingredientCosts: Map<number, number | null>;
+  ingredientSources: Map<number, CostSource>;
+} {
   let totalCost = 0;
-  let known = 0;
+  let known = 0;        // składniki z JAKĄKOLWIEK ceną (faktura lub szacunek AI)
   const ingredientCosts = new Map<number, number | null>();
+  const ingredientSources = new Map<number, CostSource>();
 
   for (const ing of ingredients) {
     const price = prices.get(ing.productId);
     if (price) {
+      // Faktura KSeF ma priorytet nad szacunkiem AI.
       const cost = convertIngredientCost(ing.quantity, ing.unit, price.unit, price.unitPrice, price.productName);
       ingredientCosts.set(ing.productId, cost);
+      ingredientSources.set(ing.productId, "invoice");
+      totalCost += cost;
+      known++;
+    } else if (ing.estUnitPrice != null && ing.estUnitPrice > 0) {
+      // Fallback: szacowana cena rynkowa AI (przechowywana za jednostkę estUnit, domyślnie kg).
+      const cost = convertIngredientCost(ing.quantity, ing.unit, ing.estUnit || "kg", ing.estUnitPrice, "");
+      ingredientCosts.set(ing.productId, cost);
+      ingredientSources.set(ing.productId, "estimate");
       totalCost += cost;
       known++;
     } else {
       ingredientCosts.set(ing.productId, null);
+      ingredientSources.set(ing.productId, null);
     }
   }
 
   const confidencePct = ingredients.length > 0 ? Math.round((known / ingredients.length) * 100) : 100;
   const portionCost = known > 0 ? totalCost : null;
-  return { portionCost, marginPct: null, confidencePct, ingredientCosts };
+  return { portionCost, marginPct: null, confidencePct, ingredientCosts, ingredientSources };
 }
 
 // ─── Marże wszystkich dań (reużywane przez trasę listy ORAZ AI CFO) ────────────
@@ -158,6 +177,8 @@ export async function computeAllDishMargins(userId: string): Promise<DishMargin[
       productId: dishIngredientsTable.productId,
       quantity: dishIngredientsTable.quantity,
       unit: dishIngredientsTable.unit,
+      estUnitPrice: dishIngredientsTable.estUnitPrice,
+      estUnit: dishIngredientsTable.estUnit,
     })
     .from(dishIngredientsTable)
     .innerJoin(dishesTable, eq(dishIngredientsTable.dishId, dishesTable.id))
@@ -171,6 +192,8 @@ export async function computeAllDishMargins(userId: string): Promise<DishMargin[
       productId: i.productId,
       quantity: parseFloat(i.quantity as string),
       unit: i.unit,
+      estUnitPrice: i.estUnitPrice != null ? parseFloat(i.estUnitPrice as string) : null,
+      estUnit: i.estUnit,
     }));
     const { portionCost, confidencePct } = computeDishCost(ings, prices);
     const sellPrice = parseFloat(dish.sellPrice as string);
@@ -303,6 +326,8 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
       productUnit: productsTable.unit,
       quantity: dishIngredientsTable.quantity,
       unit: dishIngredientsTable.unit,
+      estUnitPrice: dishIngredientsTable.estUnitPrice,
+      estUnit: dishIngredientsTable.estUnit,
     })
     .from(dishIngredientsTable)
     .innerJoin(
@@ -319,8 +344,10 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
     productId: i.productId,
     quantity: parseFloat(i.quantity as string),
     unit: i.unit,
+    estUnitPrice: i.estUnitPrice != null ? parseFloat(i.estUnitPrice as string) : null,
+    estUnit: i.estUnit,
   }));
-  const { portionCost, confidencePct, ingredientCosts } = computeDishCost(ingsForCalc, prices);
+  const { portionCost, confidencePct, ingredientCosts, ingredientSources } = computeDishCost(ingsForCalc, prices);
 
   const sellPrice = parseFloat(dish.sellPrice as string);
   const marginPct = portionCost != null && sellPrice > 0 ? Math.round(((sellPrice - portionCost) / sellPrice) * 1000) / 10 : null;
@@ -343,6 +370,8 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
       unit: i.unit,
       unitPrice: prices.get(i.productId)?.unitPrice ?? null,
       ingredientCost: ingredientCosts.get(i.productId) ?? null,
+      priceSource: ingredientSources.get(i.productId) ?? null,
+      estUnitPrice: i.estUnitPrice != null ? parseFloat(i.estUnitPrice as string) : null,
     })),
   });
 });
@@ -523,7 +552,11 @@ Zwróć WYŁĄCZNIE obiekt JSON o strukturze:
       "sellPrice": number lub null (cena sprzedaży brutto jeśli widoczna, inaczej null),
       "category": "sekcja menu jeśli jest (np. Zupy, Dania główne, Desery) lub null",
       "ingredients": [
-        { "name": "surowcowa nazwa składnika", "grams": number (szacowana gramatura na 1 porcję w gramach lub ml) }
+        {
+          "name": "surowcowa nazwa składnika",
+          "grams": number (szacowana gramatura na 1 porcję w gramach lub ml),
+          "estPricePerKg": number (Twoja PROGNOZA typowej ceny zakupu tego surowca na polskim rynku hurtowym/detalicznym, w PLN za 1 kg; dla płynów przyjmij ~1 kg = 1 l; dla jaj/sztuk przelicz na cenę za kg masy)
+        }
       ]
     }
   ]
@@ -532,11 +565,12 @@ Zwróć WYŁĄCZNIE obiekt JSON o strukturze:
 Zasady:
 - Używaj generycznych, surowcowych nazw składników po polsku (np. "pierś z kurczaka", "ser mozzarella", "mąka pszenna", "pomidory", "ryż") — łatwiejsze dopasowanie do faktur zakupowych.
 - Szacuj realistyczne gramatury na JEDNĄ porcję. To przybliżenie — nie musi być dokładne.
-- Pomijaj przyprawy i dodatki o pomijalnym koszcie (sól, pieprz) albo zgrupuj jako jeden składnik "przyprawy" z małą gramaturą.
+- estPricePerKg podawaj ZAWSZE i realistycznie wg swojej wiedzy o cenach w Polsce (np. polędwica wołowa ~60 zł/kg, masło ~25 zł/kg, cebula ~3 zł/kg, majonez ~12 zł/kg, sardynki ~40 zł/kg). To Twoja prognoza — użyjemy jej, gdy dany surowiec nie ma jeszcze ceny z faktury.
+- Pomijaj przyprawy o pomijalnym koszcie (sól, pieprz) albo zgrupuj jako jeden składnik "przyprawy" z małą gramaturą i estPricePerKg ~20.
 - NIE wymyślaj dań, których nie ma na karcie. Jeśli czegoś nie widać wyraźnie — pomiń.
 - Zwróć poprawny JSON, bez komentarzy.`;
 
-type ExtractedMenuIngredient = { name: string; grams: number };
+type ExtractedMenuIngredient = { name: string; grams: number; estPricePerKg?: number | null };
 type ExtractedMenuDish = { name: string; sellPrice: number | null; category: string | null; ingredients: ExtractedMenuIngredient[] };
 
 // Krok 2 — ekstrakcja z obrazów + read-only dopasowanie do produktów + wstępna wycena (bez zapisu)
@@ -598,7 +632,11 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
       category: typeof d.category === "string" && d.category.trim() ? d.category.trim() : null,
       ingredients: (Array.isArray(d.ingredients) ? d.ingredients : [])
         .filter((i) => i && typeof i.name === "string" && i.name.trim())
-        .map((i) => ({ name: String(i.name).trim(), grams: typeof i.grams === "number" && i.grams > 0 ? i.grams : 0 })),
+        .map((i) => ({
+          name: String(i.name).trim(),
+          grams: typeof i.grams === "number" && i.grams > 0 ? i.grams : 0,
+          estPricePerKg: typeof i.estPricePerKg === "number" && i.estPricePerKg > 0 ? i.estPricePerKg : null,
+        })),
     }));
 
   // Read-only match: wczytaj wszystkie produkty usera raz i zbuduj indeks (exact + tokeny)
@@ -638,13 +676,24 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
     const ingredients = d.ingredients.map((ing) => {
       const p = matchFor(ing.name);
       const price = p ? prices.get(p.id) : undefined;
-      const ingredientCost = p && price ? convertIngredientCost(ing.grams, "g", price.unit, price.unitPrice, price.productName) : null;
+      // Faktura ma priorytet; brak → szacunek AI (cena za kg).
+      let ingredientCost: number | null = null;
+      let priceSource: "invoice" | "estimate" | null = null;
+      if (p && price) {
+        ingredientCost = convertIngredientCost(ing.grams, "g", price.unit, price.unitPrice, price.productName);
+        priceSource = "invoice";
+      } else if (ing.estPricePerKg != null && ing.estPricePerKg > 0) {
+        ingredientCost = convertIngredientCost(ing.grams, "g", "kg", ing.estPricePerKg, "");
+        priceSource = "estimate";
+      }
       return {
         name: ing.name,
         grams: ing.grams,
         matchedProductId: p?.id ?? null,
         matchedName: p?.name ?? null,
         unitPrice: price?.unitPrice ?? null,
+        estPricePerKg: ing.estPricePerKg ?? null,
+        priceSource,
         ingredientCost,
       };
     });
@@ -668,7 +717,7 @@ router.post("/food-cost/dishes/from-menu", async (req, res): Promise<void> => {
   const createdIds: number[] = [];
   for (const d of body.data.dishes) {
     // Rozwiąż productId dla każdego składnika (istniejący lub utwórz z kategoryzacją AI)
-    const ingredientRows: Array<{ productId: number; grams: number }> = [];
+    const ingredientRows: Array<{ productId: number; grams: number; estPricePerKg: number | null }> = [];
     for (const ing of d.ingredients) {
       if (!ing.name?.trim() || !(ing.grams > 0)) continue;
       let productId = ing.productId ?? null;
@@ -682,7 +731,8 @@ router.post("/food-cost/dishes/from-menu", async (req, res): Promise<void> => {
         if (!owned) productId = null;
       }
       if (productId == null) productId = await findOrCreateProductByName(userId, ing.name, "g");
-      ingredientRows.push({ productId, grams: ing.grams });
+      const est = typeof ing.estPricePerKg === "number" && ing.estPricePerKg > 0 ? ing.estPricePerKg : null;
+      ingredientRows.push({ productId, grams: ing.grams, estPricePerKg: est });
     }
 
     const [dish] = await db
@@ -697,7 +747,16 @@ router.post("/food-cost/dishes/from-menu", async (req, res): Promise<void> => {
 
     if (ingredientRows.length > 0) {
       await db.insert(dishIngredientsTable).values(
-        ingredientRows.map((r) => ({ dishId: dish.id, productId: r.productId, quantity: String(r.grams), unit: "g" })),
+        ingredientRows.map((r) => ({
+          dishId: dish.id,
+          productId: r.productId,
+          quantity: String(r.grams),
+          unit: "g",
+          // Zapisz szacunek AI jako fallback (cena za kg) — przetrwa i będzie użyty,
+          // dopóki składnik nie dostanie realnej ceny z faktury.
+          estUnitPrice: r.estPricePerKg != null ? String(r.estPricePerKg) : null,
+          estUnit: r.estPricePerKg != null ? "kg" : null,
+        })),
       );
     }
     createdIds.push(dish.id);

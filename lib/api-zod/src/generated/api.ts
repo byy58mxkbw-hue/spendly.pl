@@ -63,7 +63,9 @@ export const GetDishResponse = zod.object({
   "quantity": zod.number(),
   "unit": zod.string(),
   "unitPrice": zod.number().nullish(),
-  "ingredientCost": zod.number().nullish()
+  "ingredientCost": zod.number().nullish(),
+  "priceSource": zod.union([zod.literal('invoice'),zod.literal('estimate'),zod.literal(null)]).nullish(),
+  "estUnitPrice": zod.number().nullish()
 })),
   "portionCost": zod.number().nullish(),
   "marginPct": zod.number().nullish(),
@@ -156,6 +158,8 @@ export const ImportMenuResponse = zod.object({
   "matchedProductId": zod.number().nullish(),
   "matchedName": zod.string().nullish(),
   "unitPrice": zod.number().nullish(),
+  "estPricePerKg": zod.number().nullish(),
+  "priceSource": zod.union([zod.literal('invoice'),zod.literal('estimate'),zod.literal(null)]).nullish(),
   "ingredientCost": zod.number().nullish()
 }))
 }))
@@ -173,7 +177,8 @@ export const SaveMenuDishesBody = zod.object({
   "ingredients": zod.array(zod.object({
   "name": zod.string(),
   "grams": zod.number(),
-  "productId": zod.number().nullish()
+  "productId": zod.number().nullish(),
+  "estPricePerKg": zod.number().nullish()
 }))
 }))
 })

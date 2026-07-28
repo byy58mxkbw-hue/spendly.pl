@@ -394,11 +394,19 @@ function IngredientDetailCard({
               {ing.unitPrice != null && (
                 <span className="ml-1.5">· {fmt(ing.unitPrice)}/{ing.productUnit}</span>
               )}
+              {ing.priceSource === "estimate" && ing.estUnitPrice != null && (
+                <span className="ml-1.5">· ~{fmt(ing.estUnitPrice)}/kg</span>
+              )}
             </p>
           </div>
           <div className="text-right shrink-0 flex items-center gap-2">
             {ing.ingredientCost != null ? (
-              <span className="text-sm font-semibold text-foreground">{fmt(ing.ingredientCost)}</span>
+              <span className="text-sm font-semibold text-foreground flex items-center gap-1">
+                {ing.priceSource === "estimate" && (
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium" title="Prognoza ceny AI (brak faktury)">szac.</span>
+                )}
+                {fmt(ing.ingredientCost)}
+              </span>
             ) : (
               <span className="text-[11px] text-amber-600 flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" /> brak ceny

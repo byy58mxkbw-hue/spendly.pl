@@ -19,6 +19,10 @@ export const dishIngredientsTable = pgTable("dish_ingredients", {
   productId: integer("product_id").notNull().references(() => productsTable.id, { onDelete: "cascade" }),
   quantity: numeric("quantity", { precision: 10, scale: 4 }).notNull(),
   unit: text("unit").notNull().default("g"),
+  // Fallback: szacowana cena rynkowa składnika (AI), używana gdy brak ceny z faktury.
+  // Przechowywana jako cena za jednostkę bazową w `estUnit` (domyślnie kg).
+  estUnitPrice: numeric("est_unit_price", { precision: 12, scale: 4 }),
+  estUnit: text("est_unit"),
 }, (t) => [index("dish_ingredients_dish_id_idx").on(t.dishId)]);
 
 export const insertDishSchema = createInsertSchema(dishesTable).omit({ id: true, userId: true, createdAt: true, updatedAt: true });

@@ -4362,6 +4362,11 @@ components:
           type: ["string", "null"]
         unitPrice:
           type: ["number", "null"]
+        estPricePerKg:
+          type: ["number", "null"]
+        priceSource:
+          type: ["string", "null"]
+          enum: ["invoice", "estimate", null]
         ingredientCost:
           type: ["number", "null"]
       required:
@@ -4411,6 +4416,8 @@ components:
           type: number
         productId:
           type: ["integer", "null"]
+        estPricePerKg:
+          type: ["number", "null"]
       required:
         - name
         - grams
@@ -4460,6 +4467,11 @@ components:
         unitPrice:
           type: ["number", "null"]
         ingredientCost:
+          type: ["number", "null"]
+        priceSource:
+          type: ["string", "null"]
+          enum: ["invoice", "estimate", null]
+        estUnitPrice:
           type: ["number", "null"]
       required:
         - id

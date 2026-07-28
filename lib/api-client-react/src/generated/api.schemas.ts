@@ -1140,6 +1140,17 @@ export interface MenuImportBody {
   images: string[];
 }
 
+/**
+ * @nullable
+ */
+export type MenuPreviewIngredientPriceSource = typeof MenuPreviewIngredientPriceSource[keyof typeof MenuPreviewIngredientPriceSource] | null;
+
+
+export const MenuPreviewIngredientPriceSource = {
+  invoice: 'invoice',
+  estimate: 'estimate',
+} as const;
+
 export interface MenuPreviewIngredient {
   name: string;
   grams: number;
@@ -1149,6 +1160,10 @@ export interface MenuPreviewIngredient {
   matchedName?: string | null;
   /** @nullable */
   unitPrice?: number | null;
+  /** @nullable */
+  estPricePerKg?: number | null;
+  /** @nullable */
+  priceSource?: MenuPreviewIngredientPriceSource;
   /** @nullable */
   ingredientCost?: number | null;
 }
@@ -1176,6 +1191,8 @@ export interface SaveMenuIngredient {
   grams: number;
   /** @nullable */
   productId?: number | null;
+  /** @nullable */
+  estPricePerKg?: number | null;
 }
 
 export interface SaveMenuDish {
@@ -1191,6 +1208,17 @@ export interface SaveMenuDishesBody {
   dishes: SaveMenuDish[];
 }
 
+/**
+ * @nullable
+ */
+export type DishIngredientDetailPriceSource = typeof DishIngredientDetailPriceSource[keyof typeof DishIngredientDetailPriceSource] | null;
+
+
+export const DishIngredientDetailPriceSource = {
+  invoice: 'invoice',
+  estimate: 'estimate',
+} as const;
+
 export interface DishIngredientDetail {
   id: number;
   productId: number;
@@ -1202,6 +1230,10 @@ export interface DishIngredientDetail {
   unitPrice?: number | null;
   /** @nullable */
   ingredientCost?: number | null;
+  /** @nullable */
+  priceSource?: DishIngredientDetailPriceSource;
+  /** @nullable */
+  estUnitPrice?: number | null;
 }
 
 export interface DishDetail {

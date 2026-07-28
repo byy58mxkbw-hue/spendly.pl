@@ -59,6 +59,8 @@ type EditIng = {
   baseCost: number | null;
   matchedProductId: number | null;
   matchedName: string | null;
+  estPricePerKg: number | null;
+  source: "invoice" | "estimate" | null;
 };
 type EditDish = {
   key: string;
@@ -86,6 +88,8 @@ function toEditDishes(preview: MenuImportPreview): EditDish[] {
       baseCost: ing.ingredientCost ?? null,
       matchedProductId: ing.matchedProductId ?? null,
       matchedName: ing.matchedName ?? null,
+      estPricePerKg: ing.estPricePerKg ?? null,
+      source: ing.priceSource ?? null,
     })),
   }));
 }
@@ -158,7 +162,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
         category: d.category,
         ingredients: d.ingredients
           .filter((i) => i.name.trim() && i.grams > 0)
-          .map((i) => ({ name: i.name.trim(), grams: i.grams, productId: i.matchedProductId })),
+          .map((i) => ({ name: i.name.trim(), grams: i.grams, productId: i.matchedProductId, estPricePerKg: i.estPricePerKg })),
       }))
       .filter((d) => d.ingredients.length > 0);
 
@@ -280,8 +284,8 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                             onChange={(e) => updateIng(d.key, ing.key, { name: e.target.value })}
                             className="h-7 text-xs flex-1"
                           />
-                          {ing.matchedProductId == null && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 shrink-0" title="Utworzymy nowy produkt przy zapisie">nowy</span>
+                          {ing.source === "estimate" && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 shrink-0" title="Cena z prognozy AI (brak faktury dla tego surowca)">szac.</span>
                           )}
                           <Input
                             type="number"

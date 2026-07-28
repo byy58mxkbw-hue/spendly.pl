@@ -6,6 +6,7 @@ import { ensureAutoSyncColumns, startKsefAutoSyncScheduler } from "./services/ks
 import { ensureAiUsageTable } from "./services/ensure-ai-usage.js";
 import { ensureRevenueTable } from "./services/ensure-revenue.js";
 import { ensureGoposTables } from "./services/ensure-gopos.js";
+import { ensureDishIngredientColumns } from "./services/ensure-dish-columns.js";
 import { startQueue } from "./services/queue.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
@@ -75,6 +76,9 @@ app.listen(port, (err) => {
 
   // Tabele integracji GoPOS (config + sprzedaż per pozycja) — idempotentne DDL, zawsze.
   ensureGoposTables(logger).catch((err) => logger.error({ err }, "gopos: migracja nieudana"));
+
+  // Kolumny szacowanej ceny AI w dish_ingredients (fallback food cost) — idempotentne DDL.
+  ensureDishIngredientColumns(logger).catch((err) => logger.error({ err }, "dish_ingredients est_*: migracja nieudana"));
 
   // Kolejka zadań (pg-boss) — startuje TYLKO gdy PGBOSS_ENABLED=true (PoC).
   // Samo-gated i samo-obsługujące błędy; przy fladze OFF to no-op.
