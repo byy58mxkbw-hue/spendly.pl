@@ -120,6 +120,11 @@ type IngredientRow = DishIngredientInput & {
   baseCost?: number | null;
   baseQty?: number;
   baseUnit?: string;
+  // Metadane wyceny produktu — umożliwiają ustawienie ceny/wagi z poziomu edytora.
+  canSetPrice?: boolean;
+  needsPackage?: boolean;
+  manualPrice?: number | null;
+  packageQty?: number | null;
 };
 
 // Koszt składnika w edytorze: preferuj koszt z backendu skalowany po gramaturze;
@@ -138,12 +143,21 @@ function EditIngredientRow({
   ing,
   onChange,
   onRemove,
+  onProductUpdated,
 }: {
   ing: IngredientRow;
   onChange: (u: IngredientRow) => void;
   onRemove: () => void;
+  onProductUpdated: () => void;
 }) {
   const [raw, setRaw] = useState(String(ing.quantity));
+  const { toast } = useToast();
+  const setManual = useSetProductManualPrice();
+  const setPkg = useSetProductPackage();
+  const [priceVal, setPriceVal] = useState(ing.manualPrice != null ? String(ing.manualPrice) : "");
+  const [priceUnit, setPriceUnit] = useState("kg");
+  const [pkgVal, setPkgVal] = useState(ing.packageQty != null ? String(ing.packageQty) : "");
+  const [pkgUnitSel, setPkgUnitSel] = useState("g");
 
   // Sync raw when parent resets (e.g. on load)
   useEffect(() => {
@@ -154,6 +168,33 @@ function EditIngredientRow({
   }, [ing.quantity]);
 
   const liveCost = rowLiveCost(ing);
+
+  async function savePrice() {
+    const n = parseFloat(priceVal.replace(",", "."));
+    if (!(n > 0)) { toast({ variant: "destructive", title: "Podaj cenę większą od zera" }); return; }
+    try {
+      await setManual.mutateAsync({ id: ing.productId, data: { manualPrice: n, manualUnit: priceUnit } });
+      const newCost = calcIngredientCost(ing.quantity, ing.unit, priceUnit, n, "");
+      onChange({ ...ing, manualPrice: n, baseCost: newCost, baseQty: ing.quantity, baseUnit: ing.unit });
+      onProductUpdated();
+      toast({ title: "Zapisano cenę", description: `${ing.productName}: ${n} zł/${priceUnit}` });
+    } catch { toast({ variant: "destructive", title: "Nie udało się zapisać ceny" }); }
+  }
+
+  async function savePkg() {
+    const n = parseFloat(pkgVal.replace(",", "."));
+    if (!(n > 0)) { toast({ variant: "destructive", title: "Podaj wagę większą od zera" }); return; }
+    try {
+      await setPkg.mutateAsync({ id: ing.productId, data: { packageQty: n, packageUnit: pkgUnitSel } });
+      const rb = toBase(ing.quantity, ing.unit);
+      const pb = toBase(n, pkgUnitSel);
+      const mv = (b: string) => b === "g" || b === "ml";
+      const newCost = ing.unitPrice != null && mv(rb.base) && mv(pb.base) && pb.value > 0 ? (rb.value / pb.value) * ing.unitPrice : null;
+      onChange({ ...ing, packageQty: n, needsPackage: false, baseCost: newCost, baseQty: ing.quantity, baseUnit: ing.unit });
+      onProductUpdated();
+      toast({ title: "Zapisano wagę opakowania", description: `1 ${ing.invoiceUnit ?? "szt"} ≈ ${n} ${pkgUnitSel}` });
+    } catch { toast({ variant: "destructive", title: "Nie udało się zapisać" }); }
+  }
 
   return (
     <div className="rounded-xl p-3 space-y-2 bg-secondary/40 border border-border">
@@ -189,10 +230,37 @@ function EditIngredientRow({
         >
           {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
         </select>
-        {liveCost != null && (
+        {liveCost != null ? (
           <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{fmt(liveCost)}</span>
+        ) : (
+          <span className="text-[10px] text-amber-600 shrink-0">brak ceny</span>
         )}
       </div>
+
+      {/* Ustawienie wagi opakowania (cena „za szt" z faktury) */}
+      {ing.needsPackage && (
+        <div className="flex items-center gap-1.5 pt-1">
+          <span className="text-[11px] text-muted-foreground">Waga 1 {ing.invoiceUnit}:</span>
+          <Input value={pkgVal} onChange={(e) => setPkgVal(e.target.value)} inputMode="decimal" placeholder="np. 300" className="h-7 w-16 text-xs" />
+          <select value={pkgUnitSel} onChange={(e) => setPkgUnitSel(e.target.value)} className="h-7 px-1 text-xs rounded-md bg-background border border-input">
+            {["g", "kg", "ml", "l"].map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+          <Button size="sm" onClick={savePkg} disabled={setPkg.isPending} className="h-7 text-xs ml-auto">{setPkg.isPending ? "…" : "Zapisz"}</Button>
+        </div>
+      )}
+
+      {/* Ręczne przypisanie ceny (wyrób własny / brak faktury) */}
+      {!ing.needsPackage && ing.canSetPrice && (
+        <div className="flex items-center gap-1.5 pt-1">
+          <span className="text-[11px] text-muted-foreground">Cena:</span>
+          <Input value={priceVal} onChange={(e) => setPriceVal(e.target.value)} inputMode="decimal" placeholder="np. 80" className="h-7 w-16 text-xs" />
+          <span className="text-[11px] text-muted-foreground">zł/</span>
+          <select value={priceUnit} onChange={(e) => setPriceUnit(e.target.value)} className="h-7 px-1 text-xs rounded-md bg-background border border-input">
+            {["kg", "l", "szt", "g", "ml"].map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+          <Button size="sm" onClick={savePrice} disabled={setManual.isPending} className="h-7 text-xs ml-auto">{setManual.isPending ? "…" : "Zapisz"}</Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -235,10 +303,14 @@ function DishFormDialog({
         quantity: ing.quantity,
         unit: ing.unit,
         unitPrice: ing.unitPrice ?? null,
-        invoiceUnit: ing.productUnit ?? undefined,
+        invoiceUnit: ing.invoiceUnit ?? ing.productUnit ?? undefined,
         baseCost: ing.ingredientCost ?? null,
         baseQty: ing.quantity,
         baseUnit: ing.unit,
+        canSetPrice: ing.canSetPrice,
+        needsPackage: ing.needsPackage,
+        manualPrice: ing.manualPrice ?? null,
+        packageQty: ing.packageQty ?? null,
       })),
     );
   }
@@ -383,6 +455,10 @@ function DishFormDialog({
                   ing={ing}
                   onChange={(u) => setIngredients((prev) => prev.map((i) => i._key === u._key ? u : i))}
                   onRemove={() => setIngredients((prev) => prev.filter((i) => i._key !== ing._key))}
+                  onProductUpdated={() => {
+                    queryClient.invalidateQueries({ queryKey: getGetDishQueryKey(editId ?? 0) });
+                    queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() });
+                  }}
                 />
               ))}
             </div>
