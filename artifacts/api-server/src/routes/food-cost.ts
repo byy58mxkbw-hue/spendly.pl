@@ -45,6 +45,7 @@ function convertIngredientCost(
   invoiceUnit: string,
   unitPrice: number,
   productName: string,
+  pkgOverride?: { valueInBase: number; base: string } | null,
 ): number | null {
   const recipe = toBase(qty, recipeUnit);
   const invoice = toBase(1, invoiceUnit);
@@ -55,9 +56,9 @@ function convertIngredientCost(
     return (recipe.value / invoice.value) * unitPrice;
   }
 
-  // Faktura za sztukę/opakowanie, a receptura w g/ml → potrzebna gramatura z nazwy.
+  // Faktura za sztukę/opakowanie, a receptura w g/ml → gramatura z ustawienia produktu (override) lub z nazwy.
   if (!massVol(invoice.base) && massVol(recipe.base)) {
-    const pkg = parsePackageSize(productName);
+    const pkg = (pkgOverride && massVol(pkgOverride.base)) ? pkgOverride : parsePackageSize(productName);
     if (pkg && massVol(pkg.base)) {
       // np. receptura 10 g, opakowanie 5 l (=5000 ml≈5000 g), cena 69,90 zł/szt
       // koszt = (10 / 5000) * 69,90 = 0,14 zł
@@ -76,7 +77,9 @@ function convertIngredientCost(
   return qty * unitPrice;
 }
 
-async function getLatestPrices(userId: string, productIds: number[]): Promise<Map<number, { unitPrice: number; unit: string; productName: string }>> {
+type PriceInfo = { unitPrice: number; unit: string; productName: string; pkgOverride: { valueInBase: number; base: string } | null };
+
+async function getLatestPrices(userId: string, productIds: number[]): Promise<Map<number, PriceInfo>> {
   if (productIds.length === 0) return new Map();
 
   const rows = await db
@@ -85,6 +88,8 @@ async function getLatestPrices(userId: string, productIds: number[]): Promise<Ma
       unitPrice: invoiceItemsTable.unitPrice,
       unit: invoiceItemsTable.unit,
       productName: productsTable.name,
+      packageQty: productsTable.packageQty,
+      packageUnit: productsTable.packageUnit,
     })
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
@@ -102,13 +107,18 @@ async function getLatestPrices(userId: string, productIds: number[]): Promise<Ma
     )
     .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id));
 
-  const map = new Map<number, { unitPrice: number; unit: string; productName: string }>();
+  const map = new Map<number, PriceInfo>();
   for (const row of rows) {
     if (!map.has(row.productId!)) {
+      const pq = row.packageQty != null ? parseFloat(row.packageQty as string) : null;
+      const pkgOverride = pq != null && pq > 0
+        ? (() => { const b = toBase(pq, row.packageUnit || "g"); return { valueInBase: b.value, base: b.base }; })()
+        : null;
       map.set(row.productId!, {
         unitPrice: parseFloat(row.unitPrice as string),
         unit: row.unit ?? "szt",
         productName: row.productName ?? "",
+        pkgOverride,
       });
     }
   }
@@ -119,7 +129,7 @@ type CostSource = "invoice" | "estimate" | null;
 
 function computeDishCost(
   ingredients: Array<{ productId: number; quantity: number; unit: string; estUnitPrice?: number | null; estUnit?: string | null }>,
-  prices: Map<number, { unitPrice: number; unit: string; productName: string }>,
+  prices: Map<number, PriceInfo>,
 ): {
   portionCost: number | null;
   marginPct: number | null;
@@ -140,7 +150,7 @@ function computeDishCost(
     let cost: number | null = null;
     let source: CostSource = null;
     if (price) {
-      const c = convertIngredientCost(ing.quantity, ing.unit, price.unit, price.unitPrice, price.productName);
+      const c = convertIngredientCost(ing.quantity, ing.unit, price.unit, price.unitPrice, price.productName, price.pkgOverride);
       if (c != null) { cost = c; source = "invoice"; }
     }
     // Fallback: szacowana cena rynkowa AI (za jednostkę estUnit, domyślnie kg).
@@ -343,6 +353,8 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
       unit: dishIngredientsTable.unit,
       estUnitPrice: dishIngredientsTable.estUnitPrice,
       estUnit: dishIngredientsTable.estUnit,
+      packageQty: productsTable.packageQty,
+      packageUnit: productsTable.packageUnit,
     })
     .from(dishIngredientsTable)
     .innerJoin(
@@ -388,6 +400,11 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
       ingredientCost: ingredientCosts.get(i.productId) ?? null,
       priceSource: ingredientSources.get(i.productId) ?? null,
       estUnitPrice: i.estUnitPrice != null ? parseFloat(i.estUnitPrice as string) : null,
+      invoiceUnit: prices.get(i.productId)?.unit ?? null,
+      packageQty: i.packageQty != null ? parseFloat(i.packageQty as string) : null,
+      // UI może zaproponować ustawienie wagi opakowania: jest cena z faktury (na szt/opak),
+      // ale nie dało się jej użyć (priceSource ≠ invoice) → brakuje gramatury opakowania.
+      needsPackage: prices.has(i.productId) && ingredientSources.get(i.productId) !== "invoice",
     })),
   });
 });
@@ -696,7 +713,7 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
       let ingredientCost: number | null = null;
       let priceSource: "invoice" | "estimate" | null = null;
       if (p && price) {
-        const c = convertIngredientCost(ing.grams, "g", price.unit, price.unitPrice, price.productName);
+        const c = convertIngredientCost(ing.grams, "g", price.unit, price.unitPrice, price.productName, price.pkgOverride);
         if (c != null) { ingredientCost = c; priceSource = "invoice"; }
       }
       if (ingredientCost == null && ing.estPricePerKg != null && ing.estPricePerKg > 0) {

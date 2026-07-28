@@ -129,6 +129,29 @@ paths:
         "404":
           description: Not found
 
+  /products/{id}/package:
+    patch:
+      operationId: setProductPackage
+      tags: [products]
+      summary: Set package weight/volume of one piece so per-piece invoice prices convert to grams
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetProductPackageBody"
+      responses:
+        "204":
+          description: Saved
+        "404":
+          description: Not found
+
   /food-cost/dishes/{id}/reprice:
     post:
       operationId: repriceDish
@@ -2441,6 +2464,14 @@ components:
         category:
           type: ["string", "null"]
 
+    SetProductPackageBody:
+      type: object
+      properties:
+        packageQty:
+          type: ["number", "null"]
+        packageUnit:
+          type: ["string", "null"]
+
     CorrectProductCategoryBody:
       type: object
       properties:
@@ -4498,6 +4529,12 @@ components:
           enum: ["invoice", "estimate", null]
         estUnitPrice:
           type: ["number", "null"]
+        invoiceUnit:
+          type: ["string", "null"]
+        packageQty:
+          type: ["number", "null"]
+        needsPackage:
+          type: boolean
       required:
         - id
         - productId

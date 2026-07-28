@@ -12,9 +12,15 @@ export async function ensureDishIngredientColumns(log: Logger): Promise<void> {
         ADD COLUMN IF NOT EXISTS est_unit_price numeric(12,4),
         ADD COLUMN IF NOT EXISTS est_unit       text
     `);
-    log.info("dish_ingredients: kolumny szacunku AI gotowe");
+    // Waga/pojemność opakowania na produkcie — do konwersji „za szt" → gramy w recepturach.
+    await db.execute(sql`
+      ALTER TABLE IF EXISTS products
+        ADD COLUMN IF NOT EXISTS package_qty  numeric(12,4),
+        ADD COLUMN IF NOT EXISTS package_unit text
+    `);
+    log.info("dish_ingredients/products: kolumny szacunku i opakowania gotowe");
   } catch (err) {
-    log.error({ err: String(err) }, "Nie udało się zapewnić kolumn est_* w dish_ingredients");
+    log.error({ err: String(err) }, "Nie udało się zapewnić kolumn est_*/package_*");
     throw err;
   }
 }

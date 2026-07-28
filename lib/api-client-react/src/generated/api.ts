@@ -117,6 +117,7 @@ import type {
   ScannedReceiptData,
   SearchResults,
   SetInvoiceCostCenterBody,
+  SetProductPackageBody,
   SetSupplierDefaultCategoryBody,
   SetSupplierDefaultCostCenterBody,
   SpendBridge,
@@ -515,6 +516,77 @@ export const useDeleteDish = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteDishMutationOptions(options));
+    }
+
+export const getSetProductPackageUrl = (id: number,) => {
+
+
+
+
+  return `/api/products/${id}/package`
+}
+
+/**
+ * @summary Set package weight/volume of one piece so per-piece invoice prices convert to grams
+ */
+export const setProductPackage = async (id: number,
+    setProductPackageBody: SetProductPackageBody, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getSetProductPackageUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(setProductPackageBody)
+  }
+);}
+
+
+
+
+export const getSetProductPackageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setProductPackage>>, TError,{id: number;data: BodyType<SetProductPackageBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setProductPackage>>, TError,{id: number;data: BodyType<SetProductPackageBody>}, TContext> => {
+
+const mutationKey = ['setProductPackage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setProductPackage>>, {id: number;data: BodyType<SetProductPackageBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setProductPackage(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetProductPackageMutationResult = NonNullable<Awaited<ReturnType<typeof setProductPackage>>>
+    export type SetProductPackageMutationBody = BodyType<SetProductPackageBody>
+    export type SetProductPackageMutationError = ErrorType<void>
+
+    /**
+ * @summary Set package weight/volume of one piece so per-piece invoice prices convert to grams
+ */
+export const useSetProductPackage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setProductPackage>>, TError,{id: number;data: BodyType<SetProductPackageBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setProductPackage>>,
+        TError,
+        {id: number;data: BodyType<SetProductPackageBody>},
+        TContext
+      > => {
+      return useMutation(getSetProductPackageMutationOptions(options));
     }
 
 export const getRepriceDishUrl = (id: number,) => {

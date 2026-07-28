@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense, type MouseEvent } from "react";
 import { Layout } from "@/components/layout";
 import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   useListProducts,
   useGetDishesSales,
   useRepriceDish,
+  useSetProductPackage,
   getListDishesQueryKey,
   getGetDishQueryKey,
   getListProductsQueryKey,
@@ -403,12 +404,31 @@ function DishFormDialog({
 function IngredientDetailCard({
   ing,
   totalCost,
+  onPackageSaved,
 }: {
   ing: DishDetail["ingredients"][number];
   totalCost: number | null;
+  onPackageSaved: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const { toast } = useToast();
+  const setPkg = useSetProductPackage();
+  const [pkgQty, setPkgQty] = useState(ing.packageQty != null ? String(ing.packageQty) : "");
+  const [pkgUnit, setPkgUnit] = useState("g");
   const sharePct = ing.ingredientCost != null && totalCost ? (ing.ingredientCost / totalCost) * 100 : null;
+
+  async function savePackage(e: MouseEvent) {
+    e.stopPropagation();
+    const n = parseFloat(pkgQty.replace(",", "."));
+    if (!(n > 0)) { toast({ variant: "destructive", title: "Podaj wagę większą od zera" }); return; }
+    try {
+      await setPkg.mutateAsync({ id: ing.productId, data: { packageQty: n, packageUnit: pkgUnit } });
+      toast({ title: "Zapisano wagę opakowania", description: `1 ${ing.invoiceUnit ?? "szt"} ≈ ${n} ${pkgUnit} — liczę z faktury.` });
+      onPackageSaved();
+    } catch {
+      toast({ variant: "destructive", title: "Nie udało się zapisać" });
+    }
+  }
 
   return (
     <div
@@ -457,6 +477,34 @@ function IngredientDetailCard({
                 className="h-full rounded-full transition-all bg-primary"
                 style={{ width: `${Math.min(sharePct, 100)}%` }}
               />
+            </div>
+          </div>
+        )}
+
+        {ing.needsPackage && (
+          <div className="mt-2 pt-2 border-t border-dashed border-border" onClick={(e) => e.stopPropagation()}>
+            <p className="text-[11px] text-muted-foreground mb-1.5">
+              Masz cenę z faktury ({fmt(ing.unitPrice)}/{ing.invoiceUnit}), ale nie znamy wagi 1 {ing.invoiceUnit}. Podaj ją, policzymy dokładnie z faktury:
+            </p>
+            <div className="flex items-center gap-1.5">
+              <Input
+                value={pkgQty}
+                onChange={(e) => setPkgQty(e.target.value)}
+                inputMode="decimal"
+                placeholder="np. 300"
+                className="h-7 w-20 text-xs"
+              />
+              <select
+                value={pkgUnit}
+                onChange={(e) => setPkgUnit(e.target.value)}
+                className="h-7 px-1.5 text-xs rounded-md bg-background border border-input text-foreground"
+              >
+                {["g", "kg", "ml", "l"].map((u) => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <span className="text-[11px] text-muted-foreground">= 1 {ing.invoiceUnit}</span>
+              <Button size="sm" onClick={savePackage} disabled={setPkg.isPending} className="h-7 text-xs ml-auto">
+                {setPkg.isPending ? "…" : "Zapisz"}
+              </Button>
             </div>
           </div>
         )}
@@ -633,7 +681,15 @@ function DishDetailSheet({
               </p>
               <div className="space-y-2">
                 {dish.ingredients.map((ing) => (
-                  <IngredientDetailCard key={ing.id} ing={ing} totalCost={dish.portionCost ?? null} />
+                  <IngredientDetailCard
+                    key={ing.id}
+                    ing={ing}
+                    totalCost={dish.portionCost ?? null}
+                    onPackageSaved={() => {
+                      queryClient.invalidateQueries({ queryKey: getGetDishQueryKey(dishId) });
+                      queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() });
+                    }}
+                  />
                 ))}
               </div>
             </div>

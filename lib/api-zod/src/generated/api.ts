@@ -66,7 +66,10 @@ export const GetDishResponse = zod.object({
   "unitPrice": zod.number().nullish(),
   "ingredientCost": zod.number().nullish(),
   "priceSource": zod.union([zod.literal('invoice'),zod.literal('estimate'),zod.literal(null)]).nullish(),
-  "estUnitPrice": zod.number().nullish()
+  "estUnitPrice": zod.number().nullish(),
+  "invoiceUnit": zod.string().nullish(),
+  "packageQty": zod.number().nullish(),
+  "needsPackage": zod.boolean().optional()
 })),
   "portionCost": zod.number().nullish(),
   "marginPct": zod.number().nullish(),
@@ -104,6 +107,21 @@ export const DeleteDishParams = zod.object({
 })
 
 export const DeleteDishResponse = zod.void()
+
+
+/**
+ * @summary Set package weight/volume of one piece so per-piece invoice prices convert to grams
+ */
+export const SetProductPackageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SetProductPackageBody = zod.object({
+  "packageQty": zod.number().nullish(),
+  "packageUnit": zod.string().nullish()
+})
+
+export const SetProductPackageResponse = zod.void()
 
 
 /**

@@ -803,6 +803,35 @@ router.patch("/products/:id", async (req, res): Promise<void> => {
   res.status(204).end();
 });
 
+// Ustaw wagę/pojemność 1 sztuki/opakowania produktu — pozwala liczyć koszt receptury
+// (gramy) z ceny „za szt" z faktury, gdy nazwa nie zawiera gramatury.
+router.patch("/products/:id/package", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const raw = req.body as { packageQty?: unknown; packageUnit?: unknown };
+  const ALLOWED = ["g", "kg", "dag", "ml", "l", "litr"];
+
+  let packageQty: string | null = null;
+  let packageUnit: string | null = null;
+  if (raw.packageQty != null && raw.packageQty !== "") {
+    const n = Number(raw.packageQty);
+    if (!Number.isFinite(n) || n <= 0) { res.status(400).json({ error: "packageQty musi być liczbą > 0 lub pusta." }); return; }
+    const u = String(raw.packageUnit ?? "g").toLowerCase().trim();
+    if (!ALLOWED.includes(u)) { res.status(400).json({ error: "packageUnit: g/kg/dag/ml/l." }); return; }
+    packageQty = n.toFixed(4);
+    packageUnit = u;
+  }
+
+  const [updated] = await db
+    .update(productsTable)
+    .set({ packageQty, packageUnit })
+    .where(and(eq(productsTable.id, id), eq(productsTable.userId, userId)))
+    .returning({ id: productsTable.id });
+  if (!updated) { res.status(404).json({ error: "Product not found" }); return; }
+  res.status(204).end();
+});
+
 router.patch("/products/:id/correct-category", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const params = CorrectProductCategoryParams.safeParse(req.params);

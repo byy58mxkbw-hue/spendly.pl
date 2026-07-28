@@ -141,6 +141,13 @@ export interface UpdateProductBody {
   category?: string | null;
 }
 
+export interface SetProductPackageBody {
+  /** @nullable */
+  packageQty?: number | null;
+  /** @nullable */
+  packageUnit?: string | null;
+}
+
 export interface CorrectProductCategoryBody {
   category: string;
   /** @nullable */
@@ -1234,6 +1241,11 @@ export interface DishIngredientDetail {
   priceSource?: DishIngredientDetailPriceSource;
   /** @nullable */
   estUnitPrice?: number | null;
+  /** @nullable */
+  invoiceUnit?: string | null;
+  /** @nullable */
+  packageQty?: number | null;
+  needsPackage?: boolean;
 }
 
 export interface DishDetail {
