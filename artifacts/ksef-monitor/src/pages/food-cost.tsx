@@ -1022,7 +1022,7 @@ export default function FoodCostPage() {
 
   return (
     <Layout>
-      <div className="p-5 md:p-7 space-y-5 max-w-2xl mx-auto">
+      <div className="p-5 md:p-7 space-y-5 max-w-6xl mx-auto">
 
         {/* Header */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1042,7 +1042,7 @@ export default function FoodCostPage() {
 
         {/* Compact KPIs */}
         {dishes.length > 0 && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             {[
               { label: `${dishes.length} dań`, sub: "w menu" },
               { label: avgMargin != null ? `${avgMargin.toFixed(1)}%` : "—", sub: "śr. marża", color: marginColor(avgMargin) },
@@ -1071,7 +1071,7 @@ export default function FoodCostPage() {
                 <button onClick={() => setMonth(shiftMonth(month, 1))} disabled={month >= currentMonth()} className="p-1 rounded-lg border border-border hover:bg-secondary/50 disabled:opacity-40" aria-label="Następny miesiąc"><ChevronRight className="w-4 h-4" /></button>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-3 md:grid-cols-4">
               <div>
                 <p className="text-[10px] text-muted-foreground mb-0.5">Prawdziwy food cost</p>
                 <p className="text-xl font-bold tabular-nums" style={{ color: salesData.weighted.foodCostPct != null ? foodCostColor(salesData.weighted.foodCostPct) : undefined }}>
@@ -1082,9 +1082,9 @@ export default function FoodCostPage() {
                 <p className="text-[10px] text-muted-foreground mb-0.5">Dań ze sprzedażą</p>
                 <p className="text-xl font-bold text-foreground tabular-nums">{salesData.weighted.dishesSold}</p>
               </div>
-              <div className="col-span-2 pt-2 border-t border-border/60">
+              <div className="col-span-2 pt-2 border-t border-border/60 md:pt-0 md:border-t-0">
                 <p className="text-[10px] text-muted-foreground mb-0.5">Koszt / przychód dań (brutto)</p>
-                <p className="text-sm font-semibold text-foreground tabular-nums">
+                <p className="text-sm font-semibold text-foreground tabular-nums md:mt-1">
                   {fmt(salesData.weighted.costTotal)} <span className="text-muted-foreground font-normal">/</span> {fmt(salesData.weighted.revenue)}
                 </p>
               </div>
@@ -1143,7 +1143,7 @@ export default function FoodCostPage() {
             )}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((dish) => (
               <DishCard key={dish.id} dish={dish} sales={salesById.get(dish.id)} monthLabelText={hasGopos ? monthLabel(month) : undefined} onClick={() => setViewDishId(dish.id)} />
             ))}
