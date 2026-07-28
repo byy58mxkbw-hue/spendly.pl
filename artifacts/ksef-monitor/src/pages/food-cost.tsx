@@ -1025,16 +1025,16 @@ export default function FoodCostPage() {
       <div className="p-5 md:p-7 space-y-5 max-w-2xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-xl font-bold text-foreground tracking-tight">Food Cost</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Receptury i analiza marż</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" onClick={() => setShowImport(true)} className="h-9 text-sm">
+          <div className="grid grid-cols-2 gap-2 md:flex md:shrink-0">
+            <Button variant="outline" onClick={() => setShowImport(true)} className="h-9 text-sm w-full md:w-auto">
               <Sparkles className="w-4 h-4 mr-1" /> Importuj z menu
             </Button>
-            <Button onClick={() => setShowCreate(true)} className="h-9 text-sm">
+            <Button onClick={() => setShowCreate(true)} className="h-9 text-sm w-full md:w-auto">
               <Plus className="w-4 h-4 mr-1" /> Dodaj danie
             </Button>
           </div>
@@ -1060,10 +1060,10 @@ export default function FoodCostPage() {
         {/* GoPOS: prawdziwy food cost % ważony sprzedażą */}
         {hasGopos && salesData && (
           <div className="glass rounded-xl p-4">
-            <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-1.5">
-                <ShoppingBag className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">Realny food cost (ze sprzedaży GoPOS)</span>
+                <ShoppingBag className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-sm font-semibold text-foreground">Realny food cost — GoPOS</span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button onClick={() => setMonth(shiftMonth(month, -1))} className="p-1 rounded-lg border border-border hover:bg-secondary/50" aria-label="Poprzedni miesiąc"><ChevronLeft className="w-4 h-4" /></button>
@@ -1071,29 +1071,29 @@ export default function FoodCostPage() {
                 <button onClick={() => setMonth(shiftMonth(month, 1))} disabled={month >= currentMonth()} className="p-1 rounded-lg border border-border hover:bg-secondary/50 disabled:opacity-40" aria-label="Następny miesiąc"><ChevronRight className="w-4 h-4" /></button>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-3">
               <div>
                 <p className="text-[10px] text-muted-foreground mb-0.5">Prawdziwy food cost</p>
-                <p className="text-lg font-bold tabular-nums" style={{ color: salesData.weighted.foodCostPct != null ? foodCostColor(salesData.weighted.foodCostPct) : undefined }}>
+                <p className="text-xl font-bold tabular-nums" style={{ color: salesData.weighted.foodCostPct != null ? foodCostColor(salesData.weighted.foodCostPct) : undefined }}>
                   {salesData.weighted.foodCostPct != null ? `${salesData.weighted.foodCostPct.toFixed(1)}%` : "—"}
                 </p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground mb-0.5">Koszt / przychód dań (brutto)</p>
-                <p className="text-sm font-semibold text-foreground tabular-nums mt-1">
-                  {fmt(salesData.weighted.costTotal)} / {fmt(salesData.weighted.revenue)}
-                </p>
-              </div>
-              <div>
                 <p className="text-[10px] text-muted-foreground mb-0.5">Dań ze sprzedażą</p>
-                <p className="text-sm font-semibold text-foreground tabular-nums mt-1">{salesData.weighted.dishesSold}</p>
+                <p className="text-xl font-bold text-foreground tabular-nums">{salesData.weighted.dishesSold}</p>
+              </div>
+              <div className="col-span-2 pt-2 border-t border-border/60">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Koszt / przychód dań (brutto)</p>
+                <p className="text-sm font-semibold text-foreground tabular-nums">
+                  {fmt(salesData.weighted.costTotal)} <span className="text-muted-foreground font-normal">/</span> {fmt(salesData.weighted.revenue)}
+                </p>
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground mt-2">
               Σ(koszt porcji × ilość) / przychód brutto <b>tych dań</b> (cena z menu × ilość). „Dań ze sprzedażą" = ile pozycji menu ma dopasowaną sprzedaż (nie liczba porcji).
               {(salesData.weighted.totalRevenue ?? 0) > 0 && <> Cały obrót GoPOS w okresie: {fmt(salesData.weighted.totalRevenue ?? 0)}.</>}
             </p>
-            <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
+            <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
               <span className="text-[11px] text-muted-foreground">
                 Powiązane: <b className="text-foreground">{matchedCount}</b>/{dishes.length} dań
                 {dishes.length - matchedCount > 0 && <> · <b className="text-amber-600">{dishes.length - matchedCount}</b> bez sprzedaży</>}
