@@ -445,7 +445,7 @@ export default function Products() {
 
           {/* Row 2: supplier chips — horizontal scroll */}
           {suppliers && suppliers.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none -mx-4 px-4" data-testid="supplier-chips">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none -mx-4 px-4 [mask-image:linear-gradient(to_right,#000_calc(100%-28px),transparent)]" data-testid="supplier-chips">
               <button
                 onClick={() => setSupplierFilter("all")}
                 className={cn(

@@ -20,10 +20,24 @@ export type ParsedInvoice = {
   correctedInvoiceNumber: string | null;
 };
 
+// Dekodowanie encji XML/HTML — parser jest regexowy (nie DOM), więc encje typu
+// &amp; / &quot; nie są rozwijane automatycznie. Bez tego nazwy trafiają do bazy jako
+// „[A&amp;W]" zamiast „[A&W]". &amp; rozwijamy NA KOŃCU (żeby nie podwójnie dekodować).
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => { try { return String.fromCodePoint(Number(n)); } catch { return _; } })
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => { try { return String.fromCodePoint(parseInt(h, 16)); } catch { return _; } })
+    .replace(/&amp;/g, "&");
+}
+
 function extractTag(xml: string, tag: string): string | null {
   const re = new RegExp(`<(?:[\\w]+:)?${tag}[^>]*>([\\s\\S]*?)<\\/(?:[\\w]+:)?${tag}>`, "i");
   const m = xml.match(re);
-  return m ? m[1].trim() : null;
+  return m ? decodeXmlEntities(m[1]).trim() : null;
 }
 
 function parseNum(s: string | null | undefined): number {

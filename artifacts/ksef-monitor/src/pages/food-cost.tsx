@@ -746,35 +746,40 @@ function DishDetailSheet({
     <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent
         side="bottom"
-        className="rounded-t-2xl max-h-[88vh] overflow-y-auto p-0"
+        className="rounded-t-2xl max-h-[88vh] flex flex-col p-0"
       >
         {isLoading || !dish ? (
           <div className="py-16 text-center text-muted-foreground text-sm">Ładowanie...</div>
         ) : (
-          <div className="pb-8">
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-border" />
+          <>
+            {/* Sticky nagłówek — poza obszarem scrolla (tytuł + akcje zawsze widoczne) */}
+            <div className="flex-shrink-0 bg-background rounded-t-2xl">
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-border" />
+              </div>
+              {/* Header */}
+              <div className="px-5 pt-3 pb-4 flex items-start justify-between gap-3 border-b border-border">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold text-foreground truncate">{dish.name}</h2>
+                  {dish.category && <p className="text-xs text-muted-foreground mt-0.5">{dish.category}</p>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                  <button onClick={handleReprice} disabled={reprice.isPending} title="Przelicz z aktualnych faktur (szacunki → realne ceny)" className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50">
+                    <RefreshCw className={cn("w-4 h-4", reprice.isPending && "animate-spin")} />
+                  </button>
+                  <button onClick={onEdit} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button onClick={onDelete} className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Header */}
-            <div className="px-5 pt-3 pb-4 flex items-start justify-between gap-3 border-b border-border">
-              <div>
-                <h2 className="text-lg font-bold text-foreground">{dish.name}</h2>
-                {dish.category && <p className="text-xs text-muted-foreground mt-0.5">{dish.category}</p>}
-              </div>
-              <div className="flex items-center gap-1 shrink-0 mt-0.5">
-                <button onClick={handleReprice} disabled={reprice.isPending} title="Przelicz z aktualnych faktur (szacunki → realne ceny)" className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50">
-                  <RefreshCw className={cn("w-4 h-4", reprice.isPending && "animate-spin")} />
-                </button>
-                <button onClick={onEdit} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button onClick={onDelete} className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+            {/* Treść — TO przewija się, nie cały modal */}
+            <div className="overflow-y-auto flex-1 pb-8">
 
             {/* Summary block */}
             <div className="mx-5 mt-4 rounded-2xl p-4 space-y-2 bg-secondary/40 border border-border">
@@ -876,7 +881,8 @@ function DishDetailSheet({
                 ))}
               </div>
             </div>
-          </div>
+            </div>
+          </>
         )}
       </SheetContent>
     </Sheet>
