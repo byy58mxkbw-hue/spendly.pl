@@ -184,7 +184,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" /> Importuj z karty menu
@@ -226,15 +226,15 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
         )}
 
         {step === "preview" && (
-          <div className="space-y-3 py-1">
-            <div className="flex items-center justify-between">
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-muted-foreground">
                 Wykryto {dishes.length} dań · zaznaczono {selectedCount}. Popraw gramatury, jeśli trzeba.
               </p>
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">~ szacunek AI</span>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-y-auto flex-1 min-h-0 pr-1">
               {dishes.map((d) => {
                 const costs = d.ingredients.map(liveIngredientCost);
                 const known = costs.filter((c) => c != null) as number[];
@@ -312,7 +312,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
               })}
             </div>
 
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+            <div className="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-border">
               <Button variant="ghost" onClick={() => setStep("upload")} disabled={saveDishes.isPending}>Wstecz</Button>
               <Button onClick={handleSave} disabled={saveDishes.isPending || selectedCount === 0}>
                 {saveDishes.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}

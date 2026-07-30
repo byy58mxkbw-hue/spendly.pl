@@ -253,7 +253,7 @@ export function ImportInvoiceDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Dodaj zakup</DialogTitle>
           </DialogHeader>
@@ -268,7 +268,8 @@ export function ImportInvoiceDialog({
           </div>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit((v) => handleSubmit(v))} className="space-y-4">
+            <form onSubmit={form.handleSubmit((v) => handleSubmit(v))} className="flex flex-col flex-1 min-h-0">
+              <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-1">
               <FormField control={form.control} name="supplierId" render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center justify-between">
@@ -475,10 +476,13 @@ export function ImportInvoiceDialog({
                 </div>
               )}
 
-              <Button type="submit" className="w-full" disabled={importInvoice.isPending}>
-                {importInvoice.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                Dodaj zakup
-              </Button>
+              </div>
+              <div className="pt-3 mt-1 border-t border-border">
+                <Button type="submit" className="w-full" disabled={importInvoice.isPending}>
+                  {importInvoice.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  Dodaj zakup
+                </Button>
+              </div>
             </form>
           </Form>
         </DialogContent>

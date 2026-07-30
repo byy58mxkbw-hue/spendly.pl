@@ -43,13 +43,15 @@ export function SupplierComparisonModal({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitCompare className="w-5 h-5 text-primary" />
             Porównanie dostawców: {productName}
           </DialogTitle>
         </DialogHeader>
+
+        <div className="overflow-y-auto flex-1 min-h-0 pr-1">
 
         {isLoading ? (
           <div className="space-y-4">
@@ -221,6 +223,7 @@ export function SupplierComparisonModal({
             Brak danych dla tego produktu.
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );
