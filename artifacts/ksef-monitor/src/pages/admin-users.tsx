@@ -234,7 +234,7 @@ function UserDetailsSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-lg flex flex-col">
         {user && (
           <>
             <SheetHeader className="mb-6">
@@ -285,6 +285,8 @@ function UserDetailsSheet({
                 )}
               </div>
             </SheetHeader>
+
+            <div className="overflow-y-auto flex-1 min-h-0 pr-1">
 
             {isLoading && (
               <div className="space-y-3">
@@ -357,6 +359,7 @@ function UserDetailsSheet({
                 </section>
               </div>
             )}
+            </div>
           </>
         )}
       </SheetContent>

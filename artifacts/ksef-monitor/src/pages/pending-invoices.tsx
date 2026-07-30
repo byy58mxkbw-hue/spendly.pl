@@ -1271,13 +1271,14 @@ function PendingDetailDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {detail?.invoiceNumber ?? detail?.ksefNumber ?? "Faktura KSeF"}
           </DialogTitle>
         </DialogHeader>
 
+        <div className="overflow-y-auto flex-1 min-h-0 pr-1">
         {isLoading || !detail ? (
           <div className="space-y-3 py-4">
             <Skeleton className="h-4 w-3/4" />
@@ -1613,6 +1614,7 @@ function PendingDetailDialog({
             )}
           </div>
         )}
+        </div>
 
         <DialogFooter className="gap-2">
           <Button
