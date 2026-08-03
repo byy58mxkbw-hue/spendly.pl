@@ -131,8 +131,8 @@ type ColMap = {
 
 // Buduje arkusz: tytuł + podtytuł, nagłówek kolumn (zamrożony), a potem grupy
 // (centrum LUB dostawca) pod sobą: nagłówek grupy → produkty → wiersz SUMA.
-// withQtyCompare (tryb szczegółowy per dostawca) dokłada kolumny porównania ILOŚCI
-// do poprzedniego miesiąca. Ogólny raport wg centrów zostaje bez tych kolumn.
+// withQtyCompare dokłada kolumny porównania ILOŚCI do poprzedniego okresu
+// (obok „Ilość"). Włączone w obu wariantach: wg centrów i per dostawca.
 function buildWorkbook(
   groups: Group[],
   cmp: Compare,
@@ -340,10 +340,10 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
   opts = {
     sheetName,
     title: `Zakupy wg centrów kosztów — ${label}`,
-    subtitle: `Ceny brutto · porównanie z: ${prevLabel}`,
+    subtitle: `Ceny brutto · porównanie cen i ilości z: ${prevLabel}`,
     emptyMsg: `Brak zakupów w okresie ${label}.`,
   };
-  const wb = buildWorkbook(groups, cmp, false, opts);
+  const wb = buildWorkbook(groups, cmp, true, opts);
   await send(res, wb, period);
 });
 
