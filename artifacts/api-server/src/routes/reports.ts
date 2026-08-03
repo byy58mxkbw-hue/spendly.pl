@@ -38,7 +38,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     SELECT
       COUNT(DISTINCT i.id)::int AS invoice_count,
       COUNT(DISTINCT ii.product_id)::int AS product_count,
-      COALESCE(SUM(ii.total_price::numeric), 0)::float AS total_spend
+      COALESCE(SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))), 0)::float AS total_spend
     FROM invoices i
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
@@ -62,7 +62,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
         COALESCE(p.name, ii.product_name) AS product_name,
         ii.unit,
         s.name AS supplier_name,
-        AVG(ii.unit_price::numeric)::float AS avg_price,
+        AVG((ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS avg_price,
         SUM(ii.quantity::numeric)::float AS total_quantity
       FROM invoice_items ii
       INNER JOIN invoices i ON ii.invoice_id = i.id
@@ -85,8 +85,8 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       COALESCE(p.name, ii.product_name) AS product_name,
       ii.unit,
       SUM(ii.quantity::numeric)::float AS total_quantity,
-      AVG(ii.unit_price::numeric)::float AS avg_price,
-      SUM(ii.total_price::numeric)::float AS total_cost,
+      AVG((ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS avg_price,
+      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS total_cost,
       s.name AS supplier_name
     FROM invoice_items ii
     INNER JOIN invoices i ON ii.invoice_id = i.id
@@ -112,7 +112,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       db.execute(sql`
         SELECT name, unit, supplier, AVG(mavg)::float AS overall_avg FROM (
           SELECT COALESCE(p.name, ii.product_name) AS name, ii.unit AS unit, s.name AS supplier,
-            SUBSTRING(i.invoice_date, 1, 7) AS mo, AVG(ii.unit_price::numeric)::float AS mavg
+            SUBSTRING(i.invoice_date, 1, 7) AS mo, AVG((ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS mavg
           FROM invoice_items ii
           INNER JOIN invoices i ON ii.invoice_id = i.id
           INNER JOIN suppliers s ON i.supplier_id = s.id
@@ -126,7 +126,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       db.execute(sql`
         SELECT DISTINCT ON (name, unit) name, unit, supplier, price FROM (
           SELECT COALESCE(p.name, ii.product_name) AS name, ii.unit AS unit, s.name AS supplier,
-            AVG(ii.unit_price::numeric)::float AS price
+            AVG((ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS price
           FROM invoice_items ii
           INNER JOIN invoices i ON ii.invoice_id = i.id
           INNER JOIN suppliers s ON i.supplier_id = s.id
@@ -180,7 +180,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       s.name AS supplier_name,
       COUNT(DISTINCT i.id)::int AS invoice_count,
       COUNT(DISTINCT ii.product_id)::int AS product_count,
-      SUM(ii.total_price::numeric)::float AS total_spend
+      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS total_spend
     FROM invoices i
     INNER JOIN suppliers s ON i.supplier_id = s.id
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
@@ -206,11 +206,11 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       COALESCE(p.name, ii.product_name) AS product_name,
       ii.unit,
       SUM(ii.quantity::numeric)::float AS total_quantity,
-      AVG(ii.unit_price::numeric)::float AS avg_price,
-      SUM(ii.total_price::numeric)::float AS total_cost,
+      AVG((ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS avg_price,
+      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS total_cost,
       ROW_NUMBER() OVER (
         PARTITION BY i.supplier_id
-        ORDER BY SUM(ii.total_price::numeric) DESC
+        ORDER BY SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))) DESC
       ) AS rn
     FROM invoice_items ii
     INNER JOIN invoices i ON ii.invoice_id = i.id
@@ -290,8 +290,8 @@ router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
   const perProduct = (p: Period) => db.execute(sql`
     SELECT COALESCE(pr.name, ii.product_name) AS name, ii.unit AS unit,
       SUM(ii.quantity::numeric)::float AS qty,
-      AVG(ii.unit_price::numeric)::float AS price,
-      SUM(ii.total_price::numeric)::float AS cost
+      AVG((ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS price,
+      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS cost
     FROM invoice_items ii
     JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products pr ON ii.product_id = pr.id
@@ -309,7 +309,7 @@ router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
     db.execute(sql`
       SELECT name, unit, AVG(mavg)::float AS overall_avg FROM (
         SELECT COALESCE(p.name, ii.product_name) AS name, ii.unit AS unit,
-          SUBSTRING(i.invoice_date, 1, 7) AS mo, AVG(ii.unit_price::numeric)::float AS mavg
+          SUBSTRING(i.invoice_date, 1, 7) AS mo, AVG((ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS mavg
         FROM invoice_items ii
         JOIN invoices i ON ii.invoice_id = i.id
         LEFT JOIN products p ON ii.product_id = p.id
@@ -321,7 +321,7 @@ router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
     `),
     // Średnia miesięczna wydatków — ostatnie 6 pełnych miesięcy PRZED bieżącym.
     db.execute(sql`
-      SELECT SUBSTRING(i.invoice_date, 1, 7) AS mo, SUM(ii.total_price::numeric)::float AS spend
+      SELECT SUBSTRING(i.invoice_date, 1, 7) AS mo, SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS spend
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       WHERE i.user_id = ${userId} AND i.excluded = false
@@ -462,7 +462,7 @@ router.get("/reports/predictive", async (req, res): Promise<void> => {
       ii.unit,
       s.name AS supplier_name,
       i.invoice_date,
-      ii.unit_price::text AS unit_price,
+      (ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))::text AS unit_price,
       ii.quantity::text AS quantity
     FROM invoice_items ii
     INNER JOIN invoices i ON ii.invoice_id = i.id
@@ -656,8 +656,8 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
       s.name AS supplier_name,
       SUM(ii.quantity::numeric)::float AS total_quantity,
       MAX(ii.unit) AS unit,
-      (SUM(ii.total_price::numeric) / NULLIF(SUM(ii.quantity::numeric), 0))::float AS avg_unit_price,
-      SUM(ii.total_price::numeric)::float AS total_spend
+      (SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))) / NULLIF(SUM(ii.quantity::numeric), 0))::float AS avg_unit_price,
+      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS total_spend
     FROM invoice_items ii
     INNER JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products p ON ii.product_id = p.id
@@ -722,7 +722,7 @@ router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
     SELECT
       substring(i.invoice_date, 1, 7) AS month,
       p.category,
-      SUM(ii.total_price::numeric)::float AS total_spend
+      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS total_spend
     FROM invoice_items ii
     INNER JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products p ON ii.product_id = p.id

@@ -209,7 +209,7 @@ function ReportsInner() {
           <div className="flex-1 min-w-0">
             <PageHeader title="Raporty" />
             <p className="text-xs text-muted-foreground mt-0.5">
-              Analiza zakupów · {label}
+              Analiza zakupów · {label} · kwoty brutto
               {prevMonthTotalSpend > 0 && (
                 <span className="ml-2 text-muted-foreground/70">
                   Porównaj z: {prevLabel}

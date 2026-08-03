@@ -272,7 +272,7 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
     SELECT
       i.invoice_date,
       p.category,
-      SUM(ii.total_price::numeric) as cat_total
+      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))) as cat_total
     FROM invoice_items ii
     JOIN invoices i ON i.id = ii.invoice_id
     LEFT JOIN products p ON p.id = ii.product_id

@@ -65,7 +65,7 @@ router.get("/suppliers", async (req, res): Promise<void> => {
       invoiceCount: sql<number>`count(${invoicesTable.id})::int`,
       lastInvoiceDate: sql<string | null>`max(${invoicesTable.invoiceDate})`,
       totalSpend: sql<number | null>`(
-        SELECT sum(ii2.total_price::numeric)
+        SELECT sum((ii2.total_price::numeric * (1 + COALESCE(ii2.vat_rate, 0) / 100)))
         FROM invoice_items ii2
         INNER JOIN invoices i2 ON i2.id = ii2.invoice_id
         WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId}${ccSpendSql}
@@ -264,7 +264,7 @@ router.get("/suppliers/:id/monthly-spend", async (req, res): Promise<void> => {
       substring(i.invoice_date, 6, 2) as month,
       substring(i.invoice_date, 1, 4)::int as year,
       to_char(to_date(substring(i.invoice_date, 1, 7), 'YYYY-MM'), 'Mon YYYY') as label,
-      coalesce(sum(ii.total_price::numeric), 0)::text as total_amount,
+      coalesce(sum((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))), 0)::text as total_amount,
       count(DISTINCT i.id)::int as invoice_count
     FROM invoices i
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
@@ -336,7 +336,7 @@ router.get("/suppliers/:id/top-products", async (req, res): Promise<void> => {
         ORDER BY i2.invoice_date DESC
         LIMIT 1
       ) as latest_price,
-      coalesce(sum(ii.total_price::numeric), 0)::text as total_spend,
+      coalesce(sum((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))), 0)::text as total_spend,
       count(*)::int as purchase_count
     FROM invoice_items ii
     INNER JOIN invoices i ON i.id = ii.invoice_id
@@ -344,7 +344,7 @@ router.get("/suppliers/:id/top-products", async (req, res): Promise<void> => {
       AND i.user_id = ${userId}
       AND i.excluded = false
     GROUP BY ii.product_id, ii.product_name, ii.unit
-    ORDER BY sum(ii.total_price::numeric) DESC
+    ORDER BY sum((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))) DESC
     LIMIT ${sql.raw(String(limit))}
   `);
 

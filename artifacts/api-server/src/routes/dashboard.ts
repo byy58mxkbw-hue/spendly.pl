@@ -216,7 +216,7 @@ router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
       substring(i.invoice_date, 6, 2) as month,
       substring(i.invoice_date, 1, 4)::int as year,
       to_char(to_date(substring(i.invoice_date, 1, 7), 'YYYY-MM'), 'Mon YYYY') as label,
-      coalesce(sum(ii.total_price::numeric), 0)::text as total_amount,
+      coalesce(sum((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))), 0)::text as total_amount,
       count(DISTINCT i.id)::int as invoice_count
     FROM invoices i
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
