@@ -767,7 +767,13 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     }
   }
 
-  const calculatedTotal = parsedItems.reduce((sum, item) => sum + item.totalPrice, 0);
+  // total_amount trzymamy BRUTTO (tak zapisuje import z KSeF: header.totalGross),
+  // a totalPrice pozycji jest netto — bez doliczenia VAT faktury z importu ręcznego
+  // byłyby zaniżone względem tych z KSeF.
+  const calculatedTotal = parsedItems.reduce(
+    (sum, item) => sum + item.totalPrice * (1 + (item.vatRate ?? 0) / 100),
+    0,
+  );
   const totalAmount = calculatedTotal !== 0 ? calculatedTotal : (parsed2?.totalGross ?? 0);
 
   // Determine invoice type and corrected invoice number
@@ -1040,10 +1046,15 @@ router.delete("/invoices/:invoiceId/items/:itemId", async (req, res): Promise<vo
   await db.delete(invoiceItemsTable).where(eq(invoiceItemsTable.id, itemId));
 
   const remaining = await db
-    .select({ totalPrice: invoiceItemsTable.totalPrice })
+    .select({ totalPrice: invoiceItemsTable.totalPrice, vatRate: invoiceItemsTable.vatRate })
     .from(invoiceItemsTable)
     .where(eq(invoiceItemsTable.invoiceId, invoiceId));
-  const newTotal = remaining.reduce((s, r) => s + toNum(r.totalPrice), 0);
+  // total_amount faktury jest BRUTTO (z KSeF: totalGross), a total_price pozycji to netto —
+  // przeliczamy przez VAT, inaczej usunięcie pozycji zaniżałoby fakturę o cały podatek.
+  const newTotal = remaining.reduce(
+    (s, r) => s + toNum(r.totalPrice) * (1 + toNum(r.vatRate ?? "0") / 100),
+    0,
+  );
 
   await db
     .update(invoicesTable)

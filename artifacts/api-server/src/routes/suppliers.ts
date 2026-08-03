@@ -114,7 +114,7 @@ router.get("/suppliers/:id", async (req, res): Promise<void> => {
       invoiceCount: sql<number>`count(${invoicesTable.id})::int`,
       lastInvoiceDate: sql<string | null>`max(${invoicesTable.invoiceDate})`,
       totalSpend: sql<number | null>`(
-        SELECT sum(${invoiceItemsTable.totalPrice}::numeric)
+        SELECT sum(${invoiceItemsTable.totalPrice}::numeric * (1 + coalesce(${invoiceItemsTable.vatRate}::numeric, 0) / 100))
         FROM ${invoiceItemsTable}
         INNER JOIN ${invoicesTable} AS i2 ON i2.id = ${invoiceItemsTable.invoiceId}
         WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId}

@@ -89,7 +89,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .where(and(eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false), ccFilter));
 
   const [thisPeriodSpend] = await db
-    .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
+    .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric * (1 + coalesce(${invoiceItemsTable.vatRate}::numeric, 0) / 100)), 0)` })
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .where(
@@ -103,7 +103,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     );
 
   const [prevPeriodSpend] = await db
-    .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric), 0)` })
+    .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric * (1 + coalesce(${invoiceItemsTable.vatRate}::numeric, 0) / 100)), 0)` })
     .from(invoiceItemsTable)
     .innerJoin(invoicesTable, eq(invoiceItemsTable.invoiceId, invoicesTable.id))
     .where(
