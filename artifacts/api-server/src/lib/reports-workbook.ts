@@ -1,6 +1,34 @@
 import ExcelJS from "exceljs";
 
 // #RRGGBB -> AARRGGBB (exceljs). Fallback szary, gdy kolor nietypowy.
+// Zaokrąglenie do n miejsc — chroni przed artefaktami float w porównaniach
+// (np. 26,64 − 26,64 = 3,55e-15, co Excel pokazuje w notacji naukowej).
+function round(n: number, d: number): number {
+  const f = 10 ** d;
+  return Math.round(n * f) / f;
+}
+
+// Kolejność produktów w grupie: blokami jednostek (kg razem, szt razem…),
+// bloki wg wartości zakupów, a wewnątrz bloku od największej ILOŚCI.
+// Dzięki temu 200 kg mięsa nie miesza się z 6 kartonami.
+function sortRowsByUnitThenQty(rows: AggRow[]): AggRow[] {
+  const unitKey = (u: string) => (u ?? "").trim().toLowerCase();
+  const unitValue = new Map<string, number>();
+  for (const r of rows) {
+    const k = unitKey(r.unit);
+    unitValue.set(k, (unitValue.get(k) ?? 0) + r.gross_total);
+  }
+  return [...rows].sort((a, b) => {
+    const ka = unitKey(a.unit);
+    const kb = unitKey(b.unit);
+    if (ka !== kb) {
+      const d = (unitValue.get(kb) ?? 0) - (unitValue.get(ka) ?? 0);
+      return d !== 0 ? d : ka.localeCompare(kb, "pl");
+    }
+    return b.qty - a.qty;
+  });
+}
+
 function hexToArgb(hex: string | null | undefined): string {
   const h = (hex ?? "").replace(/[^0-9a-fA-F]/g, "");
   if (h.length !== 6) return "FF64748B";
@@ -103,29 +131,45 @@ export function buildWorkbook(
     gRow.height = 18;
 
     let total = 0;
-    const rows = [...g.rows].sort((a, b) => b.gross_total - a.gross_total);
+    const rows = sortRowsByUnitThenQty(g.rows);
+    let prevUnit: string | null = null;
     for (const r of rows) {
       const key = `${r.group_id ?? "null"}|${r.product_name}|${r.unit}`;
-      const avg = r.qty > 0 ? r.gross_total / r.qty : 0;
-      const prevA = cmp.prevAvg.get(key);
-      const prevQ = cmp.prevQty.get(key);
+      // Wszystko zaokrąglone PRZED porównaniem — inaczej float daje śmieci
+      // typu 3,55271E-15 zamiast zera i czerwone „+0,0%" przy braku zmiany.
+      const qty = round(r.qty, 3);
+      const avg = r.qty > 0 ? round(r.gross_total / r.qty, 2) : 0;
+      const prevARaw = cmp.prevAvg.get(key);
+      const prevA = prevARaw != null ? round(prevARaw, 2) : undefined;
+      const prevQRaw = cmp.prevQty.get(key);
+      const prevQ = prevQRaw != null ? round(prevQRaw, 3) : undefined;
+      const priceDelta = prevA != null ? round(avg - prevA, 2) : null;
       total += r.gross_total;
 
       const vals: (string | number | null)[] = new Array(nCols).fill(null);
       vals[C.product - 1] = r.product_name;
-      vals[C.qty - 1] = r.qty;
+      vals[C.qty - 1] = qty;
       vals[C.unit - 1] = r.unit;
       vals[C.avg - 1] = avg;
-      vals[C.value - 1] = r.gross_total;
+      vals[C.value - 1] = round(r.gross_total, 2);
       vals[C.pricePrev - 1] = prevA ?? null;
-      vals[C.priceDelta - 1] = prevA != null ? avg - prevA : "nowy";
-      vals[C.pricePct - 1] = prevA != null && prevA > 0 ? (avg - prevA) / prevA : null;
+      vals[C.priceDelta - 1] = priceDelta ?? "nowy";
+      vals[C.pricePct - 1] = prevA != null && prevA > 0 ? round(priceDelta! / prevA, 6) : null;
       if (withQtyCompare) {
         vals[C.qtyPrev! - 1] = prevQ ?? null;
-        vals[C.qtyDelta! - 1] = prevQ != null ? r.qty - prevQ : null;
+        vals[C.qtyDelta! - 1] = prevQ != null ? round(qty - prevQ, 3) : null;
       }
 
       const dataRow = ws.addRow(vals);
+      // Cienka linia w miejscu zmiany jednostki — oddziela bloki kg / szt / krt
+      // bez pustych wierszy (te psułyby filtrowanie i sumy w Excelu).
+      const unitNow = (r.unit ?? "").trim().toLowerCase();
+      if (prevUnit !== null && unitNow !== prevUnit) {
+        dataRow.eachCell({ includeEmpty: true }, (c) => {
+          c.border = { top: { style: "hair", color: { argb: "FFE2E8F0" } } };
+        });
+      }
+      prevUnit = unitNow;
       dataRow.getCell(C.qty).numFmt = QTY;
       dataRow.getCell(C.avg).numFmt = CUR;
       dataRow.getCell(C.value).numFmt = CUR;
@@ -145,8 +189,7 @@ export function buildWorkbook(
         dataRow.getCell(C.pricePrev).numFmt = CUR;
         dataRow.getCell(C.priceDelta).numFmt = CUR;
         dataRow.getCell(C.pricePct).numFmt = PCT;
-        const delta = avg - prevA;
-        const color = delta > 0 ? "FFDC2626" : delta < 0 ? "FF16A34A" : "FF64748B";
+        const color = priceDelta! > 0 ? "FFDC2626" : priceDelta! < 0 ? "FF16A34A" : "FF64748B";
         dataRow.getCell(C.priceDelta).font = { color: { argb: color } };
         dataRow.getCell(C.pricePct).font = { color: { argb: color } };
       } else {
@@ -156,14 +199,17 @@ export function buildWorkbook(
     }
 
     const sumVals: (string | number | null)[] = new Array(nCols).fill(null);
+    const totalR = round(total, 2);
     sumVals[0] = `Suma — ${g.name}`;
-    sumVals[C.value - 1] = total;
-    // Porównanie SUMY do poprzedniego miesiąca (kolumny „poprz."/„zmiana"/„%").
-    const prevTotal = cmp.prevGroupTotal.get(String(g.id ?? "null"));
+    sumVals[C.value - 1] = totalR;
+    // Porównanie SUMY do poprzedniego okresu (kolumny „poprz."/„zmiana"/„%").
+    const prevTotalRaw = cmp.prevGroupTotal.get(String(g.id ?? "null"));
+    const prevTotal = prevTotalRaw != null ? round(prevTotalRaw, 2) : undefined;
+    const sumDelta = prevTotal != null ? round(totalR - prevTotal, 2) : null;
     if (prevTotal != null) {
       sumVals[C.pricePrev - 1] = prevTotal;
-      sumVals[C.priceDelta - 1] = total - prevTotal;
-      sumVals[C.pricePct - 1] = prevTotal > 0 ? (total - prevTotal) / prevTotal : null;
+      sumVals[C.priceDelta - 1] = sumDelta;
+      sumVals[C.pricePct - 1] = prevTotal > 0 ? round(sumDelta! / prevTotal, 6) : null;
     }
     const sumRow = ws.addRow(sumVals);
     sumRow.getCell(1).font = { bold: true };
@@ -173,8 +219,7 @@ export function buildWorkbook(
       sumRow.getCell(C.pricePrev).numFmt = CUR;
       sumRow.getCell(C.priceDelta).numFmt = CUR;
       sumRow.getCell(C.pricePct).numFmt = PCT;
-      const d = total - prevTotal;
-      const col = d > 0 ? "FFDC2626" : d < 0 ? "FF16A34A" : "FF64748B";
+      const col = sumDelta! > 0 ? "FFDC2626" : sumDelta! < 0 ? "FF16A34A" : "FF64748B";
       sumRow.getCell(C.pricePrev).font = { bold: true };
       sumRow.getCell(C.priceDelta).font = { bold: true, color: { argb: col } };
       sumRow.getCell(C.pricePct).font = { bold: true, color: { argb: col } };

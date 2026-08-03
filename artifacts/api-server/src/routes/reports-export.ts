@@ -68,11 +68,13 @@ function buildGroups(rows: AggRow[], fallbackName: string, colorOverride?: strin
     }
     g.rows.push(r);
   }
-  // Grupy alfabetycznie, null (np. „bez centrum") na końcu.
+  // Grupy od największej wartości zakupów, null (np. „bez centrum") zawsze na końcu.
+  const totalOf = (g: Group) => g.rows.reduce((s, r) => s + r.gross_total, 0);
   return [...map.values()].sort((a, b) => {
     if (a.id === null) return 1;
     if (b.id === null) return -1;
-    return a.name.localeCompare(b.name, "pl");
+    const d = totalOf(b) - totalOf(a);
+    return d !== 0 ? d : a.name.localeCompare(b.name, "pl");
   });
 }
 
