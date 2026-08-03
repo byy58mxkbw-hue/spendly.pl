@@ -4,7 +4,9 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 // miesiąc = preset „ten miesiąc". previousPeriod/periodLabel to bliźniak backendu
 // (artifacts/api-server/src/lib/period.ts) — trzymać spójnie.
 export type Period = { from: string; to: string };
-export type PresetKey = "this-month" | "last-3m" | "last-6m" | "year" | "custom";
+// "month" = konkretny miesiąc wybrany strzałkami (inny niż bieżący); jak "custom"
+// zapisuje się dosłownie, bo nie da się go odtworzyć z dzisiejszej daty.
+export type PresetKey = "this-month" | "last-3m" | "last-6m" | "year" | "custom" | "month";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (d: Date) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
@@ -57,14 +59,26 @@ export function periodLabel(p: Period): string {
   return `${dmy(p.from)} – ${dmy(p.to)}`;
 }
 
+// "YYYY-MM", gdy okres pokrywa dokładnie jeden pełny miesiąc — inaczej null.
+// Po tym selektor poznaje, czy może pokazać nawigator miesiąca ze strzałkami.
+export function periodMonth(p: Period): string | null {
+  if (p.from.slice(0, 7) !== p.to.slice(0, 7)) return null;
+  if (!isFirstOfMonth(p.from) || !isLastOfMonth(p.to)) return null;
+  return p.from.slice(0, 7);
+}
+
 type PeriodContextValue = {
   period: Period;
   prev: Period;
   preset: PresetKey;
   label: string;
   prevLabel: string;
+  /** "YYYY-MM" gdy okres to jeden pełny miesiąc, inaczej null. */
+  month: string | null;
   setPreset: (p: PresetKey) => void;
   setCustom: (from: string, to: string) => void;
+  /** Ustawia cały wskazany miesiąc ("YYYY-MM"). */
+  setMonth: (ym: string) => void;
 };
 
 const PeriodContext = createContext<PeriodContextValue | null>(null);
@@ -77,8 +91,9 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const p = JSON.parse(raw) as { preset: PresetKey; period: Period };
         // Presety liczymy od dziś (żeby „ten miesiąc" był bieżący); custom bierzemy zapisany.
-        if (p.preset && p.preset !== "custom") return { preset: p.preset, period: presetPeriod(p.preset) };
-        if (p.preset === "custom" && p.period?.from && p.period?.to) return p;
+        const literal = p.preset === "custom" || p.preset === "month";
+        if (p.preset && !literal) return { preset: p.preset, period: presetPeriod(p.preset) };
+        if (literal && p.period?.from && p.period?.to) return p;
       }
     } catch {}
     return { preset: "this-month", period: presetPeriod("this-month") };
@@ -97,6 +112,13 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
     const p = from <= to ? { from, to } : { from: to, to: from };
     persist({ preset: "custom", period: p });
   };
+  const setMonth = (ym: string) => {
+    const [y, m] = ym.split("-").map(Number);
+    if (!y || !m) return;
+    const now = new Date();
+    const isCurrent = y === now.getFullYear() && m === now.getMonth() + 1;
+    persist({ preset: isCurrent ? "this-month" : "month", period: monthRange(y, m) });
+  };
 
   const value = useMemo<PeriodContextValue>(() => ({
     period: state.period,
@@ -104,8 +126,10 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
     preset: state.preset,
     label: periodLabel(state.period),
     prevLabel: periodLabel(previousPeriod(state.period)),
+    month: periodMonth(state.period),
     setPreset,
     setCustom,
+    setMonth,
   }), [state]);
 
   return <PeriodContext.Provider value={value}>{children}</PeriodContext.Provider>;

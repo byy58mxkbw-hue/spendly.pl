@@ -21,7 +21,10 @@ import {
   Download,
   FileSpreadsheet,
   Loader2,
+  CalendarDays,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { MonthNavigator } from "@/components/month-navigator";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -40,47 +43,78 @@ const SpendTrendChart = lazy(() => import("./reports/charts").then((m) => ({ def
 const CategoryBarChart = lazy(() => import("./reports/charts").then((m) => ({ default: m.CategoryBarChart })));
 const CategoryTrendChart = lazy(() => import("./reports/charts").then((m) => ({ default: m.CategoryTrendChart })));
 
-// Selektor okresu: presety + własny zakres dni (input type=date, precyzja dzienna).
+// Selektor okresu: nawigator miesiąca ze strzałkami (ten sam co na Dashboardzie),
+// a obok ikona kalendarza — presety wielomiesięczne + własny zakres dni.
+// Gdy okres nie jest pojedynczym miesiącem, w miejscu strzałek jest pigułka z zakresem.
 function PeriodSelector() {
-  const { period, preset, setPreset, setCustom } = usePeriod();
+  const { period, preset, month, label, setPreset, setCustom, setMonth } = usePeriod();
+  const [open, setOpen] = useState(false);
   const presets: [PresetKey, string][] = [
-    ["this-month", "Miesiąc"], ["last-3m", "3 mies"], ["last-6m", "6 mies"], ["year", "Rok"],
+    ["this-month", "Ten miesiąc"], ["last-3m", "3 miesiące"], ["last-6m", "6 miesięcy"], ["year", "Rok"],
   ];
   return (
-    <div className="flex items-center gap-1 flex-wrap justify-end">
-      {presets.map(([k, lbl]) => (
+    <div className="flex items-center gap-1.5">
+      {month ? (
+        <MonthNavigator month={month} onChange={setMonth} />
+      ) : (
         <button
-          key={k}
-          onClick={() => setPreset(k)}
-          className={cn(
-            "px-2.5 py-1 text-xs rounded-md border transition-colors",
-            preset === k
-              ? "bg-primary text-primary-foreground border-primary"
-              : "border-border text-muted-foreground hover:bg-secondary/50",
-          )}
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center h-8 px-3 rounded-lg border border-primary bg-muted/40 text-xs font-medium text-foreground whitespace-nowrap"
+          title="Zmień okres"
         >
-          {lbl}
+          {label}
         </button>
-      ))}
-      <div
-        className={cn(
-          "flex items-center gap-1 px-1.5 py-0.5 rounded-md border bg-card",
-          preset === "custom" ? "border-primary" : "border-border",
-        )}
-        title="Własny zakres dat"
-      >
-        <input
-          type="date" value={period.from} max={period.to}
-          onChange={(e) => e.target.value && setCustom(e.target.value, period.to)}
-          className="text-xs bg-transparent text-foreground w-[120px] outline-none"
-        />
-        <span className="text-xs text-muted-foreground">–</span>
-        <input
-          type="date" value={period.to} min={period.from}
-          onChange={(e) => e.target.value && setCustom(period.from, e.target.value)}
-          className="text-xs bg-transparent text-foreground w-[120px] outline-none"
-        />
-      </div>
+      )}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn("h-8 w-8 p-0 shrink-0", !month && "border-primary")}
+            title="Wybierz zakres dat"
+            aria-label="Wybierz zakres dat"
+          >
+            <CalendarDays className="w-4 h-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[268px] p-3 space-y-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Szybki wybór</p>
+            <div className="grid grid-cols-2 gap-1">
+              {presets.map(([k, lbl]) => (
+                <button
+                  key={k}
+                  onClick={() => { setPreset(k); setOpen(false); }}
+                  className={cn(
+                    "px-2 py-1.5 text-xs rounded-md border transition-colors",
+                    preset === k
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border text-muted-foreground hover:bg-secondary/50",
+                  )}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">Własny zakres</p>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date" value={period.from} max={period.to}
+                onChange={(e) => e.target.value && setCustom(e.target.value, period.to)}
+                className="flex-1 min-w-0 text-xs bg-transparent text-foreground border border-border rounded-md px-2 py-1.5 outline-none focus:border-primary"
+              />
+              <span className="text-xs text-muted-foreground">–</span>
+              <input
+                type="date" value={period.to} min={period.from}
+                onChange={(e) => e.target.value && setCustom(period.from, e.target.value)}
+                className="flex-1 min-w-0 text-xs bg-transparent text-foreground border border-border rounded-md px-2 py-1.5 outline-none focus:border-primary"
+              />
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
@@ -97,7 +131,7 @@ function ReportsInner() {
   const [, navigate] = useLocation();
   const { getToken } = useAuth();
   const { toast } = useToast();
-  const { period, prev, label, prevLabel, preset, setCustom } = usePeriod();
+  const { period, prev, label, prevLabel, preset, setMonth } = usePeriod();
   const [exportingXlsx, setExportingXlsx] = useState(false);
 
   // Pobranie raportu Excel (binarny endpoint poza Orval) — z tokenem Clerk,
@@ -170,11 +204,9 @@ function ReportsInner() {
     for (const [m, s] of spendByMonth) {
       if (s > bestSpend) { bestSpend = s; best = m; }
     }
-    if (best && best !== currentMonth()) {
-      const [by, bm] = best.split("-").map(Number);
-      const last = new Date(by, bm, 0).getDate();
-      setCustom(`${best}-01`, `${best}-${String(last).padStart(2, "0")}`);
-    }
+    // setMonth (nie setCustom) — dzięki temu nagłówek pokazuje nawigator miesiąca
+    // ze strzałkami, a nie pigułkę z zakresem dat.
+    if (best && best !== currentMonth()) setMonth(best);
   }, [trendForDefault, autoMonthDone, preset]);
   const [tab, setTab] = useState("podsumowanie");
   const [trendMonths, setTrendMonths] = useState(6);
