@@ -8,6 +8,7 @@ import { ensureRevenueTable } from "./services/ensure-revenue.js";
 import { ensureGoposTables } from "./services/ensure-gopos.js";
 import { ensureDishIngredientColumns } from "./services/ensure-dish-columns.js";
 import { ensureDecodedNames } from "./services/ensure-decoded-names.js";
+import { ensureGrossInvoiceTotals } from "./services/ensure-gross-invoice-totals.js";
 import { startQueue } from "./services/queue.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
@@ -83,6 +84,7 @@ app.listen(port, (err) => {
 
   // Odkodowanie encji HTML w nazwach zapisanych przed poprawką parsera — idempotentne.
   ensureDecodedNames(logger).catch((err) => logger.error({ err }, "decode-names: migracja nieudana"));
+  ensureGrossInvoiceTotals(logger).catch((err) => logger.error({ err }, "gross-totals: migracja nieudana"));
 
   // Kolejka zadań (pg-boss) — startuje TYLKO gdy PGBOSS_ENABLED=true (PoC).
   // Samo-gated i samo-obsługujące błędy; przy fladze OFF to no-op.
