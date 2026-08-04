@@ -79,13 +79,14 @@ Nowy `ReportsFilterBar` pod nagłówkiem, nad zakładkami. `sticky top-0 z-20` +
   jest tylko w kontekście + localStorage, więc link nie jest współdzielony.
 - Na mobile `sticky` wyłączyć (pasek zjadłby ~30% ekranu) — zwykły scroll.
 
-## Etap 3 — Hero + waterfall ✅ ZROBIONE (2026-08-04)
+## Etap 3 — Hero (waterfall WYCOFANY 2026-08-05)
 
 - Druga karta w hero: „Realny food cost" z `GET /api/reports/food-cost-ratio`. Renderować **tylko gdy
   `foodCostPct != null`** (lokale bez przychodu nie mają czego pokazać) — hero wraca wtedy do jednej karty.
-- `WhyBreakdown` → waterfall: słupek bazowy (poprzedni okres) → 4 kroki (ceny, ilości, nowe produkty,
-  przestałeś kupować) → słupek końcowy. recharts: `BarChart` ze stackiem, pierwszy segment przezroczysty
-  jako offset. Zachować klikalność wiersza (otwiera listę produktów) i tekst objaśniający pod spodem.
+- ~~Waterfall~~ — **sekcja „Dlaczego tyle" USUNIĘTA** (decyzja użytkownika, 2026-08-05).
+  Powód: przy realnych danych zmiany to ułamek bazy (np. +207 zł przy 133 448 zł), więc
+  słupki kroków miały 0,2–1,4 px i wykres był nieczytelny. Skalowanie od zera było błędem;
+  gdyby sekcja miała wrócić, jedyne sensowne warianty to wykres SAMYCH zmian albo ucięta oś.
 
 ## Etap 4 — Kafle drugiego poziomu ✅ ZROBIONE (2026-08-04)
 
@@ -116,7 +117,7 @@ Zweryfikowane statycznie (kod, typecheck, testy, build):
 
 Do sprawdzenia w przeglądarce (nie da się statycznie):
 
-- [ ] Responsywność: 1920 / 1440 / 1024 / 768 / 375 px — zwłaszcza waterfall przy 4+ krokach na 375 px
+- [ ] Responsywność: 1920 / 1440 / 1024 / 768 / 375 px
 - [ ] Sticky pasek nie zasłania treści pod mobilnym headerem (`fixed`, h-14)
 - [ ] `?costCenter=` przywraca filtr po odświeżeniu i po wklejeniu linku
 - [ ] Zgodność liczb z wersją sprzed zmian na tych samych danych (lipiec 2026)

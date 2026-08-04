@@ -34,7 +34,7 @@ import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import {
   AlertsList, CategoryMiniList, CostCenterComparisonSection,
   FoodCostHeroCard, OverviewTiles, ProductsTable, RecommendationsList, SectionCard, TopChangesTable,
-  SpendHero, SupplierCard, TopSuppliersTable, WhyBreakdown, computeImpacts,
+  SpendHero, SupplierCard, TopSuppliersTable, computeImpacts,
   currentMonth, type ProductWithImpact,
 } from "./reports/components";
 import { PeriodProvider, usePeriod, type PresetKey } from "@/contexts/period-context";
@@ -405,30 +405,22 @@ function ReportsInner() {
 
           {/* ── PODSUMOWANIE ─────────────────────────────────────────────────── */}
           <TabsContent value="podsumowanie" className="space-y-5 md:space-y-6">
-            {/* 1. Ile wydałeś + porównania (hero) i dlaczego tyle */}
+            {/* 1. Ile wydałeś + realny food cost (hero) */}
             {isLoading ? (
               <Skeleton className="h-40 rounded-xl" />
             ) : bridge && (data?.totalSpend ?? 0) > 0 ? (
-              <>
-                {/* Hero: wydatki + realny food cost obok siebie. Druga karta pojawia się
-                    tylko gdy jest przychód za okres — inaczej hero zostaje jednokolumnowe. */}
-                <div className={cn("grid gap-4", foodCostPct != null ? "md:grid-cols-2" : "grid-cols-1")}>
-                  <SpendHero bridge={bridge} monthName={label} />
-                  {foodCostPct != null && (
-                    <FoodCostHeroCard
-                      pct={foodCostPct}
-                      prevPct={foodCost?.prevFoodCostPct ?? null}
-                      monthName={label}
-                    />
-                  )}
-                </div>
-                <SectionCard
-                  title="Dlaczego tyle?"
-                  subtitle="Ile z różnicy to zmiany cen, a ile to że kupiłeś więcej lub mniej"
-                >
-                  <WhyBreakdown bridge={bridge} />
-                </SectionCard>
-              </>
+              /* Druga karta pojawia się tylko gdy jest przychód za okres —
+                 inaczej hero zostaje jednokolumnowe. */
+              <div className={cn("grid gap-4", foodCostPct != null ? "md:grid-cols-2" : "grid-cols-1")}>
+                <SpendHero bridge={bridge} monthName={label} />
+                {foodCostPct != null && (
+                  <FoodCostHeroCard
+                    pct={foodCostPct}
+                    prevPct={foodCost?.prevFoodCostPct ?? null}
+                    monthName={label}
+                  />
+                )}
+              </div>
             ) : null}
 
             {/* 1b. Kafle drugiego poziomu — skrót do czterech przekrojów raportu */}
