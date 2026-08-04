@@ -69,7 +69,7 @@ Zysk natychmiastowy: tabela Produktów (7 kolumn) i listy z długimi nazwami pro
 
 ---
 
-## Etap 2 — Sticky pasek filtrów
+## Etap 2 — Sticky pasek filtrów ✅ ZROBIONE (2026-08-04)
 
 Nowy `ReportsFilterBar` pod nagłówkiem, nad zakładkami. `sticky top-0 z-20` + `backdrop-blur`
 (wzorzec z `layout.tsx`). Zawartość: nawigator miesiąca + kalendarz (przenieść z nagłówka),
@@ -79,7 +79,7 @@ Nowy `ReportsFilterBar` pod nagłówkiem, nad zakładkami. `sticky top-0 z-20` +
   jest tylko w kontekście + localStorage, więc link nie jest współdzielony.
 - Na mobile `sticky` wyłączyć (pasek zjadłby ~30% ekranu) — zwykły scroll.
 
-## Etap 3 — Hero + waterfall
+## Etap 3 — Hero + waterfall ✅ ZROBIONE (2026-08-04)
 
 - Druga karta w hero: „Realny food cost" z `GET /api/reports/food-cost-ratio`. Renderować **tylko gdy
   `foodCostPct != null`** (lokale bez przychodu nie mają czego pokazać) — hero wraca wtedy do jednej karty.
@@ -87,32 +87,39 @@ Nowy `ReportsFilterBar` pod nagłówkiem, nad zakładkami. `sticky top-0 z-20` +
   przestałeś kupować) → słupek końcowy. recharts: `BarChart` ze stackiem, pierwszy segment przezroczysty
   jako offset. Zachować klikalność wiersza (otwiera listę produktów) i tekst objaśniający pod spodem.
 
-## Etap 4 — Kafle drugiego poziomu
+## Etap 4 — Kafle drugiego poziomu ✅ ZROBIONE (2026-08-04)
 
 Rząd 4 klikalnych kafli (Centra / Kategorie / Dostawcy / Produkty): wartość główna, mini-wykres, link
 do zakładki. Grid: 4 kol. ≥1440 px, 2 kol. 768–1439 px, 1 kol. mobile. Klik przełącza `setTab(...)`
 bez przeładowania.
 
-## Etap 5 — Scalenie „Ceny" + „Ilości"
+## Etap 5 — Scalenie „Ceny" + „Ilości" ✅ ZROBIONE (2026-08-04)
 
 Dwie karty → jedna „Największe zmiany": max 5 wierszy, kolumny Produkt | Cena +Δ% | Ilość +Δ% | Koszt,
 sortowanie po `|Δ koszt|` malejąco. Link „Zobacz wszystkie" → zakładka Produkty z aktywnym sortowaniem.
 Dane są już w `bridge.priceBenchmark` i `bridge.quantityMovers` — trzeba je złączyć po kluczu produktu.
 
-## Etap 6 — Spójne kolory centrów
+## Etap 6 — Spójne kolory centrów ✅ ZROBIONE (2026-08-04)
 
 Helper (np. `lib/cost-center-color.ts`) czytający kolory z kontekstu, użyty w: `CostCenterComparisonSection`,
 kaflu „Centra kosztów", selektorze w pasku filtrów. **Bez hardkodowanej palety.**
 
 ## Etap 7 — QA
 
-- [ ] Eksport CSV i Excel: identyczne dane jak przed zmianą (dane lipiec 2026)
-- [ ] Zmiana centrum przelicza hero, waterfall, kafle i wszystkie zakładki
-- [ ] „Wszystkie centra" = liczby jak dziś
-- [ ] Empty state dla centrum bez faktur w okresie
-- [ ] Responsywność: 1920 / 1440 / 1024 / 768 / 375 px
-- [ ] `?costCenter=` przywraca filtr po odświeżeniu
-- [ ] Kwoty nadal BRUTTO i zgodne z ekranem Faktur (reguła 29)
+Zweryfikowane statycznie (kod, typecheck, testy, build):
+
+- [x] Eksport CSV i Excel — **kod nietknięty**, te same wywołania i parametry (`from`/`to` + `costCenterId`)
+- [x] Zmiana centrum przelicza wszystko — wszystkie hooki czytają `costCenterId` z kontekstu
+- [x] Empty state — Przegląd bez zmian, dodany osobny dla zakładki Centra
+- [x] Kwoty BRUTTO — reguła 29 nietknięta (18 miejsc z `vat_rate` w `routes/reports.ts`)
+- [x] `pnpm run typecheck` czysty, 87 testów przechodzi, build OK (chunk `reports` 105 kB / 17 kB gzip)
+
+Do sprawdzenia w przeglądarce (nie da się statycznie):
+
+- [ ] Responsywność: 1920 / 1440 / 1024 / 768 / 375 px — zwłaszcza waterfall przy 4+ krokach na 375 px
+- [ ] Sticky pasek nie zasłania treści pod mobilnym headerem (`fixed`, h-14)
+- [ ] `?costCenter=` przywraca filtr po odświeżeniu i po wklejeniu linku
+- [ ] Zgodność liczb z wersją sprzed zmian na tych samych danych (lipiec 2026)
 
 ---
 
