@@ -22,6 +22,7 @@ import {
   FileSpreadsheet,
   Loader2,
   CalendarDays,
+  ChevronDown,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MonthNavigator } from "@/components/month-navigator";
@@ -32,7 +33,7 @@ import { Link, useLocation } from "wouter";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import {
   AlertsList, CategoryMiniList, CostCenterComparisonSection,
-  FoodCostHeroCard, ProductsTable, RecommendationsList, SectionCard, TopChangesTable,
+  FoodCostHeroCard, OverviewTiles, ProductsTable, RecommendationsList, SectionCard, TopChangesTable,
   SpendHero, SupplierCard, TopSuppliersTable, WhyBreakdown, computeImpacts,
   currentMonth, type ProductWithImpact,
 } from "./reports/components";
@@ -120,6 +121,86 @@ function PeriodSelector() {
   );
 }
 
+// Filtr centrum kosztów. Steruje TYM SAMYM kontekstem co przełącznik w nagłówku aplikacji,
+// więc oba widoki są zawsze zsynchronizowane — tu jest po to, żeby filtr raportu był
+// widoczny obok okresu, przy którym się go ustawia.
+function CostCenterFilter() {
+  const { selectedId, setSelectedId, costCenters, selectedCenter } = useCostCenter();
+  const [open, setOpen] = useState(false);
+  if (costCenters.length === 0) return null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-2 text-xs max-w-[210px]">
+          {selectedCenter ? (
+            <>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: selectedCenter.color }} />
+              <span className="truncate">{selectedCenter.name}</span>
+            </>
+          ) : (
+            <span className="truncate">Wszystkie centra</span>
+          )}
+          <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-[240px] p-1.5">
+        <button
+          onClick={() => { setSelectedId(null); setOpen(false); }}
+          className={cn(
+            "w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors",
+            selectedId == null ? "bg-primary text-primary-foreground" : "hover:bg-secondary/60",
+          )}
+        >
+          Wszystkie centra
+        </button>
+        <div className="mt-1 space-y-0.5 max-h-[260px] overflow-y-auto">
+          {costCenters.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => { setSelectedId(c.id); setOpen(false); }}
+              className={cn(
+                "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors",
+                selectedId === c.id ? "bg-primary text-primary-foreground" : "hover:bg-secondary/60",
+              )}
+            >
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
+              <span className="truncate">{c.name}</span>
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// Wybór centrum kosztów w adresie (?costCenter=<id>) — dzięki temu link do raportu
+// niesie ten sam filtr, a odświeżenie strony go nie gubi. URL jest źródłem prawdy
+// przy wejściu; potem to stan kontekstu zapisuje się do adresu (replaceState, bez
+// dokładania wpisów do historii przeglądarki).
+function useCostCenterInUrl() {
+  const { selectedId, setSelectedId, costCenters, isLoading } = useCostCenter();
+  const [applied, setApplied] = useState(false);
+
+  useEffect(() => {
+    if (applied || isLoading) return;
+    setApplied(true);
+    const raw = new URLSearchParams(window.location.search).get("costCenter");
+    if (raw == null) return;
+    if (raw === "" || raw === "all") { setSelectedId(null); return; }
+    const id = parseInt(raw, 10);
+    if (!isNaN(id) && costCenters.some((c) => c.id === id)) setSelectedId(id);
+  }, [applied, isLoading, costCenters, setSelectedId]);
+
+  useEffect(() => {
+    if (!applied) return;
+    const url = new URL(window.location.href);
+    if (selectedId == null) url.searchParams.delete("costCenter");
+    else url.searchParams.set("costCenter", String(selectedId));
+    window.history.replaceState(null, "", url.toString());
+  }, [selectedId, applied]);
+}
+
 export default function Reports() {
   return (
     <PeriodProvider>
@@ -134,6 +215,7 @@ function ReportsInner() {
   const { toast } = useToast();
   const { period, prev, label, prevLabel, preset, setMonth } = usePeriod();
   const [exportingXlsx, setExportingXlsx] = useState(false);
+  useCostCenterInUrl();
 
   // Pobranie raportu Excel (binarny endpoint poza Orval) — z tokenem Clerk,
   // bo apka woła API na innej domenie niż front. Grupowanie per centrum kosztów
@@ -243,19 +325,24 @@ function ReportsInner() {
           przy 1024px (dawne max-w-5xl) jedno i drugie się ucinało. */}
       <div className="max-w-[1600px] mx-auto px-4 md:px-6 lg:px-10 py-5 md:py-7">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center gap-3 mb-5 md:mb-6">
-          <div className="flex-1 min-w-0">
-            <PageHeader title="Raporty" />
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Analiza zakupów · {label} · kwoty brutto
-              {prevMonthTotalSpend > 0 && (
-                <span className="ml-2 text-muted-foreground/70">
-                  Porównaj z: {prevLabel}
-                </span>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
+        <div className="mb-3">
+          <PageHeader title="Raporty" />
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Analiza zakupów · {label} · kwoty brutto
+            {prevMonthTotalSpend > 0 && (
+              <span className="ml-2 text-muted-foreground/70">
+                Porównaj z: {prevLabel}
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Pasek filtrów — przyklejony na desktopie (na mobile zjadłby zbyt dużo ekranu).
+            Ujemne marginesy + padding: tło ma sięgać krawędzi kontenera. */}
+        <div className="md:sticky md:top-0 z-20 -mx-4 md:-mx-6 lg:-mx-10 px-4 md:px-6 lg:px-10 py-2.5 mb-5 md:mb-6 bg-background/95 backdrop-blur border-b border-border flex flex-wrap items-center gap-2">
+          <PeriodSelector />
+          <CostCenterFilter />
+          <div className="flex items-center gap-2 ml-auto">
             <Button
               variant="outline"
               size="sm"
@@ -295,7 +382,6 @@ function ReportsInner() {
               )}
               <span className="hidden sm:inline">Eksport Excel</span>
             </Button>
-            <PeriodSelector />
           </div>
         </div>
 
@@ -311,6 +397,7 @@ function ReportsInner() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="mb-5 md:mb-6 flex-wrap h-auto gap-0.5">
             <TabsTrigger value="podsumowanie">Przegląd</TabsTrigger>
+            <TabsTrigger value="centra">Centra</TabsTrigger>
             <TabsTrigger value="produkty">Produkty</TabsTrigger>
             <TabsTrigger value="dostawcy">Dostawcy</TabsTrigger>
             <TabsTrigger value="kategorie">Kategorie</TabsTrigger>
@@ -343,6 +430,15 @@ function ReportsInner() {
                 </SectionCard>
               </>
             ) : null}
+
+            {/* 1b. Kafle drugiego poziomu — skrót do czterech przekrojów raportu */}
+            {!isLoading && (data?.totalSpend ?? 0) > 0 && (
+              <OverviewTiles
+                suppliers={data?.suppliers ?? []}
+                products={allProducts}
+                onNavigate={setTab}
+              />
+            )}
 
             {/* 2. Największe zmiany — cena, ilość i koszt jednego produktu w jednym wierszu
                  (zastąpiło dwie osobne karty pokazujące te same produkty) */}
@@ -379,9 +475,6 @@ function ReportsInner() {
                 </div>
               </SectionCard>
             )}
-
-            {/* 4. Porównanie centrów kosztów (tylko gdy skonfigurowane) */}
-            <CostCenterComparisonSection />
 
             {/* 5. Kategorie + dostawcy — spójne bloki (dwie listy) */}
             {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (
@@ -431,6 +524,19 @@ function ReportsInner() {
                     </Button>
                   </Link>
                 </div>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ── CENTRA KOSZTÓW ──────────────────────────────────────────────── */}
+          <TabsContent value="centra" className="space-y-5">
+            <CostCenterComparisonSection />
+            {(!data || data.totalSpend === 0) && (
+              <div className="glass rounded-xl py-16 text-center px-4">
+                <p className="text-foreground font-medium mb-1">Brak danych za {label}</p>
+                <p className="text-sm text-muted-foreground">
+                  Przypisz faktury do centrów kosztów, aby zobaczyć porównanie.
+                </p>
               </div>
             )}
           </TabsContent>

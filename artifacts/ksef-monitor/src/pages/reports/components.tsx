@@ -73,6 +73,16 @@ export const CHART_COLORS = [
   "hsl(315, 55%, 50%)",
 ];
 
+// Kolor centrum kosztów. Źródłem prawdy jest kolor z bazy (użytkownik go ustawia
+// w /cost-centers). Fallback wybieramy po ID, NIE po pozycji na liście — inaczej
+// to samo centrum dostawało inny kolor w kaflu i na wykresie, zależnie od sortowania.
+// „Bez centrum" ma zawsze neutralny szary, żeby nie udawało zwykłego centrum.
+export function costCenterColor(id: number | null | undefined, color?: string | null): string {
+  if (color) return color;
+  if (id == null) return "hsl(215, 12%, 55%)";
+  return CHART_COLORS[Math.abs(id) % CHART_COLORS.length];
+}
+
 // ─── Computed product impact ───────────────────────────────────────────────────
 
 export type ProductWithImpact = ReportProductRow & {
@@ -160,6 +170,155 @@ export function CategoryMiniList() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Kafle drugiego poziomu (Centra / Kategorie / Dostawcy / Produkty) ────────
+// Skrót do czterech przekrojów raportu: jedna liczba, mini-pasek udziałów, przejście
+// do pełnej zakładki. Hooki używają TYCH SAMYCH queryKey co karty niżej, więc
+// react-query serwuje je z cache — kafle nie generują dodatkowych zapytań.
+
+function TileBar({ parts }: { parts: { value: number; color: string; label: string }[] }) {
+  const total = parts.reduce((s, p) => s + p.value, 0);
+  if (total <= 0) return null;
+  return (
+    <div className="flex h-1.5 rounded-full overflow-hidden bg-secondary mt-2">
+      {parts.map((p, i) => (
+        <div
+          key={i}
+          style={{ width: `${(p.value / total) * 100}%`, background: p.color }}
+          title={`${p.label}: ${formatPrice(p.value)}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function Tile({
+  label,
+  value,
+  hint,
+  children,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  children?: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="glass rounded-xl p-4 text-left transition-colors hover:border-primary/40 flex flex-col"
+    >
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+      <p className="text-xl font-bold text-foreground tabular-nums mt-1 truncate">{value}</p>
+      {hint && <p className="text-[11px] text-muted-foreground truncate mt-0.5" title={hint}>{hint}</p>}
+      <div className="flex-1">{children}</div>
+      <span className="text-[11px] text-primary mt-2">Zobacz →</span>
+    </button>
+  );
+}
+
+export function OverviewTiles({
+  suppliers,
+  products,
+  onNavigate,
+}: {
+  suppliers: ReportSupplierRow[];
+  products: ReportProductRow[];
+  onNavigate: (tab: string) => void;
+}) {
+  const { period } = usePeriod();
+  const { selectedId: costCenterId } = useCostCenter();
+
+  const { data: centers } = useGetReportsCostCenters(
+    { from: period.from, to: period.to },
+    { query: { queryKey: ["reports-cost-centers", period.from, period.to] } },
+  );
+  const { data: categories } = useGetCategorySpend(
+    { from: period.from, to: period.to, ...(costCenterId != null ? { costCenterId } : {}) },
+    { query: { queryKey: ["category-spend", period.from, period.to, costCenterId] } },
+  );
+
+  const centerParts = useMemo(() => {
+    const rows = [...(centers ?? [])].sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 3);
+    return rows.map((r) => ({
+      value: r.totalAmount,
+      color: costCenterColor(r.costCenterId, r.costCenterColor),
+      label: r.costCenterName ?? "Bez centrum",
+    }));
+  }, [centers]);
+  const centersTotal = (centers ?? []).reduce((s, r) => s + r.totalAmount, 0);
+
+  const categoryParts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of categories ?? []) {
+      const cat = item.category ?? "inne";
+      map.set(cat, (map.get(cat) ?? 0) + item.totalSpend);
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([id, spend], i) => ({
+        value: spend,
+        color: CHART_COLORS[i % CHART_COLORS.length],
+        label: CATEGORIES.find((c) => c.id === id)?.label ?? "Inne",
+      }));
+  }, [categories]);
+
+  const topSupplier = [...suppliers].sort((a, b) => b.totalSpend - a.totalSpend)[0];
+  const supplierParts = [...suppliers]
+    .sort((a, b) => b.totalSpend - a.totalSpend)
+    .slice(0, 3)
+    .map((s, i) => ({ value: s.totalSpend, color: CHART_COLORS[i % CHART_COLORS.length], label: s.supplierName }));
+
+  // Największy skok ceny wśród produktów z porównaniem do poprzedniego okresu.
+  const biggestMove = useMemo(() => {
+    let best: { name: string; pct: number } | null = null;
+    for (const p of products) {
+      if (p.prevMonthAvgPrice == null || p.prevMonthAvgPrice <= 0) continue;
+      const pct = ((p.avgPrice - p.prevMonthAvgPrice) / p.prevMonthAvgPrice) * 100;
+      if (!best || Math.abs(pct) > Math.abs(best.pct)) best = { name: p.productName, pct };
+    }
+    return best;
+  }, [products]);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <Tile
+        label="Centra kosztów"
+        value={formatPrice(centersTotal)}
+        hint={centerParts[0] ? `Najwięcej: ${centerParts[0].label}` : "Brak centrów"}
+        onClick={() => onNavigate("centra")}
+      >
+        <TileBar parts={centerParts} />
+      </Tile>
+      <Tile
+        label="Kategorie"
+        value={categoryParts[0] ? categoryParts[0].label : "—"}
+        hint={categoryParts[0] ? `${formatPrice(categoryParts[0].value)} w tym okresie` : undefined}
+        onClick={() => onNavigate("kategorie")}
+      >
+        <TileBar parts={categoryParts} />
+      </Tile>
+      <Tile
+        label="Dostawcy"
+        value={String(suppliers.length)}
+        hint={topSupplier ? `Największy: ${topSupplier.supplierName}` : undefined}
+        onClick={() => onNavigate("dostawcy")}
+      >
+        <TileBar parts={supplierParts} />
+      </Tile>
+      <Tile
+        label="Produkty"
+        value={String(products.length)}
+        hint={biggestMove ? `${signedPct(biggestMove.pct)} ${biggestMove.name}` : undefined}
+        onClick={() => onNavigate("produkty")}
+      />
     </div>
   );
 }
@@ -726,9 +885,9 @@ export function CostCenterComparisonSection() {
   return (
     <SectionCard title="Porównanie centrów kosztów">
       <div className="p-4 md:p-5 space-y-3">
-        {[...data].sort((a, b) => b.totalAmount - a.totalAmount).map((r, i) => {
+        {[...data].sort((a, b) => b.totalAmount - a.totalAmount).map((r) => {
           const pct = total > 0 ? (r.totalAmount / total) * 100 : 0;
-          const color = CHART_COLORS[i % CHART_COLORS.length];
+          const color = costCenterColor(r.costCenterId, r.costCenterColor);
           const hasChange = r.changePercent != null;
           const up = (r.changePercent ?? 0) > 0;
           return (
@@ -737,7 +896,7 @@ export function CostCenterComparisonSection() {
                 <div className="flex items-center gap-2 min-w-0">
                   <div
                     className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ background: r.costCenterColor ?? color }}
+                    style={{ background: color }}
                   />
                   <span className="text-sm font-medium text-foreground truncate">
                     {r.costCenterName ?? "Bez centrum"}
