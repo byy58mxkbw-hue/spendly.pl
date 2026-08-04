@@ -48,6 +48,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { currentMonth } from "@/lib/month";
 import { MonthNavigator } from "@/components/month-navigator";
+import { useFoodCostRatio } from "@/hooks/use-food-cost-ratio";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { WelcomeOnboarding } from "@/components/welcome-onboarding";
 import { useSyncKsefProgress, syncPhaseProgress, describeSyncResult, type SyncPhase } from "@/hooks/use-sync-progress";
@@ -247,19 +248,7 @@ function DashboardPage() {
 
   // Realny food cost % (koszt z KSeF ÷ przychód z GoPOS/ręczny). Widoczny tylko gdy
   // jest przychód (foodCostPct != null) — więc sam się chowa dla lokali bez sprzedaży.
-  const { session } = useClerk();
-  const [foodCost, setFoodCost] = useState<{ foodCostPct: number | null; prevFoodCostPct: number | null } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const token = await session?.getToken();
-        const res = await fetch(apiUrl(`/api/reports/food-cost-ratio?month=${month}`), { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-        if (res.ok && !cancelled) setFoodCost((await res.json()) as { foodCostPct: number | null; prevFoodCostPct: number | null });
-      } catch { /* ignore */ }
-    })();
-    return () => { cancelled = true; };
-  }, [month, session]);
+  const { data: foodCost } = useFoodCostRatio({ month });
   const foodCostDelta = foodCost?.foodCostPct != null && foodCost.prevFoodCostPct != null ? foodCost.foodCostPct - foodCost.prevFoodCostPct : null;
 
   async function handleSync() {

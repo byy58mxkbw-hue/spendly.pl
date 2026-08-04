@@ -25,13 +25,14 @@ import {
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MonthNavigator } from "@/components/month-navigator";
+import { useFoodCostRatio } from "@/hooks/use-food-cost-ratio";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import {
   AlertsList, CategoryMiniList, CostCenterComparisonSection,
-  PriceBenchmarkList, ProductsTable, QuantityMoversList, RecommendationsList, SectionCard,
+  FoodCostHeroCard, ProductsTable, RecommendationsList, SectionCard, TopChangesTable,
   SpendHero, SupplierCard, TopSuppliersTable, WhyBreakdown, computeImpacts,
   currentMonth, type ProductWithImpact,
 } from "./reports/components";
@@ -210,6 +211,9 @@ function ReportsInner() {
   }, [trendForDefault, autoMonthDone, preset]);
   const [tab, setTab] = useState("podsumowanie");
   const [trendMonths, setTrendMonths] = useState(6);
+  // Realny food cost za ten sam okres co reszta raportu (endpoint przyjmuje from/to).
+  const { data: foodCost } = useFoodCostRatio({ from: period.from, to: period.to });
+  const foodCostPct = foodCost?.foodCostPct ?? null;
   const { selectedId: costCenterId } = useCostCenter();
   const ccParam = costCenterId != null ? { costCenterId } : {};
 
@@ -319,7 +323,18 @@ function ReportsInner() {
               <Skeleton className="h-40 rounded-xl" />
             ) : bridge && (data?.totalSpend ?? 0) > 0 ? (
               <>
-                <SpendHero bridge={bridge} monthName={label} />
+                {/* Hero: wydatki + realny food cost obok siebie. Druga karta pojawia się
+                    tylko gdy jest przychód za okres — inaczej hero zostaje jednokolumnowe. */}
+                <div className={cn("grid gap-4", foodCostPct != null ? "md:grid-cols-2" : "grid-cols-1")}>
+                  <SpendHero bridge={bridge} monthName={label} />
+                  {foodCostPct != null && (
+                    <FoodCostHeroCard
+                      pct={foodCostPct}
+                      prevPct={foodCost?.prevFoodCostPct ?? null}
+                      monthName={label}
+                    />
+                  )}
+                </div>
                 <SectionCard
                   title="Dlaczego tyle?"
                   subtitle="Ile z różnicy to zmiany cen, a ile to że kupiłeś więcej lub mniej"
@@ -329,22 +344,15 @@ function ReportsInner() {
               </>
             ) : null}
 
-            {/* 2. Ceny produktów vs zwykle + ilości */}
-            {!isLoading && bridge && (data?.totalSpend ?? 0) > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <SectionCard
-                  title="Ceny produktów"
-                  subtitle="Średnia cena teraz vs poprzedni okres i vs zwykle"
-                >
-                  <PriceBenchmarkList rows={bridge.priceBenchmark} />
-                </SectionCard>
-                <SectionCard
-                  title="Ilości produktów"
-                  subtitle="Ile kupiłeś w tym okresie vs poprzedni"
-                >
-                  <QuantityMoversList rows={bridge.quantityMovers} />
-                </SectionCard>
-              </div>
+            {/* 2. Największe zmiany — cena, ilość i koszt jednego produktu w jednym wierszu
+                 (zastąpiło dwie osobne karty pokazujące te same produkty) */}
+            {!isLoading && (data?.totalSpend ?? 0) > 0 && (
+              <SectionCard
+                title="Największe zmiany"
+                subtitle="Produkty, które najmocniej ruszyły rachunek vs poprzedni okres"
+              >
+                <TopChangesTable products={allProducts} onViewAll={() => setTab("produkty")} />
+              </SectionCard>
             )}
 
             {/* 3. Trend wydatków — główny wykres, pełna szerokość */}

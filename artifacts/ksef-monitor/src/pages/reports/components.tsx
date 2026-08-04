@@ -820,6 +820,134 @@ export function SpendHero({ bridge, monthName }: { bridge: SpendBridge; monthNam
   );
 }
 
+// Druga karta hero — realny food cost. Renderowana tylko gdy jest przychód za okres
+// (bez sprzedaży wskaźnik nie istnieje), więc hero wraca wtedy do jednej karty.
+export function FoodCostHeroCard({
+  pct,
+  prevPct,
+  monthName,
+}: {
+  pct: number;
+  prevPct: number | null;
+  monthName: string;
+}) {
+  const delta = prevPct != null ? pct - prevPct : null;
+  return (
+    <div className="glass rounded-xl p-5 md:p-6">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Realny food cost · {monthName}</p>
+      <p className="text-3xl md:text-4xl font-bold text-foreground tabular-nums mt-1">{pct.toFixed(1)}%</p>
+      <div className="flex flex-wrap gap-2 mt-3">
+        {delta != null ? (
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-secondary/60 px-3 py-1.5 text-sm">
+            <span className="text-muted-foreground">vs poprzedni okres:</span>
+            <span className={cn("font-semibold", costTone(delta))}>
+              {delta > 0 ? "+" : ""}{delta.toFixed(1)} p.p.
+            </span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-lg bg-secondary/60 px-3 py-1.5 text-sm text-muted-foreground">
+            brak danych za poprzedni okres
+          </span>
+        )}
+        <span className="inline-flex items-center rounded-lg bg-secondary/60 px-3 py-1.5 text-sm text-muted-foreground">
+          koszt składników ÷ przychód
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Waterfall „od poprzedniego okresu do obecnego": słupek bazowy → 4 kroki unoszące się
+// na skumulowanej sumie → słupek końcowy. Własny SVG, nie recharts — recharts nie ma
+// typu waterfall, a hack ze stacked barem i przezroczystym offsetem byłby cięższy
+// i trudniejszy do kliknięcia. Kliknięcie kroku rozwija listę produktów (jak wcześniej).
+function WaterfallChart({
+  prevSpend,
+  currentSpend,
+  steps,
+  activeKey,
+  onSelect,
+}: {
+  prevSpend: number;
+  currentSpend: number;
+  steps: { key: string; label: string; amount: number; clickable: boolean }[];
+  activeKey: string | null;
+  onSelect: (key: string) => void;
+}) {
+  // Skumulowane wartości: gdzie zaczyna i kończy się każdy słupek.
+  let running = prevSpend;
+  const bars = [
+    { key: "__start", label: "Poprzedni", from: 0, to: prevSpend, amount: prevSpend, total: true, clickable: false },
+    ...steps.map((s) => {
+      const from = running;
+      running += s.amount;
+      return { key: s.key, label: s.label, from, to: running, amount: s.amount, total: false, clickable: s.clickable };
+    }),
+    { key: "__end", label: "Obecny", from: 0, to: currentSpend, amount: currentSpend, total: true, clickable: false },
+  ];
+
+  const maxVal = Math.max(prevSpend, currentSpend, ...bars.map((b) => Math.max(b.from, b.to)));
+  const H = 150;         // wysokość obszaru słupków
+  const y = (v: number) => H - (v / (maxVal || 1)) * H;
+
+  return (
+    <div className="px-4 md:px-5 pt-4">
+      <div className="flex items-end gap-1.5 sm:gap-3" style={{ height: H }}>
+        {bars.map((b) => {
+          const top = Math.min(y(b.from), y(b.to));
+          const height = Math.max(2, Math.abs(y(b.to) - y(b.from)));
+          const isActive = activeKey === b.key;
+          const color = b.total
+            ? "bg-muted-foreground/40"
+            : b.amount < 0
+              ? "bg-emerald-500"
+              : "bg-destructive";
+          return (
+            <button
+              key={b.key}
+              type="button"
+              disabled={!b.clickable}
+              onClick={() => b.clickable && onSelect(b.key)}
+              title={`${b.label}: ${b.amount > 0 && !b.total ? "+" : ""}${formatPrice(b.amount)}`}
+              className={cn(
+                "relative flex-1 min-w-0 h-full",
+                b.clickable && "cursor-pointer group",
+              )}
+              aria-label={`${b.label}: ${formatPrice(b.amount)}`}
+            >
+              <span
+                className={cn(
+                  "absolute left-0 right-0 rounded-[3px] transition-opacity",
+                  color,
+                  b.clickable && "group-hover:opacity-80",
+                  isActive && "ring-2 ring-primary ring-offset-1 ring-offset-background",
+                )}
+                style={{ top, height }}
+              />
+            </button>
+          );
+        })}
+      </div>
+      {/* Etykiety pod słupkami — osobny rząd o tej samej siatce, żeby nie rozjeżdżały wykresu */}
+      <div className="flex gap-1.5 sm:gap-3 mt-2">
+        {bars.map((b) => (
+          <div key={b.key} className="flex-1 min-w-0 text-center">
+            <p className={cn(
+              "text-[10px] sm:text-[11px] font-semibold tabular-nums leading-tight",
+              b.total ? "text-muted-foreground" : costTone(b.amount),
+            )}>
+              {!b.total && b.amount > 0 ? "+" : ""}{formatPrice(b.amount)}
+            </p>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-tight truncate" title={b.label}>
+              {b.label}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
   const [open, setOpen] = useState<string | null>(null);
   // Rezyduum modelu (otherEffect) dokładamy do „zmian ilości".
@@ -846,7 +974,6 @@ export function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
       items: bridge.droppedProducts.map((d) => ({ name: d.productName, unit: d.unit, amount: -d.amount })),
     },
   ].filter((r) => Math.abs(r.amount) >= 1);
-  const max = Math.max(1, ...rows.map((r) => Math.abs(r.amount)));
   const namingArtefact = Math.abs(bridge.newEffect) >= 1000 && Math.abs(bridge.droppedEffect) >= 1000;
   return (
     <div>
@@ -857,7 +984,14 @@ export function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
         </span>{" "}
         vs poprzedni okres bierze się z:
       </p>
-      <p className="px-4 md:px-5 pt-1 text-[11px] text-muted-foreground">Kliknij wiersz, aby zobaczyć produkty.</p>
+      <p className="px-4 md:px-5 pt-1 text-[11px] text-muted-foreground">Kliknij słupek lub wiersz, aby zobaczyć produkty.</p>
+      <WaterfallChart
+        prevSpend={bridge.prevSpend}
+        currentSpend={bridge.currentSpend}
+        steps={rows.map((r) => ({ key: r.key, label: r.label, amount: r.amount, clickable: r.items.length > 0 }))}
+        activeKey={open}
+        onSelect={(key) => setOpen(open === key ? null : key)}
+      />
       <div className="p-4 md:p-5 space-y-1">
         {rows.map((r) => {
           const isOpen = open === r.key;
@@ -877,12 +1011,7 @@ export function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
                   <p className="text-sm text-foreground leading-tight">{r.label}</p>
                   <p className="text-[11px] text-muted-foreground leading-tight">{r.hint}</p>
                 </div>
-                <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className={cn("h-full rounded-full", r.amount < 0 ? "bg-emerald-500" : "bg-destructive")}
-                    style={{ width: `${Math.min(100, (Math.abs(r.amount) / max) * 100)}%` }}
-                  />
-                </div>
+                <div className="flex-1" />
                 <div className={cn("w-20 sm:w-24 text-right text-sm font-semibold tabular-nums shrink-0", costTone(r.amount))}>
                   {r.amount > 0 ? "+" : ""}{formatPrice(r.amount)}
                 </div>
@@ -922,51 +1051,95 @@ export function WhyBreakdown({ bridge }: { bridge: SpendBridge }) {
   );
 }
 
-export function PriceBenchmarkList({ rows }: { rows: SpendBridge["priceBenchmark"] }) {
-  if (rows.length === 0) return <div className="px-4 md:px-5 py-6 text-sm text-muted-foreground">Brak danych.</div>;
-  return (
-    <div className="divide-y divide-border">
-      {rows.map((r, i) => (
-        <div key={i} className="px-4 md:px-5 py-2.5 flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-foreground truncate">{r.productName}</p>
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
-              <span>vs poprz. <span className={cn("font-medium", costTone(r.pctVsPrev))}>{r.pctVsPrev == null ? "—" : signedPct(r.pctVsPrev)}</span></span>
-              <span>vs zwykle <span className={cn("font-medium", costTone(r.pctVsOverall))}>{r.pctVsOverall == null ? "—" : signedPct(r.pctVsOverall)}</span></span>
-            </div>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(r.avgPrice)}</p>
-            <p className="text-[10px] text-muted-foreground">/{r.unit}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+// ─── Największe zmiany (scalone „Ceny produktów" + „Ilości produktów") ────────
+// Jedna tabela zamiast dwóch list pokazujących te same produkty osobno: cena i jej
+// zmiana, ilość i jej zmiana, koszt i jego zmiana. Sortowanie po |Δ koszt| — na górze
+// ląduje to, co najmocniej ruszyło rachunek, niezależnie od kierunku.
+export function TopChangesTable({
+  products,
+  onViewAll,
+  limit = 5,
+}: {
+  products: ReportProductRow[];
+  onViewAll?: () => void;
+  limit?: number;
+}) {
+  const rows = useMemo(() => {
+    return products
+      .map((p) => {
+        const prevPrice = p.prevMonthAvgPrice;
+        const prevQty = p.prevMonthTotalQuantity;
+        const hasPrev = prevPrice != null && prevPrice > 0 && prevQty != null && prevQty > 0;
+        const prevCost = hasPrev ? prevPrice * prevQty : null;
+        return {
+          ...p,
+          pricePct: prevPrice != null && prevPrice > 0 ? ((p.avgPrice - prevPrice) / prevPrice) * 100 : null,
+          qtyPct: prevQty != null && prevQty > 0 ? ((p.totalQuantity - prevQty) / prevQty) * 100 : null,
+          deltaCost: prevCost != null ? p.totalCost - prevCost : null,
+        };
+      })
+      .filter((r) => r.deltaCost != null)
+      .sort((a, b) => Math.abs(b.deltaCost!) - Math.abs(a.deltaCost!))
+      .slice(0, limit);
+  }, [products, limit]);
 
-export function QuantityMoversList({ rows }: { rows: SpendBridge["quantityMovers"] }) {
-  if (rows.length === 0) return <div className="px-4 md:px-5 py-6 text-sm text-muted-foreground">Brak danych.</div>;
+  if (rows.length === 0) {
+    return <div className="px-4 md:px-5 py-6 text-sm text-muted-foreground">Brak produktów z porównaniem do poprzedniego okresu.</div>;
+  }
+
   return (
-    <div className="divide-y divide-border">
-      {rows.map((r, i) => (
-        <div key={i} className="px-4 md:px-5 py-2.5 flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-foreground truncate">{r.productName}</p>
-            {r.prevQty != null && (
-              <p className="text-[11px] text-muted-foreground">poprzednio {fmtQty(r.prevQty)} {r.unit}</p>
-            )}
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-sm font-semibold text-foreground tabular-nums">{fmtQty(r.currentQty)} {r.unit}</p>
-            {r.qtyPct != null && (
-              <p className={cn("text-[11px] font-medium tabular-nums", r.qtyPct > 0 ? "text-amber-600" : r.qtyPct < 0 ? "text-blue-600" : "text-muted-foreground")}>
-                {signedPct(r.qtyPct)}
-              </p>
-            )}
-          </div>
-        </div>
-      ))}
+    <div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-wide text-muted-foreground border-b border-border">
+              <th className="text-left font-medium px-4 md:px-5 py-2">Produkt</th>
+              <th className="text-right font-medium px-2 py-2">Cena</th>
+              <th className="text-right font-medium px-2 py-2">Ilość</th>
+              <th className="text-right font-medium px-4 md:px-5 py-2">Koszt</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((r, i) => (
+              <tr key={`${r.productName}|${r.unit}|${i}`}>
+                <td className="px-4 md:px-5 py-2.5 max-w-[280px]">
+                  <p className="text-foreground truncate" title={r.productName}>{r.productName}</p>
+                  <p className="text-[10px] text-muted-foreground">/{r.unit}</p>
+                </td>
+                <td className="px-2 py-2.5 text-right whitespace-nowrap">
+                  <p className="tabular-nums text-foreground">{formatPrice(r.avgPrice)}</p>
+                  <p className={cn("text-[11px] font-medium tabular-nums", costTone(r.pricePct))}>
+                    {r.pricePct == null ? "—" : signedPct(r.pricePct)}
+                  </p>
+                </td>
+                <td className="px-2 py-2.5 text-right whitespace-nowrap">
+                  <p className="tabular-nums text-foreground">{fmtQty(r.totalQuantity)}</p>
+                  <p className={cn(
+                    "text-[11px] font-medium tabular-nums",
+                    r.qtyPct == null ? "text-muted-foreground" : r.qtyPct > 0 ? "text-amber-600" : r.qtyPct < 0 ? "text-blue-600" : "text-muted-foreground",
+                  )}>
+                    {r.qtyPct == null ? "—" : signedPct(r.qtyPct)}
+                  </p>
+                </td>
+                <td className="px-4 md:px-5 py-2.5 text-right whitespace-nowrap">
+                  <p className="tabular-nums font-semibold text-foreground">{formatPrice(r.totalCost)}</p>
+                  <p className={cn("text-[11px] font-medium tabular-nums", costTone(r.deltaCost))}>
+                    {r.deltaCost! > 0 ? "+" : ""}{formatPrice(r.deltaCost!)}
+                  </p>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {onViewAll && (
+        <button
+          onClick={onViewAll}
+          className="w-full px-4 md:px-5 py-2.5 text-xs text-primary hover:bg-secondary/40 transition-colors border-t border-border text-left"
+        >
+          Zobacz wszystkie produkty →
+        </button>
+      )}
     </div>
   );
 }
