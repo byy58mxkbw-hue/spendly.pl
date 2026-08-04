@@ -235,7 +235,9 @@ function ReportsInner() {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto px-4 md:px-6 py-5 md:py-7">
+      {/* Szeroki kontener — tabela Produktów ma 7 kolumn, a listy długie nazwy produktów;
+          przy 1024px (dawne max-w-5xl) jedno i drugie się ucinało. */}
+      <div className="max-w-[1600px] mx-auto px-4 md:px-6 lg:px-10 py-5 md:py-7">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center gap-3 mb-5 md:mb-6">
           <div className="flex-1 min-w-0">
