@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Layout } from "@/components/layout";
 import {
   useListInvoices,
@@ -280,11 +280,13 @@ function DayDrawer({
   month,
   onClose,
   onMarkPaid,
+  payingIds,
 }: {
   date: string | null;
   month: string;
   onClose: () => void;
   onMarkPaid: (invoiceId: number, isPaid: boolean) => void;
+  payingIds: Set<number>;
 }) {
   const { selectedId: costCenterSelectedId } = useCostCenter();
   const ccParam = costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {};
@@ -388,12 +390,13 @@ function DayDrawer({
                           {inv.paymentMethod === "przelew" && (
                             <button
                               onClick={(e) => { e.stopPropagation(); onMarkPaid(inv.id, !inv.isPaid); }}
+                              disabled={payingIds.has(inv.id)}
                               className={cn(
-                                "text-xs mt-0.5 px-2 py-0.5 rounded-full font-medium transition-colors",
+                                "text-xs mt-0.5 px-2 py-0.5 rounded-full font-medium transition-colors disabled:opacity-50 disabled:cursor-wait",
                                 inv.isPaid ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700",
                               )}
                             >
-                              {inv.isPaid ? "Opłacone" : "Nieopłacone"}
+                              {payingIds.has(inv.id) ? "…" : inv.isPaid ? "Opłacone" : "Nieopłacone"}
                             </button>
                           )}
                         </div>
@@ -622,7 +625,13 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
 
 // ─── Płatności view ────────────────────────────────────────────────────────────
 
-function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolean) => void }) {
+function PlatnosciView({
+  onMarkPaid,
+  payingIds,
+}: {
+  onMarkPaid: (id: number, isPaid: boolean) => void;
+  payingIds: Set<number>;
+}) {
   const { selectedId: costCenterSelectedId } = useCostCenter();
   const ccParam = costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {};
   const { data, isLoading } = useGetInvoicesPayments(
@@ -746,10 +755,11 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
                   <span className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(inv.totalAmount)}</span>
                   <button
                     onClick={() => onMarkPaid(inv.id, true)}
-                    className="text-xs px-3 py-1 rounded-full font-medium transition-colors text-primary"
+                    disabled={payingIds.has(inv.id)}
+                    className="text-xs px-3 py-1 rounded-full font-medium transition-colors text-primary disabled:opacity-50 disabled:cursor-wait"
                     style={{ background: "rgba(20,184,166,0.18)", border: "1px solid rgba(20,184,166,0.3)" }}
                   >
-                    Zapłacono
+                    {payingIds.has(inv.id) ? "Zapisuję…" : "Zapłacono"}
                   </button>
                 </div>
               </div>
@@ -770,10 +780,11 @@ function PlatnosciView({ onMarkPaid }: { onMarkPaid: (id: number, isPaid: boolea
               <p className="text-sm font-semibold text-foreground/60 tabular-nums shrink-0">{formatPrice(inv.totalAmount)}</p>
               <button
                 onClick={() => onMarkPaid(inv.id, true)}
-                className="text-xs px-3 py-1.5 rounded-full font-medium text-foreground/50"
+                disabled={payingIds.has(inv.id)}
+                className="text-xs px-3 py-1.5 rounded-full font-medium text-foreground/50 disabled:opacity-50 disabled:cursor-wait"
                 style={{ background: "var(--elevate-2)", border: "1px solid hsl(var(--border))" }}
               >
-                Zapłacono
+                {payingIds.has(inv.id) ? "Zapisuję…" : "Zapłacono"}
               </button>
             </div>
           ))}
@@ -800,6 +811,8 @@ export default function Invoices() {
   const [showImport, setShowImport] = useState(false);
   const [showDeleteAll, setShowDeleteAll] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  // Faktury z trwającym zapisem płatności — blokują SWÓJ przycisk, nie wszystkie.
+  const [payingIds, setPayingIds] = useState<Set<number>>(new Set());
 
   const ccParam = costCenterSelectedId !== null ? { costCenterId: costCenterSelectedId } : {};
   const { data: timelineData, isLoading: timelineLoading } = useGetInvoicesTimeline(
@@ -818,11 +831,46 @@ export default function Invoices() {
     return { totalAmount, invoiceCount: allInvoicesData.length, supplierCount: uniqueSuppliers };
   }, [allInvoicesData]);
 
+  // Odświeżenie list po oznaczeniu płatności — ZBIORCZO, nie po każdym kliknięciu.
+  // Przy szybkim przeklikiwaniu serii faktur każde kliknięcie odpalało wcześniej
+  // 2 refetche, więc 20 kliknięć = ~60 zapytań w kilkanaście sekund i łatwo było
+  // trafić w globalny limit (600/15 min) — wtedy API zwracało 429.
+  const refreshTimer = useRef<number | null>(null);
+  const scheduleRefresh = () => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = window.setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: getGetInvoicesTimelineQueryKey({ month, ...ccParam }) });
+      queryClient.invalidateQueries({ queryKey: getGetInvoicesPaymentsQueryKey(Object.keys(ccParam).length > 0 ? ccParam : undefined) });
+    }, 700);
+  };
+  useEffect(() => () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); }, []);
+
   async function handleMarkPaid(id: number, isPaid: boolean) {
-    await markPaid.mutateAsync({ id, data: { isPaid } });
-    queryClient.invalidateQueries({ queryKey: getGetInvoicesTimelineQueryKey({ month, ...ccParam }) });
-    queryClient.invalidateQueries({ queryKey: getGetInvoicesPaymentsQueryKey(Object.keys(ccParam).length > 0 ? ccParam : undefined) });
-    toast({ title: isPaid ? "Oznaczono jako opłacone" : "Cofnięto oznaczenie" });
+    if (payingIds.has(id)) return; // drugie kliknięcie w tę samą fakturę ignorujemy
+    setPayingIds((prev) => new Set(prev).add(id));
+    try {
+      await markPaid.mutateAsync({ id, data: { isPaid } });
+      scheduleRefresh();
+      toast({ title: isPaid ? "Oznaczono jako opłacone" : "Cofnięto oznaczenie" });
+    } catch (err) {
+      // Bez tego catch błąd leciał jako unhandled rejection: żadnego komunikatu,
+      // a użytkownik nie wiedział, że kliknięcie nic nie zapisało.
+      const status = (err as { response?: { status?: number }; status?: number })?.response?.status
+        ?? (err as { status?: number })?.status;
+      toast({
+        variant: "destructive",
+        title: status === 429 ? "Za szybko" : "Nie udało się zapisać",
+        description: status === 429
+          ? "Za dużo żądań pod rząd. Odczekaj chwilę i kliknij ponownie."
+          : "Faktura nie została oznaczona. Spróbuj jeszcze raz.",
+      });
+    } finally {
+      setPayingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   }
 
   async function handleDeleteAll() {
@@ -920,7 +968,7 @@ export default function Invoices() {
           <KalendarzView month={month} onDayClick={setSelectedDay} />
         )}
         {activeTab === "platnosci" && (
-          <PlatnosciView onMarkPaid={handleMarkPaid} />
+          <PlatnosciView onMarkPaid={handleMarkPaid} payingIds={payingIds} />
         )}
         {activeTab === "faktury" && (
           <FakturyView
@@ -935,6 +983,7 @@ export default function Invoices() {
         month={month}
         onClose={() => setSelectedDay(null)}
         onMarkPaid={handleMarkPaid}
+        payingIds={payingIds}
       />
 
       <ImportInvoiceDialog
