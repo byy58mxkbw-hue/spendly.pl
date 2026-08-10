@@ -47,13 +47,18 @@ function clerkFapiFromPk(pk?: string): string | null {
 // nie jest wykonywany) ze ZBUDOWANYCH plików HTML. Dzięki temu wymuszone CSP nie
 // blokuje skryptu inicjalizującego motyw, a hash jest liczony z realnego bajtowo
 // outputu (Vite może go zminifikować) — automatycznie, bez ręcznej podmiany.
+// Zbiera hashe inline-skryptów ze WSZYSTKICH plików .html, także w podkatalogach.
+// Rekurencja jest konieczna: artykuły bloga leżą w `blog/<slug>.html`, więc płaskie
+// przejście pominęłoby je i wymuszone CSP zablokowałoby ich skrypty (reguła 28).
 function collectInlineScriptHashes(outDir: string): string[] {
   const hashes = new Set<string>();
   const scriptRe = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
-  try {
-    for (const file of readdirSync(outDir)) {
-      if (!file.endsWith(".html")) continue;
-      const html = readFileSync(path.join(outDir, file), "utf8");
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { walk(full); continue; }
+      if (!entry.name.endsWith(".html")) continue;
+      const html = readFileSync(full, "utf8");
       for (const [, attrs, body] of html.matchAll(scriptRe)) {
         if (/\bsrc=/i.test(attrs)) continue; // zewnętrzny — pokrywa go 'self'
         if (/application\/ld\+json/i.test(attrs)) continue; // dane, nie kod
@@ -62,6 +67,9 @@ function collectInlineScriptHashes(outDir: string): string[] {
         hashes.add(`'sha256-${hash}'`);
       }
     }
+  };
+  try {
+    walk(outDir);
   } catch (err) {
     console.warn(`[csp] nie udało się policzyć hashy inline-skryptów: ${(err as Error).message}`);
   }

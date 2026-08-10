@@ -162,6 +162,36 @@ function plDate(iso) {
 }
 
 // ── Wspólne kawałki layoutu (dark, spójne z ksef.html) ───────────────────────
+// Analityka na statycznych stronach bloga. Do tej pory blog nie ładował nic poza
+// JSON-LD, więc ruch z 16 artykułów SEO w ogóle nie był mierzony — w PostHogu
+// widać było tylko wejścia z SPA. Zasady te same co w `src/lib/posthog.ts`:
+// start OPT-OUT, zbieranie dopiero po zgodzie `statistics` z Cookiebota (RODO).
+// Klucz jest publiczny (write-only ingest), więc może być w statycznym HTML.
+// CSP: eu-assets.i.posthog.com (script) i eu.i.posthog.com (connect) są już
+// na whiteliście, a inline-skrypty hashuje `collectInlineScriptHashes` (reguła 28).
+const PH_KEY = process.env.VITE_POSTHOG_KEY || "phc_kZJThuLvVBkGJ9uSSzBQ9j8Uc94EKvJGZHFHxUSAfkbn";
+const PH_HOST = process.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com";
+
+const ANALYTICS = `
+    <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="e40f250c-7bc6-4347-8e61-e312f6f4fca5" data-blockingmode="manual" type="text/javascript" async></script>
+    <script>
+      !function(){var t=window;t.posthog=t.posthog||[];
+      var s=document.createElement("script");s.type="text/javascript";s.async=!0;
+      s.src="${PH_HOST.replace("eu.i.", "eu-assets.i.")}/static/array.js";
+      s.onload=function(){
+        posthog.init("${PH_KEY}",{api_host:"${PH_HOST}",ui_host:"https://eu.posthog.com",person_profiles:"identified_only",opt_out_capturing_by_default:!0});
+        var sync=function(){
+          if(window.Cookiebot&&window.Cookiebot.consent&&window.Cookiebot.consent.statistics)posthog.opt_in_capturing();
+          else posthog.opt_out_capturing();
+        };
+        if(window.Cookiebot&&window.Cookiebot.consent)sync();
+        window.addEventListener("CookiebotOnConsentReady",sync);
+        window.addEventListener("CookiebotOnAccept",sync);
+        window.addEventListener("CookiebotOnDecline",sync);
+      };
+      document.head.appendChild(s);}();
+    </script>`;
+
 const HEAD_COMMON = `
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -169,7 +199,7 @@ const HEAD_COMMON = `
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="/fonts/inter-latin-ext.woff2" as="font" type="font/woff2" crossorigin>`;
+    <link rel="preload" href="/fonts/inter-latin-ext.woff2" as="font" type="font/woff2" crossorigin>${ANALYTICS}`;
 
 const STYLE = `
     <style>

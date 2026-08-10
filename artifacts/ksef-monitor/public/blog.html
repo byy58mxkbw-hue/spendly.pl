@@ -8,6 +8,24 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/fonts/inter-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
+    <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="e40f250c-7bc6-4347-8e61-e312f6f4fca5" data-blockingmode="manual" type="text/javascript" async></script>
+    <script>
+      !function(){var t=window;t.posthog=t.posthog||[];
+      var s=document.createElement("script");s.type="text/javascript";s.async=!0;
+      s.src="https://eu-assets.i.posthog.com/static/array.js";
+      s.onload=function(){
+        posthog.init("phc_kZJThuLvVBkGJ9uSSzBQ9j8Uc94EKvJGZHFHxUSAfkbn",{api_host:"https://eu.i.posthog.com",ui_host:"https://eu.posthog.com",person_profiles:"identified_only",opt_out_capturing_by_default:!0});
+        var sync=function(){
+          if(window.Cookiebot&&window.Cookiebot.consent&&window.Cookiebot.consent.statistics)posthog.opt_in_capturing();
+          else posthog.opt_out_capturing();
+        };
+        if(window.Cookiebot&&window.Cookiebot.consent)sync();
+        window.addEventListener("CookiebotOnConsentReady",sync);
+        window.addEventListener("CookiebotOnAccept",sync);
+        window.addEventListener("CookiebotOnDecline",sync);
+      };
+      document.head.appendChild(s);}();
+    </script>
     <title>Blog Spendly — food cost, KSeF i kontrola kosztów w gastronomii</title>
     <meta name="description" content="Praktyczne poradniki dla restauracji: jak liczyć food cost, ile powinien wynosić, KSeF dla gastronomii i automatyzacja faktur. Wiedza od twórców Spendly." />
     <meta name="keywords" content="food cost, food cost restauracja, jak liczyć food cost, KSeF restauracja, kontrola kosztów gastronomia, blog gastronomiczny" />

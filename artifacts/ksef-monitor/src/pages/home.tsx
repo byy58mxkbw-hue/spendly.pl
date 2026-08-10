@@ -6,6 +6,7 @@ import {
   Menu, X, Hotel, Truck, Building2, Lock, Server, KeyRound, ShieldCheck,
 } from "lucide-react";
 import "@/styles/landing.css";
+import { track } from "@/lib/posthog";
 
 type Theme = "dark" | "light";
 
@@ -92,7 +93,15 @@ export default function Home() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const go = (path: string) => (e: React.MouseEvent) => { e.preventDefault(); navigate(path); };
+  // Wszystkie CTA landingu przechodzą przez go(), więc jeden pomiar wystarcza:
+  // bez tego nie da się odróżnić „nikt nie wchodzi" od „wchodzą, ale nie klikają".
+  const go = (path: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (path === "/sign-up" || path === "/sign-in") {
+      track("landing_cta_click", { target: path });
+    }
+    navigate(path);
+  };
   const toggleFaq = (i: number) =>
     setOpenFaq((prev) => {
       const next = new Set(prev);
