@@ -49,6 +49,30 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://www.spendly.pl/blog/jak-wybrac-dostawce-do-restauracji</loc>
+    <lastmod>2026-08-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.spendly.pl/blog/koszty-stale-i-zmienne-w-restauracji</loc>
+    <lastmod>2026-08-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.spendly.pl/blog/ksef-krok-po-kroku-restauracja</loc>
+    <lastmod>2026-08-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.spendly.pl/blog/rentownosc-restauracji-wskazniki</loc>
+    <lastmod>2026-08-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://www.spendly.pl/blog/karta-technologiczna-dania</loc>
     <lastmod>2026-08-02</lastmod>
     <changefreq>monthly</changefreq>
