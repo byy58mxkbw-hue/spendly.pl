@@ -183,7 +183,11 @@ router.get("/invoices/page", async (req, res): Promise<void> => {
     .leftJoin(costCentersTable, eq(invoicesTable.costCenterId, costCentersTable.id))
     .leftJoin(suggestedCc, eq(invoicesTable.suggestedCostCenterId, suggestedCc.id))
     .where(whereCond)
-    .orderBy(desc(invoicesTable.invoiceDate))
+    // Tie-breaker po id jest KONIECZNY: przy wielu fakturach z tą samą datą
+    // (a to norma — kilkanaście dostaw dziennie) sama data nie wyznacza
+    // jednoznacznej kolejności, więc kolejne strony mogły powtarzać te same
+    // rekordy albo gubić inne.
+    .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
     .limit(limit)
     .offset(offset);
 

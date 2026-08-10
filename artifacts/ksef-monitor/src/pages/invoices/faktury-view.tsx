@@ -73,7 +73,12 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
     ...(effectiveCostCenterId != null ? { costCenterId: effectiveCostCenterId } : {}),
   };
   const { data: pagedData, isLoading, isError, refetch } = useListInvoicesPaged(pagedParams, {
-    query: { queryKey: getListInvoicesPagedQueryKey(pagedParams) },
+    query: {
+      queryKey: getListInvoicesPagedQueryKey(pagedParams),
+      // Przy zmianie strony trzymamy poprzednie dane do czasu odpowiedzi —
+      // bez tego lista i licznik stron znikały na moment (patrz efekt niżej).
+      placeholderData: (prev) => prev,
+    },
   });
   const invoices = pagedData?.items;
   const total = pagedData?.total ?? 0;
@@ -117,7 +122,14 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
   const paged = invoices ?? [];
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   useEffect(() => { setPage(1); }, [debouncedSearch, supplierFilter, showUnassigned, costCenterSelectedId]);
-  useEffect(() => { if (page > totalPages) setPage(1); }, [totalPages, page]);
+  // Korekta strony poza zakresem — TYLKO gdy mamy już odpowiedź serwera.
+  // Wcześniej warunek działał też w trakcie ładowania: po kliknięciu „następna"
+  // dane znikały na czas fetcha (total=0 → totalPages=1), więc ten efekt
+  // natychmiast cofał na stronę 1 i wyglądało to, jakby przycisk nie działał.
+  useEffect(() => {
+    if (!pagedData) return;
+    if (page > totalPages) setPage(1);
+  }, [pagedData, totalPages, page]);
 
   // Zaznaczanie działa w obrębie bieżącej strony (paginacja serwerowa).
   const selectableIds = paged.map((inv) => inv.id);

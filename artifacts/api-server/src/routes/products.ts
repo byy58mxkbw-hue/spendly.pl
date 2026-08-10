@@ -335,7 +335,7 @@ router.get("/products/page", async (req, res): Promise<void> => {
     LEFT JOIN sup_counts sc ON p.id = sc.product_id
     LEFT JOIN qty_sums qs ON p.id = qs.product_id
     WHERE p.user_id = ${userId}${categorySql}${needsReviewSql}${searchSql}
-    ORDER BY ${orderSql}
+    ORDER BY ${orderSql}, p.id
     LIMIT ${limit} OFFSET ${offset}
   `);
 
