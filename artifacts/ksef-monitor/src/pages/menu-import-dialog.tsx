@@ -250,7 +250,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                         type="checkbox"
                         checked={d.selected}
                         onChange={(e) => updateDish(d.key, { selected: e.target.checked })}
-                        className="mt-1.5 accent-[#14B8A6]"
+                        className="mt-1.5 accent-primary"
                       />
                       <div className="flex-1 min-w-0 space-y-1.5">
                         <div className="flex items-center gap-2">

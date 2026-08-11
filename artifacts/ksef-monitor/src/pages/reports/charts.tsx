@@ -57,8 +57,8 @@ export function SpendTrendChart({ months: numMonths = 6 }: { months?: number }) 
       <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
         <defs>
           <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(173, 80%, 40%)" stopOpacity={0.25} />
-            <stop offset="95%" stopColor="hsl(173, 80%, 40%)" stopOpacity={0.02} />
+            <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.25} />
+            <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.02} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -78,7 +78,7 @@ export function SpendTrendChart({ months: numMonths = 6 }: { months?: number }) 
           contentStyle={{
             background: "hsl(var(--card))",
             border: "1px solid hsl(var(--border))",
-            borderRadius: "8px",
+            borderRadius: "4px",
             fontSize: "12px",
           }}
           formatter={(v: number) => [formatPrice(v), "Wydatki"]}
@@ -86,11 +86,11 @@ export function SpendTrendChart({ months: numMonths = 6 }: { months?: number }) 
         <Area
           type="monotone"
           dataKey="total"
-          stroke="hsl(173, 80%, 40%)"
+          stroke="hsl(var(--chart-1))"
           strokeWidth={2}
           fill="url(#trendGrad)"
           dot={false}
-          activeDot={{ r: 4, fill: "hsl(173, 80%, 40%)" }}
+          activeDot={{ r: 4, fill: "hsl(var(--chart-1))" }}
         />
       </AreaChart>
     </ResponsiveContainer>
@@ -313,7 +313,7 @@ export function CategoryTrendChart({ months: numMonths = 6 }: { months?: number 
           contentStyle={{
             background: "hsl(var(--card))",
             border: "1px solid hsl(var(--border))",
-            borderRadius: "8px",
+            borderRadius: "4px",
             fontSize: "12px",
           }}
           formatter={(v: number, name: string) => {

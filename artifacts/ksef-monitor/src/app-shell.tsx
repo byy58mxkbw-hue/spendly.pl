@@ -64,42 +64,44 @@ const clerkAppearance = {
     logoLinkUrl: basePath || "/",
     logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
   },
+  // Paleta „edytorski gastro" (ciemny papier + terakota) — te same wartości co
+  // tokeny w index.css, tylko Clerk nie czyta CSS variables apki.
   variables: {
-    colorPrimary: "#3DDC97",
-    colorForeground: "#F5F7FA",
-    colorMutedForeground: "#9AA4B2",
-    colorDanger: "hsl(0, 84%, 60%)",
-    colorBackground: "#0B0F14",
-    colorInput: "#1D2A37",
-    colorInputForeground: "#F5F7FA",
-    colorNeutral: "#1D2A37",
+    colorPrimary: "#E06A3C",
+    colorForeground: "#F0E9DB",
+    colorMutedForeground: "#9C8F79",
+    colorDanger: "hsl(4, 68%, 58%)",
+    colorBackground: "#17130E",
+    colorInput: "#2A2318",
+    colorInputForeground: "#F0E9DB",
+    colorNeutral: "#2A2318",
     fontFamily: "Inter, system-ui, sans-serif",
-    borderRadius: "0.75rem",
+    borderRadius: "0.25rem",
   },
   elements: {
     rootBox: "w-full flex justify-center",
-    cardBox: "bg-[#131A22] border border-white/[0.06] rounded-2xl w-[440px] max-w-full overflow-hidden shadow-2xl",
+    cardBox: "bg-[#201A13] border border-[#392F22] rounded w-[440px] max-w-full overflow-hidden",
     card: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    footer: "!shadow-none !border-0 !bg-[#0F1720] !rounded-none",
-    headerTitle: "!text-[#F5F7FA] font-bold !tracking-tight",
-    headerSubtitle: "!text-[#9AA4B2]",
-    socialButtonsBlockButtonText: "!text-[#F5F7FA]",
-    formFieldLabel: "!text-[#9AA4B2] text-sm font-medium",
-    footerActionLink: "!text-[#3DDC97] font-medium",
-    footerActionText: "!text-[#9AA4B2]",
-    dividerText: "!text-[#9AA4B2]",
-    identityPreviewEditButton: "!text-[#3DDC97]",
-    formFieldSuccessText: "text-emerald-400",
-    alertText: "!text-[#F5F7FA]",
+    footer: "!shadow-none !border-0 !bg-[#1A150F] !rounded-none",
+    headerTitle: "!text-[#F0E9DB] font-bold !tracking-tight",
+    headerSubtitle: "!text-[#9C8F79]",
+    socialButtonsBlockButtonText: "!text-[#F0E9DB]",
+    formFieldLabel: "!text-[#9C8F79] text-sm font-medium",
+    footerActionLink: "!text-[#E06A3C] font-medium",
+    footerActionText: "!text-[#9C8F79]",
+    dividerText: "!text-[#9C8F79]",
+    identityPreviewEditButton: "!text-[#E06A3C]",
+    formFieldSuccessText: "!text-[#9DB05A]",
+    alertText: "!text-[#F0E9DB]",
     logoBox: "mx-auto",
-    logoImage: "w-10 h-10 rounded-xl",
-    socialButtonsBlockButton: "!border !border-white/[0.08] !bg-white/[0.04] hover:!bg-white/[0.08] transition-colors",
-    formButtonPrimary: "!bg-[#3DDC97] hover:!bg-[#35c486] !text-[#06231a] font-semibold transition-colors",
-    formFieldInput: "!border !border-white/[0.08] !bg-[#1D2A37] !text-[#F5F7FA] rounded-lg focus:!ring-2 focus:!ring-[#3DDC97]/40",
-    footerAction: "border-t border-white/[0.06]",
-    dividerLine: "!bg-white/[0.06]",
-    alert: "!border !border-white/[0.08] !rounded-lg !bg-white/[0.04]",
-    otpCodeFieldInput: "!border !border-white/[0.08] !bg-[#1D2A37] !rounded-lg",
+    logoImage: "w-10 h-10 rounded",
+    socialButtonsBlockButton: "!border !border-[#392F22] !bg-[#2A2318] hover:!bg-[#33251A] transition-colors",
+    formButtonPrimary: "!bg-[#E06A3C] hover:!bg-[#C4562F] !text-[#17130E] font-semibold transition-colors",
+    formFieldInput: "!border !border-[#392F22] !bg-[#2A2318] !text-[#F0E9DB] rounded focus:!ring-2 focus:!ring-[#E06A3C]/40",
+    footerAction: "border-t border-[#392F22]",
+    dividerLine: "!bg-[#392F22]",
+    alert: "!border !border-[#392F22] !rounded !bg-[#2A2318]",
+    otpCodeFieldInput: "!border !border-[#392F22] !bg-[#2A2318] !rounded",
     formFieldRow: "gap-3",
     main: "gap-4",
   },
@@ -114,7 +116,7 @@ function SignInPage() {
       <Show when="signed-out">
         <div
           className="flex min-h-[100dvh] items-center justify-center px-4"
-          style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61,220,151,0.08) 0%, transparent 60%), #0B0F14" }}
+          style={{ background: "#17130E" }}
         >
           <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} fallbackRedirectUrl={`${basePath}/dashboard`} />
         </div>
@@ -130,7 +132,7 @@ function SignUpPage() {
       <Show when="signed-out">
         <div
           className="flex min-h-[100dvh] items-center justify-center px-4"
-          style={{ background: "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61,220,151,0.08) 0%, transparent 60%), #0B0F14" }}
+          style={{ background: "#17130E" }}
         >
           <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} fallbackRedirectUrl={`${basePath}/dashboard`} />
         </div>

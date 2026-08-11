@@ -369,7 +369,7 @@ export default function Suppliers() {
                                 <>
                                   <div
                                     className="w-2.5 h-2.5 rounded-full shrink-0"
-                                    style={{ background: supplier.defaultCostCenterColor ?? "#14B8A6" }}
+                                    style={{ background: supplier.defaultCostCenterColor ?? "#C4562F" }}
                                   />
                                   <span className="truncate max-w-[100px]">{supplier.defaultCostCenterName}</span>
                                 </>

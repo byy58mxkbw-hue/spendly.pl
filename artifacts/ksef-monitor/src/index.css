@@ -64,6 +64,12 @@
   --color-chart-4: hsl(var(--chart-4));
   --color-chart-5: hsl(var(--chart-5));
 
+  /* Semantyka kosztowa: drożej = terakota (źle), taniej = oliwka (dobrze). */
+  --color-negative: hsl(var(--negative));
+  --color-positive: hsl(var(--positive));
+  --color-warning: hsl(var(--warning));
+  --color-surface-2: hsl(var(--surface-2));
+
   --color-sidebar: hsl(var(--sidebar));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
@@ -85,78 +91,82 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* ─── DARK (default) ─────────────────────────────────────────────────────── */
+/* ─── DARK (default) — „ciemny papier", nie techowa czerń ────────────────── */
 :root {
-  --button-outline: rgba(255,255,255,0.10);
-  --badge-outline: rgba(255,255,255,0.05);
+  --button-outline: rgba(240,233,219,0.10);
+  --badge-outline: rgba(240,233,219,0.05);
   --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255,0.04);
-  --elevate-2: rgba(255,255,255,0.09);
+  --elevate-1: rgba(240,233,219,0.04);
+  --elevate-2: rgba(240,233,219,0.09);
 
-  /* Aurora (subtelne poświaty tła powłoki) — spójne z landingiem */
-  --au1:#0f6b52; --au2:#134e63; --au3:#1f7a5c; --au-alpha:.26;
-  /* Glass (szklane karty jak na landingu) */
-  --glass-hi: rgba(255,255,255,.10); --glass-alpha: .58;
+  --background: 34 24% 7%;       /* #17130E */
+  --foreground: 40 41% 90%;      /* #F0E9DB */
 
-  --background: 215 28% 7%;      /* #0B0F14 */
-  --foreground: 220 29% 97%;     /* #F5F7FA */
+  --card: 32 25% 10%;            /* #201A13 */
+  --card-foreground: 40 41% 90%;
+  --card-border: 34 25% 18%;     /* #392F22 hairline */
 
-  --card: 215 28% 11%;           /* #131A22 */
-  --card-foreground: 220 29% 97%;
-  --card-border: 215 20% 16%;
+  --surface-2: 36 27% 13%;       /* #2A2318 — powierzchnia podniesiona */
 
-  --popover: 215 28% 13%;
-  --popover-foreground: 220 29% 97%;
-  --popover-border: 215 20% 16%;
+  --popover: 36 27% 13%;
+  --popover-foreground: 40 41% 90%;
+  --popover-border: 34 25% 18%;
 
-  --primary: 154 69% 55%;        /* #4ADEB3 */
-  --primary-foreground: 215 28% 7%;
+  --primary: 17 73% 56%;         /* terakota #E06A3C */
+  --primary-foreground: 34 24% 7%;
 
-  --secondary: 215 25% 15%;
-  --secondary-foreground: 220 20% 85%;
+  --secondary: 26 32% 15%;       /* accent-soft #33251A */
+  --secondary-foreground: 40 41% 90%;
 
-  --muted: 215 25% 13%;
-  --muted-foreground: 215 14% 65%; /* #9AA4B2 */
+  --muted: 34 25% 14%;
+  --muted-foreground: 38 15% 54%; /* #9C8F79 */
 
-  --accent: 154 69% 55%;
-  --accent-foreground: 215 28% 7%;
+  --accent: 26 32% 15%;
+  --accent-foreground: 17 73% 56%;
 
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive: 4 68% 58%;
+  --destructive-foreground: 34 24% 7%;
 
-  --border: 215 20% 16%;
-  --input: 215 25% 14%;
-  --ring: 154 69% 55%;
+  --border: 34 25% 18%;
+  --input: 34 25% 16%;
+  --ring: 17 73% 56%;
 
-  --sidebar: 215 32% 5%;         /* slightly darker than bg */
-  --sidebar-foreground: 220 20% 88%;
-  --sidebar-border: 215 20% 12%;
-  --sidebar-primary: 154 69% 55%;
-  --sidebar-primary-foreground: 215 28% 7%;
-  --sidebar-accent: 215 25% 13%;
-  --sidebar-accent-foreground: 220 20% 88%;
-  --sidebar-ring: 154 69% 55%;
+  --sidebar: 32 24% 8%;
+  --sidebar-foreground: 40 30% 84%;
+  --sidebar-border: 34 25% 16%;
+  --sidebar-primary: 17 73% 56%;
+  --sidebar-primary-foreground: 34 24% 7%;
+  --sidebar-accent: 26 32% 15%;
+  --sidebar-accent-foreground: 40 41% 90%;
+  --sidebar-ring: 17 73% 56%;
 
-  --chart-1: 154 69% 55%;
-  --chart-2: 199 89% 60%;
-  --chart-3: 154 55% 76%;
-  --chart-4: 220 39% 45%;
-  --chart-5: 0 84% 60%;
+  /* Semantyka kosztowa */
+  --negative: 17 73% 56%;        /* drożej — terakota */
+  --positive: 73 35% 52%;        /* taniej — oliwka #9DB05A */
+  --warning: 39 74% 55%;         /* musztarda */
+
+  --chart-1: 17 73% 56%;         /* terakota */
+  --chart-2: 73 35% 52%;         /* oliwka */
+  --chart-3: 39 74% 55%;         /* musztarda */
+  --chart-4: 30 20% 62%;         /* taupe */
+  --chart-5: 200 22% 55%;        /* przygaszony błękit */
 
   --app-font-sans: 'Inter', system-ui, sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: ui-monospace, Menlo, Monaco, 'Cascadia Mono', 'Segoe UI Mono', 'Roboto Mono', 'Oxygen Mono', 'Ubuntu Monospace', 'Source Code Pro', 'Fira Mono', 'Droid Sans Mono', 'Courier New', monospace;
 
-  --radius: 0.75rem;
+  --radius: 0.25rem;
 
-  --shadow-2xs: 0 1px 2px 0 rgba(0,0,0,0.20);
-  --shadow-xs: 0 1px 3px 0 rgba(0,0,0,0.25);
-  --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.25), 0 1px 2px -1px rgba(0,0,0,0.25);
-  --shadow: 0 1px 3px 0 rgba(0,0,0,0.25), 0 1px 2px -1px rgba(0,0,0,0.25);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.35), 0 2px 4px -2px rgba(0,0,0,0.20);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.45), 0 4px 6px -4px rgba(0,0,0,0.20);
-  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.55), 0 8px 10px -6px rgba(0,0,0,0.20);
-  --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,0.65);
+  /* Redakcyjnie: powierzchnie płaskie. Cień zostaje tylko dla warstw
+     unoszących się nad treścią (popover/dropdown), i to dyskretny. */
+  --shadow-2xs: none;
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-md: 0 2px 6px -2px rgba(0,0,0,0.45);
+  --shadow-lg: 0 6px 18px -8px rgba(0,0,0,0.55);
+  --shadow-xl: 0 10px 26px -12px rgba(0,0,0,0.60);
+  --shadow-2xl: 0 16px 40px -18px rgba(0,0,0,0.65);
 
   --tracking-normal: 0em;
   --spacing: 0.25rem;
@@ -170,74 +180,75 @@
   --destructive-border: hsl(var(--destructive));
 }
 
-/* ─── LIGHT (opt-in via .light class) ───────────────────────────────────── */
+/* ─── LIGHT (opt-in via .light class) — papier ──────────────────────────── */
 .light {
-  --button-outline: rgba(0,0,0,0.08);
-  --badge-outline: rgba(0,0,0,0.04);
+  --button-outline: rgba(33,27,18,0.10);
+  --badge-outline: rgba(33,27,18,0.05);
   --opaque-button-border-intensity: -8;
-  --elevate-1: rgba(0,0,0,0.025);
-  --elevate-2: rgba(0,0,0,0.06);
+  --elevate-1: rgba(33,27,18,0.030);
+  --elevate-2: rgba(33,27,18,0.070);
 
-  /* Aurora — pastelowa mięta na jasnym tle */
-  --au1:#8ff0cf; --au2:#a9e5f0; --au3:#b6f0d8; --au-alpha:.42;
-  /* Glass na jasnym tle — biały highlight, mocniejsze krycie */
-  --glass-hi: rgba(255,255,255,.85); --glass-alpha: .72;
+  /* Tło = papier kremowy, karta = papier jaśniejszy. Karty odcinają się
+     hairline'em, nie cieniem. */
+  --background: 39 47% 92%;      /* #F4EDE0 */
+  --foreground: 36 29% 10%;      /* #211B12 */
 
-  /* Tło strony lekko przygaszone (miękka chłodna szarość), karty białe —
-     dzięki temu karty odcinają się od tła i UI nie jest „za białe". */
-  --background: 210 24% 96%;
-  --foreground: 224 71% 4%;
+  --card: 40 60% 96%;            /* #FBF7EF */
+  --card-foreground: 36 29% 10%;
+  --card-border: 39 33% 83%;     /* #E2D8C6 hairline */
 
-  --card: 0 0% 100%;
-  --card-foreground: 224 71% 4%;
-  --card-border: 214 18% 88%;
+  --surface-2: 0 0% 100%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 224 71% 4%;
-  --popover-border: 214 18% 88%;
+  --popover: 40 60% 96%;
+  --popover-foreground: 36 29% 10%;
+  --popover-border: 39 33% 83%;
 
-  --primary: 173 80% 40%;
-  --primary-foreground: 0 0% 100%;
+  --primary: 16 61% 48%;         /* terakota #C4562F */
+  --primary-foreground: 40 60% 96%;
 
-  --secondary: 174 20% 96%;
-  --secondary-foreground: 174 30% 10%;
+  --secondary: 38 56% 86%;       /* accent-soft #EFE0C6 */
+  --secondary-foreground: 36 29% 10%;
 
-  --muted: 174 20% 96%;
-  --muted-foreground: 174 10% 46%;
+  --muted: 39 42% 89%;
+  --muted-foreground: 38 16% 46%; /* #8A7C63 */
 
-  --accent: 173 80% 40%;
-  --accent-foreground: 0 0% 100%;
+  --accent: 38 56% 86%;
+  --accent-foreground: 16 61% 48%;
 
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
+  --destructive: 2 62% 45%;
+  --destructive-foreground: 40 60% 96%;
 
-  --border: 214 16% 87%;
-  --input: 214 16% 87%;
-  --ring: 173 80% 40%;
+  --border: 39 33% 83%;
+  --input: 39 33% 83%;
+  --ring: 16 61% 48%;
 
-  --sidebar: 0 0% 100%;
-  --sidebar-foreground: 174 30% 10%;
-  --sidebar-border: 214 16% 89%;
-  --sidebar-primary: 173 80% 40%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 174 20% 94%;
-  --sidebar-accent-foreground: 174 30% 10%;
-  --sidebar-ring: 173 80% 40%;
+  --sidebar: 40 60% 96%;
+  --sidebar-foreground: 36 29% 10%;
+  --sidebar-border: 39 33% 83%;
+  --sidebar-primary: 16 61% 48%;
+  --sidebar-primary-foreground: 40 60% 96%;
+  --sidebar-accent: 38 56% 86%;
+  --sidebar-accent-foreground: 36 29% 10%;
+  --sidebar-ring: 16 61% 48%;
 
-  --chart-1: 173 80% 40%;
-  --chart-2: 199 89% 48%;
-  --chart-3: 173 80% 60%;
-  --chart-4: 220 39% 30%;
-  --chart-5: 0 84% 60%;
+  --negative: 16 61% 48%;        /* drożej — terakota */
+  --positive: 74 36% 35%;        /* taniej — oliwka #6B7A3A */
+  --warning: 39 74% 45%;         /* musztarda #C68A1E */
 
-  --shadow-2xs: 0 1px 2px 0 rgba(0,0,0,0.03);
-  --shadow-xs: 0 1px 3px 0 rgba(0,0,0,0.04);
-  --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.04);
-  --shadow: 0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px -4px rgba(0,0,0,0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.06), 0 8px 10px -6px rgba(0,0,0,0.05);
-  --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,0.1);
+  --chart-1: 16 61% 48%;
+  --chart-2: 74 36% 35%;
+  --chart-3: 39 74% 45%;
+  --chart-4: 28 18% 45%;
+  --chart-5: 205 22% 42%;
+
+  --shadow-2xs: none;
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow: none;
+  --shadow-md: 0 2px 6px -2px rgba(33,27,18,0.10);
+  --shadow-lg: 0 6px 18px -8px rgba(33,27,18,0.14);
+  --shadow-xl: 0 10px 26px -12px rgba(33,27,18,0.16);
+  --shadow-2xl: 0 16px 40px -18px rgba(33,27,18,0.20);
 }
 
 @layer base {
@@ -251,15 +262,31 @@
 }
 
 @layer components {
-  /* Szklana karta — jak na landingu. Aurora powłoki prześwituje pod spodem. */
+  /* Karta redakcyjna. Nazwa `.glass` została (używa jej ~25 ekranów), ale
+     efekt jest już płaski: papierowa powierzchnia + hairline, zero blura,
+     zero cienia, zero gradientu. Emphasis robi się `.card-emphasis`. */
   .glass {
-    background:
-      linear-gradient(155deg, var(--glass-hi), transparent 44%),
-      hsl(var(--card) / var(--glass-alpha));
+    background: hsl(var(--card));
     border: 1px solid hsl(var(--card-border));
-    -webkit-backdrop-filter: blur(20px) saturate(1.2);
-    backdrop-filter: blur(20px) saturate(1.2);
-    box-shadow: 0 20px 50px -24px rgba(0,0,0,0.5), inset 0 1px 0 var(--glass-hi);
+  }
+
+  /* Wyróżnienie karty — grubsza górna linia zamiast cienia. */
+  .card-emphasis {
+    border-top: 2px solid hsl(var(--foreground));
+  }
+
+  /* Lista „tabela redakcyjna" — wiersze rozdzielone hairline'em zamiast kart. */
+  .rule-list > * + * {
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  /* Etykieta sekcji / KPI — wersaliki, rozstrzelone, drobne. */
+  .label-caps {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 11px;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
   }
 }
 

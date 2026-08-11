@@ -123,12 +123,12 @@ function SectionLabel({ label }: { label: string }) {
 // ─── Cost Center Onboarding Modal ─────────────────────────────────────────────
 const CC_ONBOARDING_KEY = "cc-onboarding-v1-dismissed";
 const ONBOARDING_PRESETS = [
-  { name: "Restauracja", color: "#14B8A6" },
-  { name: "Bar", color: "#6366F1" },
-  { name: "Catering", color: "#F59E0B" },
-  { name: "Ogródek", color: "#22C55E" },
-  { name: "Kuchnia", color: "#EF4444" },
-  { name: "Dostawa", color: "#8B5CF6" },
+  { name: "Restauracja", color: "#C4562F" },
+  { name: "Bar", color: "#5B6B8C" },
+  { name: "Catering", color: "#C68A1E" },
+  { name: "Ogródek", color: "#6B7A3A" },
+  { name: "Kuchnia", color: "#8C5A3C" },
+  { name: "Dostawa", color: "#4E6E5D" },
 ];
 
 function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) {
@@ -232,7 +232,7 @@ function CostCenterOnboardingModal({ userSignedIn }: { userSignedIn: boolean }) 
                         key={name}
                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium"
                       >
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: preset?.color ?? "#14B8A6" }} />
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: preset?.color ?? "#C4562F" }} />
                         {name}
                         <svg viewBox="0 0 12 12" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2">
                           <polyline points="2,6 5,9 10,3" />
@@ -675,18 +675,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background relative">
-      {/* Aurora — subtelne poświaty tła, spójne z landingiem */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div className="absolute rounded-full" style={{ width: 620, height: 620, left: -180, top: -240, background: "radial-gradient(circle at 30% 30%, var(--au1), transparent 70%)", filter: "blur(110px)", opacity: "var(--au-alpha)" }} />
-        <div className="absolute rounded-full" style={{ width: 640, height: 640, right: -240, top: -140, background: "radial-gradient(circle at 60% 40%, var(--au2), transparent 70%)", filter: "blur(110px)", opacity: "var(--au-alpha)" }} />
-        <div className="absolute rounded-full" style={{ width: 560, height: 560, left: "42%", top: 620, background: "radial-gradient(circle at 50% 50%, var(--au3), transparent 70%)", filter: "blur(110px)", opacity: "var(--au-alpha)" }} />
-      </div>
-
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — płaska powierzchnia + hairline, bez blura */}
       <aside
-        className="hidden md:flex w-[260px] shrink-0 flex-col border-r relative z-10 backdrop-blur-xl"
+        className="hidden md:flex w-[260px] shrink-0 flex-col border-r relative z-10"
         style={{
-          background: "hsl(var(--sidebar) / 0.72)",
+          background: "hsl(var(--sidebar))",
           borderColor: "hsl(var(--sidebar-border))",
         }}
       >
@@ -703,7 +696,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile top bar */}
       <header
-        className="md:hidden fixed top-0 inset-x-0 z-40 backdrop-blur-xl border-b border-border bg-background/90"
+        className="md:hidden fixed top-0 inset-x-0 z-40 border-b border-border bg-background"
         style={{
           paddingTop: "env(safe-area-inset-top)",
         }}
@@ -747,8 +740,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-50">
           <div
-            className="absolute inset-0 backdrop-blur-sm"
-            style={{ background: "rgba(0,0,0,0.7)" }}
+            className="absolute inset-0"
+            style={{ background: "rgba(23,19,14,0.72)" }}
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
@@ -803,7 +796,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile bottom navigation */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-40 backdrop-blur-xl border-t"
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t"
         style={{
           background: "hsl(var(--sidebar))",
           borderColor: "hsl(var(--sidebar-border))",

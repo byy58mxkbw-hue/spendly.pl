@@ -4,11 +4,11 @@ import { formatPercent } from "@/lib/format";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 export const SUPPLIER_COLORS = [
-  "hsl(173, 80%, 40%)",
-  "hsl(220, 70%, 55%)",
-  "hsl(350, 70%, 55%)",
-  "hsl(40, 80%, 50%)",
-  "hsl(280, 60%, 55%)",
+  "hsl(16,  61%, 48%)",  // terakota
+  "hsl(74,  36%, 35%)",  // oliwka
+  "hsl(39,  74%, 45%)",  // musztarda
+  "hsl(220, 22%, 45%)",  // przygaszony granat
+  "hsl(296, 15%, 43%)",  // śliwka
 ];
 
 export type ProductItem = {

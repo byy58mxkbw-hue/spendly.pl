@@ -710,7 +710,7 @@ export default function AdminUsers() {
                             fontSize: 12,
                           }}
                         />
-                        <Bar dataKey="count" fill="hsl(173, 80%, 40%)" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="count" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   )}

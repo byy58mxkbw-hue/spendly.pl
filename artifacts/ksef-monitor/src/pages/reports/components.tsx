@@ -56,21 +56,23 @@ export function currentMonth() {
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
+// Paleta ziemista („edytorski gastro"): terakota, oliwka, musztarda, cynamon…
+// Przygaszone barwy o zbliżonej jasności — czytelne obok siebie, bez neonu.
 export const CHART_COLORS = [
-  "hsl(173, 80%, 40%)",
-  "hsl(200, 70%, 50%)",
-  "hsl(220, 60%, 55%)",
-  "hsl(250, 60%, 60%)",
-  "hsl(280, 55%, 55%)",
-  "hsl(30,  75%, 50%)",
-  "hsl(50,  80%, 45%)",
-  "hsl(340, 65%, 52%)",
-  "hsl(160, 60%, 42%)",
-  "hsl(10,  70%, 52%)",
-  "hsl(195, 65%, 48%)",
-  "hsl(265, 60%, 58%)",
-  "hsl(95,  55%, 42%)",
-  "hsl(315, 55%, 50%)",
+  "hsl(16,  61%, 48%)",  // terakota
+  "hsl(74,  36%, 35%)",  // oliwka
+  "hsl(39,  74%, 45%)",  // musztarda
+  "hsl(22,  41%, 39%)",  // cynamon
+  "hsl(157, 18%, 37%)",  // szałwia
+  "hsl(358, 46%, 45%)",  // bordo
+  "hsl(220, 22%, 45%)",  // przygaszony granat
+  "hsl(296, 15%, 43%)",  // śliwka
+  "hsl(172, 40%, 30%)",  // morski
+  "hsl(45,  55%, 40%)",  // ochra
+  "hsl(12,  50%, 58%)",  // ceglany jasny
+  "hsl(90,  25%, 45%)",  // mech
+  "hsl(33,  30%, 52%)",  // piaskowy
+  "hsl(210, 18%, 35%)",  // atrament
 ];
 
 // Kolor centrum kosztów. Źródłem prawdy jest kolor z bazy (użytkownik go ustawia
@@ -79,7 +81,7 @@ export const CHART_COLORS = [
 // „Bez centrum" ma zawsze neutralny szary, żeby nie udawało zwykłego centrum.
 export function costCenterColor(id: number | null | undefined, color?: string | null): string {
   if (color) return color;
-  if (id == null) return "hsl(215, 12%, 55%)";
+  if (id == null) return "hsl(38, 8%, 52%)";
   return CHART_COLORS[Math.abs(id) % CHART_COLORS.length];
 }
 

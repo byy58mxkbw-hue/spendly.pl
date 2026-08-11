@@ -33,10 +33,12 @@ import { Plus, Pencil, Trash2, Layers, X, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+// Paleta ziemista, spójna z motywem „edytorski gastro" (terakota / oliwka /
+// musztarda / brąz), zamiast neonowych tailwindowych barw.
 const PRESET_COLORS = [
-  "#14B8A6", "#6366F1", "#F59E0B", "#EF4444",
-  "#22C55E", "#8B5CF6", "#F97316", "#EC4899",
-  "#06B6D4", "#84CC16",
+  "#C4562F", "#6B7A3A", "#C68A1E", "#8C5A3C",
+  "#4E6E5D", "#A63D40", "#5B6B8C", "#7A5C7B",
+  "#2F6D63", "#9C7A2E",
 ];
 
 function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {

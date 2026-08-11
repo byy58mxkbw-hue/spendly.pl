@@ -484,7 +484,7 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                         <div className="flex items-center gap-1 mt-0.5">
                           {inv.costCenterName ? (
                             <>
-                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: inv.costCenterColor ?? "#14B8A6" }} />
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: inv.costCenterColor ?? "#C4562F" }} />
                               <span className="text-[10px] text-foreground/40 truncate">{inv.costCenterName}</span>
                             </>
                           ) : inv.suggestedCostCenterId != null ? (
@@ -494,7 +494,7 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                               style={{ background: "rgba(20,184,166,0.12)", color: "#5eead4", border: "1px solid rgba(20,184,166,0.3)" }}
                               title="Przypisz sugerowane centrum"
                             >
-                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: inv.suggestedCostCenterColor ?? "#14B8A6" }} />
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: inv.suggestedCostCenterColor ?? "#C4562F" }} />
                               <span className="truncate max-w-[120px]">Sugerowane: {inv.suggestedCostCenterName}</span>
                               <Check className="w-2.5 h-2.5 shrink-0" />
                             </button>
