@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useImportMenu, useSaveMenuDishes } from "@workspace/api-client-react";
 import type { MenuImportPreview } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
-import { Upload, Loader2, Trash2, Sparkles, FileText, ImageIcon } from "lucide-react";
+import { Upload, Loader2, Trash2, Sparkles, FileText, ImageIcon } from "@/lib/icons";
 
 const MAX_PDF_PAGES = 5;
 

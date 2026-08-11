@@ -1,7 +1,7 @@
 // Współdzielone typy/komponenty widoku produktów (products.tsx + modale).
 import { cn } from "@/lib/utils";
 import { formatPercent } from "@/lib/format";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus } from "@/lib/icons";
 
 export const SUPPLIER_COLORS = [
   "hsl(16,  61%, 48%)",  // terakota

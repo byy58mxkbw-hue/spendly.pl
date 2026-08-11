@@ -4,7 +4,7 @@ import {
   Zap, ArrowRight, Play, Check, ScanLine, BellRing, GitCompare,
   UtensilsCrossed, Sparkles, FileCheck2, RefreshCw, FileText, Plus, Moon, Sun,
   Menu, X, Hotel, Truck, Building2, Lock, Server, KeyRound, ShieldCheck,
-} from "lucide-react";
+} from "@/lib/icons";
 import "@/styles/landing.css";
 import { track } from "@/lib/posthog";
 

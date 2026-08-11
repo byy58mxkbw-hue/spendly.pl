@@ -43,7 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Building2, Phone, Mail, ChevronRight, Trash2, Layers, RotateCcw, Tag } from "lucide-react";
+import { Plus, Building2, Phone, Mail, ChevronRight, Trash2, Layers, RotateCcw, Tag } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

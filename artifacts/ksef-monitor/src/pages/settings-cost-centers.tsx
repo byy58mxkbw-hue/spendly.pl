@@ -29,7 +29,7 @@ import {
   getListInvoicesQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, Layers, X, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Layers, X, Sparkles } from "@/lib/icons";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 

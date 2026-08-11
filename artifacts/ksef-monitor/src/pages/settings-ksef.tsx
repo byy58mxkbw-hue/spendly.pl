@@ -17,7 +17,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/posthog";
-import { ShieldCheck, ExternalLink, RefreshCw, RotateCcw, Clock } from "lucide-react";
+import { ShieldCheck, ExternalLink, RefreshCw, RotateCcw, Clock } from "@/lib/icons";
 import {
   AlertDialog,
   AlertDialogAction,

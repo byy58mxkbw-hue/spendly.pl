@@ -23,7 +23,7 @@ import {
   Loader2,
   CalendarDays,
   ChevronDown,
-} from "lucide-react";
+} from "@/lib/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MonthNavigator } from "@/components/month-navigator";
 import { useFoodCostRatio } from "@/hooks/use-food-cost-ratio";

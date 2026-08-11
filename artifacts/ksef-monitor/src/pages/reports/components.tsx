@@ -17,7 +17,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-} from "lucide-react";
+} from "@/lib/icons";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/categories";

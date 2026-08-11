@@ -24,7 +24,7 @@ import {
   Search,
   Sun,
   Moon,
-} from "lucide-react";
+} from "@/lib/icons";
 import { useUser, useClerk, useAuth } from "@clerk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";

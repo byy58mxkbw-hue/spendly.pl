@@ -62,7 +62,7 @@ import {
   ChevronRight,
   CheckSquare,
   CheckCheck,
-} from "lucide-react";
+} from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";

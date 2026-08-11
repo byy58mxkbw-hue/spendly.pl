@@ -64,7 +64,7 @@ import {
   Trash2,
   CalendarDays,
   List,
-} from "lucide-react";
+} from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 function formatMonth(ym: string): string {

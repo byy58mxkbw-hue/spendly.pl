@@ -26,7 +26,7 @@ import {
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import type { DishIngredientInput, DishDetail } from "@workspace/api-client-react";
-import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, ChevronDown, ChevronUp, Sparkles, ChevronLeft, ShoppingBag, RefreshCw } from "lucide-react";
+import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, ChevronDown, ChevronUp, Sparkles, ChevronLeft, ShoppingBag, RefreshCw } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 import { Combobox } from "@/components/ui/combobox";

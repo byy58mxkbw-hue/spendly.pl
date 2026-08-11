@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon } from "@/lib/icons";
 import type { MarketingPalette, MarketingTheme } from "@/lib/marketing-theme";
 
 /**

@@ -38,7 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Check, ChevronLeft, ChevronRight, Download, Eye, EyeOff, FileText, Layers, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Download, Eye, EyeOff, FileText, Layers, Loader2, Plus, Search, Trash2 } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";

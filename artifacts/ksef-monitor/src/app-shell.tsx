@@ -75,7 +75,7 @@ const clerkAppearance = {
     colorInput: "#2A2318",
     colorInputForeground: "#F0E9DB",
     colorNeutral: "#2A2318",
-    fontFamily: "Inter, system-ui, sans-serif",
+    fontFamily: "'Space Grotesk Variable', system-ui, sans-serif",
     borderRadius: "0.25rem",
   },
   elements: {

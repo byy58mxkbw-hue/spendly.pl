@@ -33,7 +33,7 @@ import {
   Check,
   ArrowUpRight,
   ArrowDownRight,
-} from "lucide-react";
+} from "@/lib/icons";
 import { Link } from "wouter";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
 

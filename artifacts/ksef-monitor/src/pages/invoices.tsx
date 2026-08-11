@@ -58,7 +58,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   ChevronLeft, ChevronRight, Plus, RefreshCw, Loader2, CheckCircle2, Package,
-} from "lucide-react";
+} from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
 import { ImportInvoiceDialog } from "./invoices/import-invoice-dialog";
 import { InvoiceDetailModal } from "./invoices/invoice-detail-modal";

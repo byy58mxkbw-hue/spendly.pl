@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Search, ShoppingBag } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Search, ShoppingBag } from "@/lib/icons";
 
 type SalesItem = { productName: string; qty: number; netValue: number; prevQty: number | null; qtyChangePct: number | null };
 type SalesResponse = { from: string; to: string; totalQty: number; totalNet: number; items: SalesItem[] };

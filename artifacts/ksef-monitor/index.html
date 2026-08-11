@@ -161,8 +161,9 @@
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="/fonts/inter-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
+    <!-- Fonty aplikacji (Space Grotesk + Fraunces) idą przez @fontsource w bundlu
+         CSS — mają hashowane nazwy, więc nie da się ich preloadować ze statycznej
+         ścieżki. font-display:swap trzyma tekst widoczny od pierwszej klatki. -->
   </head>
   <body>
     <div id="root">
@@ -179,7 +180,7 @@
         #skip-link:focus { left:0; }
       </style>
       <a id="skip-link" href="#main-content">Przejdź do treści</a>
-      <div style="background:radial-gradient(ellipse 90% 55% at 50% -8%, rgba(61,220,151,0.10), transparent 60%), #0B0F14;min-height:100vh;font-family:'Inter',system-ui,sans-serif;color:#F5F7FA;">
+      <div style="background:radial-gradient(ellipse 90% 55% at 50% -8%, rgba(61,220,151,0.10), transparent 60%), #0B0F14;min-height:100vh;font-family:'Space Grotesk Variable',system-ui,sans-serif;color:#F5F7FA;">
 
         <!-- NAV -->
         <header style="position:sticky;top:0;z-index:50;background:rgba(11,15,20,0.72);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,0.08);">

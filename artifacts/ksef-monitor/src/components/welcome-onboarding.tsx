@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/react";
 import { Link } from "wouter";
-import { RefreshCw, FileText, Bell, ArrowRight, Sparkles } from "lucide-react";
+import { RefreshCw, FileText, Bell, ArrowRight, Sparkles } from "@/lib/icons";
 import {
   Dialog,
   DialogContent,

@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CheckCircle2, ChevronRight, Copy, Download, FileText, LineChart, Loader2, Package, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronRight, Copy, Download, FileText, LineChart, Loader2, Package, Trash2 } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
 import { PriceHistoryModal } from "../products";
 import { useToast } from "@/hooks/use-toast";

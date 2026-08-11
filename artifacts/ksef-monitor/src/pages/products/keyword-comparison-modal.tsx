@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Layers, Search, Trophy, X } from "lucide-react";
+import { Layers, Search, Trophy, X } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type ProductItem, PriceChangeBadge, SUPPLIER_COLORS } from "./shared";

@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowRight, ScanLine, ChevronRight, Zap, FileText, ShieldCheck } from "lucide-react";
+import { ArrowRight, ScanLine, ChevronRight, Zap, FileText, ShieldCheck } from "@/lib/icons";
 import { useMarketingTheme } from "@/lib/marketing-theme";
 import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
 

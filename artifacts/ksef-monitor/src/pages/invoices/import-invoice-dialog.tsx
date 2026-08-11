@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Camera, Plus, X, Loader2, ScanLine, CheckCircle2 } from "lucide-react";
+import { Camera, Plus, X, Loader2, ScanLine, CheckCircle2 } from "@/lib/icons";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/posthog";

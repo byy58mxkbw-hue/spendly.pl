@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import { useGetPredictiveReport } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, AlertTriangle, Sparkles, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Sparkles, ArrowUpRight, ArrowDownRight } from "@/lib/icons";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 

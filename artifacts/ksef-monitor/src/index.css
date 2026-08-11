@@ -2,24 +2,9 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
-/* Inter self-hosted (variable, OFL) — zamiast Google Fonts (koniec render-blocking
-   cross-origin). font-display:swap = tekst widoczny od razu (fallback → Inter). */
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url("/fonts/inter-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: "Inter";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url("/fonts/inter-latin-ext.woff2") format("woff2");
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
+/* Fonty: Space Grotesk (UI/body) + Fraunces (liczby, nagłówki, hero).
+   Self-hosted przez @fontsource-variable (import w main.tsx) — same-origin,
+   więc zgodne z wymuszonym CSP; subsety latin + latin-ext (polskie znaki). */
 
 @custom-variant dark (&:is(.dark *));
 
@@ -83,6 +68,7 @@
 
   --font-sans: var(--app-font-sans);
   --font-serif: var(--app-font-serif);
+  --font-display: var(--app-font-display);
   --font-mono: var(--app-font-mono);
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -151,8 +137,9 @@
   --chart-4: 30 20% 62%;         /* taupe */
   --chart-5: 200 22% 55%;        /* przygaszony błękit */
 
-  --app-font-sans: 'Inter', system-ui, sans-serif;
-  --app-font-serif: Georgia, serif;
+  --app-font-sans: 'Space Grotesk Variable', system-ui, sans-serif;
+  --app-font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --app-font-serif: var(--app-font-display);
   --app-font-mono: ui-monospace, Menlo, Monaco, 'Cascadia Mono', 'Segoe UI Mono', 'Roboto Mono', 'Oxygen Mono', 'Ubuntu Monospace', 'Source Code Pro', 'Fira Mono', 'Droid Sans Mono', 'Courier New', monospace;
 
   --radius: 0.25rem;
@@ -278,6 +265,33 @@
   /* Lista „tabela redakcyjna" — wiersze rozdzielone hairline'em zamiast kart. */
   .rule-list > * + * {
     border-top: 1px solid hsl(var(--border));
+  }
+
+  /* Liczba redakcyjna — szeryf Fraunces + cyfry tabelaryczne, żeby kolumny
+     kwot się nie „skakały" przy zmianie wartości. */
+  .num {
+    font-family: var(--app-font-display);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.012em;
+  }
+
+  /* Duża liczba (KPI, cena, %) — display'owy krój Frauncesa (opsz). */
+  .num-lg {
+    font-family: var(--app-font-display);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    font-variation-settings: "opsz" 72;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+    line-height: 1.05;
+  }
+
+  /* Nagłówek redakcyjny */
+  .head-display {
+    font-family: var(--app-font-display);
+    font-variation-settings: "opsz" 48;
+    letter-spacing: -0.015em;
   }
 
   /* Etykieta sekcji / KPI — wersaliki, rozstrzelone, drobne. */

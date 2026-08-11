@@ -57,7 +57,7 @@ import {
   History,
   Check,
   LineChart,
-} from "lucide-react";
+} from "@/lib/icons";
 import { formatDate, formatPercent, formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/posthog";

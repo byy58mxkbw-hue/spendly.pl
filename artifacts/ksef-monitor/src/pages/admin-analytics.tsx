@@ -2,7 +2,7 @@ import { useAuth } from "@clerk/react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout, PageHeader } from "@/components/layout";
 import { apiUrl } from "@/lib/api-base";
-import { Loader2, ShieldAlert, BarChart3, ExternalLink } from "lucide-react";
+import { Loader2, ShieldAlert, BarChart3, ExternalLink } from "@/lib/icons";
 
 // URL osadzenia dashboardu PostHog (Dashboard → Share → "Share externally" → Embed).
 // Publiczny embed, więc trzymamy domyślny w kodzie; env VITE_POSTHOG_DASHBOARD_URL

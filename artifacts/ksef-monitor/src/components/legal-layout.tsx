@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowLeft, Sun, Moon } from "lucide-react";
+import { ArrowLeft, Sun, Moon } from "@/lib/icons";
 import { type MarketingPalette, useMarketingTheme } from "@/lib/marketing-theme";
 
 /**

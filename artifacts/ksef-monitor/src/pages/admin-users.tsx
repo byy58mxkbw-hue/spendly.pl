@@ -40,7 +40,7 @@ import {
   ChevronsUpDown,
   RefreshCw,
   Copy,
-} from "lucide-react";
+} from "@/lib/icons";
 import {
   BarChart,
   Bar,

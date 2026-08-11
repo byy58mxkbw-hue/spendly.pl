@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/error-state";
-import { ArrowLeft, Building2, Mail, Phone, FileText, Package } from "lucide-react";
+import { ArrowLeft, Building2, Mail, Phone, FileText, Package } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
 import {
   BarChart,

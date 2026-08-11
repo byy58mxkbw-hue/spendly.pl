@@ -2,7 +2,7 @@ import { useGetProductSupplierComparison, getGetProductSupplierComparisonQueryKe
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { Calendar, GitCompare, ShoppingCart, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import { Calendar, GitCompare, ShoppingCart, TrendingDown, TrendingUp, Trophy } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { SUPPLIER_COLORS } from "./shared";

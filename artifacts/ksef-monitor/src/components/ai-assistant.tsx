@@ -19,7 +19,7 @@ import {
   Trash2,
   TrendingUp,
   TrendingDown,
-} from "lucide-react";
+} from "@/lib/icons";
 
 // ─── Typy wiadomości ──────────────────────────────────────────────────────────
 

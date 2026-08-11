@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { AlertTriangle, RotateCcw } from "@/lib/icons";
 
 /**
  * Ekran błędu serwera/aplikacji (500). Renderowany przez ErrorBoundary,
