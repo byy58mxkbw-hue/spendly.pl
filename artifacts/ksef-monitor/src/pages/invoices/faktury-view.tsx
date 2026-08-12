@@ -368,7 +368,7 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
           {/* Bulk action bar */}
           {selectedIds.size > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-xl mb-2" style={{ background: "rgba(20,184,166,0.08)", border: "1px solid rgba(20,184,166,0.25)" }}>
-              <span className="text-sm text-teal-300 font-medium">{selectedIds.size} zaznaczone</span>
+              <span className="text-sm text-primary font-medium">{selectedIds.size} zaznaczone</span>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => setSelectedIds(new Set())}
@@ -380,7 +380,7 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                   onClick={handleBulkMarkPaid}
                   disabled={isMarkingPaid}
                   className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-colors disabled:opacity-50"
-                  style={{ background: "rgba(20,184,166,0.25)", color: "#5eead4", border: "1px solid rgba(20,184,166,0.35)" }}
+                  style={{ background: "rgba(20,184,166,0.25)", color: "hsl(var(--primary))", border: "1px solid rgba(20,184,166,0.35)" }}
                 >
                   {isMarkingPaid ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                   Oznacz jako zapłacone
@@ -408,7 +408,7 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                   style={allSelected
                     ? { background: "rgba(20,184,166,0.3)", border: "1px solid rgba(20,184,166,0.6)" }
                     : { border: "1px solid hsl(var(--border))" }}>
-                  {allSelected && <Check className="w-2.5 h-2.5 text-teal-300" />}
+                  {allSelected && <Check className="w-2.5 h-2.5 text-primary" />}
                 </div>
               </div>
               <div>Dostawca / Numer</div>
@@ -444,11 +444,11 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                     >
                       {isSelected ? (
                         <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: "rgba(20,184,166,0.3)", border: "1px solid rgba(20,184,166,0.6)" }}>
-                          <Check className="w-2.5 h-2.5 text-teal-300" />
+                          <Check className="w-2.5 h-2.5 text-primary" />
                         </div>
                       ) : inv.isPaid ? (
                         <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: "rgba(52,211,153,0.15)", border: "1px solid rgba(52,211,153,0.35)" }}>
-                          <Check className="w-2.5 h-2.5 text-emerald-400" />
+                          <Check className="w-2.5 h-2.5 text-positive" />
                         </div>
                       ) : (
                         <div className="w-4 h-4 rounded transition-colors hover:border-foreground/40" style={{ border: "1px solid hsl(var(--border))" }} />
@@ -459,7 +459,7 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                       <div className="flex items-center gap-1.5 min-w-0">
                         <p className="text-sm font-medium truncate text-foreground">{inv.supplierName}</p>
                         {inv.invoiceType === "KOR" && (
-                          <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded text-orange-300 leading-none" style={{ background: "rgba(251,146,60,0.18)" }}>
+                          <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded text-warning leading-none" style={{ background: "rgba(251,146,60,0.18)" }}>
                             KOREKTA
                           </span>
                         )}
@@ -469,16 +469,16 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                       <div className="flex items-center gap-2 mt-0.5 sm:hidden">
                         <span className="text-xs text-foreground/50 tabular-nums">{formatDate(inv.invoiceDate)}</span>
                         {inv.isPaid ? (
-                          <span className="text-[10px] text-emerald-400 px-1.5 py-0.5 rounded-full font-medium" style={{ background: "rgba(52,211,153,0.12)" }}>Opłacone</span>
+                          <span className="text-[10px] text-positive px-1.5 py-0.5 rounded-full font-medium" style={{ background: "rgba(52,211,153,0.12)" }}>Opłacone</span>
                         ) : inv.paymentMethod === "przelew" ? (
-                          <span className="text-[10px] text-orange-400 px-1.5 py-0.5 rounded-full font-medium" style={{ background: "rgba(251,146,60,0.12)" }}>Oczekuje</span>
+                          <span className="text-[10px] text-warning px-1.5 py-0.5 rounded-full font-medium" style={{ background: "rgba(251,146,60,0.12)" }}>Oczekuje</span>
                         ) : null}
                       </div>
                       {inv.correctedInvoiceNumber && (
-                        <p className="text-[10px] text-orange-400/70 truncate">do: {inv.correctedInvoiceNumber}</p>
+                        <p className="text-[10px] text-warning/70 truncate">do: {inv.correctedInvoiceNumber}</p>
                       )}
                       {inv.paymentMethod === "przelew" && inv.paymentDueDate && !inv.isPaid && (
-                        <p className="text-xs text-orange-400">termin: {formatDate(inv.paymentDueDate)}</p>
+                        <p className="text-xs text-warning">termin: {formatDate(inv.paymentDueDate)}</p>
                       )}
                       {costCenters.length > 0 && (
                         <div className="flex items-center gap-1 mt-0.5">
@@ -491,7 +491,7 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                             <button
                               onClick={(e) => { e.stopPropagation(); handleSetCostCenter(inv.id, inv.suggestedCostCenterId!); }}
                               className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full transition-colors"
-                              style={{ background: "rgba(20,184,166,0.12)", color: "#5eead4", border: "1px solid rgba(20,184,166,0.3)" }}
+                              style={{ background: "rgba(20,184,166,0.12)", color: "hsl(var(--primary))", border: "1px solid rgba(20,184,166,0.3)" }}
                               title="Przypisz sugerowane centrum"
                             >
                               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: inv.suggestedCostCenterColor ?? "#C4562F" }} />
@@ -518,11 +518,11 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                     </div>
                     <div className="hidden sm:flex justify-center w-20">
                       {inv.isPaid ? (
-                        <span className="text-xs text-emerald-400 px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(52,211,153,0.12)" }}>
+                        <span className="text-xs text-positive px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(52,211,153,0.12)" }}>
                           Opłacone
                         </span>
                       ) : inv.paymentMethod === "przelew" ? (
-                        <span className="text-xs text-orange-400 px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(251,146,60,0.12)" }}>
+                        <span className="text-xs text-warning px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(251,146,60,0.12)" }}>
                           Oczekuje
                         </span>
                       ) : (
@@ -574,7 +574,7 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                       </button>
                       <button
                         onClick={() => setDeleteId(inv.id)}
-                        className="w-7 h-7 flex items-center justify-center text-foreground/30 hover:text-red-400 rounded"
+                        className="w-7 h-7 flex items-center justify-center text-foreground/30 hover:text-destructive rounded"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

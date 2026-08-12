@@ -849,9 +849,10 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-6 mb-5 md:mb-10">
+    // Nagłówek redakcyjny: szeryfowy tytuł + linia działowa zamiast pustki.
+    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-6 mb-5 md:mb-8 pb-4 border-b border-border">
       <div className="min-w-0">
-        <h1 className="text-xl md:text-[2rem] font-bold text-foreground tracking-[-0.03em] leading-tight">
+        <h1 className="head-display text-2xl md:text-[2.1rem] font-semibold text-foreground leading-tight">
           {title}
         </h1>
         {subtitle && (

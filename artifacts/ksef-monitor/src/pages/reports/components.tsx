@@ -214,7 +214,7 @@ function Tile({
     <button
       type="button"
       onClick={onClick}
-      className="glass rounded-xl p-4 text-left transition-colors hover:border-primary/40 flex flex-col"
+      className="glass p-4 text-left transition-colors hover:border-primary/40 flex flex-col"
     >
       <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
       <p className="text-xl font-bold text-foreground tabular-nums mt-1 truncate">{value}</p>
@@ -378,7 +378,7 @@ export function TopSuppliersTable({
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   {s.invoiceCount} {s.invoiceCount === 1 ? "faktura" : "faktur"}
                   {avgPriceChange !== null && (
-                    <span className={cn("ml-2 font-semibold", avgPriceChange > 0 ? "text-red-500" : "text-emerald-600")}>
+                    <span className={cn("ml-2 font-semibold", avgPriceChange > 0 ? "text-destructive" : "text-positive")}>
                       {avgPriceChange > 0 ? "+" : ""}{avgPriceChange.toFixed(1)}%
                     </span>
                   )}
@@ -437,13 +437,13 @@ export function AlertsList({ onViewAll }: { onViewAll?: () => void }) {
 
         return (
           <div key={alert.alertId} className="flex items-start gap-3 px-4 md:px-5 py-3">
-            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-sm text-foreground leading-snug">
                 Cena{" "}
                 <span className="font-medium">{alert.productName}</span>{" "}
                 wzrosła o{" "}
-                <span className="font-semibold text-red-500">
+                <span className="font-semibold text-destructive">
                   +{alert.changePercent.toFixed(1)}%
                 </span>
                 {alert.supplierName ? ` u dostawcy ${alert.supplierName}` : ""}
@@ -504,7 +504,7 @@ export function RecommendationsList({ products }: { products: ProductWithImpact[
     <div className="divide-y divide-border">
       {recs.map((r, i) => (
         <div key={i} className="flex items-start gap-3 px-4 md:px-5 py-3">
-          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+          <CheckCircle2 className="w-4 h-4 text-positive shrink-0 mt-0.5" />
           <p className="text-sm text-foreground leading-snug">{r.text}</p>
         </div>
       ))}
@@ -533,7 +533,7 @@ export function SectionCard({
   className?: string;
 }) {
   return (
-    <div className={cn("glass rounded-xl overflow-hidden", className)}>
+    <div className={cn("glass overflow-hidden", className)}>
       <div className="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>
@@ -565,7 +565,7 @@ export function SupplierCard({
   const visibleProducts = supplier.topProducts.slice(0, showAll ? 15 : 5);
 
   return (
-    <div className="glass rounded-xl overflow-hidden">
+    <div className="glass overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full text-left px-4 md:px-6 pt-4 pb-3 hover:bg-secondary/20 transition-colors"
@@ -735,7 +735,7 @@ export function ProductsTable({ products }: { products: ProductWithImpact[] }) {
                           <div className="text-[10px] text-muted-foreground">z {fmtQty(p.prevMonthTotalQuantity)}</div>
                         )}
                       </td>
-                      <td className={cn("text-right px-3 py-2.5 text-xs font-medium", p.prevMonthTotalQuantity == null ? "text-muted-foreground" : p.qtyPct > 0 ? "text-amber-600" : p.qtyPct < 0 ? "text-blue-600" : "text-muted-foreground")}>{p.prevMonthTotalQuantity != null && p.prevMonthTotalQuantity > 0 ? signedPct(p.qtyPct) : "—"}</td>
+                      <td className={cn("text-right px-3 py-2.5 text-xs font-medium", p.prevMonthTotalQuantity == null ? "text-muted-foreground" : p.qtyPct > 0 ? "text-warning" : p.qtyPct < 0 ? "text-positive" : "text-muted-foreground")}>{p.prevMonthTotalQuantity != null && p.prevMonthTotalQuantity > 0 ? signedPct(p.qtyPct) : "—"}</td>
                       <td className="text-right px-5 py-2.5 text-sm font-semibold text-foreground">{formatPrice(p.totalCost)}</td>
                     </tr>
                   );
@@ -767,7 +767,7 @@ export function ProductsTable({ products }: { products: ProductWithImpact[] }) {
                     <p className="text-[11px] text-muted-foreground tabular-nums">
                       {fmtQty(p.totalQuantity)} {p.unit}
                       {p.prevMonthTotalQuantity != null && p.prevMonthTotalQuantity > 0 && (
-                        <span className={cn("ml-1 font-medium", p.qtyPct > 0 ? "text-amber-600" : p.qtyPct < 0 ? "text-blue-600" : "")}>{signedPct(p.qtyPct)}</span>
+                        <span className={cn("ml-1 font-medium", p.qtyPct > 0 ? "text-warning" : p.qtyPct < 0 ? "text-positive" : "")}>{signedPct(p.qtyPct)}</span>
                       )}
                     </p>
                     {p.prevMonthTotalQuantity != null && (
@@ -853,7 +853,7 @@ export function CategoryComparisonTable({
               <span className="text-xs text-foreground flex-1 truncate">{g.label}</span>
               <span className="text-xs text-muted-foreground tabular-nums">{pct.toFixed(1)}%</span>
               {g.trend != null ? (
-                <span className={cn("text-xs font-bold tabular-nums flex items-center gap-0.5 w-16 justify-end", g.trend > 0 ? "text-red-500" : "text-emerald-600")}>
+                <span className={cn("text-xs font-bold tabular-nums flex items-center gap-0.5 w-16 justify-end", g.trend > 0 ? "text-destructive" : "text-positive")}>
                   {g.trend > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                   {Math.abs(g.trend).toFixed(1)}%
                 </span>
@@ -912,7 +912,7 @@ export function CostCenterComparisonSection() {
                     <span
                       className={cn(
                         "text-xs font-bold flex items-center gap-0.5",
-                        up ? "text-red-500" : "text-emerald-600",
+                        up ? "text-destructive" : "text-positive",
                       )}
                     >
                       {up ? <ArrowUp className="w-2.5 h-2.5" /> : <ArrowDown className="w-2.5 h-2.5" />}
@@ -947,7 +947,7 @@ const fmtQty = (v: number) => new Intl.NumberFormat("pl-PL", { maximumFractionDi
 const signedPct = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(1)}%`);
 // Koszty: mniej = dobrze (zielony), więcej = źle (czerwony).
 const costTone = (v: number | null | undefined) =>
-  v == null ? "text-muted-foreground" : v < 0 ? "text-emerald-600" : v > 0 ? "text-destructive" : "text-muted-foreground";
+  v == null ? "text-muted-foreground" : v < 0 ? "text-positive" : v > 0 ? "text-destructive" : "text-muted-foreground";
 const spendWord = (v: number | null | undefined) =>
   v == null ? "" : v < 0 ? "mniej" : v > 0 ? "więcej" : "tyle samo";
 
@@ -958,7 +958,7 @@ export function SpendHero({ bridge, monthName }: { bridge: SpendBridge; monthNam
       ? ((bridge.currentSpend - bridge.avgMonthlySpend) / bridge.avgMonthlySpend) * 100
       : null;
   return (
-    <div className="glass rounded-xl p-5 md:p-6">
+    <div className="glass p-5 md:p-6">
       <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Wydatki · {monthName}</p>
       <p className="text-3xl md:text-4xl font-bold text-foreground tabular-nums mt-1">{formatPrice(bridge.currentSpend)}</p>
       <div className="flex flex-wrap gap-2 mt-3">
@@ -994,7 +994,7 @@ export function FoodCostHeroCard({
 }) {
   const delta = prevPct != null ? pct - prevPct : null;
   return (
-    <div className="glass rounded-xl p-5 md:p-6">
+    <div className="glass p-5 md:p-6">
       <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Realny food cost · {monthName}</p>
       <p className="text-3xl md:text-4xl font-bold text-foreground tabular-nums mt-1">{pct.toFixed(1)}%</p>
       <div className="flex flex-wrap gap-2 mt-3">
@@ -1083,7 +1083,7 @@ export function TopChangesTable({
                   <p className="tabular-nums text-foreground">{fmtQty(r.totalQuantity)}</p>
                   <p className={cn(
                     "text-[11px] font-medium tabular-nums",
-                    r.qtyPct == null ? "text-muted-foreground" : r.qtyPct > 0 ? "text-amber-600" : r.qtyPct < 0 ? "text-blue-600" : "text-muted-foreground",
+                    r.qtyPct == null ? "text-muted-foreground" : r.qtyPct > 0 ? "text-warning" : r.qtyPct < 0 ? "text-positive" : "text-muted-foreground",
                   )}>
                     {r.qtyPct == null ? "—" : signedPct(r.qtyPct)}
                   </p>

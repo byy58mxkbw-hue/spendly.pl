@@ -402,7 +402,7 @@ export default function PriceAlerts() {
                             "text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ml-2 shrink-0",
                             alert.changePercent >= 0
                               ? "bg-destructive/10 text-destructive"
-                              : "bg-emerald-500/10 text-emerald-600"
+                              : "bg-positive/10 text-positive"
                           )}
                         >
                           {alert.changePercent >= 0 ? (
@@ -456,7 +456,7 @@ export default function PriceAlerts() {
             )}
 
             {/* Configured alerts list */}
-            <div className="glass rounded-xl overflow-hidden">
+            <div className="glass overflow-hidden">
               <div className="px-4 md:px-6 py-4 border-b border-border flex items-center justify-between">
                 <h2 className="font-semibold text-foreground">
                   Skonfigurowane alerty
@@ -517,7 +517,7 @@ export default function PriceAlerts() {
                         className={cn(
                           "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
                           alert.isActive
-                            ? "bg-amber-500/10 text-amber-600"
+                            ? "bg-warning/10 text-warning"
                             : "bg-muted text-muted-foreground"
                         )}
                       >
@@ -551,7 +551,7 @@ export default function PriceAlerts() {
                       {/* Threshold badge — also clickable to edit */}
                       <button
                         onClick={() => openEdit(alert)}
-                        className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 transition-colors"
+                        className="shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-warning/10 text-warning hover:bg-warning/20 transition-colors"
                       >
                         {alert.thresholdPercent}%
                       </button>
@@ -602,7 +602,7 @@ export default function PriceAlerts() {
           </>
         ) : (
           /* History tab */
-          <div className="glass rounded-xl overflow-hidden">
+          <div className="glass overflow-hidden">
             <div className="px-4 md:px-6 py-4 border-b border-border">
               <h2 className="font-semibold text-foreground">
                 Historia potwierdzonych przekroczeń
@@ -628,7 +628,7 @@ export default function PriceAlerts() {
                         "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
                         item.changePercent >= 0
                           ? "bg-destructive/10 text-destructive"
-                          : "bg-emerald-500/10 text-emerald-600"
+                          : "bg-positive/10 text-positive"
                       )}
                     >
                       {item.changePercent >= 0 ? (
@@ -652,7 +652,7 @@ export default function PriceAlerts() {
                           "text-sm font-semibold",
                           item.changePercent >= 0
                             ? "text-destructive"
-                            : "text-emerald-600"
+                            : "text-positive"
                         )}
                       >
                         {formatPercent(item.changePercent)}

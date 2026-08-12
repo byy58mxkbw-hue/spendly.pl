@@ -208,7 +208,7 @@ function formatCurrency(value: string | number): string {
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: number | string; icon: React.ElementType }) {
   return (
-    <div className="glass rounded-xl px-5 py-4 flex items-center gap-4">
+    <div className="glass px-5 py-4 flex items-center gap-4">
       <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
         <Icon className="w-5 h-5" />
       </div>
@@ -601,7 +601,7 @@ export default function AdminUsers() {
                                 {u.blocked ? (
                                   <Badge variant="destructive" className="text-[10px]">Zablokowany</Badge>
                                 ) : (
-                                  <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200 bg-emerald-50">Aktywny</Badge>
+                                  <Badge variant="outline" className="text-[10px] text-positive border-positive/40 bg-positive/10">Aktywny</Badge>
                                 )}
                                 <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                                   {planLabel[u.plan]} · AI {u.aiUsage}{u.aiLimit != null ? `/${u.aiLimit}` : " (∞)"}
@@ -677,7 +677,7 @@ export default function AdminUsers() {
                   <StatCard label="Produkty" value={stats.totalProducts} icon={Package} />
                 </div>
 
-                <div className="glass rounded-xl p-5">
+                <div className="glass p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-4">
                     Nowe rejestracje — ostatnie 12 miesięcy
                   </h3>

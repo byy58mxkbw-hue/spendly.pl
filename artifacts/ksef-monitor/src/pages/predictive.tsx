@@ -28,12 +28,12 @@ function StatCard({
 }) {
   const toneClasses =
     tone === "up"
-      ? "bg-red-50 text-red-600"
+      ? "bg-destructive/10 text-destructive"
       : tone === "down"
-      ? "bg-emerald-50 text-emerald-600"
+      ? "bg-positive/10 text-positive"
       : "bg-primary/10 text-primary";
   return (
-    <div className="glass rounded-xl p-5 flex items-start gap-4">
+    <div className="glass p-5 flex items-start gap-4">
       <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", toneClasses)}>
         <Icon className="w-5 h-5" />
       </div>
@@ -48,9 +48,9 @@ function StatCard({
 
 function ConfidenceBadge({ confidence }: { confidence: "low" | "medium" | "high" }) {
   const map = {
-    low: { label: "niska", cls: "bg-amber-50 text-amber-700 border-amber-200" },
-    medium: { label: "średnia", cls: "bg-blue-50 text-blue-700 border-blue-200" },
-    high: { label: "wysoka", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    low: { label: "niska", cls: "bg-warning/10 text-warning border-warning/40" },
+    medium: { label: "średnia", cls: "bg-secondary text-secondary-foreground border-border" },
+    high: { label: "wysoka", cls: "bg-positive/10 text-positive border-positive/40" },
   } as const;
   const c = map[confidence];
   return (
@@ -76,13 +76,13 @@ type Row = {
 function ProductTable({ rows, direction }: { rows: Row[]; direction: "up" | "down" }) {
   if (rows.length === 0) {
     return (
-      <div className="glass rounded-xl p-8 text-center text-sm text-muted-foreground">
+      <div className="glass p-8 text-center text-sm text-muted-foreground">
         Brak danych — za mało historii cen, aby przewidzieć zmiany w tym kierunku.
       </div>
     );
   }
   return (
-    <div className="glass rounded-xl overflow-hidden">
+    <div className="glass overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -114,7 +114,7 @@ function ProductTable({ rows, direction }: { rows: Row[]; direction: "up" | "dow
                   <span
                     className={cn(
                       "inline-flex items-center gap-1 tabular-nums font-medium",
-                      direction === "up" ? "text-red-600" : "text-emerald-600",
+                      direction === "up" ? "text-destructive" : "text-positive",
                     )}
                   >
                     {direction === "up" ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
@@ -123,7 +123,7 @@ function ProductTable({ rows, direction }: { rows: Row[]; direction: "up" | "dow
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">
-                  <span className={cn(direction === "up" ? "text-red-600" : "text-emerald-600")}>
+                  <span className={cn(direction === "up" ? "text-destructive" : "text-positive")}>
                     {r.projectedMonthlyDelta > 0 ? "+" : ""}
                     {formatPrice(r.projectedMonthlyDelta)}
                   </span>
@@ -229,7 +229,7 @@ export default function Predictive() {
             {/* Top increases */}
             <div className="mb-8">
               <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="w-5 h-5 text-red-600" />
+                <TrendingUp className="w-5 h-5 text-destructive" />
                 <h2 className="text-lg font-semibold text-foreground">Największe spodziewane podwyżki</h2>
               </div>
               <ProductTable rows={data.topIncreases as Row[]} direction="up" />
@@ -238,7 +238,7 @@ export default function Predictive() {
             {/* Top decreases */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <TrendingDown className="w-5 h-5 text-emerald-600" />
+                <TrendingDown className="w-5 h-5 text-positive" />
                 <h2 className="text-lg font-semibold text-foreground">Spodziewane spadki cen</h2>
               </div>
               <ProductTable rows={data.topDecreases as Row[]} direction="down" />

@@ -111,9 +111,9 @@ export default function SettingsGopos() {
         </p>
 
         {loading ? (
-          <div className="glass rounded-xl p-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          <div className="glass p-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
         ) : (
-          <div className="glass rounded-xl p-5 md:p-6 space-y-4">
+          <div className="glass p-5 md:p-6 space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="cid">Client ID</Label>
               <Input id="cid" value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="np. 39b25186-…" />

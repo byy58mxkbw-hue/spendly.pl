@@ -127,7 +127,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invo
                 Kopiuj numer
               </button>
               {data.isPaid ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-positive/10 text-positive">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Opłacone
                 </span>
@@ -152,7 +152,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invo
             {data.items.length > 0 ? (
               <>
               {/* Desktop: tabela */}
-              <div className="hidden sm:block flex-1 min-h-0 glass rounded-xl overflow-hidden">
+              <div className="hidden sm:block flex-1 min-h-0 glass overflow-hidden">
                 <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-4 py-2.5 text-xs font-medium text-muted-foreground bg-secondary/30 border-b border-border">
                   <div>Produkt</div>
                   <div className="text-right w-20 hidden sm:block">Ilość</div>
@@ -211,7 +211,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invo
               </div>
 
               {/* Mobile: lista 2-liniowa (nazwa produktu w pełnej szerokości) */}
-              <div className="sm:hidden flex-1 min-h-0 glass rounded-xl overflow-hidden flex flex-col">
+              <div className="sm:hidden flex-1 min-h-0 glass overflow-hidden flex flex-col">
                 <div className="divide-y divide-border overflow-y-auto">
                   {data.items.map((item) => (
                     <div key={item.id} className="px-3.5 py-3 flex items-start gap-3">
@@ -252,7 +252,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invo
               </div>
               </>
             ) : (
-              <div className="py-8 text-center text-sm text-muted-foreground glass rounded-xl">
+              <div className="py-8 text-center text-sm text-muted-foreground glass">
                 <Package className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
                 Brak pozycji (zaimportowano bez XML).
               </div>

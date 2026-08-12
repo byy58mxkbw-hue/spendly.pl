@@ -18,9 +18,9 @@ import { formatPrice } from "@/lib/format";
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg text-xs">
-      <p className="text-muted-foreground mb-1 font-medium">{label}</p>
-      <p className="text-foreground font-bold">{formatPrice(payload[0]?.value ?? 0)}</p>
+    <div className="bg-card border border-border px-3 py-2 text-xs">
+      <p className="label-caps mb-1">{label}</p>
+      <p className="num text-sm font-semibold text-foreground">{formatPrice(payload[0]?.value ?? 0)}</p>
     </div>
   );
 }
@@ -67,7 +67,7 @@ export default function SpendAreaChart({
           type="monotone"
           dataKey="totalAmount"
           stroke="hsl(var(--primary))"
-          strokeWidth={2}
+          strokeWidth={1.75}
           fill="url(#spendGrad)"
           dot={false}
           activeDot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 0 }}

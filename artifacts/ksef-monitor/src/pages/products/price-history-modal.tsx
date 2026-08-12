@@ -73,7 +73,7 @@ export function PriceHistoryModal({
                 <span className="text-sm font-semibold text-foreground">{cheapest.name}</span>
                 <span className="text-sm font-bold text-primary tabular-nums">{formatPrice(cheapest.price)}</span>
                 {priciest && priciest.price > cheapest.price && (
-                  <span className="ml-auto text-[11px] text-emerald-600 font-medium">
+                  <span className="ml-auto text-[11px] text-positive font-medium">
                     taniej o {formatPrice(priciest.price - cheapest.price)} niż {priciest.name}
                   </span>
                 )}
@@ -100,7 +100,7 @@ export function PriceHistoryModal({
                     contentStyle={{
                       background: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
+                      borderRadius: "var(--radius)",
                       fontSize: "12px",
                     }}
                     formatter={(value: number, _name, props) => [

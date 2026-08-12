@@ -105,7 +105,7 @@ export function SupplierComparisonModal({
                         <p className="text-xs text-muted-foreground">/{data.unit}</p>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <TrendingDown className="w-3.5 h-3.5 text-emerald-500" />
+                        <TrendingDown className="w-3.5 h-3.5 text-positive" />
                         Min: <span className="text-foreground font-medium">{formatPrice(s.minPrice)}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -290,7 +290,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                             className="h-7 text-xs flex-1"
                           />
                           {ing.source === "estimate" && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 shrink-0" title="Cena z prognozy AI (brak faktury dla tego surowca)">szac.</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-accent-foreground shrink-0" title="Cena z prognozy AI (brak faktury dla tego surowca)">szac.</span>
                           )}
                           <Input
                             type="number"

@@ -50,7 +50,7 @@ export default function AdminAnalytics() {
             </p>
           </div>
         ) : !DASHBOARD_URL ? (
-          <div className="glass rounded-xl border border-border px-6 py-12">
+          <div className="glass border border-border px-6 py-12">
             <div className="mx-auto flex max-w-lg flex-col items-center gap-4 text-center">
               <BarChart3 className="h-8 w-8 text-primary" />
               <p className="text-sm font-medium">Dashboard PostHog nie jest jeszcze podłączony</p>

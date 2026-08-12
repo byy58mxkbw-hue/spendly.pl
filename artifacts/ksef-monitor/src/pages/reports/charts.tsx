@@ -116,7 +116,7 @@ function CategoryBarChartTooltip({
       <p className="tabular-nums text-foreground font-bold text-sm">{formatPrice(d.spend)}</p>
       <p className="text-muted-foreground mt-0.5">{d.pct.toFixed(1)}% budżetu</p>
       {d.trend != null && (
-        <p className={cn("mt-1 font-semibold", d.trend > 0 ? "text-red-500" : "text-emerald-600")}>
+        <p className={cn("mt-1 font-semibold", d.trend > 0 ? "text-destructive" : "text-positive")}>
           {d.trend > 0 ? "+" : ""}{d.trend.toFixed(1)}% vs poprz. okres
         </p>
       )}
@@ -146,7 +146,7 @@ export function CategoryBarChart() {
 
   if (isLoading) return <Skeleton className="h-80 rounded-xl" />;
   if (!groups.length) return (
-    <div className="glass rounded-xl py-16 text-center">
+    <div className="glass py-16 text-center">
       <p className="text-sm text-muted-foreground">Brak danych kategorii za {label}</p>
     </div>
   );
@@ -160,7 +160,7 @@ export function CategoryBarChart() {
   const barHeight = Math.max(260, groups.length * 44);
 
   return (
-    <div className="glass rounded-xl overflow-hidden">
+    <div className="glass overflow-hidden">
       {/* Summary header */}
       <div className="px-5 py-4 border-b border-border flex flex-wrap items-center gap-x-8 gap-y-2">
         <div>

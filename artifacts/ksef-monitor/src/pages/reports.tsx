@@ -389,7 +389,7 @@ function ReportsInner() {
           <ErrorState
             onRetry={() => refetchMonthly()}
             message="Nie udało się pobrać raportu okresu. Spróbuj ponownie."
-            className="glass rounded-xl mb-5"
+            className="glass mb-5"
           />
         )}
 
@@ -500,7 +500,7 @@ function ReportsInner() {
 
             {/* Empty state */}
             {!isLoading && (!data || data.totalSpend === 0) && (
-              <div className="glass rounded-xl py-20 text-center px-4">
+              <div className="glass py-20 text-center px-4">
                 <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-medium mb-1">
                   Brak danych za {label}
@@ -524,7 +524,7 @@ function ReportsInner() {
           <TabsContent value="centra" className="space-y-5">
             <CostCenterComparisonSection />
             {(!data || data.totalSpend === 0) && (
-              <div className="glass rounded-xl py-16 text-center px-4">
+              <div className="glass py-16 text-center px-4">
                 <p className="text-foreground font-medium mb-1">Brak danych za {label}</p>
                 <p className="text-sm text-muted-foreground">
                   Przypisz faktury do centrów kosztów, aby zobaczyć porównanie.
@@ -538,7 +538,7 @@ function ReportsInner() {
             {isLoading ? (
               <Skeleton className="h-64 rounded-xl" />
             ) : allProducts.length > 0 ? (
-              <div className="glass rounded-xl overflow-hidden">
+              <div className="glass overflow-hidden">
                 <div className="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-foreground">Produkty · {allProducts.length}</h3>
@@ -551,7 +551,7 @@ function ReportsInner() {
                 <ProductsTable products={allProducts} />
               </div>
             ) : (
-              <div className="glass rounded-xl py-20 text-center px-4">
+              <div className="glass py-20 text-center px-4">
                 <Package className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-medium mb-1">Brak produktów za {label}</p>
                 <p className="text-sm text-muted-foreground">Zaimportuj faktury, aby zobaczyć produkty.</p>
@@ -577,7 +577,7 @@ function ReportsInner() {
                 ))}
               </div>
             ) : (
-              <div className="glass rounded-xl py-20 text-center px-4">
+              <div className="glass py-20 text-center px-4">
                 <Users className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-medium mb-1">Brak dostawców za {label}</p>
               </div>

@@ -62,13 +62,13 @@ export default function Sprzedaz() {
         {loading ? (
           <Skeleton className="h-64 rounded-xl" />
         ) : empty ? (
-          <div className="glass rounded-xl py-20 text-center px-4">
+          <div className="glass py-20 text-center px-4">
             <ShoppingBag className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-foreground font-medium mb-1">Brak danych sprzedaży za {monthLabel(month)}</p>
             <p className="text-sm text-muted-foreground">Podłącz i zsynchronizuj GoPOS w ustawieniach integracji.</p>
           </div>
         ) : (
-          <div className="glass rounded-xl overflow-hidden">
+          <div className="glass overflow-hidden">
             <div className="px-4 md:px-5 py-3 border-b border-border flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-baseline gap-4">
                 <div><span className="text-xs text-muted-foreground">Pozycji</span> <span className="text-sm font-semibold">{data!.items.length}</span></div>
@@ -99,7 +99,7 @@ export default function Sprzedaz() {
                         <td className="px-5 py-2.5 max-w-[280px]"><span className="text-sm text-foreground truncate block">{it.productName}</span></td>
                         <td className="text-right px-3 py-2.5 text-sm font-medium text-foreground">{fmtQty(it.qty)}</td>
                         <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{it.prevQty != null ? fmtQty(it.prevQty) : "—"}</td>
-                        <td className={cn("text-right px-3 py-2.5 text-xs font-medium", it.qtyChangePct == null ? "text-muted-foreground" : up ? "text-amber-600" : "text-blue-600")}>
+                        <td className={cn("text-right px-3 py-2.5 text-xs font-medium", it.qtyChangePct == null ? "text-muted-foreground" : up ? "text-warning" : "text-positive")}>
                           {it.qtyChangePct == null ? "nowe" : (
                             <span className="inline-flex items-center justify-end gap-0.5">
                               {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}{Math.abs(it.qtyChangePct).toFixed(0)}%

@@ -75,9 +75,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 function catLabel(c: string) { return CATEGORY_LABELS[c] ?? c; }
 
+// Ziemista paleta motywu (te same barwy co wykresy) zamiast neonu tailwinda.
 const CAT_COLORS = [
-  "bg-teal-500", "bg-blue-500", "bg-violet-500", "bg-amber-500",
-  "bg-rose-500", "bg-emerald-500", "bg-orange-500", "bg-pink-500",
+  "bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4",
+  "bg-chart-5", "bg-primary", "bg-warning", "bg-positive",
 ];
 
 // ─── Month helpers ─────────────────────────────────────────────────────────────
@@ -116,18 +117,17 @@ const TABS: { id: Tab; label: string }[] = [
 
 function SegmentControl({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
   return (
-    <div className="inline-flex max-w-full overflow-x-auto scrollbar-none p-1 gap-0.5 rounded-full" style={{ background: "var(--elevate-2)", border: "1px solid hsl(var(--border))" }}>
+    <div className="inline-flex max-w-full overflow-x-auto scrollbar-none p-1 gap-0.5 rounded" style={{ background: "var(--elevate-2)", border: "1px solid hsl(var(--border))" }}>
       {TABS.map((t) => (
         <button
           key={t.id}
           onClick={() => onChange(t.id)}
           className={cn(
-            "shrink-0 whitespace-nowrap px-3.5 sm:px-4 h-8 rounded-full text-sm font-medium transition-all duration-200",
+            "shrink-0 whitespace-nowrap px-3.5 sm:px-4 h-8 rounded-sm text-sm font-medium transition-colors duration-150",
             active === t.id
-              ? "bg-white text-[#08111f] shadow-md"
+              ? "bg-primary text-primary-foreground"
               : "text-foreground/50 hover:text-foreground/80",
           )}
-          style={active === t.id ? { boxShadow: "0 0 12px rgba(20,184,166,0.35)" } : undefined}
         >
           {t.label}
         </button>
@@ -168,7 +168,7 @@ interface HeroProps {
 const CARD_STYLE = {
   background: "hsl(var(--card))",
   border: "1px solid hsl(var(--border))",
-  borderRadius: "20px",
+  borderRadius: "var(--radius)",
 } as const;
 
 function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierCount, prevMonthTotalAmount, biggestDay, avgDailyAmount, activeDaysCount, daysInMonth, loading, allTime }: HeroProps) {
@@ -213,7 +213,7 @@ function MonthHero({ month, onPrev, onNext, totalAmount, invoiceCount, supplierC
             <div className="mt-3 space-y-1">
               <p className="text-foreground/70 text-xs">{invoiceCount} {invoiceCount === 1 ? "zakup" : "zakupów"} · {supplierCount} {supplierCount === 1 ? "dostawca" : "dostawców"}</p>
               {changePercent !== null && (
-                <p className={cn("text-xs font-semibold", isUp ? "text-orange-400" : "text-emerald-400")}>
+                <p className={cn("text-xs font-semibold", isUp ? "text-warning" : "text-positive")}>
                   {isUp ? "+" : ""}{changePercent}% vs poprzedni miesiąc
                 </p>
               )}
@@ -301,25 +301,25 @@ function DayDrawer({
     <>
       <Sheet open={!!date} onOpenChange={(o) => { if (!o) onClose(); }}>
         <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col overflow-hidden">
-          <div className="bg-gradient-to-br from-teal-600 to-teal-700 text-white px-6 pt-8 pb-6 shrink-0">
+          <div className="bg-primary text-primary-foreground px-6 pt-8 pb-6 shrink-0">
             <SheetHeader className="text-left mb-0">
-              <p className="text-teal-200 text-sm font-normal capitalize">{date ? dayOfWeek(date) : ""}</p>
-              <SheetTitle className="text-white text-2xl font-bold capitalize">
+              <p className="text-primary-foreground/70 text-sm font-normal capitalize">{date ? dayOfWeek(date) : ""}</p>
+              <SheetTitle className="text-primary-foreground text-2xl font-semibold capitalize head-display">
                 {date ? dayLabel(date) : ""}
               </SheetTitle>
             </SheetHeader>
             {day && (
               <div className="flex gap-5 mt-4 text-sm">
                 <div>
-                  <p className="text-teal-200 text-xs">Wydatki</p>
+                  <p className="text-primary-foreground/70 text-xs">Wydatki</p>
                   <p className="font-bold text-xl tabular-nums">{formatPrice(day.totalAmount)}</p>
                 </div>
                 <div>
-                  <p className="text-teal-200 text-xs">Zakupów</p>
+                  <p className="text-primary-foreground/70 text-xs">Zakupów</p>
                   <p className="font-bold text-xl">{day.invoiceCount}</p>
                 </div>
                 <div>
-                  <p className="text-teal-200 text-xs">Dostawców</p>
+                  <p className="text-primary-foreground/70 text-xs">Dostawców</p>
                   <p className="font-bold text-xl">{day.supplierCount}</p>
                 </div>
               </div>
@@ -393,7 +393,7 @@ function DayDrawer({
                               disabled={payingIds.has(inv.id)}
                               className={cn(
                                 "text-xs mt-0.5 px-2 py-0.5 rounded-full font-medium transition-colors disabled:opacity-50 disabled:cursor-wait",
-                                inv.isPaid ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700",
+                                inv.isPaid ? "bg-positive/10 text-positive" : "bg-warning/10 text-warning",
                               )}
                             >
                               {payingIds.has(inv.id) ? "…" : inv.isPaid ? "Opłacone" : "Nieopłacone"}
@@ -476,8 +476,8 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
                   <span className={cn(
                     "inline-block text-[11px] font-medium mt-1.5 px-2 py-0.5 rounded-full",
                     comment.positive
-                      ? "text-emerald-400"
-                      : "text-orange-400",
+                      ? "text-positive"
+                      : "text-warning",
                   )}
                     style={comment.positive ? { background: "rgba(52,211,153,0.12)" } : { background: "rgba(251,146,60,0.12)" }}
                   >
@@ -525,10 +525,10 @@ function ZakupyView({ month, onDayClick }: { month: string; onDayClick: (date: s
 
 const HEAT_CLASSES = [
   "bg-foreground/[0.04]",
-  "bg-teal-900/70",
-  "bg-teal-700/80",
-  "bg-teal-500/90",
-  "bg-teal-400",
+  "bg-primary/25",
+  "bg-primary/45",
+  "bg-primary/70",
+  "bg-primary",
 ];
 const DOW_LABELS = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
 
@@ -594,12 +594,12 @@ function KalendarzView({ month, onDayClick }: { month: string; onDayClick: (date
                 info ? "hover:scale-105 hover:shadow-md cursor-pointer" : "cursor-default",
               )}
             >
-              <span className={cn("text-xs font-semibold leading-tight", level >= 3 ? "text-white" : "text-foreground/50")}>
+              <span className={cn("text-xs font-semibold leading-tight", level >= 3 ? "text-primary-foreground" : "text-foreground/50")}>
                 {cell.dayNum}
               </span>
               {info && info.invoiceCount > 0 && (
                 <>
-                  <span className={cn("text-[9px] font-bold leading-tight", level >= 3 ? "text-foreground/80" : "text-teal-600")}>
+                  <span className={cn("text-[9px] font-bold leading-tight", level >= 3 ? "text-foreground/80" : "text-primary")}>
                     {info.invoiceCount} zak.
                   </span>
                   <span className={cn("text-[9px] leading-tight tabular-nums", level >= 2 ? "text-foreground/70" : "text-foreground/40")}>
@@ -660,7 +660,7 @@ function PlatnosciView({
   if (total === 0) {
     return (
       <div className="py-24 text-center">
-        <CheckCircle2 className="w-14 h-14 mx-auto mb-3 text-emerald-400" />
+        <CheckCircle2 className="w-14 h-14 mx-auto mb-3 text-positive" />
         <p className="text-foreground font-semibold text-lg">Wszystkie płatności uregulowane</p>
         <p className="text-sm text-foreground/40 mt-1">Brak zaległych przelewów bankowych</p>
       </div>

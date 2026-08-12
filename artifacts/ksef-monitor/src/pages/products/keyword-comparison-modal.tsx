@@ -201,7 +201,7 @@ export function KeywordComparisonModal({
                 <div className="bg-secondary/40 rounded-lg px-4 py-3 flex items-center justify-between gap-4 text-sm">
                   <span className="text-muted-foreground">Rozpiętość cen:</span>
                   <span>
-                    <strong className="text-emerald-600">{formatPrice(minP)}</strong>
+                    <strong className="text-positive">{formatPrice(minP)}</strong>
                     <span className="text-muted-foreground mx-2">—</span>
                     <strong className="text-destructive">{formatPrice(maxP)}</strong>
                     <span className="text-xs text-muted-foreground ml-2">

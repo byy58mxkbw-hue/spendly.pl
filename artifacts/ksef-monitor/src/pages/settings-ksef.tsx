@@ -141,7 +141,7 @@ export default function SettingsKsef() {
           subtitle="Skonfiguruj integrację z Krajowym Systemem e-Faktur (Produkcja)"
         />
 
-        <div className="glass rounded-xl p-6 mb-6">
+        <div className="glass p-6 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-primary" />
             Aktualna konfiguracja
@@ -259,7 +259,7 @@ export default function SettingsKsef() {
         </div>
 
         {config && (
-          <div className="glass rounded-xl p-6 mb-6">
+          <div className="glass p-6 mb-6">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -308,7 +308,7 @@ export default function SettingsKsef() {
           </div>
         )}
 
-        <form onSubmit={onSave} className="glass rounded-xl p-6 space-y-4">
+        <form onSubmit={onSave} className="glass p-6 space-y-4">
           <h2 className="text-sm font-semibold text-foreground">
             {config ? "Zaktualizuj token" : "Skonfiguruj integrację"}
           </h2>
@@ -361,7 +361,7 @@ export default function SettingsKsef() {
           </div>
         </form>
 
-        <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="mt-6 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
           <p className="font-medium mb-1">Bezpieczeństwo</p>
           <p className="text-xs">
             Token nie jest nigdy przesyłany z powrotem na frontend w pełnej postaci. Maskujemy go
@@ -380,7 +380,7 @@ export default function SettingsKsef() {
                 <p>
                   Ta opcja kasuje punkt startowy i pobiera faktury <strong>od {config?.syncFromDate ? new Date(config.syncFromDate).toLocaleDateString("pl-PL") : "1 lutego 2026"}</strong>{!config?.syncFromDate && " (start obowiązkowego KSeF)"}.
                 </p>
-                <p className="text-amber-700 font-medium">
+                <p className="text-warning font-medium">
                   KSeF ogranicza liczbę zapytań. Jeśli limit zostanie przekroczony, synchronizacja zostanie wstrzymana na ok. 1 godzinę.
                 </p>
                 <p>

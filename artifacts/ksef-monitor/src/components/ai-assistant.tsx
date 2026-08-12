@@ -82,7 +82,7 @@ function AssistantBubble({ data, onNavigate }: { data: AiCfoChatResponse; onNavi
               {k.delta && (
                 <p className={cn(
                   "text-[10px] font-semibold flex items-center gap-0.5",
-                  k.deltaPositive ? "text-emerald-600" : "text-destructive",
+                  k.deltaPositive ? "text-positive" : "text-destructive",
                 )}>
                   {k.deltaPositive ? <TrendingDown className="w-2.5 h-2.5" /> : <TrendingUp className="w-2.5 h-2.5" />}
                   {k.delta}
@@ -261,7 +261,7 @@ export function AiAssistant() {
                 AI Asystent
               </SheetTitle>
               <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                <span className="w-1.5 h-1.5 rounded-full bg-positive inline-block" />
                 Analizuje Twoje faktury i ceny
               </p>
             </div>
@@ -272,7 +272,7 @@ export function AiAssistant() {
                   usage.used >= usage.limit
                     ? "bg-destructive/15 text-destructive"
                     : usage.used / usage.limit >= 0.8
-                      ? "bg-amber-500/15 text-amber-600"
+                      ? "bg-warning/15 text-warning"
                       : "bg-secondary text-muted-foreground",
                 )}
                 title="Zużycie AI w tym miesiącu (czat + skany faktur)"

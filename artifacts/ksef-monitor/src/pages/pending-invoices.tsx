@@ -164,7 +164,7 @@ function SupplierTile({
         : "faktur";
 
   return (
-    <div className="glass rounded-xl shadow-sm overflow-hidden">
+    <div className="glass shadow-sm overflow-hidden">
       {/* Header — clickable div for expand, with separate action buttons */}
       <div
         className="px-4 py-3.5 md:px-5 md:py-4 flex items-start gap-3 md:gap-4 hover:bg-muted/30 transition-colors cursor-pointer"
@@ -185,7 +185,7 @@ function SupplierTile({
                 Znany
               </span>
             ) : (
-              <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shrink-0 mt-0.5">
+              <span className="inline-flex text-[10px] font-medium px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/40 shrink-0 mt-0.5">
                 Nowy
               </span>
             )}
@@ -325,10 +325,10 @@ function SupplierTile({
 
 const HEAT_CLASSES = [
   "bg-foreground/[0.04]",
-  "bg-teal-900/70",
-  "bg-teal-700/80",
-  "bg-teal-500/90",
-  "bg-teal-400",
+  "bg-primary/25",
+  "bg-primary/45",
+  "bg-primary/70",
+  "bg-primary",
 ];
 const DOW_LABELS = ["Pon", "Wt", "Śr", "Czw", "Pt", "Sob", "Nd"];
 
@@ -382,7 +382,7 @@ function PendingCalendarView({
   ];
 
   return (
-    <div className="glass rounded-xl p-4 md:p-5">
+    <div className="glass p-4 md:p-5">
       <div className="grid grid-cols-7 gap-1 mb-1">
         {DOW_LABELS.map((d) => (
           <div key={d} className="text-center text-xs text-foreground/40 font-medium py-1">{d}</div>
@@ -407,12 +407,12 @@ function PendingCalendarView({
                 isSelected && "ring-2 ring-primary ring-offset-1 ring-offset-background",
               )}
             >
-              <span className={cn("text-xs font-semibold leading-tight", level >= 3 ? "text-white" : "text-foreground/50")}>
+              <span className={cn("text-xs font-semibold leading-tight", level >= 3 ? "text-primary-foreground" : "text-foreground/50")}>
                 {cell.dayNum}
               </span>
               {info && info.count > 0 && (
                 <>
-                  <span className={cn("text-[9px] font-bold leading-tight", level >= 3 ? "text-foreground/80" : "text-teal-600")}>
+                  <span className={cn("text-[9px] font-bold leading-tight", level >= 3 ? "text-foreground/80" : "text-primary")}>
                     {info.count} fakt.
                   </span>
                   <span className={cn("text-[9px] leading-tight tabular-nums", level >= 2 ? "text-foreground/70" : "text-foreground/40")}>
@@ -722,7 +722,7 @@ export default function PendingInvoices() {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="glass rounded-xl p-5 space-y-3">
+              <div key={i} className="glass p-5 space-y-3">
                 <div className="flex items-center gap-3">
                   <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
                   <div className="flex-1 space-y-1.5">
@@ -735,7 +735,7 @@ export default function PendingInvoices() {
             ))}
           </div>
         ) : (pending?.length ?? 0) === 0 ? (
-          <div className="glass rounded-xl py-16 text-center">
+          <div className="glass py-16 text-center">
             <Inbox className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-foreground font-medium mb-1">
               {status === "pending"
@@ -845,7 +845,7 @@ export default function PendingInvoices() {
                   </div>
                 )}
                 {groups.length === 0 ? (
-                  <div className="glass rounded-xl py-12 text-center">
+                  <div className="glass py-12 text-center">
                     <Inbox className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
                     <p className="text-foreground font-medium mb-1">
                       {selectedDay ? "Brak faktur w wybranym dniu" : "Brak faktur w tym miesiącu"}
@@ -1513,7 +1513,7 @@ function PendingDetailDialog({
                                 setMapping((m) => ({ ...m, [i]: v }));
                                 setShowNewProduct((prev) => ({ ...prev, [i]: false }));
                               }}
-                              className={cn("w-52", !isMapped && "border-amber-300")}
+                              className={cn("w-52", !isMapped && "border-warning/40")}
                               placeholder="Wybierz produkt"
                               searchPlaceholder="Szukaj produktu..."
                               emptyText="Brak produktów."

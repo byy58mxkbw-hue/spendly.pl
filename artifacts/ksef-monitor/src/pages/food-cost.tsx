@@ -238,7 +238,7 @@ function EditIngredientRow({
         {liveCost != null ? (
           <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{fmt(liveCost)}</span>
         ) : (
-          <span className="text-[10px] text-amber-600 shrink-0">brak ceny</span>
+          <span className="text-[10px] text-warning shrink-0">brak ceny</span>
         )}
       </div>
 
@@ -551,15 +551,15 @@ function IngredientDetailCard({
             {ing.ingredientCost != null ? (
               <span className="text-sm font-semibold text-foreground flex items-center gap-1">
                 {ing.priceSource === "estimate" && (
-                  <span className="text-[10px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium" title="Prognoza ceny AI (brak faktury)">szac.</span>
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-secondary text-accent-foreground font-medium" title="Prognoza ceny AI (brak faktury)">szac.</span>
                 )}
                 {ing.priceSource === "manual" && (
-                  <span className="text-[10px] px-1 py-0.5 rounded bg-violet-500/10 text-violet-600 font-medium" title="Cena przypisana ręcznie">ręczna</span>
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium" title="Cena przypisana ręcznie">ręczna</span>
                 )}
                 {fmt(ing.ingredientCost)}
               </span>
             ) : (
-              <span className="text-[11px] text-amber-600 flex items-center gap-1">
+              <span className="text-[11px] text-warning flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" /> brak ceny
               </span>
             )}
@@ -946,7 +946,7 @@ function DishCard({
           </span>
         )}
         {dish.portionCost == null && dish.confidencePct < 100 && (
-          <span className="text-[10px] text-amber-600 flex items-center gap-1">
+          <span className="text-[10px] text-warning flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" /> niekompletne
           </span>
         )}
@@ -1071,7 +1071,7 @@ export default function FoodCostPage() {
 
         {/* GoPOS: prawdziwy food cost % ważony sprzedażą */}
         {hasGopos && salesData && (
-          <div className="glass rounded-xl p-4">
+          <div className="glass p-4">
             <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-1.5">
                 <ShoppingBag className="w-4 h-4 text-primary shrink-0" />
@@ -1108,7 +1108,7 @@ export default function FoodCostPage() {
             <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
               <span className="text-[11px] text-muted-foreground">
                 Powiązane: <b className="text-foreground">{matchedCount}</b>/{dishes.length} dań
-                {dishes.length - matchedCount > 0 && <> · <b className="text-amber-600">{dishes.length - matchedCount}</b> bez sprzedaży</>}
+                {dishes.length - matchedCount > 0 && <> · <b className="text-warning">{dishes.length - matchedCount}</b> bez sprzedaży</>}
               </span>
               <button
                 onClick={() => setOnlyUnmatched((v) => !v)}

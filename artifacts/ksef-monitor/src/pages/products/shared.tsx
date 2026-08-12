@@ -37,7 +37,7 @@ export function PriceChangeBadge({ change }: { change: number | null | undefined
       className={cn(
         "inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
         up && "bg-destructive/10 text-destructive",
-        down && "bg-emerald-500/10 text-emerald-600",
+        down && "bg-positive/10 text-positive",
         !up && !down && "bg-muted text-muted-foreground"
       )}
       data-testid="price-change-badge"

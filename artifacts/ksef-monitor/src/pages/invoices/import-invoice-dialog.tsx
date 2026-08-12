@@ -347,9 +347,9 @@ export function ImportInvoiceDialog({
               </div>
 
               {isCorrection ? (
-                <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-3 space-y-2">
+                <div className="rounded-xl border border-warning/20 bg-warning/5 p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-orange-600">Faktura korygująca</p>
+                    <p className="text-xs font-semibold text-warning">Faktura korygująca</p>
                     <button
                       type="button"
                       onClick={() => { setIsCorrection(false); setCorrectedInvoiceNumber(""); }}
@@ -468,7 +468,7 @@ export function ImportInvoiceDialog({
                     </Button>
                   )}
                   {scannedData && (
-                    <div className="text-xs text-emerald-600 flex items-center gap-1.5 bg-emerald-50 rounded-lg px-3 py-2">
+                    <div className="text-xs text-positive flex items-center gap-1.5 bg-positive/10 rounded-lg px-3 py-2">
                       <CheckCircle2 className="w-4 h-4 shrink-0" />
                       Rozpoznano {scannedData.items.length} pozycji
                     </div>

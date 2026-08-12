@@ -517,8 +517,8 @@ export default function Products() {
                   className={cn(
                     "shrink-0 gap-1.5 text-xs",
                     showNeedsReview
-                      ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white"
-                      : "border-amber-300 text-amber-600 hover:bg-amber-50"
+                      ? "bg-warning hover:bg-warning border-warning text-white"
+                      : "border-warning/40 text-warning hover:bg-warning/10"
                   )}
                   onClick={() => { setShowNeedsReview((v) => !v); clearSelection(); }}
                   title="Produkty wymagające weryfikacji kategorii"
@@ -527,7 +527,7 @@ export default function Products() {
                   Do weryfikacji
                   <span className={cn(
                     "inline-flex items-center justify-center rounded-full text-[10px] font-bold w-4 h-4",
-                    showNeedsReview ? "bg-white/20 text-white" : "bg-amber-100 text-amber-700"
+                    showNeedsReview ? "bg-white/20 text-white" : "bg-warning/10 text-warning"
                   )}>
                     {needsReviewCount}
                   </span>
@@ -536,7 +536,7 @@ export default function Products() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="shrink-0 gap-1.5 text-xs border-amber-300 text-amber-600 hover:bg-amber-50"
+                    className="shrink-0 gap-1.5 text-xs border-warning/40 text-warning hover:bg-warning/10"
                     onClick={selectedIds.size === reviewableIds.length ? clearSelection : selectAllReviewable}
                   >
                     <CheckSquare className="w-3.5 h-3.5" />
@@ -650,7 +650,7 @@ export default function Products() {
         )}
 
         {/* Mobile card list */}
-        <div className="md:hidden glass rounded-xl overflow-hidden">
+        <div className="md:hidden glass overflow-hidden">
           {isLoading ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 7 }).map((_, i) => (
@@ -694,7 +694,7 @@ export default function Products() {
                         <Checkbox
                           checked={selectedIds.has(product.id)}
                           onCheckedChange={() => {}}
-                          className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                          className="border-warning/40 data-[state=checked]:bg-warning data-[state=checked]:border-warning"
                         />
                       </div>
                     )}
@@ -708,7 +708,7 @@ export default function Products() {
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-medium text-foreground leading-snug truncate">{product.name}</p>
                         {product.needsReview && (
-                          <span className="inline-flex items-center gap-0.5 shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">
+                          <span className="inline-flex items-center gap-0.5 shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning">
                             <AlertTriangle className="w-2.5 h-2.5" />
                             Do weryfikacji
                           </span>
@@ -792,7 +792,7 @@ export default function Products() {
         </div>
 
         {/* Desktop table */}
-        <div className="hidden md:block glass rounded-xl overflow-x-auto">
+        <div className="hidden md:block glass overflow-x-auto">
           <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 px-6 min-w-[860px] py-3 border-b border-border text-xs font-medium text-muted-foreground bg-secondary/30">
             <div>Produkt</div>
             <div className="text-right w-28">Ostatnia cena</div>
@@ -845,7 +845,7 @@ export default function Products() {
                         <Checkbox
                           checked={selectedIds.has(product.id)}
                           onCheckedChange={() => {}}
-                          className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                          className="border-warning/40 data-[state=checked]:bg-warning data-[state=checked]:border-warning"
                         />
                       </div>
                     )}
@@ -853,7 +853,7 @@ export default function Products() {
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-medium text-foreground">{product.name}</p>
                         {product.needsReview && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning">
                             <AlertTriangle className="w-2.5 h-2.5" />
                             Do weryfikacji
                           </span>
@@ -970,8 +970,8 @@ export default function Products() {
 
         {/* Floating bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="fixed z-50 flex flex-wrap items-center justify-center gap-2 md:gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-amber-400/30 bg-background/95 backdrop-blur-sm left-3 right-3 md:left-1/2 md:right-auto md:-translate-x-1/2 bottom-[calc(4.25rem_+_env(safe-area-inset-bottom))] md:bottom-6">
-            <span className="text-sm font-medium text-amber-600 dark:text-amber-400 w-full text-center md:w-auto">
+          <div className="fixed z-50 flex flex-wrap items-center justify-center gap-2 md:gap-3 px-4 py-3 rounded-2xl shadow-2xl border border-warning/30 bg-background/95 backdrop-blur-sm left-3 right-3 md:left-1/2 md:right-auto md:-translate-x-1/2 bottom-[calc(4.25rem_+_env(safe-area-inset-bottom))] md:bottom-6">
+            <span className="text-sm font-medium text-warning dark:text-warning w-full text-center md:w-auto">
               Zaznaczono: {selectedIds.size}
             </span>
             <Button
@@ -985,7 +985,7 @@ export default function Products() {
             </Button>
             <Button
               size="sm"
-              className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border-0"
+              className="gap-1.5 bg-warning hover:bg-warning text-white border-0"
               onClick={handleBulkVerify}
               disabled={bulkVerify.isPending}
             >
