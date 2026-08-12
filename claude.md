@@ -169,7 +169,7 @@ linie działowe zamiast morza zaokrąglonych kart. Jedna sygnaturowa barwa — t
 
 **Reszta**
 - Komponenty: shadcn/ui (czytają tokeny — zmiana palety propaguje się sama)
-- **Bez emoji w UI** (emoji są tylko w kategoriach produktów w categories.ts)
+- **Bez emoji w UI — również w kategoriach.** Kategorie produktów mają kreskowe ikony Phosphora: `CategoryIcon` / `categoryIcon()` z `lib/category-icons.tsx`, mapowane po ID kategorii (własne kategorie użytkownika dostają fallback). Pole `emoji` w `categories.ts` i w API zostało, ale **nic go już nie renderuje** — nie wracaj do niego (emoji renderują się fontem systemowym, każdy system inaczej, i ciągną „look AI").
 - Responsywność: mobile-first, osobne układy dla md: breakpoint
 - Motion: 120–160ms, bez bounce; `prefers-reduced-motion` respektowane
 - Copy: liczby po ludzku („12,4% więcej niż w tym samym okresie"), kierunek niesie strzałka więc liczba bez znaku; sentence case, bez wykrzykników

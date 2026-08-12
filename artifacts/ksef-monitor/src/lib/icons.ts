@@ -113,6 +113,25 @@ export {
   Truck,
   Users,
   ForkKnife as UtensilsCrossed,
+
+  // Ikony kategorii produktów (patrz lib/category-icons.tsx). Zastąpiły emoji —
+  // emoji ciągnęły „look AI" i odstawały od reszty interfejsu.
+  Acorn,
+  Bread,
+  Cake,
+  Carrot,
+  Cheese,
+  Cow,
+  Cube,
+  Drop,
+  Egg,
+  Fish,
+  Jar,
+  PintGlass,
+  Snowflake,
+  SprayBottle,
+  Toolbox,
+  Wine,
 } from "@phosphor-icons/react";
 
 export type { Icon as IconComponent, IconProps } from "@phosphor-icons/react";

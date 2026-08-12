@@ -45,6 +45,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Building2, Phone, Mail, ChevronRight, Trash2, Layers, RotateCcw, Tag } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
+import { CategoryIcon } from "@/lib/category-icons";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -411,7 +412,7 @@ export default function Suppliers() {
                               <Tag className="w-3 h-3 shrink-0" />
                               {supplier.defaultCategory ? (
                                 <span className="truncate max-w-[110px]">
-                                  {allCategories.find((c) => c.id === supplier.defaultCategory)?.emoji}{" "}
+                                  <CategoryIcon categoryId={supplier.defaultCategory} className="w-3 h-3 inline-block mr-1 align-[-1px]" />
                                   {allCategories.find((c) => c.id === supplier.defaultCategory)?.label ?? supplier.defaultCategory}
                                 </span>
                               ) : (
@@ -437,7 +438,7 @@ export default function Suppliers() {
                                     className={cn(supplier.defaultCategory === cat.id && "text-primary")}
                                     onClick={() => handleSetDefaultCategory(supplier.id, cat.id)}
                                   >
-                                    <span className="mr-2">{cat.emoji}</span>
+                                    <CategoryIcon categoryId={cat.id} className="w-4 h-4 mr-2 shrink-0" />
                                     {cat.label}
                                   </DropdownMenuItem>
                                 ))}
@@ -451,7 +452,7 @@ export default function Suppliers() {
                                 className={cn(supplier.defaultCategory === cat.id && "text-primary")}
                                 onClick={() => handleSetDefaultCategory(supplier.id, cat.id)}
                               >
-                                <span className="mr-2">{cat.emoji}</span>
+                                <CategoryIcon categoryId={cat.id} className="w-4 h-4 mr-2 shrink-0" />
                                 {cat.label}
                               </DropdownMenuItem>
                             ))}

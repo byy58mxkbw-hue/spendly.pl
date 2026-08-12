@@ -64,6 +64,7 @@ import {
   CheckCheck,
 } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
+import { CategoryIcon } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import { PriceChangeBadge } from "./products/shared";
@@ -294,14 +295,14 @@ export default function Products() {
       map[catId] = (map[catId] ?? 0) + item.totalSpend;
     }
     const totalSpend = Object.values(map).reduce((s, v) => s + v, 0);
-    const allCatDefs: Record<string, { label: string; emoji: string }> = Object.fromEntries(
-      [...(categories ?? []), { id: "inne", label: "Inne", emoji: "📦", isCustom: false }].map((c) => [c.id, c])
+    // Ikonę dobiera CategoryIcon po `id` (lib/category-icons.tsx) — tu wystarczy etykieta.
+    const allCatDefs: Record<string, { label: string }> = Object.fromEntries(
+      [...(categories ?? []), { id: "inne", label: "Inne" }].map((c) => [c.id, c])
     );
     return Object.entries(map)
       .map(([id, spend]) => ({
         id,
         label: allCatDefs[id]?.label ?? "Inne",
-        emoji: allCatDefs[id]?.emoji ?? "📦",
         spend,
         pct: totalSpend > 0 ? (spend / totalSpend) * 100 : 0,
       }))
@@ -357,7 +358,7 @@ export default function Products() {
                   onClick={() => setCategoryFilter(categoryFilter === cat.id ? "all" : cat.id)}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-base leading-none">{cat.emoji}</span>
+                    <CategoryIcon categoryId={cat.id} className="w-4 h-4 shrink-0 text-muted-foreground" />
                     <span className={cn(
                       "text-[11px] font-semibold tabular-nums",
                       categoryFilter === cat.id ? "text-primary" : "text-muted-foreground"
@@ -399,7 +400,7 @@ export default function Products() {
                   title={`Kliknij, aby filtrować po kategorii ${cat.label}`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-base leading-none">{cat.emoji}</span>
+                    <CategoryIcon categoryId={cat.id} className="w-4 h-4 shrink-0 text-muted-foreground" />
                     <span className="text-xs font-semibold text-muted-foreground tabular-nums">
                       {cat.pct.toFixed(1)}%
                     </span>
@@ -636,7 +637,7 @@ export default function Products() {
                 )}
                 onClick={() => setCategoryFilter(categoryFilter === cat.id ? "all" : cat.id)}
               >
-                <span>{cat.emoji}</span>
+                <CategoryIcon categoryId={cat.id} className="w-3.5 h-3.5 shrink-0" />
                 <span>{cat.label}</span>
                 <span className={cn(
                   "text-xs rounded-full px-1.5 py-0.5 font-semibold",
@@ -700,7 +701,7 @@ export default function Products() {
                     )}
                     {/* Category icon */}
                     <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-base shrink-0 select-none">
-                      {catDef ? catDef.emoji : "📦"}
+                      <CategoryIcon categoryId={catDef?.id ?? "inne"} className="w-4 h-4 text-muted-foreground" />
                     </div>
 
                     {/* Name + meta */}
@@ -1050,7 +1051,7 @@ export default function Products() {
                       : "border-border hover:border-primary/50"
                   )}
                 >
-                  <span className="text-lg mr-1">{cat.emoji}</span>
+                  <CategoryIcon categoryId={cat.id} className="w-4 h-4 mr-1.5 shrink-0" />
                   <span className="font-medium">{cat.label}</span>
                 </button>
               ))}

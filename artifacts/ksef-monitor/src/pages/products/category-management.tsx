@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Pencil, Plus, Trash2 } from "@/lib/icons";
+import { CategoryIcon } from "@/lib/category-icons";
 
 export function CreateCategoryModal({
   onClose,
@@ -234,7 +235,7 @@ export function CategoryBadge({
           >
             {def ? (
               <>
-                <span>{def.emoji}</span>
+                <CategoryIcon categoryId={def.id} className="w-3.5 h-3.5 shrink-0" />
                 <span>{def.label}</span>
               </>
             ) : (
@@ -253,7 +254,7 @@ export function CategoryBadge({
               onSelect={() => handleSelect(cat.id)}
               className={cn(effectiveId === cat.id && "bg-secondary")}
             >
-              <span className="mr-2">{cat.emoji}</span>
+              <CategoryIcon categoryId={cat.id} className="w-4 h-4 mr-2 shrink-0" />
               {cat.label}
             </DropdownMenuItem>
           ))}
@@ -277,7 +278,7 @@ export function CategoryBadge({
                   className={cn("group flex items-center justify-between pr-1", effectiveId === cat.id && "bg-secondary")}
                 >
                   <span className="flex items-center gap-2 flex-1 min-w-0">
-                    <span>{cat.emoji}</span>
+                    <CategoryIcon categoryId={cat.id} className="w-4 h-4 shrink-0" />
                     <span className="truncate">{cat.label}</span>
                   </span>
                   <span className="flex items-center gap-0.5 ml-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
