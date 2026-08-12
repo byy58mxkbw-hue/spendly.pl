@@ -34,12 +34,12 @@ Pominięcie składek pracodawcy albo własnej pracy to najczęstszy błąd — w
 <title id="lcT">Typowy poziom kosztów pracy w gastronomii</title>
 <desc id="lcD">Na skali od 0 do 50 procent przychodu koszt pracy w restauracji mieści się zwykle w przedziale od 25 do 35 procent.</desc>
 <rect x="0" y="42" width="560" height="16" rx="8" fill="#2a3542"/>
-<rect x="280" y="42" width="112" height="16" rx="8" fill="#3DDC97"/>
+<rect x="280" y="42" width="112" height="16" rx="8" fill="#E06A3C"/>
 <text x="0" y="30" fill="#6b7683" font-family="sans-serif" font-size="12">0%</text>
 <text x="530" y="30" fill="#6b7683" font-family="sans-serif" font-size="12">50%</text>
-<text x="268" y="30" fill="#3DDC97" font-family="sans-serif" font-size="13" font-weight="800">25%</text>
-<text x="380" y="30" fill="#3DDC97" font-family="sans-serif" font-size="13" font-weight="800">35%</text>
-<text x="248" y="82" fill="#9BA6B2" font-family="sans-serif" font-size="13">Bezpieczny zakres</text>
+<text x="268" y="30" fill="#E06A3C" font-family="sans-serif" font-size="13" font-weight="800">25%</text>
+<text x="380" y="30" fill="#E06A3C" font-family="sans-serif" font-size="13" font-weight="800">35%</text>
+<text x="248" y="82" fill="#9C8F79" font-family="sans-serif" font-size="13">Bezpieczny zakres</text>
 </svg>
 <figcaption>W większości lokali koszt pracy mieści się w przedziale 25–35% przychodu. Powyżej 35% marża zwykle znika.</figcaption>
 </figure>

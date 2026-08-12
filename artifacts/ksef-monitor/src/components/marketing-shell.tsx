@@ -28,17 +28,17 @@ export function MarketingNavBar({
           <button
             onClick={onToggle}
             aria-label={theme === "light" ? "Włącz tryb ciemny" : "Włącz tryb jasny"}
-            style={{ width: 36, height: 36, display: "grid", placeItems: "center", borderRadius: 8, background: "none", border: `1px solid ${c.border}`, color: c.muted, cursor: "pointer" }}
+            style={{ width: 36, height: 36, display: "grid", placeItems: "center", borderRadius: 3, background: "none", border: `1px solid ${c.border}`, color: c.muted, cursor: "pointer" }}
           >
             {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
           </button>
           <Link href="/sign-in">
-            <button style={{ padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "none", border: `1px solid ${c.border}`, color: c.muted, cursor: "pointer" }}>
+            <button style={{ padding: "7px 16px", borderRadius: 3, fontSize: 13, fontWeight: 500, background: "none", border: `1px solid ${c.border}`, color: c.muted, cursor: "pointer" }}>
               Zaloguj
             </button>
           </Link>
           <Link href="/sign-up">
-            <button style={{ padding: "7px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, background: c.accent, border: "none", color: c.onAccent, cursor: "pointer" }}>
+            <button style={{ padding: "7px 16px", borderRadius: 3, fontSize: 13, fontWeight: 600, background: c.accent, border: "none", color: c.onAccent, cursor: "pointer" }}>
               Rozpocznij za darmo
             </button>
           </Link>

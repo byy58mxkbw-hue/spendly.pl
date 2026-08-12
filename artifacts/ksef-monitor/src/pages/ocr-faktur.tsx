@@ -14,7 +14,7 @@ export default function OcrFakturPage() {
       {/* HERO */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "72px 24px 80px" }}>
         <div style={{ maxWidth: 680 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 999, border: `1px solid ${c.accentDim}`, background: c.accentDim, color: c.accentText, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 2, border: `1px solid ${c.accentDim}`, background: c.accentDim, color: c.accentText, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>
             <ScanLine size={12} style={{ color: c.accent }} />
             OCR faktur dla gastronomii
           </div>
@@ -27,12 +27,12 @@ export default function OcrFakturPage() {
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link href="/sign-up">
-              <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 600, background: c.accent, color: "#06231a", border: "none", cursor: "pointer" }}>
+              <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 3, fontSize: 14, fontWeight: 600, background: c.accent, color: c.onAccent, border: "none", cursor: "pointer" }}>
                 Wypróbuj za darmo <ArrowRight size={16} />
               </button>
             </Link>
             <Link href="/ksef">
-              <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 500, background: "none", border: `1px solid ${c.border}`, color: c.text, cursor: "pointer" }}>
+              <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 3, fontSize: 14, fontWeight: 500, background: "none", border: `1px solid ${c.border}`, color: c.text, cursor: "pointer" }}>
                 Integracja KSeF
               </button>
             </Link>
@@ -55,7 +55,7 @@ export default function OcrFakturPage() {
               { num: "02", title: "AI rozpoznaje dane automatycznie", desc: "System AI odczytuje: nazwę dostawcy, pozycje produktów, ceny jednostkowe, ilości, stawki VAT i datę faktury. Proces trwa ok. 15 sekund." },
               { num: "03", title: "Dane trafiają do Twojej bazy", desc: "Rozpoznane produkty są dopasowywane do istniejących pozycji lub dodawane jako nowe. Ceny i daty trafiają do historii — gotowe do analizy." },
             ].map(({ num, title, desc }) => (
-              <div key={num} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 20, padding: "28px 24px" }}>
+              <div key={num} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 4, padding: "28px 24px" }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: c.muted, letterSpacing: "0.05em", display: "block", marginBottom: 12 }}>{num}</span>
                 <h3 style={{ fontSize: 15, fontWeight: 600, color: c.text, marginBottom: 8 }}>{title}</h3>
                 <p style={{ fontSize: 13, color: c.muted, lineHeight: 1.65, margin: 0 }}>{desc}</p>
@@ -80,8 +80,8 @@ export default function OcrFakturPage() {
             { icon: Zap, title: "Data i numer faktury", desc: "Data wystawienia i numer faktury — automatycznie przypisywane do historii zakupów." },
             { icon: ShieldCheck, title: "Faktury niestandardowe", desc: "OCR radzi sobie z różnymi formatami faktur — wydruki termiczne, ręcznie wypełnione, skany PDF." },
           ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 20, padding: "24px" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: c.accentDim, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+            <div key={title} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 4, padding: "24px" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 3, background: c.accentDim, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                 <Icon size={18} style={{ color: c.accent }} />
               </div>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: c.text, marginBottom: 6 }}>{title}</h3>
@@ -135,7 +135,7 @@ export default function OcrFakturPage() {
 
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
-        <div style={{ background: "linear-gradient(135deg, rgba(61,220,151,0.12) 0%, rgba(61,220,151,0.04) 100%)", border: `1px solid ${c.accentDim}`, borderRadius: 24, padding: "60px 40px", textAlign: "center" }}>
+        <div style={{ background: c.panel, border: `1px solid ${c.accentDim}`, borderRadius: 4, padding: "60px 40px", textAlign: "center" }}>
           <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, marginBottom: 16 }}>
             Koniec z ręcznym przepisywaniem faktur
           </h2>
@@ -144,12 +144,12 @@ export default function OcrFakturPage() {
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href="/sign-up">
-              <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 10, fontSize: 14, fontWeight: 700, background: c.accent, color: "#06231a", border: "none", cursor: "pointer" }}>
+              <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 3, fontSize: 14, fontWeight: 700, background: c.accent, color: c.onAccent, border: "none", cursor: "pointer" }}>
                 Wypróbuj za darmo <ArrowRight size={16} />
               </button>
             </Link>
             <Link href="/food-cost">
-              <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 10, fontSize: 14, fontWeight: 500, background: "none", border: `1px solid ${c.border}`, color: c.text, cursor: "pointer" }}>
+              <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 3, fontSize: 14, fontWeight: 500, background: "none", border: `1px solid ${c.border}`, color: c.text, cursor: "pointer" }}>
                 Kontrola food cost <ChevronRight size={16} />
               </button>
             </Link>

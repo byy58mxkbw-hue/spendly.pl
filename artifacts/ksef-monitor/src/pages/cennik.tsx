@@ -56,7 +56,7 @@ export default function CennikPage() {
       <main>
       {/* HERO */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "72px 24px 64px", textAlign: "center" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 999, border: `1px solid ${c.accentDim}`, background: c.accentDim, color: c.accentText, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 2, border: `1px solid ${c.accentDim}`, background: c.accentDim, color: c.accentText, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>
           Bez ukrytych opłat
         </div>
         <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 16, color: c.text }}>
@@ -79,7 +79,7 @@ export default function CennikPage() {
                 position: "relative",
                 background: c.card,
                 border: plan.highlight ? `1.5px solid ${c.accent}` : `1px solid ${c.border}`,
-                borderRadius: 20,
+                borderRadius: 4,
                 padding: "32px 28px",
                 display: "flex",
                 flexDirection: "column",
@@ -87,7 +87,7 @@ export default function CennikPage() {
               }}
             >
               {plan.highlight && (
-                <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", fontSize: 11, fontWeight: 700, padding: "5px 13px", borderRadius: 999, background: c.accent, color: "#06231a", whiteSpace: "nowrap" }}>
+                <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", fontSize: 11, fontWeight: 700, padding: "5px 13px", borderRadius: 2, background: c.accent, color: c.onAccent, whiteSpace: "nowrap" }}>
                   Najpopularniejszy
                 </div>
               )}
@@ -106,13 +106,13 @@ export default function CennikPage() {
               </div>
               {plan.href.startsWith("mailto:") ? (
                 <a href={plan.href} style={{ textDecoration: "none" }}>
-                  <button style={{ width: "100%", padding: "13px", borderRadius: 11, fontSize: 14, fontWeight: 700, cursor: "pointer", border: `1px solid ${c.border}`, background: "none", color: c.text }}>
+                  <button style={{ width: "100%", padding: "13px", borderRadius: 4, fontSize: 14, fontWeight: 700, cursor: "pointer", border: `1px solid ${c.border}`, background: "none", color: c.text }}>
                     {plan.cta}
                   </button>
                 </a>
               ) : (
                 <Link href={plan.href}>
-                  <button style={{ width: "100%", padding: "13px", borderRadius: 11, fontSize: 14, fontWeight: 700, cursor: "pointer", border: plan.highlight ? "none" : `1px solid ${c.border}`, background: plan.highlight ? c.accent : "none", color: plan.highlight ? "#06231a" : c.text }}>
+                  <button style={{ width: "100%", padding: "13px", borderRadius: 4, fontSize: 14, fontWeight: 700, cursor: "pointer", border: plan.highlight ? "none" : `1px solid ${c.border}`, background: plan.highlight ? c.accent : "none", color: plan.highlight ? c.onAccent : c.text }}>
                     {plan.cta}
                   </button>
                 </Link>
@@ -155,7 +155,7 @@ export default function CennikPage() {
 
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
-        <div style={{ background: "linear-gradient(135deg, rgba(61,220,151,0.12) 0%, rgba(61,220,151,0.04) 100%)", border: `1px solid ${c.accentDim}`, borderRadius: 24, padding: "60px 40px", textAlign: "center" }}>
+        <div style={{ background: c.panel, border: `1px solid ${c.accentDim}`, borderRadius: 4, padding: "60px 40px", textAlign: "center" }}>
           <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, marginBottom: 16 }}>
             Zacznij korzystać za darmo już teraz
           </h2>
@@ -163,7 +163,7 @@ export default function CennikPage() {
             Rejestracja trwa mniej niż 2 minuty. Nie wymagamy karty kredytowej.
           </p>
           <Link href="/sign-up">
-            <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 10, fontSize: 14, fontWeight: 700, background: c.accent, color: "#06231a", border: "none", cursor: "pointer" }}>
+            <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 3, fontSize: 14, fontWeight: 700, background: c.accent, color: c.onAccent, border: "none", cursor: "pointer" }}>
               Utwórz darmowe konto <ArrowRight size={16} />
             </button>
           </Link>

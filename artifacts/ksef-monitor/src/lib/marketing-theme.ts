@@ -5,34 +5,37 @@ import { useState, useEffect } from "react";
  * Ten sam localStorage co landing (home.tsx), żeby wybór motywu przenosił się
  * między stronami. Domyślnie ciemny — zgodnie z landingiem.
  */
+// Paleta „edytorski gastro" — ciemny papier / papier kremowy, akcent terakota.
+// Te same wartości co tokeny w index.css i zmienne w landing.css.
 export const MARKETING_DARK = {
-  bg: "#0B0F14",
-  card: "#131A22",
-  border: "rgba(255,255,255,0.08)",
-  text: "#F5F7FA",
-  muted: "#9BA6B2",
-  accent: "#3DDC97",
-  // accentText = akcent do TEKSTU (WCAG AA). W dark = accent (kontrast 10.9:1 OK);
-  // w light accent #14B8A6 na tekście ma tylko 2.3:1, więc tam ciemniejszy teal.
-  accentText: "#3DDC97",
-  accentDim: "rgba(61,220,151,0.12)",
-  navBg: "rgba(11,15,20,0.9)",
-  panel: "rgba(255,255,255,0.02)",
-  onAccent: "#06231a",
+  bg: "#17130E",
+  card: "#201A13",
+  border: "#392F22",
+  text: "#F0E9DB",
+  muted: "#9C8F79",
+  accent: "#E06A3C",
+  // accentText = akcent do TEKSTU (WCAG AA). W dark terakota #E06A3C na ciemnym
+  // papierze daje 5,6:1. W light #C4562F na kremie to tylko 3,8:1 — za mało na
+  // drobny tekst, więc tam idzie ciemniejszy wariant.
+  accentText: "#E06A3C",
+  accentDim: "#33251A",
+  navBg: "#17130E",
+  panel: "#2A2318",
+  onAccent: "#17130E",
 };
 
 export const MARKETING_LIGHT = {
-  bg: "#F4F7F9",
-  card: "#FFFFFF",
-  border: "rgba(11,15,20,0.09)",
-  text: "#0B0F14",
-  muted: "#5A6673",
-  accent: "#14B8A6",
-  accentText: "#0F766E", // ciemniejszy teal do tekstu — kontrast 5.1:1 na jasnym tle (AA)
-  accentDim: "rgba(20,184,166,0.12)",
-  navBg: "rgba(244,247,249,0.85)",
-  panel: "rgba(11,15,20,0.02)",
-  onAccent: "#06231a",
+  bg: "#F4EDE0",
+  card: "#FBF7EF",
+  border: "#E2D8C6",
+  text: "#211B12",
+  muted: "#8A7C63",
+  accent: "#A8431F", // ciemniejsza terakota — na tym tle daje 6:1 z białym tekstem
+  accentText: "#A8431F", // kontrast 5,2:1 na kremowym tle (AA)
+  accentDim: "#EFE0C6",
+  navBg: "#F4EDE0",
+  panel: "#FFFFFF",
+  onAccent: "#FFFFFF",
 };
 
 export type MarketingPalette = typeof MARKETING_DARK;

@@ -59,11 +59,11 @@ Koszt składników = **11,46 zł**. Food cost = 11,46 / 36,11 × 100 = **31,7%**
 <svg role="img" aria-labelledby="fcTitle fcDesc" viewBox="0 0 560 120">
 <title id="fcTitle">Rozbicie ceny netto dania na food cost i marżę</title>
 <desc id="fcDesc">Cena netto dania to 100 procent. Około 32 procent stanowi koszt składników (food cost), a pozostałe 68 procent to marża brutto na pokrycie kosztów pracy, najmu i zysku.</desc>
-<text x="0" y="20" fill="#9BA6B2" font-family="sans-serif" font-size="13">Cena netto dania = 100%</text>
-<rect x="0" y="34" width="179" height="42" rx="6" fill="#3DDC97"/>
+<text x="0" y="20" fill="#9C8F79" font-family="sans-serif" font-size="13">Cena netto dania = 100%</text>
+<rect x="0" y="34" width="179" height="42" rx="6" fill="#E06A3C"/>
 <rect x="183" y="34" width="377" height="42" rx="6" fill="#2a3542"/>
 <text x="12" y="61" fill="#06231a" font-family="sans-serif" font-size="14" font-weight="700">Food cost ~32%</text>
-<text x="197" y="61" fill="#F5F7FA" font-family="sans-serif" font-size="14" font-weight="700">Marża ~68%</text>
+<text x="197" y="61" fill="#F0E9DB" font-family="sans-serif" font-size="14" font-weight="700">Marża ~68%</text>
 <text x="0" y="100" fill="#6b7683" font-family="sans-serif" font-size="12">Koszt składników</text>
 <text x="183" y="100" fill="#6b7683" font-family="sans-serif" font-size="12">Na pracę, najem, media i zysk</text>
 </svg>

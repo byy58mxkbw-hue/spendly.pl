@@ -111,8 +111,6 @@ export default function Home() {
 
   return (
     <div className="spendly-site" data-theme={theme}>
-      <div className="aurora"><div className="blob b1" /><div className="blob b2" /><div className="blob b3" /></div>
-
       {/* NAV */}
       <nav>
         <div className="nav-in glass" style={{ marginTop: scrolled ? 6 : 12 }}>
@@ -190,9 +188,9 @@ export default function Home() {
                 <div className="mb-chart">
                   <div className="ct">Wydatki dzienne</div>
                   <svg viewBox="0 0 520 100" preserveAspectRatio="none" style={{ position: "absolute", left: 0, right: 0, bottom: 0, width: "100%", height: 96 }}>
-                    <defs><linearGradient id="spglg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3DDC97" stopOpacity=".3" /><stop offset="100%" stopColor="#3DDC97" stopOpacity="0" /></linearGradient></defs>
+                    <defs><linearGradient id="spglg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--acc)" stopOpacity=".3" /><stop offset="100%" stopColor="var(--acc)" stopOpacity="0" /></linearGradient></defs>
                     <path d="M0,72 C60,66 90,48 140,54 C190,60 210,34 260,32 C310,30 340,50 390,42 C440,34 470,16 520,22 L520,100 L0,100 Z" fill="url(#spglg)" />
-                    <path d="M0,72 C60,66 90,48 140,54 C190,60 210,34 260,32 C310,30 340,50 390,42 C440,34 470,16 520,22" fill="none" stroke="#3DDC97" strokeWidth="2.5" />
+                    <path d="M0,72 C60,66 90,48 140,54 C190,60 210,34 260,32 C310,30 340,50 390,42 C440,34 470,16 520,22" fill="none" stroke="var(--acc)" strokeWidth="2.5" />
                   </svg>
                 </div>
               </div>
@@ -311,7 +309,7 @@ export default function Home() {
 
       {/* STATS BAND */}
       <section className="blk wrap">
-        <div className="band glass">
+        <div className="band">
           {STATS.map((s) => (
             <div className="st" key={s.l}><div className="v">{s.v}</div><div className="l">{s.l}</div></div>
           ))}

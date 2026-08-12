@@ -38,7 +38,7 @@ export function LegalLayout({
               title={theme === "light" ? "Tryb ciemny" : "Tryb jasny"}
               style={{
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
-                width: 34, height: 34, borderRadius: 8,
+                width: 34, height: 34, borderRadius: 3,
                 background: "none", border: `1px solid ${c.border}`, color: c.muted, cursor: "pointer",
               }}
             >
@@ -47,7 +47,7 @@ export function LegalLayout({
             <Link href="/">
               <button style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "7px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+                padding: "7px 14px", borderRadius: 3, fontSize: 13, fontWeight: 500,
                 background: "none", border: `1px solid ${c.border}`, color: c.muted, cursor: "pointer",
               }}>
                 <ArrowLeft size={14} /> Strona główna

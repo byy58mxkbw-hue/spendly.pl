@@ -37,7 +37,7 @@ export default function FoodCostMarketingPage() {
         {/* HERO */}
         <section style={{ maxWidth: 1200, margin: "0 auto", padding: "72px 24px 80px" }}>
           <div style={{ maxWidth: 680 }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 999, border: `1px solid ${C.border}`, background: "rgba(255,255,255,0.04)", color: C.muted, fontSize: 12, fontWeight: 500, marginBottom: 20 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 2, border: `1px solid ${C.border}`, background: C.panel, color: C.muted, fontSize: 12, fontWeight: 500, marginBottom: 20 }}>
               <Percent size={12} style={{ color: C.accent }} />
               Kontrola food cost dla gastronomii
             </div>
@@ -50,12 +50,12 @@ export default function FoodCostMarketingPage() {
             </p>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <Link href="/sign-up">
-                <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 600, background: C.accent, color: "#0B0F14", border: "none", cursor: "pointer" }}>
+                <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 3, fontSize: 14, fontWeight: 600, background: C.accent, color: C.onAccent, border: "none", cursor: "pointer" }}>
                   Wypróbuj za darmo <ArrowRight size={16} />
                 </button>
               </Link>
               <Link href="/ksef">
-                <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 500, background: "none", border: `1px solid ${C.border}`, color: C.text, cursor: "pointer" }}>
+                <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 24px", borderRadius: 3, fontSize: 14, fontWeight: 500, background: "none", border: `1px solid ${C.border}`, color: C.text, cursor: "pointer" }}>
                   Integracja KSeF
                 </button>
               </Link>
@@ -78,7 +78,7 @@ export default function FoodCostMarketingPage() {
                 { num: "02", title: "Zestawienie z recepturami", desc: "System łączy ceny surowców z Twoimi recepturami i wylicza realny koszt każdego dania oraz food cost całej restauracji." },
                 { num: "03", title: "Analiza i alerty", desc: "Widzisz food cost w procentach, trendy cen surowców i alerty o podwyżkach — reagujesz zanim koszty uderzą w marżę." },
               ].map(({ num, title, desc }) => (
-                <div key={num} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: "28px 24px" }}>
+                <div key={num} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "28px 24px" }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: C.muted, letterSpacing: "0.05em", display: "block", marginBottom: 12 }}>{num}</span>
                   <h3 style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 8 }}>{title}</h3>
                   <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.65, margin: 0 }}>{desc}</p>
@@ -103,8 +103,8 @@ export default function FoodCostMarketingPage() {
               { icon: Bell, title: "Alerty cenowe", desc: "Powiadomienie, gdy cena kluczowego składnika rośnie — reagujesz zanim podwyżka wejdzie do menu." },
               { icon: RefreshCw, title: "Zawsze aktualne dane", desc: "Faktury z KSeF pobierane automatycznie — food cost liczony na bieżąco, nie raz na kwartał." },
             ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: "24px" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: C.accentDim, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+              <div key={title} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 4, padding: "24px" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 3, background: C.accentDim, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                   <Icon size={18} style={{ color: C.accent }} />
                 </div>
                 <h3 style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 6 }}>{title}</h3>
@@ -152,7 +152,7 @@ export default function FoodCostMarketingPage() {
 
         {/* CTA */}
         <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 80px", paddingTop: 40 }}>
-          <div style={{ background: "linear-gradient(135deg, rgba(61,220,151,0.12) 0%, rgba(61,220,151,0.04) 100%)", border: "1px solid rgba(61,220,151,0.2)", borderRadius: 24, padding: "60px 40px", textAlign: "center" }}>
+          <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, padding: "60px 40px", textAlign: "center" }}>
             <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, marginBottom: 16 }}>
               Zacznij kontrolować food cost już dziś
             </h2>
@@ -161,12 +161,12 @@ export default function FoodCostMarketingPage() {
             </p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
               <Link href="/sign-up">
-                <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 10, fontSize: 14, fontWeight: 700, background: C.accent, color: "#0B0F14", border: "none", cursor: "pointer" }}>
+                <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 3, fontSize: 14, fontWeight: 700, background: C.accent, color: C.onAccent, border: "none", cursor: "pointer" }}>
                   Wypróbuj za darmo <ArrowRight size={16} />
                 </button>
               </Link>
               <Link href="/ocr-faktur">
-                <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 10, fontSize: 14, fontWeight: 500, background: "none", border: `1px solid ${C.border}`, color: C.text, cursor: "pointer" }}>
+                <button style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 3, fontSize: 14, fontWeight: 500, background: "none", border: `1px solid ${C.border}`, color: C.text, cursor: "pointer" }}>
                   OCR faktur <ChevronRight size={16} />
                 </button>
               </Link>
