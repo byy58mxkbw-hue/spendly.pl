@@ -7,8 +7,8 @@ import { AI_MONTHLY_LIMIT, normalizePlan, currentPeriod } from "../lib/ai-plan.j
 import { computeTriggeredAlerts } from "../services/alert-checker.js";
 import { computeAllDishMargins } from "./food-cost.js";
 import {
-  isCheapestSupplierQuery, isProductPriceHistoryQuery, isPriceIncreasesQuery,
-  isPriceAlertsQuery, isDishMarginsQuery, isInvoiceCompareQuery,
+  isCheapestSupplierQuery, isSupplierPriceChangesQuery, isProductPriceHistoryQuery,
+  isPriceIncreasesQuery, isPriceAlertsQuery, isDishMarginsQuery, isInvoiceCompareQuery,
 } from "../lib/ai-cfo-intent.js";
 
 const router: IRouter = Router();
@@ -40,8 +40,12 @@ function fmtPln(n: number): string {
 }
 
 function since90Days(): string {
+  return daysAgo(90);
+}
+
+function daysAgo(n: number): string {
   const d = new Date();
-  d.setDate(d.getDate() - 90);
+  d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
 }
 
@@ -425,6 +429,95 @@ async function fetchPriceIncreases(userId: string, question: string): Promise<st
   return `\nDANE: NAJWIĘKSZE PODWYŻKI CEN (ostatni zakup vs poprzedni, od największej):\n${lines.join("\n")}`;
 }
 
+// „Który dostawca podrożał najbardziej" — zmiana cen W ROZBICIU NA DOSTAWCĘ.
+// Wcześniej takiego bloku NIE BYŁO: pytanie łapała intencja historii ceny, nie
+// znajdowała produktu i model odpowiadał „brak danych" mimo pełnej bazy faktur
+// (realny raport użytkownika 2026-08-12).
+//
+// Metryka: indeks cenowy na STAŁYM KOSZYKU (Laspeyres). Dla każdego dostawcy
+// bierzemy produkty kupione w OBU oknach i liczymy, ile kosztowałby dzisiejszy
+// wolumen po starych cenach. Dzięki temu wynik to czysty efekt CENOWY — zmiana
+// asortymentu ani wolumenu go nie zafałszuje. Naiwne AVG(unit_price) per dostawca
+// pokazywałoby zmianę koszyka, nie podwyżkę.
+//
+// Dopasowanie po (product_id, unit) — ta sama pułapka co w porównaniach cen:
+// przejście dostawcy z kg na szt. inaczej wyglądałoby jak gigantyczny skok ceny.
+// Kwoty NETTO (unit_price/total_price) — zgodnie z regułą 29 AI CFO liczy netto.
+async function fetchSupplierPriceChanges(userId: string, question: string): Promise<string | null> {
+  if (!isSupplierPriceChangesQuery(question)) return null;
+
+  const curFrom = daysAgo(30);
+  const prevFrom = daysAgo(60);
+
+  const res = await db.execute(sql`
+    WITH win AS (
+      SELECT
+        inv.supplier_id AS supplier_id,
+        ii.product_id AS product_id,
+        ii.unit AS unit,
+        CASE WHEN inv.invoice_date >= ${curFrom} THEN 'now' ELSE 'prev' END AS bucket,
+        SUM(ii.quantity::numeric) AS qty,
+        SUM(ii.total_price::numeric) / NULLIF(SUM(ii.quantity::numeric), 0) AS avg_price
+      FROM invoice_items ii
+      JOIN invoices inv ON ii.invoice_id = inv.id
+      WHERE inv.user_id = ${userId}
+        AND inv.excluded = false
+        AND inv.parent_invoice_id IS NULL
+        AND (inv.invoice_type IS DISTINCT FROM 'KOR')
+        AND ii.quantity::numeric > 0
+        AND ii.unit_price::numeric > 0
+        AND inv.invoice_date >= ${prevFrom}
+      GROUP BY 1, 2, 3, 4
+    ),
+    paired AS (
+      SELECT n.supplier_id AS supplier_id,
+             n.qty AS qty_now,
+             n.avg_price AS price_now,
+             p.avg_price AS price_prev
+      FROM win n
+      JOIN win p
+        ON p.supplier_id = n.supplier_id
+       AND p.product_id = n.product_id
+       AND p.unit IS NOT DISTINCT FROM n.unit
+       AND p.bucket = 'prev'
+      WHERE n.bucket = 'now'
+        AND p.avg_price > 0
+    )
+    SELECT s.name AS supplier_name,
+           COUNT(*)::int AS products,
+           ROUND(SUM(pd.qty_now * pd.price_now), 0)::text AS cost_now,
+           ROUND(SUM(pd.qty_now * pd.price_prev), 0)::text AS cost_old,
+           ROUND(
+             (SUM(pd.qty_now * pd.price_now) - SUM(pd.qty_now * pd.price_prev))
+             / NULLIF(SUM(pd.qty_now * pd.price_prev), 0) * 100, 1
+           )::text AS change_pct
+    FROM paired pd
+    JOIN suppliers s ON s.id = pd.supplier_id
+    GROUP BY s.id, s.name
+    HAVING SUM(pd.qty_now * pd.price_prev) > 0
+    ORDER BY (SUM(pd.qty_now * pd.price_now) - SUM(pd.qty_now * pd.price_prev))
+             / NULLIF(SUM(pd.qty_now * pd.price_prev), 0) DESC
+    LIMIT 10
+  `);
+
+  const rows = res.rows as Array<{
+    supplier_name: string; products: number; cost_now: string; cost_old: string; change_pct: string;
+  }>;
+  // Pusto = brak dostawcy z tym samym produktem w obu oknach. Zwracamy jawny
+  // komunikat zamiast null, żeby model nie zjechał na ogólny kontekst i nie
+  // odpowiedział mgliście „brak danych" — ma powiedzieć CZEGO brakuje.
+  if (rows.length === 0) {
+    return `\nDANE: ZMIANA CEN WEDŁUG DOSTAWCY (ostatnie 30 dni vs poprzednie 30 dni): BRAK PORÓWNANIA.\nŻaden dostawca nie ma tego samego produktu (w tej samej jednostce) kupionego w obu okresach, więc nie da się oddzielić zmiany ceny od zmiany asortymentu. Napisz to wprost i zaproponuj pytanie o konkretny produkt albo o dłuższy okres.`;
+  }
+
+  const lines = rows.map((r) => {
+    const pct = parseFloat(r.change_pct);
+    const dir = pct > 0 ? "droższy" : pct < 0 ? "tańszy" : "bez zmian";
+    return `  - ${r.supplier_name}: ${pct > 0 ? "+" : ""}${r.change_pct}% (${dir}); koszyk ${r.products} prod., ${fmtPln(parseFloat(r.cost_now))} wobec ${fmtPln(parseFloat(r.cost_old))} po starych cenach`;
+  });
+  return `\nDANE: ZMIANA CEN WEDŁUG DOSTAWCY (ostatnie 30 dni vs poprzednie 30 dni, ten sam koszyk produktów — czysty efekt cenowy, bez wpływu zmiany ilości i asortymentu; kwoty NETTO), od najmocniej drożejącego:\n${lines.join("\n")}\nUWAGA: to okno 30-dniowe, NIE miesiąc kalendarzowy — nazwij okres dokładnie tak w odpowiedzi.`;
+}
+
 // „Jakie mam alerty / co przekroczyło próg" — aktywne alerty cenowe (przekroczone progi).
 // Reużywa computeTriggeredAlerts (ten sam mechanizm co dashboard) — dane ugruntowane.
 // Zwraca też jawny „brak alertów", żeby model nie zmyślał przy pustym wyniku.
@@ -635,18 +728,21 @@ router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
   }
 
   const sinceStr = since90Days();
-  const [context, cheapestBlock, productHistBlock, priceIncreasesBlock, alertsBlock, dishMarginsBlock, invoiceCompareRaw] = await Promise.all([
+  const [context, cheapestBlock, supplierPriceBlock, productHistBlock, priceIncreasesBlock, alertsBlock, dishMarginsBlock, invoiceCompareRaw] = await Promise.all([
     buildChatContext(userId, sinceStr),
     fetchCheapestSupplier(userId, question.trim()),
+    fetchSupplierPriceChanges(userId, question.trim()),
     fetchProductPriceHistory(userId, question.trim()),
     fetchPriceIncreases(userId, question.trim()),
     fetchTriggeredAlerts(userId, question.trim()),
     fetchDishMargins(userId, question.trim()),
     fetchInvoiceCompareData(userId, question.trim()),
   ]);
-  // Precedencja bloków: najtańszy dostawca > historia ceny > podwyżki > alerty > marże dań > porównanie faktur.
+  // Precedencja bloków: najtańszy dostawca > zmiany cen dostawcy > historia ceny >
+  // podwyżki > alerty > marże dań > porównanie faktur. MUSI odpowiadać kolejności
+  // w classifyChatIntent (ai-cfo-intent.ts).
   // Wstrzykujemy DOKŁADNIE JEDEN blok, żeby model nie mieszał narzędzi ani nie zmyślał A/B.
-  const dataBlock = cheapestBlock ?? productHistBlock ?? priceIncreasesBlock ?? alertsBlock ?? dishMarginsBlock ?? invoiceCompareRaw ?? "";
+  const dataBlock = cheapestBlock ?? supplierPriceBlock ?? productHistBlock ?? priceIncreasesBlock ?? alertsBlock ?? dishMarginsBlock ?? invoiceCompareRaw ?? "";
 
   const systemPrompt = `Jesteś AI CFO (Chief Financial Officer) dla restauracji w Polsce. Analizujesz dane kosztowe z faktur i dostarczasz precyzyjne rekomendacje finansowe.
 
@@ -655,6 +751,9 @@ ${context}${dataBlock}
 MOŻLIWOŚCI ANALIZY:
 - Porównanie dostawców KWOTOWO: który dostawca generuje największe wydatki w PLN
 - Porównanie dostawców ILOŚCIOWO: który dostawca dostarcza największe wolumeny (jednostki/kg)
+- Zmiana CEN wg dostawcy: który dostawca podrożał/staniał — TYLKO gdy jest blok
+  „DANE: ZMIANA CEN WEDŁUG DOSTAWCY". Wtedy type: "supplier_comparison", podaj
+  procenty i nazwij okres dokładnie tak, jak opisuje blok (okno 30-dniowe, nie miesiąc).
 - Analiza wg KATEGORII PRODUKTÓW: rozkład wydatków na Mięso, Nabiał, Warzywa itp.
 - Analiza wg CENTRÓW KOSZTÓW: faktury przypisane do konkretnych obszarów restauracji
 - Trendy miesięczne: jak zmieniają się wydatki miesiąc do miesiąca

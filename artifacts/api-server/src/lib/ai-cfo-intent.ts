@@ -8,6 +8,7 @@
 
 export type ChatIntent =
   | "cheapest_supplier"
+  | "supplier_price_changes"
   | "product_price_history"
   | "price_increases"
   | "price_alerts"
@@ -39,10 +40,27 @@ export const INTENT_KEYWORDS = {
   invoice_compare: ["porównaj", "porówna", "zestawien", "zestawie", "porównan"],
 } as const;
 
+// „Który dostawca podrożał / u którego dostawcy ceny poszły w górę" — intencja
+// KOMBINOWANA: musi paść i słowo o dostawcy, i słowo o ruchu ceny. Inaczej
+// „podrożał" łapie product_price_history i pytanie o dostawcę kończyło się
+// „brak danych" (realny raport użytkownika 2026-08-12).
+export const SUPPLIER_PRICE_CHANGE_KEYWORDS = {
+  supplier: ["dostawc", "hurtowni", "sprzedawc"],
+  movement: [
+    "podroż", "podwyżk", "zdrożał", "drożej", "drożeje", "drożeją", "wzrost cen",
+    "wzrosły ceny", "rosną ceny", "potani", "staniał", "spadek cen", "zmiana cen",
+    "zmiany cen", "zmieniły ceny", "w górę", "poszły w gór",
+  ],
+} as const;
+
 const matches = (q: string, keys: readonly string[]): boolean => {
   const lower = q.toLowerCase();
   return keys.some((k) => lower.includes(k));
 };
+
+export const isSupplierPriceChangesQuery = (q: string): boolean =>
+  matches(q, SUPPLIER_PRICE_CHANGE_KEYWORDS.supplier) &&
+  matches(q, SUPPLIER_PRICE_CHANGE_KEYWORDS.movement);
 
 export const isCheapestSupplierQuery = (q: string): boolean => matches(q, INTENT_KEYWORDS.cheapest_supplier);
 export const isProductPriceHistoryQuery = (q: string): boolean => matches(q, INTENT_KEYWORDS.product_price_history);
@@ -51,10 +69,13 @@ export const isPriceAlertsQuery = (q: string): boolean => matches(q, INTENT_KEYW
 export const isDishMarginsQuery = (q: string): boolean => matches(q, INTENT_KEYWORDS.dish_margins);
 export const isInvoiceCompareQuery = (q: string): boolean => matches(q, INTENT_KEYWORDS.invoice_compare);
 
-// Precedencja == kolejność ?? w handlerze: najtańszy > historia ceny > podwyżki >
-// alerty > marże dań > porównanie faktur > (kontekst ogólny).
+// Precedencja == kolejność ?? w handlerze: najtańszy > zmiany cen dostawcy >
+// historia ceny > podwyżki > alerty > marże dań > porównanie faktur > (kontekst ogólny).
+// „zmiany cen dostawcy" MUSI stać przed „historia ceny", bo obie łapią „podroż" —
+// a pytanie o dostawcę nie ma produktu do rozpoznania i kończyło się pustką.
 export function classifyChatIntent(question: string): ChatIntent {
   if (isCheapestSupplierQuery(question)) return "cheapest_supplier";
+  if (isSupplierPriceChangesQuery(question)) return "supplier_price_changes";
   if (isProductPriceHistoryQuery(question)) return "product_price_history";
   if (isPriceIncreasesQuery(question)) return "price_increases";
   if (isPriceAlertsQuery(question)) return "price_alerts";

@@ -4,6 +4,7 @@
 import {
   classifyChatIntent,
   isCheapestSupplierQuery,
+  isSupplierPriceChangesQuery,
   isProductPriceHistoryQuery,
   isPriceIncreasesQuery,
   isPriceAlertsQuery,
@@ -39,6 +40,12 @@ check("neg: wydatki na mięso ≠ cheapest", isCheapestSupplierQuery("ile wydał
 check("neg: wydatki na mięso ≠ dish", isDishMarginsQuery("ile wydałem na mięso"), false);
 check("neg: alerty ≠ cheapest", isCheapestSupplierQuery("jakie mam alerty"), false);
 
+// ── Zmiany cen wg dostawcy: wymaga OBU sygnałów (dostawca + ruch ceny) ──
+check("supplier-chg: dostawca podrożał", isSupplierPriceChangesQuery("który dostawca podrożał najbardziej"), true);
+check("supplier-chg: ceny w górę u dostawcy", isSupplierPriceChangesQuery("u którego dostawcy ceny poszły w górę"), true);
+check("supplier-chg: sam dostawca to za mało", isSupplierPriceChangesQuery("ile wydałem u tego dostawcy"), false);
+check("supplier-chg: sam ruch ceny to za mało", isSupplierPriceChangesQuery("co podrożało"), false);
+
 // ── classifyChatIntent: jednoznaczne przypadki + KLUCZOWA regresja ──
 const cls: Array<[string, ChatIntent]> = [
   // Regresja z produkcji: „porównaj cenę cytryny" MUSI iść w historię ceny, NIE w porównanie faktur.
@@ -49,6 +56,19 @@ const cls: Array<[string, ChatIntent]> = [
   // Porównanie faktur działa, gdy brak słowa o cenie produktu:
   ["porównaj fakturę FV/123 z FV/124", "invoice_compare"],
   ["ile wydałem u dostawcy w tym miesiącu", "general"],
+  // Regresja z produkcji 2026-08-12: pytanie o DOSTAWCĘ łapała historia ceny,
+  // nie znajdowała produktu i użytkownik dostawał „brak danych" mimo pełnej bazy.
+  ["Który dostawca podrożał najbardziej w tym miesiącu?", "supplier_price_changes"],
+  ["u którego dostawcy ceny poszły w górę", "supplier_price_changes"],
+  ["czy któryś dostawca staniał", "supplier_price_changes"],
+  ["jakie podwyżki dał mi ten dostawca", "supplier_price_changes"],
+  // …ale bez słowa o dostawcy NIE idzie w intencję dostawcy. Trafia w
+  // product_price_history, bo „podroż" jest też na jej liście i stoi wyżej —
+  // to stan zastany, nie regresja. Nie boli, bo fetchProductPriceHistory nie
+  // rozpozna produktu, zwróci null i łańcuch ?? spadnie na fetchPriceIncreases.
+  ["co podrożało w tym miesiącu", "product_price_history"],
+  // …a „gdzie najtaniej" ma pierwszeństwo (to pytanie o zakup, nie o dynamikę):
+  ["u kogo taniej masło", "cheapest_supplier"],
 ];
 for (const [q, intent] of cls) check(`classify: "${q}"`, classifyChatIntent(q), intent);
 
