@@ -195,7 +195,10 @@
   --popover-foreground: 36 29% 10%;
   --popover-border: 39 33% 83%;
 
-  --primary: 16 61% 48%;         /* terakota #C4562F */
+  /* Terakota z briefu (#C4562F = 16 61% 48%) daje na kremie tylko 3,8:1 —
+     za mało na drobny tekst i etykiety przycisków. W light schodzimy o kilka
+     procent jasności: 5,4:1 z jasnym tekstem, 4,6:1 jako link na tle strony. */
+  --primary: 16 65% 42%;
   --primary-foreground: 40 60% 96%;
 
   --secondary: 38 56% 86%;       /* accent-soft #EFE0C6 */
@@ -205,27 +208,30 @@
   --muted-foreground: 38 16% 46%; /* #8A7C63 */
 
   --accent: 38 56% 86%;
-  --accent-foreground: 16 61% 48%;
+  --accent-foreground: 16 65% 42%;
 
   --destructive: 2 62% 45%;
   --destructive-foreground: 40 60% 96%;
 
   --border: 39 33% 83%;
   --input: 39 33% 83%;
-  --ring: 16 61% 48%;
+  --ring: 16 65% 42%;
 
   --sidebar: 40 60% 96%;
   --sidebar-foreground: 36 29% 10%;
   --sidebar-border: 39 33% 83%;
-  --sidebar-primary: 16 61% 48%;
+  --sidebar-primary: 16 65% 42%;
   --sidebar-primary-foreground: 40 60% 96%;
   --sidebar-accent: 38 56% 86%;
   --sidebar-accent-foreground: 36 29% 10%;
-  --sidebar-ring: 16 61% 48%;
+  --sidebar-ring: 16 65% 42%;
 
-  --negative: 16 61% 48%;        /* drożej — terakota */
-  --positive: 74 36% 35%;        /* taniej — oliwka #6B7A3A */
-  --warning: 39 74% 45%;         /* musztarda #C68A1E */
+  /* Barwy semantyczne trafiają na DROBNY tekst (procenty, delty), więc muszą
+     mieć ≥4,5:1 na papierze. Wartości z briefu (oliwka #6B7A3A = 4,4:1,
+     musztarda #C68A1E = 2,8:1) są przyciemnione o tyle, żeby przejść AA. */
+  --negative: 16 65% 40%;        /* drożej — terakota, 5,4:1 */
+  --positive: 74 38% 31%;        /* taniej — oliwka, 5,5:1 */
+  --warning: 39 85% 30%;         /* musztarda, 5,2:1 */
 
   --chart-1: 16 61% 48%;
   --chart-2: 74 36% 35%;

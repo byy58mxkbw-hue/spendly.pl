@@ -136,13 +136,44 @@ new Date(date).toLocaleDateString('pl-PL')
 
 ---
 
-## Design — styl aplikacji
+## Design — styl aplikacji: „edytorski gastro" (od 2026-08)
 
-- Inspiracja: cheff.it — czysto, minimalnie, dużo whitespace
-- Accent color: teal `hsl(173, 80%, 40%)` = `#14B8A6`
-- Komponenty: shadcn/ui
+Charakter: redakcyjny, „drukowany". Papierowe tła, szeryfowe liczby, ostre krawędzie,
+linie działowe zamiast morza zaokrąglonych kart. Jedna sygnaturowa barwa — terakota.
+
+**Paleta** (źródło prawdy: tokeny w `artifacts/ksef-monitor/src/index.css`)
+- LIGHT (papier): bg `#F4EDE0`, karta `#FBF7EF`, tekst `#211B12`, przygaszony `#8A7C63`, hairline `#E2D8C6`, akcent `#C4562F`
+- DARK (ciemny papier, NIE techowa czerń): bg `#17130E`, karta `#201A13`, tekst `#F0E9DB`, przygaszony `#9C8F79`, hairline `#392F22`, akcent `#E06A3C`
+- Semantyka KOSZTOWA: drożej = terakota (`--negative`), taniej = oliwka (`--positive`), ostrzeżenie = musztarda (`--warning`). Używaj klas `text-negative` / `text-positive` / `text-warning`, nigdy `emerald`/`amber`/`red` z tailwinda.
+- Wykresy i centra kosztów: paleta ziemista (`CHART_COLORS` w `pages/reports/components.tsx`, `bg-chart-1..5`)
+
+**Typografia**
+- `Fraunces` (`font-display`) — liczby, nagłówki, hero. `Space Grotesk` (`font-sans`) — UI i body. Oba self-hosted przez `@fontsource-variable` (import w `main.tsx`), subsety latin + latin-ext.
+- Klasy pomocnicze: `.num` (szeryf + cyfry tabelaryczne), `.num-lg` (duże KPI/ceny/%), `.head-display` (nagłówki), `.label-caps` (etykieta wersalikami)
+- **Zasada: każda duża liczba idzie Frauncesem, reszta Space Groteskiem.**
+
+**Kształt i powierzchnie**
+- `--radius: 0.25rem`; cała skala (także `rounded-2xl`/`3xl`) domknięta w `@theme` na 2–10px
+- Karty: hairline 1px + płaskie tło, **bez cienia**. Wyróżnienie = `.card-emphasis` (gruba górna linia)
+- Listy/statystyki: `.rule-list` (wiersze rozdzielone linią) albo siatka `gap-px bg-border` — nie osobne kafle
+- `.glass` istnieje historycznie (~25 ekranów) ale jest już PŁASKIE — papier + hairline, zero blura
+
+**Ikony**
+- Phosphor, waga `regular`. Importuj **wyłącznie** z adaptera `@/lib/icons` (mapuje nazwy na Phosphora). Brakującą ikonę dopisz w adapterze. `lucide-react` usunięty.
+
+**Anty-wzorce (twarde „nie")**
+- ❌ teal/emerald `#14B8A6`/`#3DDC97`, `hsl(173 …)` ❌ gradienty, aurora, glow, neon
+- ❌ glassmorphism / `backdrop-blur` / półprzezroczyste karty ❌ `lucide-react` ❌ Inter jako główny font
+- ❌ zaokrąglone 16px karty w symetrycznej siatce ❌ wyśrodkowany gradientowy hero ❌ pigułki (`rounded-full`) poza kropkami/awatarami
+
+**Reszta**
+- Komponenty: shadcn/ui (czytają tokeny — zmiana palety propaguje się sama)
 - **Bez emoji w UI** (emoji są tylko w kategoriach produktów w categories.ts)
 - Responsywność: mobile-first, osobne układy dla md: breakpoint
+- Motion: 120–160ms, bez bounce; `prefers-reduced-motion` respektowane
+- Copy: liczby po ludzku („12,4% więcej niż w tym samym okresie"), kierunek niesie strzałka więc liczba bez znaku; sentence case, bez wykrzykników
+
+⚠️ **Statyczne strony (blog, 404, prerender w `index.html`) nie widzą hashowanych assetów Vite** — fonty marki mają KOPIE w `public/fonts/` (`space-grotesk-*.woff2`, `fraunces-*.woff2`) i to ich używa `scripts/build-blog.mjs`. Po podmianie/aktualizacji fontu zaktualizuj też te kopie. Pliki `inter-*.woff2` zostają tylko jako legacy — nic ich już nie używa.
 
 ---
 
