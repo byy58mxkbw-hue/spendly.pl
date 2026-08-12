@@ -551,7 +551,7 @@ function IngredientDetailCard({
             {ing.ingredientCost != null ? (
               <span className="text-sm font-semibold text-foreground flex items-center gap-1">
                 {ing.priceSource === "estimate" && (
-                  <span className="text-[10px] px-1 py-0.5 rounded bg-secondary text-accent-foreground font-medium" title="Prognoza ceny AI (brak faktury)">szac.</span>
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-accent-soft text-primary font-medium" title="Prognoza ceny AI (brak faktury)">szac.</span>
                 )}
                 {ing.priceSource === "manual" && (
                   <span className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium" title="Cena przypisana ręcznie">ręczna</span>

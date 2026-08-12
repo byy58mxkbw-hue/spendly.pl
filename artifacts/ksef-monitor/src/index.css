@@ -54,6 +54,9 @@
   --color-positive: hsl(var(--positive));
   --color-warning: hsl(var(--warning));
   --color-surface-2: hsl(var(--surface-2));
+  /* Markowy beż do pigułek/badge'y. NIE używaj --secondary/--accent do
+     akcentowania — one są neutralne (patrz komentarz przy tokenach). */
+  --color-accent-soft: hsl(var(--accent-soft));
 
   --color-sidebar: hsl(var(--sidebar));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
@@ -106,14 +109,20 @@
   --primary: 17 73% 56%;         /* terakota #E06A3C */
   --primary-foreground: 34 24% 7%;
 
-  --secondary: 26 32% 15%;       /* accent-soft #33251A */
+  /* UWAGA: --secondary i --accent to w shadcn NEUTRALNE powierzchnie (przyciski
+     drugorzędne, podświetlenie w menu, chipy, bąbelki czatu) — NIE markowy
+     odcień. Trzymaj je jako spokojny krok od karty. Barwa marki do pigułek
+     i badge'y siedzi w --accent-soft. */
+  --secondary: 34 18% 16%;
   --secondary-foreground: 40 41% 90%;
 
-  --muted: 34 25% 14%;
+  --muted: 34 18% 14%;
   --muted-foreground: 38 15% 54%; /* #9C8F79 */
 
-  --accent: 26 32% 15%;
-  --accent-foreground: 17 73% 56%;
+  --accent: 34 18% 16%;
+  --accent-foreground: 40 41% 90%;
+
+  --accent-soft: 26 32% 15%;     /* #33251A — tło pigułki/badge'a marki */
 
   --destructive: 4 68% 58%;
   --destructive-foreground: 34 24% 7%;
@@ -127,7 +136,7 @@
   --sidebar-border: 34 25% 16%;
   --sidebar-primary: 17 73% 56%;
   --sidebar-primary-foreground: 34 24% 7%;
-  --sidebar-accent: 26 32% 15%;
+  --sidebar-accent: 34 18% 16%;
   --sidebar-accent-foreground: 40 41% 90%;
   --sidebar-ring: 17 73% 56%;
 
@@ -201,14 +210,17 @@
   --primary: 16 65% 42%;
   --primary-foreground: 40 60% 96%;
 
-  --secondary: 38 56% 86%;       /* accent-soft #EFE0C6 */
+  /* Neutralne powierzchnie — patrz komentarz w :root. Markowy beż to --accent-soft. */
+  --secondary: 39 30% 89%;
   --secondary-foreground: 36 29% 10%;
 
-  --muted: 39 42% 89%;
+  --muted: 39 28% 90%;
   --muted-foreground: 38 16% 46%; /* #8A7C63 */
 
-  --accent: 38 56% 86%;
-  --accent-foreground: 16 65% 42%;
+  --accent: 39 30% 89%;
+  --accent-foreground: 36 29% 10%;
+
+  --accent-soft: 38 56% 86%;     /* #EFE0C6 — tło pigułki/badge'a marki */
 
   --destructive: 2 62% 45%;
   --destructive-foreground: 40 60% 96%;
@@ -222,7 +234,7 @@
   --sidebar-border: 39 33% 83%;
   --sidebar-primary: 16 65% 42%;
   --sidebar-primary-foreground: 40 60% 96%;
-  --sidebar-accent: 38 56% 86%;
+  --sidebar-accent: 39 30% 89%;
   --sidebar-accent-foreground: 36 29% 10%;
   --sidebar-ring: 16 65% 42%;
 
