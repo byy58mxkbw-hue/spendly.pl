@@ -148,9 +148,10 @@ linie działowe zamiast morza zaokrąglonych kart. Jedna sygnaturowa barwa — t
 - Wykresy i centra kosztów: paleta ziemista (`CHART_COLORS` w `pages/reports/components.tsx`, `bg-chart-1..5`)
 
 **Typografia**
-- `Fraunces` (`font-display`) — liczby, nagłówki, hero. `Space Grotesk` (`font-sans`) — UI i body. Oba self-hosted przez `@fontsource-variable` (import w `main.tsx`), subsety latin + latin-ext.
-- Klasy pomocnicze: `.num` (szeryf + cyfry tabelaryczne), `.num-lg` (duże KPI/ceny/%), `.head-display` (nagłówki), `.label-caps` (etykieta wersalikami)
-- **Zasada: każda duża liczba idzie Frauncesem, reszta Space Groteskiem.**
+- **Jeden krój na wszystko: `Space Grotesk`** (`font-sans`), self-hosted przez `@fontsource-variable` (import w `main.tsx`), subsety latin + latin-ext. Hierarchię niosą GRUBOŚĆ i WIELKOŚĆ, nie zmiana kroju.
+- Klasy pomocnicze: `.num` (cyfry tabelaryczne), `.num-lg` (duże KPI/ceny/% — waga 700, ciasny trekking), `.head-display` (nagłówki), `.label-caps` (etykieta wersalikami)
+- **Zasada: każda liczba w kolumnie/kafelku dostaje cyfry tabelaryczne** (`.num` albo `tabular-nums`), żeby kwoty się nie „skakały" przy zmianie wartości.
+- ⚠️ Szeryf (Fraunces) był w pierwszej wersji redesignu na liczbach — **odrzucony przez użytkownika jako zbyt dekoracyjny**. Nie wracaj do niego bez pytania. `font-display` i `font-serif` zostały jako aliasy, żeby nie przepisywać wywołań.
 
 **Kształt i powierzchnie**
 - `--radius: 0.25rem`; cała skala (także `rounded-2xl`/`3xl`) domknięta w `@theme` na 2–10px
@@ -173,7 +174,7 @@ linie działowe zamiast morza zaokrąglonych kart. Jedna sygnaturowa barwa — t
 - Motion: 120–160ms, bez bounce; `prefers-reduced-motion` respektowane
 - Copy: liczby po ludzku („12,4% więcej niż w tym samym okresie"), kierunek niesie strzałka więc liczba bez znaku; sentence case, bez wykrzykników
 
-⚠️ **Statyczne strony (blog, 404, prerender w `index.html`) nie widzą hashowanych assetów Vite** — fonty marki mają KOPIE w `public/fonts/` (`space-grotesk-*.woff2`, `fraunces-*.woff2`) i to ich używa `scripts/build-blog.mjs`. Po podmianie/aktualizacji fontu zaktualizuj też te kopie. Pliki `inter-*.woff2` zostają tylko jako legacy — nic ich już nie używa.
+⚠️ **Statyczne strony (blog, 404, prerender w `index.html`) nie widzą hashowanych assetów Vite** — font marki ma KOPIE w `public/fonts/` (`space-grotesk-latin.woff2`, `space-grotesk-latin-ext.woff2`) i to ich używa `scripts/build-blog.mjs`. Po podmianie/aktualizacji fontu zaktualizuj też te kopie. Pliki `inter-*.woff2` zostają tylko jako legacy — nic ich już nie używa.
 
 ---
 

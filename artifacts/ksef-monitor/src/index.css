@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
-/* Fonty: Space Grotesk (UI/body) + Fraunces (liczby, nagłówki, hero).
+/* Font: Space Grotesk na całą apkę — UI, body, nagłówki i liczby.
    Self-hosted przez @fontsource-variable (import w main.tsx) — same-origin,
    więc zgodne z wymuszonym CSP; subsety latin + latin-ext (polskie znaki). */
 
@@ -151,9 +151,11 @@
   --chart-4: 30 20% 62%;         /* taupe */
   --chart-5: 200 22% 55%;        /* przygaszony błękit */
 
+  /* Jeden krój na wszystko. Hierarchię niosą grubość i wielkość, nie zmiana
+     kroju — szeryf (Fraunces) został zdjęty jako zbyt dekoracyjny na liczby. */
   --app-font-sans: 'Space Grotesk Variable', system-ui, sans-serif;
-  --app-font-display: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
-  --app-font-serif: var(--app-font-display);
+  --app-font-display: var(--app-font-sans);
+  --app-font-serif: Georgia, 'Times New Roman', serif;
   --app-font-mono: ui-monospace, Menlo, Monaco, 'Cascadia Mono', 'Segoe UI Mono', 'Roboto Mono', 'Oxygen Mono', 'Ubuntu Monospace', 'Source Code Pro', 'Fira Mono', 'Droid Sans Mono', 'Courier New', monospace;
 
   --radius: 0.25rem;
@@ -290,31 +292,28 @@
     border-top: 1px solid hsl(var(--border));
   }
 
-  /* Liczba redakcyjna — szeryf Fraunces + cyfry tabelaryczne, żeby kolumny
-     kwot się nie „skakały" przy zmianie wartości. */
+  /* Liczba — cyfry tabelaryczne, żeby kolumny kwot się nie „skakały"
+     przy zmianie wartości. */
   .num {
-    font-family: var(--app-font-display);
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
-    letter-spacing: -0.012em;
+    letter-spacing: -0.01em;
   }
 
-  /* Duża liczba (KPI, cena, %) — display'owy krój Frauncesa (opsz). */
+  /* Duża liczba (KPI, cena, %). Bez szeryfu hierarchię niesie waga i światło —
+     stąd mocniejszy grotesk i ciaśniejszy trekking. */
   .num-lg {
-    font-family: var(--app-font-display);
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
-    font-variation-settings: "opsz" 72;
-    letter-spacing: -0.02em;
-    font-weight: 600;
+    letter-spacing: -0.025em;
+    font-weight: 700;
     line-height: 1.05;
   }
 
-  /* Nagłówek redakcyjny */
+  /* Nagłówek strony / sekcji */
   .head-display {
-    font-family: var(--app-font-display);
-    font-variation-settings: "opsz" 48;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.022em;
+    font-weight: 700;
   }
 
   /* Etykieta sekcji / KPI — wersaliki, rozstrzelone, drobne. */

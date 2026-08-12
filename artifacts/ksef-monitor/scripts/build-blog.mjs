@@ -207,8 +207,6 @@ const STYLE = `
          hashowanych assetów Vite. Kopie leżą w public/fonts (patrz README/CLAUDE.md). */
       @font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/fonts/space-grotesk-latin.woff2') format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
       @font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/fonts/space-grotesk-latin-ext.woff2') format('woff2-variations');unicode-range:U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}
-      @font-face{font-family:'Fraunces';font-style:normal;font-weight:100 900;font-display:swap;src:url('/fonts/fraunces-latin.woff2') format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
-      @font-face{font-family:'Fraunces';font-style:normal;font-weight:100 900;font-display:swap;src:url('/fonts/fraunces-latin-ext.woff2') format('woff2-variations');unicode-range:U+0100-024F,U+0259,U+1E00-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}
       *{box-sizing:border-box}
       html,body{margin:0;padding:0}
       body{background:#17130E;color:#F0E9DB;font-family:'Space Grotesk',system-ui,-apple-system,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
@@ -216,7 +214,7 @@ const STYLE = `
       .wrap{max-width:1200px;margin:0 auto;padding:0 24px}
       header.nav{position:sticky;top:0;z-index:50;background:#17130E;border-bottom:1px solid #392F22}
       header.nav .row{display:flex;align-items:center;justify-content:space-between;height:60px}
-      .brand{font-size:18px;font-family:'Fraunces',Georgia,serif;font-weight:700;letter-spacing:-0.03em;color:#E06A3C;text-decoration:none}
+      .brand{font-size:18px;font-weight:700;letter-spacing:-0.03em;color:#E06A3C;text-decoration:none}
       .brand span{color:#F0E9DB}
       .nav-links{display:flex;gap:24px;align-items:center}
       .nav-links a{color:#9C8F79;text-decoration:none;font-size:13px}
@@ -227,12 +225,12 @@ const STYLE = `
       .crumbs{font-size:12px;color:#8A7C63;padding:20px 0 0}
       .crumbs a{color:#9C8F79;text-decoration:none}
       article.post{max-width:760px;margin:0 auto;padding:8px 24px 40px}
-      article.post h1{font-family:'Fraunces',Georgia,serif;font-variation-settings:"opsz" 96;font-size:clamp(1.9rem,4.5vw,2.9rem);font-weight:600;letter-spacing:-0.02em;line-height:1.12;margin:20px 0 14px}
+      article.post h1{font-size:clamp(1.9rem,4.5vw,2.9rem);font-weight:700;letter-spacing:-0.032em;line-height:1.12;margin:20px 0 14px}
       .post-meta{font-size:13px;color:#8A7C63;margin-bottom:8px;display:flex;gap:14px;flex-wrap:wrap}
       .lead{font-size:18px;color:#c3cbd4;line-height:1.65;margin:0 0 8px}
       .post-body{font-size:16px;color:#c3cbd4;line-height:1.8}
-      .post-body h2{font-family:'Fraunces',Georgia,serif;font-variation-settings:"opsz" 48;font-size:1.55rem;font-weight:600;color:#F0E9DB;letter-spacing:-0.02em;margin:44px 0 14px;line-height:1.25}
-      .post-body h3{font-family:'Fraunces',Georgia,serif;font-size:1.18rem;font-weight:600;color:#F0E9DB;margin:32px 0 10px}
+      .post-body h2{font-size:1.55rem;font-weight:600;color:#F0E9DB;letter-spacing:-0.02em;margin:44px 0 14px;line-height:1.25}
+      .post-body h3{font-size:1.18rem;font-weight:600;color:#F0E9DB;margin:32px 0 10px}
       .post-body p{margin:0 0 18px}
       .post-body ul,.post-body ol{margin:0 0 18px;padding-left:22px}
       .post-body li{margin:0 0 8px}
@@ -254,7 +252,7 @@ const STYLE = `
       .post-body th{background:#392F22;color:#F0E9DB;font-weight:600}
       .cta-box{max-width:760px;margin:8px auto 0;padding:0 24px}
       .cta-inner{background:#201A13;border:1px solid #392F22;border-radius:4px;padding:32px 28px;text-align:center}
-      .cta-inner h2{font-family:'Fraunces',Georgia,serif;font-variation-settings:"opsz" 48;font-size:1.45rem;font-weight:600;color:#F0E9DB;margin:0 0 10px}
+      .cta-inner h2{font-size:1.45rem;font-weight:600;color:#F0E9DB;margin:0 0 10px}
       .cta-inner p{color:#9C8F79;margin:0 0 20px;font-size:14px}
       .btn{display:inline-flex;align-items:center;gap:8px;padding:13px 26px;border-radius:4px;font-size:14px;font-weight:700;background:#E06A3C;color:#17130E;text-decoration:none}
       .related{max-width:760px;margin:48px auto 0;padding:0 24px}
@@ -272,13 +270,13 @@ const STYLE = `
       footer.ft .bottom a{color:#9C8F79;text-decoration:none}
       /* Blog index */
       .hero{max-width:1200px;margin:0 auto;padding:64px 24px 32px}
-      .hero h1{font-family:'Fraunces',Georgia,serif;font-variation-settings:"opsz" 96;font-size:clamp(2rem,5vw,3rem);font-weight:600;letter-spacing:-0.02em;margin:0 0 14px}
+      .hero h1{font-size:clamp(2rem,5vw,3rem);font-weight:700;letter-spacing:-0.032em;margin:0 0 14px}
       .hero p{font-size:17px;color:#9C8F79;max-width:640px;line-height:1.65;margin:0}
       .posts{max-width:1200px;margin:0 auto;padding:24px 24px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
       .card{background:#201A13;border:1px solid #392F22;border-radius:4px;padding:26px 24px;text-decoration:none;display:flex;flex-direction:column}
       .card:hover{border-color:rgba(61,220,151,0.3)}
       .card .k{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#E06A3C;margin-bottom:12px}
-      .card h2{font-family:'Fraunces',Georgia,serif;font-size:1.18rem;font-weight:600;color:#F0E9DB;line-height:1.3;margin:0 0 10px;letter-spacing:-0.01em}
+      .card h2{font-size:1.18rem;font-weight:600;color:#F0E9DB;line-height:1.3;margin:0 0 10px;letter-spacing:-0.01em}
       .card p{font-size:14px;color:#9C8F79;line-height:1.6;margin:0 0 16px;flex:1}
       .card .m{font-size:12px;color:#8A7C63}
     </style>`;
