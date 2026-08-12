@@ -124,6 +124,11 @@
 
   --accent-soft: 26 32% 15%;     /* #33251A — tło pigułki/badge'a marki */
 
+  /* Jasność ikon kategorii. Odcień i nasycenie siedzą w lib/category-icons.tsx,
+     lightness bierze się stąd — dzięki temu jeden token przestawia całą paletę
+     ikon między motywami, zamiast 18 par kolorów. */
+  --cat-l: 62%;
+
   --destructive: 4 68% 58%;
   --destructive-foreground: 34 24% 7%;
 
@@ -223,6 +228,8 @@
   --accent-foreground: 36 29% 10%;
 
   --accent-soft: 38 56% 86%;     /* #EFE0C6 — tło pigułki/badge'a marki */
+
+  --cat-l: 38%;                  /* ikony kategorii — ciemniej, bo tło jest kremowe */
 
   --destructive: 2 62% 45%;
   --destructive-foreground: 40 60% 96%;

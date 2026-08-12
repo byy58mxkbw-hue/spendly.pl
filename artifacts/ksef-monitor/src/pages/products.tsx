@@ -358,7 +358,7 @@ export default function Products() {
                   onClick={() => setCategoryFilter(categoryFilter === cat.id ? "all" : cat.id)}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <CategoryIcon categoryId={cat.id} className="w-4 h-4 shrink-0 text-muted-foreground" />
+                    <CategoryIcon categoryId={cat.id} className="w-4 h-4 shrink-0" />
                     <span className={cn(
                       "text-[11px] font-semibold tabular-nums",
                       categoryFilter === cat.id ? "text-primary" : "text-muted-foreground"
@@ -400,7 +400,7 @@ export default function Products() {
                   title={`Kliknij, aby filtrować po kategorii ${cat.label}`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <CategoryIcon categoryId={cat.id} className="w-4 h-4 shrink-0 text-muted-foreground" />
+                    <CategoryIcon categoryId={cat.id} className="w-4 h-4 shrink-0" />
                     <span className="text-xs font-semibold text-muted-foreground tabular-nums">
                       {cat.pct.toFixed(1)}%
                     </span>
@@ -701,7 +701,7 @@ export default function Products() {
                     )}
                     {/* Category icon */}
                     <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center text-base shrink-0 select-none">
-                      <CategoryIcon categoryId={catDef?.id ?? "inne"} className="w-4 h-4 text-muted-foreground" />
+                      <CategoryIcon categoryId={catDef?.id ?? "inne"} className="w-4 h-4" />
                     </div>
 
                     {/* Name + meta */}
