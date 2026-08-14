@@ -56,27 +56,23 @@ function svgFor(title, category, footer = "www.spendly.pl · blog") {
   const titleTspans = lines
     .map((l, i) => `<tspan x="72" y="${startY + i * lh}">${esc(l)}</tspan>`)
     .join("");
+  // Paleta „edytorski gastro" — ciemny papier + terakota, bez gradientu i glow.
+  // To jest wizytówka linku w social/Slacku, więc MUSI się zgadzać z landingiem.
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <defs>
-    <radialGradient id="glow" cx="50%" cy="-10%" r="80%">
-      <stop offset="0%" stop-color="#3DDC97" stop-opacity="0.20"/>
-      <stop offset="55%" stop-color="#3DDC97" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1200" height="630" fill="#0B0F14"/>
-  <rect width="1200" height="630" fill="url(#glow)"/>
-  <text x="72" y="104" font-family="Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="-1">
-    <tspan fill="#F5F7FA">spend</tspan><tspan fill="#3DDC97">ly.</tspan>
+  <rect width="1200" height="630" fill="#17130E"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#E06A3C"/>
+  <text x="72" y="104" font-family="Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="-1">
+    <tspan fill="#F0E9DB">spend</tspan><tspan fill="#E06A3C">ly.</tspan>
   </text>
-  <text x="72" y="192" font-family="Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="3" fill="#3DDC97">${esc((category || "Poradnik").toUpperCase())}</text>
-  <text font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="800" fill="#F5F7FA" letter-spacing="-1">${titleTspans}</text>
-  <rect x="72" y="556" width="60" height="5" rx="2.5" fill="#3DDC97"/>
-  <text x="72" y="592" font-family="Arial, sans-serif" font-size="24" fill="#9BA6B2">${esc(footer)}</text>
+  <text x="72" y="192" font-family="Arial, sans-serif" font-size="21" font-weight="700" letter-spacing="3.5" fill="#E06A3C">${esc((category || "Poradnik").toUpperCase())}</text>
+  <text font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="700" fill="#F0E9DB" letter-spacing="-1.4">${titleTspans}</text>
+  <rect x="72" y="540" width="1056" height="1" fill="#392F22"/>
+  <text x="72" y="592" font-family="Arial, sans-serif" font-size="24" fill="#9C8F79">${esc(footer)}</text>
 </svg>`;
 }
 
 function render(svg, outPath) {
-  const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1200 }, background: "#0B0F14" });
+  const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1200 }, background: "#17130E" });
   writeFileSync(outPath, resvg.render().asPng());
 }
 

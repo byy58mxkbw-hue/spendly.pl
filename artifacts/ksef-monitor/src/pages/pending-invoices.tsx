@@ -752,7 +752,7 @@ export default function PendingInvoices() {
           </div>
         ) : (
           <>
-            <div className="mb-4 md:mb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:static sticky top-14 z-20 -mx-4 px-4 py-2 md:mx-0 md:px-0 md:py-0 bg-background/95 backdrop-blur md:bg-transparent md:backdrop-blur-none border-b border-border md:border-0">
+            <div className="mb-4 md:mb-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:static sticky top-14 z-20 -mx-4 px-4 py-2 md:mx-0 md:px-0 md:py-0 bg-background md:bg-transparent border-b border-border md:border-0">
               {/* Mobile: jeden zwarty pasek; Desktop: kafle */}
               <div className="md:hidden flex items-center gap-1.5 text-[13px] text-muted-foreground">
                 <Receipt className="w-3.5 h-3.5 text-muted-foreground shrink-0" />

@@ -339,7 +339,7 @@ function ReportsInner() {
 
         {/* Pasek filtrów — przyklejony na desktopie (na mobile zjadłby zbyt dużo ekranu).
             Ujemne marginesy + padding: tło ma sięgać krawędzi kontenera. */}
-        <div className="md:sticky md:top-0 z-20 -mx-4 md:-mx-6 lg:-mx-10 px-4 md:px-6 lg:px-10 py-2.5 mb-5 md:mb-6 bg-background/95 backdrop-blur border-b border-border flex flex-wrap items-center gap-2">
+        <div className="md:sticky md:top-0 z-20 -mx-4 md:-mx-6 lg:-mx-10 px-4 md:px-6 lg:px-10 py-2.5 mb-5 md:mb-6 bg-background border-b border-border flex flex-wrap items-center gap-2">
           <PeriodSelector />
           <CostCenterFilter />
           <div className="flex items-center gap-2 ml-auto">
