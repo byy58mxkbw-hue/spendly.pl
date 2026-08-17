@@ -828,9 +828,13 @@ export function useCategoryGroupData(currentData: any[] | undefined, prevData: a
 export function CategoryComparisonTable({
   groups,
   total,
+  onSelect,
 }: {
   groups: any[];
   total: number;
+  /** Klik w wiersz otwiera przebieg miesięczny kategorii. Bez tego wiersz
+   *  zachowuje się jak dawniej — link do produktów w tej kategorii. */
+  onSelect?: (id: string, label: string) => void;
 }) {
   return (
     <div className="border-t border-border">
@@ -842,24 +846,40 @@ export function CategoryComparisonTable({
       <div className="divide-y divide-border/50">
         {groups.map((g, i) => {
           const pct = total > 0 ? (g.spend / total) * 100 : 0;
-          return (
-            <Link
-              key={g.id}
-              href={`/products?category=${g.id}`}
-              className="flex items-center px-5 py-2 gap-3 hover:bg-secondary/40 transition-colors"
-              title={`Pokaż produkty: ${g.label}`}
-            >
+          const inner = (
+            <>
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-              <span className="text-xs text-foreground flex-1 truncate">{g.label}</span>
+              <span className="text-xs text-foreground flex-1 truncate text-left">{g.label}</span>
               <span className="text-xs text-muted-foreground tabular-nums">{pct.toFixed(1)}%</span>
               {g.trend != null ? (
-                <span className={cn("text-xs font-bold tabular-nums flex items-center gap-0.5 w-16 justify-end", g.trend > 0 ? "text-destructive" : "text-positive")}>
+                <span className={cn("text-xs font-bold tabular-nums flex items-center gap-0.5 w-16 justify-end", g.trend > 0 ? "text-negative" : "text-positive")}>
                   {g.trend > 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                   {Math.abs(g.trend).toFixed(1)}%
                 </span>
               ) : (
                 <span className="text-xs text-muted-foreground/40 w-16 text-right">—</span>
               )}
+            </>
+          );
+          const rowClass = "w-full flex items-center px-5 py-2 gap-3 hover:bg-secondary/40 transition-colors";
+          return onSelect ? (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => onSelect(g.id, g.label)}
+              className={cn(rowClass, "cursor-pointer")}
+              title={`Pokaż przebieg miesięczny: ${g.label}`}
+            >
+              {inner}
+            </button>
+          ) : (
+            <Link
+              key={g.id}
+              href={`/products?category=${g.id}`}
+              className={rowClass}
+              title={`Pokaż produkty: ${g.label}`}
+            >
+              {inner}
             </Link>
           );
         })}

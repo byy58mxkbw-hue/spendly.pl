@@ -2,7 +2,7 @@
 // ładowanego leniwie z reports.tsx (React.lazy + Suspense). Dzięki temu strona Raportów
 // (KPI, tabele, listy) renderuje się bez czekania na pobranie/parsowanie recharts.
 // Ciała komponentów 1:1 z components.tsx — zero zmiany zachowania.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Cell,
   Tooltip,
@@ -25,6 +25,7 @@ import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/categories";
 import { CHART_COLORS, shortMonthLabel, useCategoryGroupData, CategoryComparisonTable } from "./components";
+import { CategoryMonthlyModal } from "./category-monthly-modal";
 
 // ─── Spend trend chart ─────────────────────────────────────────────────────────
 
@@ -130,6 +131,8 @@ export function CategoryBarChart() {
   const { selectedId: costCenterId } = useCostCenter();
   const { period, prev, label } = usePeriod();
   const ccParam = costCenterId != null ? { costCenterId } : {};
+  // Klik w kategorię (słupek albo wiersz tabeli) otwiera jej przebieg miesięczny.
+  const [openCategory, setOpenCategory] = useState<{ id: string; label: string } | null>(null);
 
   const { data: currentData, isLoading } = useGetCategorySpend(
     { from: period.from, to: period.to, ...ccParam },
@@ -208,8 +211,19 @@ export function CategoryBarChart() {
               tickLine={false}
               axisLine={false}
             />
-            <Tooltip content={CategoryBarChartTooltip} />
-            <Bar dataKey="spend" radius={[0, 4, 4, 0]}>
+            <Tooltip content={CategoryBarChartTooltip} cursor={{ fill: "hsl(var(--muted))" }} />
+            <Bar
+              dataKey="spend"
+              radius={[0, 4, 4, 0]}
+              className="cursor-pointer"
+              // recharts w zależności od wersji podaje wpis albo bezpośrednio,
+              // albo w `payload` — sięgamy po oba, żeby klik nie przestał działać
+              // po aktualizacji biblioteki.
+              onClick={(d: { id?: string; label?: string; payload?: { id?: string; label?: string } }) => {
+                const entry = d?.payload ?? d;
+                if (entry?.id) setOpenCategory({ id: entry.id, label: entry.label ?? "Kategoria" });
+              }}
+            >
               {barData.map((entry) => (
                 <Cell key={entry.id} fill={entry.fill} />
               ))}
@@ -224,7 +238,19 @@ export function CategoryBarChart() {
         </ResponsiveContainer>
       </div>
 
-      <CategoryComparisonTable groups={groups} total={total} />
+      <CategoryComparisonTable
+        groups={groups}
+        total={total}
+        onSelect={(id, catLabel) => setOpenCategory({ id, label: catLabel })}
+      />
+
+      {openCategory && (
+        <CategoryMonthlyModal
+          categoryId={openCategory.id}
+          categoryLabel={openCategory.label}
+          onClose={() => setOpenCategory(null)}
+        />
+      )}
     </div>
   );
 }
