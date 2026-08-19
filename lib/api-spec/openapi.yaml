@@ -2006,6 +2006,55 @@ paths:
                 items:
                   $ref: "#/components/schemas/CategorySpendTrendRow"
 
+  /reports/product-quantity-trend:
+    get:
+      operationId: getProductQuantityTrend
+      tags: [reports]
+      summary: Monthly purchased quantity for a single product (last N months)
+      description: >
+        Rows are per (month, unit), never summed across units — a supplier switching
+        from "opak" to "kg" must not look like a jump in quantity.
+      parameters:
+        - name: productName
+          in: query
+          required: false
+          description: "Product name as grouped by /reports/monthly. Required unless productId is given."
+          schema:
+            type: string
+        - name: productId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: unit
+          in: query
+          required: false
+          description: "Normalized unit (kg/szt/l...). Omit to get every unit as separate rows."
+          schema:
+            type: string
+        - name: months
+          in: query
+          required: false
+          description: "Number of months to include (default 12, max 12)"
+          schema:
+            type: integer
+            minimum: 2
+            maximum: 12
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Monthly quantity trend for one product
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductQuantityTrendRow"
+
   /reports/cost-centers:
     get:
       operationId: getReportsCostCenters
@@ -3750,6 +3799,33 @@ components:
           type: number
       required:
         - month
+        - totalSpend
+
+    ProductQuantityTrendRow:
+      type: object
+      properties:
+        month:
+          type: string
+          description: "Month in YYYY-MM format"
+        unit:
+          type: string
+          description: >
+            Normalized unit. Rows with DIFFERENT unit for the same product must NOT
+            be summed — they are separate series.
+        totalQuantity:
+          type: number
+        totalSpend:
+          type: number
+          description: "Gross (brutto) — see rule 29"
+        avgUnitPrice:
+          type: number
+          nullable: true
+        invoiceCount:
+          type: integer
+      required:
+        - month
+        - unit
+        - totalQuantity
         - totalSpend
 
     PredictiveReport:

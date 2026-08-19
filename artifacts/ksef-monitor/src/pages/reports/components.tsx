@@ -963,11 +963,17 @@ export function CostCenterComparisonSection() {
 
 // ─── Answer-first: pomocnicze + karty ─────────────────────────────────────────
 
-const fmtQty = (v: number) => new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(v);
-const signedPct = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(1)}%`);
+export const fmtQty = (v: number) => new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(v);
+export const signedPct = (v: number | null | undefined) => (v == null ? "—" : `${v > 0 ? "+" : ""}${v.toFixed(1)}%`);
 // Koszty: mniej = dobrze (zielony), więcej = źle (czerwony).
 const costTone = (v: number | null | undefined) =>
   v == null ? "text-muted-foreground" : v < 0 ? "text-positive" : v > 0 ? "text-destructive" : "text-muted-foreground";
+// Ilości: wzrost = musztarda (ostrzeżenie „zamawiasz więcej"), spadek = oliwka.
+// NIE używaj tu costTone — ten jest o pieniądzach i wymalowałby wzrost zakupów
+// na terakotę, czyli „drożej", co jest kłamstwem o zamówieniu.
+export const qtyTone = (v: number | null | undefined) =>
+  v == null ? "text-muted-foreground" : v > 0 ? "text-warning" : v < 0 ? "text-positive" : "text-muted-foreground";
+
 const spendWord = (v: number | null | undefined) =>
   v == null ? "" : v < 0 ? "mniej" : v > 0 ? "więcej" : "tyle samo";
 
@@ -1131,3 +1137,118 @@ export function TopChangesTable({
   );
 }
 
+
+export { rankQuantityChanges, type QtyChange } from "./quantity-changes";
+import { rankQuantityChanges, type QtyChange } from "./quantity-changes";
+
+// ─── Zmiany ILOŚCI: „ile czego zamówiłem więcej / mniej" ──────────────────────
+// Druga połowa obrazu obok cen. Apka pilnuje, ile KOSZTUJE; ta karta mówi, ile
+// tego WJECHAŁO do lokalu — sygnał o zużyciu, stratach i dyscyplinie zamówień.
+
+function QtyRow({ c, onSelect }: { c: QtyChange; onSelect?: (c: QtyChange) => void }) {
+  const up = c.qtyDelta > 0;
+  const inner = (
+    <>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-foreground truncate">{c.productName}</p>
+        <p className="text-[11px] text-muted-foreground">
+          z {fmtQty(c.prevQty)} {c.unit}
+          {c.supplierCount > 1 ? ` · ${c.supplierCount} dostawców` : ""}
+        </p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-sm font-semibold text-foreground tabular-nums">
+          {fmtQty(c.qty)} {c.unit}
+        </p>
+        <p className={cn("text-[11px] font-semibold tabular-nums flex items-center gap-0.5 justify-end", qtyTone(c.qtyDelta))}>
+          {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+          {signedPct(c.qtyPct)}
+        </p>
+      </div>
+    </>
+  );
+  const cls = "w-full flex items-center gap-3 px-4 md:px-5 py-2.5 text-left transition-colors";
+  return onSelect ? (
+    <button
+      type="button"
+      onClick={() => onSelect(c)}
+      className={cn(cls, "hover:bg-secondary/40 cursor-pointer")}
+      title={`Pokaż przebieg miesięczny: ${c.productName}`}
+    >
+      {inner}
+    </button>
+  ) : (
+    <div className={cls}>{inner}</div>
+  );
+}
+
+export function QuantityChangesCard({
+  products,
+  limit = 5,
+  onViewAll,
+  onSelect,
+}: {
+  products: ProductWithImpact[];
+  limit?: number;
+  onViewAll?: () => void;
+  onSelect?: (c: QtyChange) => void;
+}) {
+  const { up, down, skipped } = useMemo(
+    () => rankQuantityChanges(products, { limit }),
+    [products, limit],
+  );
+
+  if (!up.length && !down.length) {
+    return (
+      <p className="px-4 md:px-5 py-8 text-sm text-muted-foreground text-center">
+        Brak produktów z porównaniem do poprzedniego okresu.
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x divide-border">
+        <div>
+          <p className="label-caps px-4 md:px-5 pt-3 pb-2">Zamawiasz więcej</p>
+          {up.length ? (
+            <div className="divide-y divide-border">
+              {up.map((c) => <QtyRow key={`${c.productName}|${c.unit}`} c={c} onSelect={onSelect} />)}
+            </div>
+          ) : (
+            <p className="px-4 md:px-5 py-6 text-sm text-muted-foreground">Nic istotnie nie wzrosło.</p>
+          )}
+        </div>
+        <div className="border-t md:border-t-0 border-border">
+          <p className="label-caps px-4 md:px-5 pt-3 pb-2">Zamawiasz mniej</p>
+          {down.length ? (
+            <div className="divide-y divide-border">
+              {down.map((c) => <QtyRow key={`${c.productName}|${c.unit}`} c={c} onSelect={onSelect} />)}
+            </div>
+          ) : (
+            <p className="px-4 md:px-5 py-6 text-sm text-muted-foreground">Nic istotnie nie spadło.</p>
+          )}
+        </div>
+      </div>
+      {(skipped > 0 || onViewAll) && (
+        <div className="px-4 md:px-5 py-2.5 border-t border-border flex flex-wrap items-center justify-between gap-2">
+          {skipped > 0 ? (
+            <span className="text-[11px] text-muted-foreground">
+              {skipped} {skipped === 1 ? "produkt pominięty" : "produktów pominiętych"} — brak pełnego porównania
+              (nowy produkt, zmiana dostawcy albo zmiana zbyt drobna)
+            </span>
+          ) : <span />}
+          {onViewAll && (
+            <button
+              type="button"
+              onClick={onViewAll}
+              className="text-[11px] text-primary hover:underline underline-offset-2 shrink-0"
+            >
+              Zobacz wszystkie produkty →
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

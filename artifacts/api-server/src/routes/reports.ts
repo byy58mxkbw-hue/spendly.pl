@@ -3,6 +3,7 @@ import { toNum } from "../lib/parse";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { periodFromQuery, previousPeriod, type Period } from "../lib/period";
+import { normalizeUnit, normalizedUnitSql } from "../lib/units";
 
 const router: IRouter = Router();
 
@@ -746,6 +747,99 @@ router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
     category: r.category ?? null,
     totalSpend: toNum(r.total_spend),
   })));
+});
+
+// ─── Ilości jednego produktu miesiąc po miesiącu ──────────────────────────────
+// „Ile czego zamówiłem więcej niż miesiąc temu" — druga połowa obrazu obok cen.
+//
+// Wiersz jest per (MIESIĄC, JEDNOSTKA), nie per miesiąc. To celowe: gdyby endpoint
+// sumował po miesiącu, przejście dostawcy z „opak" na „kg" wyglądałoby na wykresie
+// jak skok ilości (znany incydent z normalizacji jednostek). Front dostaje jednostki
+// rozdzielone i sam decyduje, którą pokazać — nigdy ich nie sumuje.
+//
+// Klucz produktu: nazwa (tak samo grupuje /reports/monthly), opcjonalnie productId
+// gdy wołający go zna — wtedy dopasowanie jest odporne na zmianę nazwy.
+router.get("/reports/product-quantity-trend", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+
+  const productIdRaw = req.query.productId;
+  const productId = productIdRaw != null && productIdRaw !== "" ? parseInt(String(productIdRaw), 10) : null;
+  const productName = req.query.productName != null ? String(req.query.productName) : "";
+  if ((productId == null || isNaN(productId)) && !productName.trim()) {
+    res.status(400).json({ error: "Podaj productName albo productId" });
+    return;
+  }
+
+  const monthsRaw = parseInt(String(req.query.months ?? ""), 10);
+  const monthCount = Number.isFinite(monthsRaw) && monthsRaw >= 2 && monthsRaw <= 12 ? monthsRaw : 12;
+
+  const unitRaw = req.query.unit != null ? String(req.query.unit) : "";
+  const unitFilter = unitRaw.trim()
+    ? sql`AND ${normalizedUnitSql(sql`ii.unit`)} = ${normalizeUnit(unitRaw)}`
+    : sql.raw("");
+
+  const costCenterIdRaw = req.query.costCenterId;
+  const costCenterId = costCenterIdRaw != null && costCenterIdRaw !== "" ? parseInt(String(costCenterIdRaw), 10) : null;
+  const ccSql = costCenterId != null && !isNaN(costCenterId)
+    ? sql`AND i.cost_center_id = ${costCenterId}`
+    : sql.raw("");
+
+  const productFilter = productId != null && !isNaN(productId)
+    ? sql`AND ii.product_id = ${productId}`
+    : sql`AND COALESCE(p.name, ii.product_name) = ${productName}`;
+
+  // Zakres miesięcy — ten sam sposób co /reports/category-spend-trend.
+  const now = new Date();
+  const startD = new Date(now.getFullYear(), now.getMonth() - (monthCount - 1), 1);
+  const endExclD = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const rangeStart = `${startD.getFullYear()}-${String(startD.getMonth() + 1).padStart(2, "0")}-01`;
+  const rangeEnd = `${endExclD.getFullYear()}-${String(endExclD.getMonth() + 1).padStart(2, "0")}-01`;
+
+  const result = await db.execute(sql`
+    SELECT
+      substring(i.invoice_date, 1, 7) AS month,
+      ${normalizedUnitSql(sql`ii.unit`)} AS unit,
+      SUM(ii.quantity::numeric)::float AS total_quantity,
+      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS total_spend,
+      COUNT(DISTINCT i.id)::int AS invoice_count
+    FROM invoice_items ii
+    INNER JOIN invoices i ON ii.invoice_id = i.id
+    LEFT JOIN products p ON ii.product_id = p.id
+    WHERE i.user_id = ${userId}
+      AND i.excluded = false
+      AND i.parent_invoice_id IS NULL
+      AND (i.invoice_type IS DISTINCT FROM 'KOR')
+      AND ii.quantity::numeric > 0
+      AND i.invoice_date >= ${rangeStart}
+      AND i.invoice_date < ${rangeEnd}
+      ${productFilter}
+      ${unitFilter}
+      ${ccSql}
+    GROUP BY 1, 2
+    ORDER BY 1, 2
+  `);
+
+  const rows = result.rows as Array<{
+    month: string;
+    unit: string | null;
+    total_quantity: number;
+    total_spend: number;
+    invoice_count: number;
+  }>;
+
+  res.json(rows.map((r) => {
+    const qty = toNum(r.total_quantity);
+    const spend = toNum(r.total_spend);
+    return {
+      month: r.month,
+      unit: r.unit ?? "",
+      totalQuantity: qty,
+      totalSpend: spend,
+      // Cena jednostkowa BRUTTO — tylko jako kontekst, karta jest o ilościach.
+      avgUnitPrice: qty > 0 ? spend / qty : null,
+      invoiceCount: r.invoice_count,
+    };
+  }));
 });
 
 // ─── Cost center spend report ─────────────────────────────────────────────────

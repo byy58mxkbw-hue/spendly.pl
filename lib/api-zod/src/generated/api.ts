@@ -1892,6 +1892,34 @@ export const GetCategorySpendTrendResponse = zod.array(GetCategorySpendTrendResp
 
 
 /**
+ * Rows are per (month, unit), never summed across units — a supplier switching from "opak" to "kg" must not look like a jump in quantity.
+ * @summary Monthly purchased quantity for a single product (last N months)
+ */
+export const getProductQuantityTrendQueryMonthsMin = 2;
+export const getProductQuantityTrendQueryMonthsMax = 12;
+
+
+
+export const GetProductQuantityTrendQueryParams = zod.object({
+  "productName": zod.coerce.string().optional().describe('Product name as grouped by \/reports\/monthly. Required unless productId is given.'),
+  "productId": zod.coerce.number().optional(),
+  "unit": zod.coerce.string().optional().describe('Normalized unit (kg\/szt\/l...). Omit to get every unit as separate rows.'),
+  "months": zod.coerce.number().min(getProductQuantityTrendQueryMonthsMin).max(getProductQuantityTrendQueryMonthsMax).optional().describe('Number of months to include (default 12, max 12)'),
+  "costCenterId": zod.coerce.number().optional()
+})
+
+export const GetProductQuantityTrendResponseItem = zod.object({
+  "month": zod.string().describe('Month in YYYY-MM format'),
+  "unit": zod.string().describe('Normalized unit. Rows with DIFFERENT unit for the same product must NOT be summed — they are separate series.\n'),
+  "totalQuantity": zod.number(),
+  "totalSpend": zod.number().describe('Gross (brutto) — see rule 29'),
+  "avgUnitPrice": zod.number().nullish(),
+  "invoiceCount": zod.number().optional()
+})
+export const GetProductQuantityTrendResponse = zod.array(GetProductQuantityTrendResponseItem)
+
+
+/**
  * @summary Get spending summary grouped by cost center for a given month
  */
 export const GetReportsCostCentersQueryParams = zod.object({

@@ -34,7 +34,7 @@ import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import {
   AlertsList, CategoryMiniList, CostCenterComparisonSection,
   FoodCostHeroCard, OverviewTiles, ProductsTable, RecommendationsList, SectionCard, TopChangesTable,
-  SpendHero, SupplierCard, TopSuppliersTable, computeImpacts,
+  SpendHero, SupplierCard, TopSuppliersTable, computeImpacts, QuantityChangesCard, type QtyChange,
   currentMonth, type ProductWithImpact,
 } from "./reports/components";
 import { PeriodProvider, usePeriod, type PresetKey } from "@/contexts/period-context";
@@ -44,6 +44,9 @@ import { PeriodProvider, usePeriod, type PresetKey } from "@/contexts/period-con
 const SpendTrendChart = lazy(() => import("./reports/charts").then((m) => ({ default: m.SpendTrendChart })));
 const CategoryBarChart = lazy(() => import("./reports/charts").then((m) => ({ default: m.CategoryBarChart })));
 const CategoryTrendChart = lazy(() => import("./reports/charts").then((m) => ({ default: m.CategoryTrendChart })));
+// Modal ilosci ciagnie recharts, a karta stoi w Przegladzie (renderuje sie od razu) —
+// bez lazy recharts wjechalby do glownego chunka i cofnal optymalizacje powyzej.
+const ProductQuantityModal = lazy(() => import("./reports/product-quantity-modal").then((m) => ({ default: m.ProductQuantityModal })));
 
 // Selektor okresu: nawigator miesiąca ze strzałkami (ten sam co na Dashboardzie),
 // a obok ikona kalendarza — presety wielomiesięczne + własny zakres dni.
@@ -213,7 +216,8 @@ function ReportsInner() {
   const [, navigate] = useLocation();
   const { getToken } = useAuth();
   const { toast } = useToast();
-  const { period, prev, label, prevLabel, preset, setMonth } = usePeriod();
+  const { period, prev, label, prevLabel, preset, month, setMonth } = usePeriod();
+  const [openProduct, setOpenProduct] = useState<{ name: string; unit: string } | null>(null);
   const [exportingXlsx, setExportingXlsx] = useState(false);
   useCostCenterInUrl();
 
@@ -443,6 +447,24 @@ function ReportsInner() {
               </SectionCard>
             )}
 
+            {/* 2b. Ilosci — druga polowa obrazu: nie ile KOSZTUJE, tylko ile WJECHALO */}
+            {!isLoading && (data?.totalSpend ?? 0) > 0 && (
+              <SectionCard
+                title="Więcej / mniej zamówione"
+                subtitle={
+                  month
+                    ? `Ilości vs ${prevLabel}`
+                    : `Ilości vs ${prevLabel} — okres wielomiesięczny, nie miesiąc do miesiąca`
+                }
+              >
+                <QuantityChangesCard
+                  products={allProducts}
+                  onViewAll={() => setTab("produkty")}
+                  onSelect={(c: QtyChange) => setOpenProduct({ name: c.productName, unit: c.unit })}
+                />
+              </SectionCard>
+            )}
+
             {/* 3. Trend wydatków — główny wykres, pełna szerokość */}
             {!isLoading && data && (data?.totalSpend ?? 0) > 0 && (
               <SectionCard
@@ -611,6 +633,16 @@ function ReportsInner() {
 
         </Tabs>
       </div>
+
+      {openProduct && (
+        <Suspense fallback={null}>
+          <ProductQuantityModal
+            productName={openProduct.name}
+            unit={openProduct.unit}
+            onClose={() => setOpenProduct(null)}
+          />
+        </Suspense>
+      )}
     </Layout>
   );
 }

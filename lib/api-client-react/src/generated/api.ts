@@ -70,6 +70,7 @@ import type {
   GetPosItemsParams,
   GetPredictiveReportParams,
   GetProductPriceHistoryParams,
+  GetProductQuantityTrendParams,
   GetRecentPurchasesParams,
   GetReportsCostCentersParams,
   GetSpendBridgeParams,
@@ -109,6 +110,7 @@ import type {
   PriceChangeProduct,
   PriceHistoryEntry,
   Product,
+  ProductQuantityTrendRow,
   RecentPurchase,
   RepriceDish200,
   ResuggestCostCenters200,
@@ -6116,6 +6118,91 @@ export function useGetCategorySpendTrend<TData = Awaited<ReturnType<typeof getCa
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetCategorySpendTrendQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetProductQuantityTrendUrl = (params?: GetProductQuantityTrendParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/product-quantity-trend?${stringifiedParams}` : `/api/reports/product-quantity-trend`
+}
+
+/**
+ * Rows are per (month, unit), never summed across units — a supplier switching from "opak" to "kg" must not look like a jump in quantity.
+ * @summary Monthly purchased quantity for a single product (last N months)
+ */
+export const getProductQuantityTrend = async (params?: GetProductQuantityTrendParams, options?: RequestInit): Promise<ProductQuantityTrendRow[]> => {
+
+  return customFetch<ProductQuantityTrendRow[]>(getGetProductQuantityTrendUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProductQuantityTrendQueryKey = (params?: GetProductQuantityTrendParams,) => {
+    return [
+    `/api/reports/product-quantity-trend`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetProductQuantityTrendQueryOptions = <TData = Awaited<ReturnType<typeof getProductQuantityTrend>>, TError = ErrorType<unknown>>(params?: GetProductQuantityTrendParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProductQuantityTrend>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProductQuantityTrendQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProductQuantityTrend>>> = ({ signal }) => getProductQuantityTrend(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProductQuantityTrend>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProductQuantityTrendQueryResult = NonNullable<Awaited<ReturnType<typeof getProductQuantityTrend>>>
+export type GetProductQuantityTrendQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Monthly purchased quantity for a single product (last N months)
+ */
+
+export function useGetProductQuantityTrend<TData = Awaited<ReturnType<typeof getProductQuantityTrend>>, TError = ErrorType<unknown>>(
+ params?: GetProductQuantityTrendParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProductQuantityTrend>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProductQuantityTrendQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

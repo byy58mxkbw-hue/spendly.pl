@@ -788,6 +788,18 @@ export interface CategorySpendTrendRow {
   totalSpend: number;
 }
 
+export interface ProductQuantityTrendRow {
+  /** Month in YYYY-MM format */
+  month: string;
+  /** Normalized unit. Rows with DIFFERENT unit for the same product must NOT be summed — they are separate series. */
+  unit: string;
+  totalQuantity: number;
+  /** Gross (brutto) — see rule 29 */
+  totalSpend: number;
+  avgUnitPrice?: number | null;
+  invoiceCount?: number;
+}
+
 export interface PredictiveReport {
   horizonDays: number;
   generatedAt: string;
@@ -1672,6 +1684,25 @@ costCenterId?: number;
 export type GetCategorySpendTrendParams = {
 /**
  * Number of months to include (default 6, max 12)
+ * @minimum 2
+ * @maximum 12
+ */
+months?: number;
+costCenterId?: number;
+};
+
+export type GetProductQuantityTrendParams = {
+/**
+ * Product name as grouped by /reports/monthly. Required unless productId is given.
+ */
+productName?: string;
+productId?: number;
+/**
+ * Normalized unit (kg/szt/l...). Omit to get every unit as separate rows.
+ */
+unit?: string;
+/**
+ * Number of months to include (default 12, max 12)
  * @minimum 2
  * @maximum 12
  */
