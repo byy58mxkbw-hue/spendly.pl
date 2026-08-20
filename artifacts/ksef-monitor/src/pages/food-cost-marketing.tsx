@@ -30,7 +30,7 @@ export default function FoodCostMarketingPage() {
   const { theme, c: C, toggle } = useMarketingTheme();
 
   return (
-    <div style={{ background: C.bg, color: C.text, fontFamily: "Inter, system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
+    <div style={{ background: C.bg, color: C.text, fontFamily: "'Space Grotesk Variable', system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
       <MarketingNavBar c={C} theme={theme} onToggle={toggle} />
 
       <main>

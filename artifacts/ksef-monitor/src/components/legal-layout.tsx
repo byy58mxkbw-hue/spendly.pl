@@ -19,7 +19,7 @@ export function LegalLayout({
   const { theme, toggle, c } = useMarketingTheme();
 
   return (
-    <div style={{ background: c.bg, color: c.text, fontFamily: "Inter, system-ui, sans-serif", minHeight: "100vh" }}>
+    <div style={{ background: c.bg, color: c.text, fontFamily: "'Space Grotesk Variable', system-ui, sans-serif", minHeight: "100vh" }}>
       {/* Nagłówek */}
       <header style={{
         position: "sticky", top: 0, zIndex: 50,
