@@ -216,7 +216,9 @@ html { scroll-behavior: smooth; }
   .spendly-site .nav-desktop{display:none;}
   .spendly-site .nav-burger{display:inline-flex;}
   .spendly-site .mb-grid,.spendly-site .ksef,.spendly-site .feat-grid,.spendly-site .price-grid,.spendly-site .foot-grid,.spendly-site .compare{grid-template-columns:1fr;}
+  /* 3 KPI w 2 kolumnach zostawialy pusta komorke — ostatni domyka wiersz. */
   .spendly-site .mb-kpis{grid-template-columns:1fr 1fr;}
+  .spendly-site .mb-kpis .kpi:last-child{grid-column:1 / -1;}
   .spendly-site .band{grid-template-columns:1fr 1fr;}
   .spendly-site h1{max-width:none;}
 }
@@ -235,9 +237,11 @@ html { scroll-behavior: smooth; }
   .spendly-site .eyebrow{margin-bottom:20px;}
   .spendly-site h1{margin-bottom:16px;}
   .spendly-site .lead{margin-bottom:26px;}
-  .spendly-site .hero-cta{flex-direction:column;align-items:stretch;}
-  .spendly-site .hero-cta .btn{width:100%;justify-content:center;}
-  .spendly-site .hero-cta .btn-lg{padding:14px 18px;}
+  /* Przyciski w naturalnej szerokosci, nie na cala szerokosc ekranu — pelnoszerokosciowa
+     terakotowa plyta dominuje ekran i kloci sie z redakcyjnym charakterem reszty. */
+  .spendly-site .hero-cta{gap:10px;}
+  .spendly-site .hero-cta .btn{width:auto;}
+  .spendly-site .hero-cta .btn-lg{padding:13px 20px;font-size:14.5px;}
   .spendly-site .mock{margin-top:36px;padding:10px;}
   .spendly-site .mb-top{padding:12px 14px;}
   .spendly-site .mb-grid{padding:12px;gap:12px;}
