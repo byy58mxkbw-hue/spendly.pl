@@ -235,7 +235,12 @@ html { scroll-behavior: smooth; }
   /* HERO: mniej pustki nad i pod, węższe odstępy */
   .spendly-site .hero{padding:104px 0 44px;}
   .spendly-site .eyebrow{margin-bottom:20px;}
-  .spendly-site h1{font-size:clamp(26px,7.2vw,34px);letter-spacing:-0.028em;line-height:1.1;margin-bottom:16px;}
+  /* Twardy <br/> w home.tsx dzieli naglowek tak, jak pasuje na DUZYM ekranie —
+     na telefonie wymusza dluga druga linie, ktora nie miesci sie w szerokosci
+     i jest przycinana (kontener ma overflow-x:hidden, wiec tekst znika, nie scrolluje).
+     Chowamy go: naglowek plynie i zawija sie sam na granicy slow. */
+  .spendly-site h1 br{display:none;}
+  .spendly-site h1{font-size:clamp(25px,6.8vw,31px);letter-spacing:-0.026em;line-height:1.12;margin-bottom:16px;overflow-wrap:break-word;}
   .spendly-site .lead{font-size:15.5px;line-height:1.62;}
   .spendly-site .lead{margin-bottom:26px;}
   /* Przyciski w naturalnej szerokosci, nie na cala szerokosc ekranu — pelnoszerokosciowa
