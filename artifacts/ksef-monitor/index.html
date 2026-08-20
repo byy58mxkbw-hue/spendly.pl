@@ -178,6 +178,13 @@
         }
         #skip-link { position:absolute; left:-9999px; top:0; z-index:100; background:#E06A3C; color:#17130E; padding:10px 16px; border-radius:0 0 8px 0; font-size:14px; font-weight:600; text-decoration:none; }
         #skip-link:focus { left:0; }
+        /* Telefon: te same rozmiary co landing.css, zeby prerender -> React nie skakal.
+           !important, bo nadpisujemy style inline. */
+        @media (max-width: 560px) {
+          #pre-hero { padding: 56px 22px 44px !important; }
+          #pre-hero h1 { font-size: clamp(26px,7.2vw,34px) !important; letter-spacing:-0.028em !important; line-height:1.1 !important; }
+          #pre-hero p { font-size: 15.5px !important; line-height:1.62 !important; }
+        }
       </style>
       <a id="skip-link" href="#main-content">Przejdź do treści</a>
       <div style="background:radial-gradient(ellipse 90% 55% at 50% -8%, #33251A, transparent 60%), #17130E;min-height:100vh;font-family:'Space Grotesk Variable',system-ui,sans-serif;color:#F0E9DB;">
@@ -210,7 +217,7 @@
 
         <main id="main-content">
         <!-- HERO -->
-        <section style="max-width:1200px;margin:0 auto;padding:72px 24px 80px;">
+        <section id="pre-hero" style="max-width:1200px;margin:0 auto;padding:72px 24px 80px;">
           <div>
             <div style="margin-bottom:24px;display:flex;">
               <span style="display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border-radius:2px;border:1px solid #392F22;background:#33251A;color:#E06A3C;font-size:12px;font-weight:600;">
