@@ -4,44 +4,21 @@ import { Check, ArrowRight, ChevronRight } from "@/lib/icons";
 import { useMarketingTheme } from "@/lib/marketing-theme";
 import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
 
-// Plany spójne z landingiem (home.tsx) i backendem (free/pro/business).
-const PLANS = [
-  {
-    name: "Start",
-    price: "0",
-    period: "/mies.",
-    highlight: false,
-    desc: "Dla jednego lokalu, który dopiero zaczyna porządkować faktury.",
-    features: ["1 lokal", "Faktury z KSeF bez limitu", "OCR paragonów do 50 / mies.", "Podstawowe alerty cenowe"],
-    cta: "Zacznij za darmo",
-    href: "/sign-up",
-  },
-  {
-    name: "Pro",
-    price: "199",
-    period: "/mies.",
-    highlight: true,
-    desc: "Dla restauracji, które chcą realnie kontrolować food cost.",
-    features: ["Do 3 lokali", "Faktury z KSeF bez limitu", "Nielimitowany OCR paragonów", "Porównanie dostawców", "Food cost i receptury", "Asystent AI"],
-    cta: "Wybierz Pro",
-    href: "/sign-up",
-  },
-  {
-    name: "Sieć",
-    price: "Wycena",
-    period: "",
-    highlight: false,
-    desc: "Dla grup gastronomicznych i hoteli z wieloma lokalami.",
-    features: ["Nielimitowane lokale", "Centra kosztów i role", "Raporty konsolidowane", "Dedykowany opiekun"],
-    cta: "Umów rozmowę",
-    href: "mailto:kontakt@spendly.pl",
-  },
-];
+// Plany pochodzą z JEDNEGO źródła (lib/pricing.ts) — wcześniej ta tablica była
+// lokalną kopią i rozjechała się z landingiem.
+import { PLANS, PRICING_NOTE } from "@/lib/pricing";
 
+const PRO = PLANS.find((p) => p.id === "pro")!;
+const PRO_PRICE = `${PRO.price} ${PRO.unit ?? ""}`.trim();
+
+// Model cenowy: pełny dostęp bezpłatnie w OKRESIE TESTOWYM, ceny wejdą po jego
+// zakończeniu. Wcześniej ta strona mówiła co innego niż landing („Start darmowy
+// bezterminowo" + „14 dni próbnych") — dwie różne oferty w jednym produkcie.
 const FAQS = [
-  { q: "Ile kosztuje Spendly?", a: "Plan Start jest darmowy bezterminowo. Plan Pro to 199 zł / miesiąc za pełną kontrolę food cost, porównania dostawców i asystenta AI. Dla sieci lokali przygotowujemy wycenę indywidualną." },
+  // Cena brana z PLANS, nie wpisana w tekst — inaczej rozjedzie sie z tabela wyzej.
+  { q: "Ile kosztuje Spendly?", a: `Obecnie pełny dostęp jest bezpłatny w okresie testowym — nie płacisz za nic. Ceny z tabeli powyżej (Pro ${PRO_PRICE}) wejdą w życie po zakończeniu okresu testowego; uprzedzimy o tym z wyprzedzeniem. Dla sieci lokali przygotowujemy wycenę indywidualną.` },
   { q: "Czy mogę anulować w dowolnym momencie?", a: "Tak. Brak długoterminowych umów ani opłat za rezygnację. Anulujesz kiedy chcesz, bez żadnych konsekwencji." },
-  { q: "Jak długo trwa okres testowy?", a: "Każdy płatny plan zaczynasz od 14 dni za darmo — bez podawania karty kredytowej. Plan Start pozostaje bezpłatny na stałe." },
+  { q: "Jak długo trwa okres testowy?", a: "Nie podaliśmy jeszcze daty zakończenia — dopóki trwa, korzystasz z pełnej funkcjonalności za darmo i bez podawania karty. O nadchodzącej zmianie poinformujemy z wyprzedzeniem." },
   { q: "Czy jest możliwość dostosowania planu dla sieci restauracji?", a: "Tak. Skontaktuj się z nami pod adresem kontakt@spendly.pl — przygotujemy ofertę dedykowaną dla sieci lokali gastronomicznych." },
 ];
 
@@ -64,7 +41,7 @@ export default function CennikPage() {
           <span style={{ color: c.accentText }}>Pełna kontrola kosztów.</span>
         </h1>
         <p style={{ fontSize: 17, color: c.muted, lineHeight: 1.7, maxWidth: 480, margin: "0 auto 0" }}>
-          Zacznij za darmo. Każdy płatny plan z 14 dniami próbnymi, bez karty. Anuluj w dowolnym momencie.
+          {PRICING_NOTE}
           <br /><strong style={{ color: c.text }}>Faktury z KSeF bez limitu stron na każdym planie</strong> — nie płacisz za skanowane strony.
         </p>
       </section>
@@ -82,6 +59,7 @@ export default function CennikPage() {
                 borderRadius: 4,
                 padding: "32px 28px",
                 display: "flex",
+                textAlign: "center",
                 flexDirection: "column",
                 boxShadow: plan.highlight ? "0 24px 48px rgba(0,0,0,0.18)" : "none",
               }}
@@ -92,14 +70,14 @@ export default function CennikPage() {
                 </div>
               )}
               <p style={{ fontSize: 15, fontWeight: 700, color: c.text, margin: 0 }}>{plan.name}</p>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 6, margin: "14px 0 4px" }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6, margin: "14px 0 4px" }}>
                 <span style={{ fontSize: 44, fontWeight: 800, color: c.accentText, letterSpacing: "-0.03em", lineHeight: 1 }}>{plan.price}</span>
-                {plan.price !== "Wycena" && <span style={{ fontSize: 15, color: c.muted }}>zł{plan.period}</span>}
+                {plan.unit && <span style={{ fontSize: 15, color: c.muted }}>{plan.unit}</span>}
               </div>
               <p style={{ fontSize: 13, color: c.muted, margin: "0 0 20px", minHeight: 38 }}>{plan.desc}</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 11, marginBottom: 24, flex: 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 11, marginBottom: 24, flex: 1, width: "fit-content", marginLeft: "auto", marginRight: "auto" }}>
                 {plan.features.map((f) => (
-                  <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13.5, color: c.text }}>
+                  <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 13.5, color: c.text, textAlign: "left" }}>
                     <Check size={16} style={{ color: c.accent, flexShrink: 0, marginTop: 1 }} />{f}
                   </div>
                 ))}

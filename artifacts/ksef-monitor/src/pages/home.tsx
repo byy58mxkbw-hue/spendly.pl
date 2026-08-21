@@ -7,6 +7,7 @@ import {
 } from "@/lib/icons";
 import "@/styles/landing.css";
 import { track } from "@/lib/posthog";
+import { PLANS, PRICING_NOTE } from "@/lib/pricing";
 
 type Theme = "dark" | "light";
 
@@ -113,7 +114,7 @@ export default function Home() {
     <div className="spendly-site" data-theme={theme}>
       {/* NAV */}
       <nav>
-        <div className="nav-in glass" style={{ marginTop: scrolled ? 6 : 12 }}>
+        <div className={`nav-in glass${scrolled ? " is-scrolled" : ""}`}>
           <Wordmark size={22} />
           <div className="nav-links">
             <a href="#funkcje">Funkcje</a>
@@ -222,7 +223,7 @@ export default function Home() {
         </div>
         <div className="feat-grid">
           {FEATURES.map(({ Icon, h, p }) => (
-            <div className="feat glass" key={h}>
+            <div className="feat" key={h}>
               <div className="fic"><Icon /></div>
               <h3>{h}</h3>
               <p>{p}</p>
@@ -240,7 +241,7 @@ export default function Home() {
         </div>
         <div className="feat-grid">
           {AUDIENCE.map(({ Icon, h, p }) => (
-            <div className="feat glass" key={h}>
+            <div className="feat" key={h}>
               <div className="fic"><Icon /></div>
               <h3>{h}</h3>
               <p>{p}</p>
@@ -254,7 +255,7 @@ export default function Home() {
         <div className="ksef">
           <div>
             <div className="sec-eye">Jak to działa</div>
-            <h2 style={{ textAlign: "left" }}>Podłącz KSeF raz.<br />Reszta dzieje się sama.</h2>
+            <h2>Podłącz KSeF raz.<br />Reszta dzieje się sama.</h2>
             <div className="ksef-steps" style={{ marginTop: 30 }}>
               {STEPS.map((s) => (
                 <div className="step" key={s.n}>
@@ -286,7 +287,7 @@ export default function Home() {
           <p>Inne narzędzia każą Ci skanować i wgrywać każdą fakturę — i płacić za limit stron. Spendly bierze je prosto z KSeF: automatycznie i bez limitów.</p>
         </div>
         <div className="compare">
-          <div className="cmp-col cmp-con glass">
+          <div className="cmp-col cmp-con">
             <div className="cmp-h">Ręczny OCR — jak w innych narzędziach</div>
             <ul>
               <li><X />Skanujesz lub wgrywasz każdą fakturę ręcznie</li>
@@ -295,7 +296,7 @@ export default function Home() {
               <li><X />Łatwo pominąć fakturę, która nie trafi do skanera</li>
             </ul>
           </div>
-          <div className="cmp-col cmp-pro glass">
+          <div className="cmp-col cmp-pro">
             <div className="cmp-h">Automat z KSeF — Spendly</div>
             <ul>
               <li><Check />Podłączasz KSeF raz — faktury wpadają same</li>
@@ -321,46 +322,37 @@ export default function Home() {
         <div className="sec-head">
           <div className="sec-eye">Cennik</div>
           <h2>Prosty cennik, który się zwraca</h2>
-          <p>Obecnie pełny dostęp <strong>bezpłatnie w okresie testowym</strong> — ceny poniżej wejdą po jego zakończeniu. Bez ukrytych opłat, anulujesz kiedy chcesz.</p>
+          <p>{PRICING_NOTE}</p>
         </div>
         <div className="price-grid">
-          <div className="plan glass">
-            <div className="pn">Start</div>
-            <div className="pp">0 zł<span>/mies.</span></div>
-            <div className="pd">Dla jednego lokalu, który dopiero zaczyna porządkować faktury.</div>
-            <ul>
-              <li><Check />1 lokal</li>
-              <li><Check />Import z KSeF</li>
-              <li><Check />OCR do 50 faktur / mies.</li>
-              <li><Check />Podstawowe alerty cenowe</li>
-            </ul>
-            <a className="btn btn-ghost" href="/sign-up" onClick={go("/sign-up")}>Zacznij za darmo</a>
-          </div>
-          <div className="plan glass hot">
-            <div className="pn">Pro</div>
-            <div className="pp">199 zł<span>/mies.</span></div>
-            <div className="pd">Dla restauracji, które chcą realnie kontrolować food cost.</div>
-            <ul>
-              <li><Check />Do 3 lokali</li>
-              <li><Check />Nielimitowany OCR</li>
-              <li><Check />Porównanie dostawców</li>
-              <li><Check />Food cost i receptury</li>
-              <li><Check />Asystent AI</li>
-            </ul>
-            <a className="btn btn-primary" href="/sign-up" onClick={go("/sign-up")}>Wybierz Pro</a>
-          </div>
-          <div className="plan glass">
-            <div className="pn">Sieć</div>
-            <div className="pp">Wycena<span></span></div>
-            <div className="pd">Dla grup gastronomicznych i hoteli z wieloma lokalami.</div>
-            <ul>
-              <li><Check />Nielimitowane lokale</li>
-              <li><Check />Centra kosztów i role</li>
-              <li><Check />Raporty konsolidowane</li>
-              <li><Check />Dedykowany opiekun</li>
-            </ul>
-            <a className="btn btn-ghost" href="mailto:kontakt@spendly.pl">Umów rozmowę</a>
-          </div>
+          {PLANS.map((plan) => {
+            const isMail = plan.href.startsWith("mailto:");
+            return (
+              <div key={plan.id} className={`plan${plan.highlight ? " hot" : ""}`}>
+                {/* Plakietka jako prawdziwy element, nie ::before — treść należy
+                    do DOM (czytniki ekranu, SEO), a `top:-12px` wymaga elementu. */}
+                {plan.highlight && <div className="pb">Najpopularniejszy</div>}
+                <div className="pn">{plan.name}</div>
+                <div className="pp">
+                  <b>{plan.price}</b>
+                  {plan.unit && <span>{plan.unit}</span>}
+                </div>
+                <div className="pd">{plan.desc}</div>
+                <ul>
+                  {plan.features.map((f) => (
+                    <li key={f}><Check />{f}</li>
+                  ))}
+                </ul>
+                <a
+                  className={`btn ${plan.highlight ? "btn-primary" : "btn-ghost"}`}
+                  href={plan.href}
+                  onClick={isMail ? undefined : go(plan.href)}
+                >
+                  {plan.cta}
+                </a>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -372,7 +364,7 @@ export default function Home() {
         </div>
         <div className="faq">
           {FAQS.map((f, i) => (
-            <div className={`qa glass${openFaq.has(i) ? " open" : ""}`} key={f.q} onClick={() => toggleFaq(i)}>
+            <div className={`qa${openFaq.has(i) ? " open" : ""}`} key={f.q} onClick={() => toggleFaq(i)}>
               <div className="q">{f.q}<Plus /></div>
               <div className="a">{f.a}</div>
             </div>
@@ -389,7 +381,7 @@ export default function Home() {
         </div>
         <div className="feat-grid">
           {SECURITY.map(({ Icon, h, p }) => (
-            <div className="feat glass" key={h}>
+            <div className="feat" key={h}>
               <div className="fic"><Icon /></div>
               <h3>{h}</h3>
               <p>{p}</p>
@@ -419,20 +411,20 @@ export default function Home() {
             <p>Monitoring cen dostawców i kontrola food cost dla restauracji, hoteli i firm gastronomicznych. Zintegrowane z KSeF.</p>
           </div>
           <div className="foot-col">
-            <h3>Produkt</h3>
+            <p className="foot-h">Produkt</p>
             <a href="#funkcje">Funkcje</a>
             <a href="#ksef">Integracja KSeF</a>
             <a href="#cennik">Cennik</a>
             <a href="/cennik" onClick={go("/cennik")}>Pełny cennik</a>
           </div>
           <div className="foot-col">
-            <h3>Firma</h3>
+            <p className="foot-h">Firma</p>
             <a href="mailto:kontakt@spendly.pl">Kontakt</a>
             <a href="/sign-up" onClick={go("/sign-up")}>Rejestracja</a>
             <a href="/sign-in" onClick={go("/sign-in")}>Logowanie</a>
           </div>
           <div className="foot-col">
-            <h3>Zasoby</h3>
+            <p className="foot-h">Zasoby</p>
             <a href="/blog">Blog</a>
             <a href="mailto:kontakt@spendly.pl">Pomoc</a>
             <a href="/polityka-prywatnosci" onClick={go("/polityka-prywatnosci")}>Polityka prywatności</a>

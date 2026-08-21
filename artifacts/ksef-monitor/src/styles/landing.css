@@ -8,6 +8,11 @@ html { scroll-behavior: smooth; }
 
 .spendly-site {
   --danger:#B0402C; --warn:#C68A1E;
+  /* Dwie skale promienia zamiast czterech (bylo 0/2/3/4px bez reguly).
+     --r    = karta i przycisk (obiekt z wlasnym CTA albo wlasna powierzchnia)
+     --r-xs = plakietka, tag, kafelek ikony
+     Komorki siatek hairline nie maja promienia w ogole — to nie karty. */
+  --r:4px; --r-xs:2px;
   box-sizing:border-box;
   font-family:'Space Grotesk Variable',system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;
@@ -38,10 +43,6 @@ html { scroll-behavior: smooth; }
 .spendly-site a{color:inherit;text-decoration:none;}
 .spendly-site ::selection{background:var(--acc);color:var(--btn-ink);}
 
-/* Aurora usunięta — tło jest płaskim papierem. Selektory zostają jako no-op,
-   żeby stary markup (jeśli gdzieś przetrwa) niczego nie malował. */
-.spendly-site .aurora,.spendly-site .blob{display:none;}
-
 .spendly-site .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 24px;}
 
 /* Karta redakcyjna (nazwa .glass zostaje — używa jej home.tsx) */
@@ -53,23 +54,24 @@ html { scroll-behavior: smooth; }
 
 /* ── NAV ── */
 .spendly-site nav{position:fixed;top:0;left:0;right:0;z-index:50;transition:all .16s;}
-.spendly-site .nav-in{max-width:1180px;margin:12px auto 0;padding:12px 20px;border-radius:4px;display:flex;align-items:center;gap:24px;}
+.spendly-site .nav-in{max-width:1180px;margin:12px auto 0;transition:margin-top .16s;padding:12px 20px;border-radius:var(--r);display:flex;align-items:center;gap:24px;}
+.spendly-site .nav-in.is-scrolled{margin-top:6px;}
 .spendly-site .nav-links{display:flex;gap:6px;margin-left:14px;}
-.spendly-site .nav-links a{font-size:14px;font-weight:500;color:var(--muted);padding:8px 12px;border-radius:3px;transition:all .14s;}
+.spendly-site .nav-links a{font-size:14px;font-weight:500;color:var(--muted);padding:8px 12px;border-radius:var(--r);transition:all .14s;}
 .spendly-site .nav-links a:hover{color:var(--text);background:var(--brd-soft);}
 .spendly-site .nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
-.spendly-site .nav-burger{display:none;align-items:center;justify-content:center;width:38px;height:38px;border-radius:3px;border:1px solid var(--brd);background:transparent;color:var(--text);cursor:pointer;transition:background .14s;}
+.spendly-site .nav-burger{display:none;align-items:center;justify-content:center;width:38px;height:38px;border-radius:var(--r);border:1px solid var(--brd);background:transparent;color:var(--text);cursor:pointer;transition:background .14s;}
 .spendly-site .nav-burger:hover{background:var(--brd-soft);}
 .spendly-site .nav-burger svg{width:20px;height:20px;}
-.spendly-site .nav-mobile{max-width:1180px;margin:8px auto 0;padding:14px 18px;border-radius:4px;display:flex;flex-direction:column;gap:4px;}
-.spendly-site .nav-mobile a{font-size:15px;font-weight:500;color:var(--muted);padding:11px 12px;border-radius:3px;transition:all .14s;}
+.spendly-site .nav-mobile{max-width:1180px;margin:8px auto 0;padding:14px 18px;border-radius:var(--r);display:flex;flex-direction:column;gap:4px;}
+.spendly-site .nav-mobile a{font-size:15px;font-weight:500;color:var(--muted);padding:11px 12px;border-radius:var(--r);transition:all .14s;}
 .spendly-site .nav-mobile a:hover{color:var(--text);background:var(--brd-soft);}
 .spendly-site .nav-mobile-cta{display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:12px;border-top:1px solid var(--brd);}
 .spendly-site .nav-mobile-cta .btn{justify-content:center;}
-.spendly-site .tgl{width:38px;height:38px;border-radius:3px;display:grid;place-items:center;cursor:pointer;color:var(--muted);border:1px solid var(--brd);background:transparent;transition:all .14s;}
+.spendly-site .tgl{width:38px;height:38px;border-radius:var(--r);display:grid;place-items:center;cursor:pointer;color:var(--muted);border:1px solid var(--brd);background:transparent;transition:all .14s;}
 .spendly-site .tgl:hover{color:var(--text);background:var(--brd-soft);}
 .spendly-site .tgl svg{width:17px;height:17px;}
-.spendly-site .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;border-radius:3px;cursor:pointer;border:none;font-family:inherit;transition:all .14s;white-space:nowrap;}
+.spendly-site .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:14px;border-radius:var(--r);cursor:pointer;border:none;font-family:inherit;transition:all .14s;white-space:nowrap;}
 .spendly-site .btn svg{width:16px;height:16px;}
 .spendly-site .btn-ghost{padding:9px 14px;color:var(--text);background:transparent;border:1px solid var(--brd);}
 .spendly-site .btn-ghost:hover{background:var(--brd-soft);}
@@ -77,13 +79,14 @@ html { scroll-behavior: smooth; }
 .spendly-site .btn-primary:hover{filter:brightness(1.08);}
 .spendly-site .btn-lg{padding:14px 26px;font-size:15px;}
 
-/* ── HERO ── (lewa kolumna, bez wyśrodkowanego „generycznego hero") */
+/* ── HERO ── wysrodkowany (jak strony marketingowe). Regula osi:
+   centrujemy BLOKI; tresc tabelarczna (.mock, .inv-row) zostaje do lewej. */
 .spendly-site .hero{padding:150px 0 70px;text-align:center;}
 .spendly-site .hero h1,.spendly-site .hero .lead{margin-left:auto;margin-right:auto;}
 .spendly-site .hero .hero-cta,.spendly-site .hero .microcopy{justify-content:center;}
 /* Makieta ma wlasny uklad tabelaryczny - nie dziedziczy centrowania. */
 .spendly-site .hero .mock{text-align:left;}
-.spendly-site .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--acc-text);padding:6px 10px;border-radius:2px;border:1px solid var(--brd);background:var(--acc-soft);margin-bottom:26px;}
+.spendly-site .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--acc-text);padding:6px 10px;border-radius:var(--r-xs);border:1px solid var(--brd);background:var(--acc-soft);margin-bottom:26px;}
 .spendly-site .eyebrow svg{width:14px;height:14px;}
 .spendly-site h1{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:clamp(2rem,5.2vw,3.6rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:22px;max-width:18ch;}
 /* Bez gradientu na tekście — akcent niesie sam kolor. */
@@ -95,10 +98,10 @@ html { scroll-behavior: smooth; }
 .spendly-site .microcopy svg{width:14px;height:14px;color:var(--acc);}
 
 /* dashboard mock */
-.spendly-site .mock{margin:56px auto 0;max-width:1000px;border-radius:4px;padding:14px;position:relative;}
+.spendly-site .mock{margin:56px auto 0;max-width:1000px;border-radius:var(--r);padding:14px;position:relative;}
 .spendly-site .mock-bar{display:flex;align-items:center;gap:7px;padding:6px 8px 14px;}
 .spendly-site .mock-bar i{width:9px;height:9px;border-radius:50%;background:var(--brd);}
-.spendly-site .mock-body{border-radius:3px;overflow:hidden;border:1px solid var(--brd);background:var(--bg2);}
+.spendly-site .mock-body{border-radius:var(--r);overflow:hidden;border:1px solid var(--brd);background:var(--bg2);}
 .spendly-site .mb-top{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--brd);}
 .spendly-site .mb-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;padding:16px;}
 .spendly-site .mb-kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--brd);border:1px solid var(--brd);margin-bottom:14px;}
@@ -109,12 +112,12 @@ html { scroll-behavior: smooth; }
 /* Aplikacja o KOSZTACH: wzrost = źle (terakota), spadek = dobrze (oliwka). */
 .spendly-site .kpi .d.bad{color:var(--acc-text);} .spendly-site .kpi .d.good{color:#6B7A3A;}
 .spendly-site[data-theme="dark"] .kpi .d.good{color:#9DB05A;}
-.spendly-site .mb-chart{height:150px;border-radius:3px;background:var(--panel-solid);border:1px solid var(--brd);padding:14px;position:relative;overflow:hidden;}
+.spendly-site .mb-chart{height:150px;border-radius:var(--r);background:var(--panel-solid);border:1px solid var(--brd);padding:14px;position:relative;overflow:hidden;}
 .spendly-site .mb-chart .ct{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.14em;}
 .spendly-site .mb-side{display:flex;flex-direction:column;gap:10px;}
-.spendly-site .alert{display:flex;align-items:center;gap:10px;padding:10px;border-radius:3px;background:var(--panel-solid);border:1px solid var(--brd);}
-.spendly-site .alert .ic{width:28px;height:28px;border-radius:3px;display:grid;place-items:center;font-size:15px;flex-shrink:0;}
-.spendly-site .alert .n{font-size:12px;font-weight:600;} .spendly-site .alert .s{font-size:10.5px;color:var(--faint);}
+.spendly-site .alert{display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--r);background:var(--panel-solid);border:1px solid var(--brd);}
+.spendly-site .alert .ic{width:28px;height:28px;border-radius:var(--r);display:grid;place-items:center;font-size:15px;flex-shrink:0;}
+.spendly-site .alert .n{font-size:12px;font-weight:600;} .spendly-site .alert .s{font-size:11px;color:var(--faint);}
 .spendly-site .alert .dd{margin-left:auto;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;}
 .spendly-site .alert .dd.bad{color:var(--acc-text);} .spendly-site .alert .dd.good{color:#6B7A3A;}
 .spendly-site[data-theme="dark"] .alert .dd.good{color:#9DB05A;}
@@ -134,19 +137,19 @@ html { scroll-behavior: smooth; }
 
 /* Siatka kart z ciągłym hairline'em zamiast morza zaokrąglonych kafli. */
 .spendly-site .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--brd);border:1px solid var(--brd);}
-.spendly-site .feat{padding:26px;border-radius:0;border:none !important;transition:background .14s;}
+.spendly-site .feat{padding:26px;transition:background .14s;}
 .spendly-site .feat:hover{background:var(--panel-solid);}
-.spendly-site .feat .fic{width:38px;height:38px;border-radius:2px;display:grid;place-items:center;margin-bottom:16px;background:var(--acc-soft);border:1px solid var(--brd);}
+.spendly-site .feat .fic{width:38px;height:38px;border-radius:var(--r-xs);display:grid;place-items:center;margin-bottom:16px;background:var(--acc-soft);border:1px solid var(--brd);}
 .spendly-site .feat .fic svg{width:20px;height:20px;color:var(--acc-text);}
-.spendly-site .feat h3{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:18px;font-weight:600;letter-spacing:-0.01em;margin-bottom:8px;}
+.spendly-site .feat h3{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:8px;}
 .spendly-site .feat p{font-size:14px;color:var(--muted);line-height:1.6;}
 
 /* compare: OCR vs KSeF */
-.spendly-site .compare{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-.spendly-site .cmp-col{padding:26px;border-radius:4px;}
-.spendly-site .cmp-pro{border-top:2px solid var(--text) !important;}
+.spendly-site .compare{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--brd);border:1px solid var(--brd);}
+.spendly-site .cmp-col{padding:26px;background:var(--panel);}
+.spendly-site .cmp-pro{background:var(--panel-solid);}
 .spendly-site .cmp-h{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;margin-bottom:16px;}
-.spendly-site .cmp-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0;}
+.spendly-site .cmp-col ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:0;}
 .spendly-site .cmp-col li{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--muted);line-height:1.5;padding:12px 0;border-top:1px solid var(--brd);}
 .spendly-site .cmp-col li:first-child{border-top:none;}
 .spendly-site .cmp-col li svg{width:18px;height:18px;flex-shrink:0;margin-top:1px;}
@@ -158,19 +161,19 @@ html { scroll-behavior: smooth; }
 .spendly-site .ksef-steps{display:flex;flex-direction:column;gap:0;}
 .spendly-site .step{display:flex;gap:16px;align-items:flex-start;padding:18px 0;border-top:1px solid var(--brd);}
 .spendly-site .step:first-child{border-top:none;padding-top:0;}
-.spendly-site .step .num{width:34px;height:34px;border-radius:2px;display:grid;place-items:center;flex-shrink:0;font-family:'Space Grotesk Variable',system-ui,sans-serif;font-weight:600;font-size:16px;background:var(--acc-soft);color:var(--acc-text);border:1px solid var(--brd);}
+.spendly-site .step .num{width:34px;height:34px;border-radius:var(--r-xs);display:grid;place-items:center;flex-shrink:0;font-family:'Space Grotesk Variable',system-ui,sans-serif;font-weight:600;font-size:16px;background:var(--acc-soft);color:var(--acc-text);border:1px solid var(--brd);}
 .spendly-site .step h3{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:5px;}
 .spendly-site .step p{font-size:14px;color:var(--muted);line-height:1.55;}
-.spendly-site .ksef-card{padding:28px;border-radius:4px;}
-.spendly-site .ksef-card .badge{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--acc-text);padding:5px 10px;border-radius:2px;background:var(--acc-soft);border:1px solid var(--brd);margin-bottom:18px;}
+.spendly-site .ksef-card{padding:28px;border-radius:var(--r);}
+.spendly-site .ksef-card .badge{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--acc-text);padding:5px 10px;border-radius:var(--r-xs);background:var(--acc-soft);border:1px solid var(--brd);margin-bottom:18px;}
 .spendly-site .ksef-card .badge svg{width:14px;height:14px;}
 .spendly-site .inv-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--brd);}
 .spendly-site .inv-row:last-child{border-bottom:none;}
-.spendly-site .inv-row .ic{width:32px;height:32px;border-radius:2px;background:var(--panel-solid);border:1px solid var(--brd);display:grid;place-items:center;color:var(--muted);}
+.spendly-site .inv-row .ic{width:32px;height:32px;border-radius:var(--r-xs);background:var(--panel-solid);border:1px solid var(--brd);display:grid;place-items:center;color:var(--muted);}
 .spendly-site .inv-row .ic svg{width:16px;height:16px;}
-.spendly-site .inv-row .t{font-size:13.5px;font-weight:600;} .spendly-site .inv-row .sub{font-size:11.5px;color:var(--faint);}
+.spendly-site .inv-row .t{font-size:14px;font-weight:600;} .spendly-site .inv-row .sub{font-size:12px;color:var(--faint);}
 .spendly-site .inv-row .amt{margin-left:auto;font-family:'Space Grotesk Variable',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;}
-.spendly-site .inv-row .tag{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;padding:3px 7px;border-radius:2px;background:var(--acc-soft);color:var(--acc-text);border:1px solid var(--brd);}
+.spendly-site .inv-row .tag{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;padding:3px 7px;border-radius:var(--r-xs);background:var(--acc-soft);color:var(--acc-text);border:1px solid var(--brd);}
 
 /* stats band */
 .spendly-site .band{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;padding:0;border-radius:0;text-align:left;background:var(--brd);}
@@ -178,24 +181,32 @@ html { scroll-behavior: smooth; }
 .spendly-site .band .st .v{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:clamp(30px,4vw,44px);font-weight:700;letter-spacing:-0.032em;color:var(--text);}
 .spendly-site .band .st .l{font-size:13px;color:var(--muted);margin-top:6px;}
 
-/* pricing */
-.spendly-site .price-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;align-items:stretch;background:var(--brd);border:1px solid var(--brd);}
-.spendly-site .plan{padding:30px;border-radius:0;border:none !important;display:flex;flex-direction:column;background:var(--panel);}
-.spendly-site .plan.hot{border-top:2px solid var(--text) !important;position:relative;background:var(--panel-solid);}
-.spendly-site .plan.hot::before{content:"Najpopularniejszy";position:absolute;top:0;left:0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;padding:4px 10px;background:var(--text);color:var(--bg);white-space:nowrap;}
-.spendly-site .plan .pn{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);}
-.spendly-site .plan .pp{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-variant-numeric:tabular-nums;font-size:44px;font-weight:700;letter-spacing:-0.032em;margin:12px 0 2px;}
-.spendly-site .plan .pp span{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:15px;font-weight:400;color:var(--muted);}
-.spendly-site .plan .pd{font-size:13px;color:var(--muted);margin-bottom:20px;min-height:38px;}
-.spendly-site .plan ul{list-style:none;display:flex;flex-direction:column;gap:0;margin-bottom:24px;flex:1;}
-.spendly-site .plan li{display:flex;gap:10px;font-size:13.5px;color:var(--text);align-items:flex-start;padding:9px 0;border-top:1px solid var(--brd);}
-.spendly-site .plan li:first-child{border-top:none;}
+/* pricing — OSOBNE KARTY, tak jak na /cennik (nie siatka hairline).
+   Plan to obiekt z wlasnym CTA i wyborem, wiec jest karta, nie komorka tabeli.
+   UWAGA na kolory: /cennik uzywa c.accent, ktore w motywie JASNYM = #A8431F.
+   W landingu odpowiada mu --btn-bg, NIE --acc (--acc w light to #C4562F,
+   czyli 3,8:1 na kremie — ponizej AA). Liczba ceny idzie --acc-text. */
+.spendly-site .price-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;align-items:stretch;max-width:1100px;margin:0 auto;background:none;border:none;}
+.spendly-site .plan{position:relative;background:var(--panel);border:1px solid var(--brd);border-radius:var(--r);padding:32px 28px;display:flex;flex-direction:column;}
+.spendly-site .plan.hot{border:1.5px solid var(--btn-bg);box-shadow:0 24px 48px rgba(0,0,0,.18);}
+/* Plakietka wystaje NAD karte — dlatego prawdziwy element, nie ::before. */
+.spendly-site .plan .pb{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;padding:5px 13px;border-radius:var(--r-xs);background:var(--btn-bg);color:var(--btn-ink);white-space:nowrap;}
+.spendly-site .plan .pn{font-size:15px;font-weight:700;color:var(--text);}
+.spendly-site .plan .pp{display:flex;align-items:baseline;gap:6px;margin:14px 0 4px;justify-content:center;}
+/* clamp zamiast sztywnych 44px — przy 320px „199" + „zl/mies." nie mieszcza sie w linii. */
+.spendly-site .plan .pp b{font-size:clamp(34px,9vw,44px);font-weight:800;color:var(--acc-text);letter-spacing:-0.03em;line-height:1;font-variant-numeric:tabular-nums;}
+.spendly-site .plan .pp span{font-size:15px;font-weight:400;color:var(--muted);}
+.spendly-site .plan .pd{font-size:13px;color:var(--muted);margin:0 0 20px;min-height:38px;}
+/* Lista jako BLOK na osi, wiersze wyrownane do wspolnej krawedzi — inaczej
+   ikony Check schodkuja (kazdy wiersz startowalby w innym miejscu). */
+.spendly-site .plan ul{list-style:none;display:flex;flex-direction:column;gap:11px;margin-bottom:24px;flex:1;width:fit-content;margin-left:auto;margin-right:auto;}
+.spendly-site .plan li{display:flex;align-items:flex-start;justify-content:flex-start;gap:10px;font-size:14px;color:var(--text);text-align:left;padding:0;border-top:none;}
 .spendly-site .plan li svg{width:16px;height:16px;color:var(--acc-text);flex-shrink:0;margin-top:1px;}
-.spendly-site .plan .btn{justify-content:center;width:100%;}
+.spendly-site .plan .btn{justify-content:center;width:100%;padding:13px;border-radius:var(--r);font-size:14px;font-weight:700;}
 
 /* faq */
 .spendly-site .faq{max-width:760px;margin:0;display:flex;flex-direction:column;gap:0;border-top:1px solid var(--brd);}
-.spendly-site .qa{padding:20px 0;border-radius:0;border:none !important;border-bottom:1px solid var(--brd) !important;background:transparent !important;cursor:pointer;}
+.spendly-site .qa{padding:20px 0;border-bottom:1px solid var(--brd);cursor:pointer;}
 .spendly-site .qa .q{display:flex;align-items:center;justify-content:space-between;font-size:16px;font-weight:600;gap:16px;}
 .spendly-site .qa .q svg{width:18px;height:18px;color:var(--muted);transition:transform .14s;flex-shrink:0;}
 .spendly-site .qa.open .q svg{transform:rotate(45deg);}
@@ -203,53 +214,56 @@ html { scroll-behavior: smooth; }
 .spendly-site .qa.open .a{max-height:220px;margin-top:12px;}
 
 /* CTA */
-.spendly-site .cta-final{padding:60px;border-radius:4px;border-top:2px solid var(--text) !important;position:relative;overflow:hidden;}
+.spendly-site .cta-final{padding:60px;border-radius:var(--r);border:1px solid var(--brd);border-top:2px solid var(--text);position:relative;overflow:hidden;}
 .spendly-site .cta-final p{position:relative;color:var(--muted);font-size:17px;margin:14px 0 28px;max-width:480px;}
 
 /* footer */
 .spendly-site footer{padding:56px 0 40px;margin-top:70px;border-top:1px solid var(--brd);}
-.spendly-site .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:30px;margin-bottom:40px;}
-.spendly-site .foot-col h3{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;}
+.spendly-site .foot-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:30px;margin-bottom:40px;}
+.spendly-site .foot-h{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;}
 .spendly-site .foot-col a{display:block;font-size:14px;color:var(--muted);margin-bottom:10px;transition:color .14s;}
 .spendly-site .foot-col a:hover{color:var(--text);}
-.spendly-site .foot-brand p{font-size:13.5px;color:var(--muted);line-height:1.6;margin-top:14px;max-width:260px;}
-.spendly-site .foot-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:24px;border-top:1px solid var(--brd);font-size:12.5px;color:var(--faint);flex-wrap:wrap;gap:12px;}
+.spendly-site .foot-brand p{font-size:14px;color:var(--muted);line-height:1.6;margin-top:14px;max-width:260px;}
+.spendly-site .foot-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:24px;border-top:1px solid var(--brd);font-size:13px;color:var(--faint);flex-wrap:wrap;gap:12px;}
 
 
-/* ── CENTROWANIE CALEJ STRONY ────────────────────────────────────────────────
-   Landing ma czytac sie jak strony marketingowe (/cennik) — wszystko na osi.
-   Blok stoi PRZED media queries, zeby nie nadpisywac ich ustawien siatek.
+/* ── CENTROWANIE ─────────────────────────────────────────────────────────────
+   REGULA OSI (jedna, na cala strone):
+   centrujemy BLOKI, a wewnatrz blokow wiersze wyrownujemy do WSPOLNEJ krawedzi.
 
-   WYJATKI (celowo do lewej): makieta dashboardu i wiersze faktur w karcie KSeF.
+   Dlaczego nie samo text-align:center na listach: kazdy wiersz startowalby
+   w innym miejscu w poziomie, wiec ikony Check tworzylyby SCHODKOWA kolumne
+   zamiast jednej pionowej osi. Stad `width:fit-content` + auto-marginesy na
+   `ul` (blok na osi) i `justify-content:flex-start` na `li` (wiersze rowno).
+
+   WYJATKI, celowo do lewej: makieta dashboardu i wiersze faktur w karcie KSeF.
    To dane tabelaryczne — kwoty musza stac w kolumnie, inaczej nie da sie ich
    porownac wzrokiem, a o to w tej aplikacji chodzi.                          */
 
-/* Karty funkcji: ikona na osi razem z tekstem */
+/* Karty funkcji */
 .spendly-site .feat{text-align:center;}
 .spendly-site .feat .fic{margin-left:auto;margin-right:auto;}
 
-/* Kroki KSeF: numer NAD trescia zamiast obok — inaczej wiersz z numerem
-   po lewej lamie os symetrii calej sekcji. */
+/* Kroki KSeF — numer nad trescia, zeby sekcja miala jedna os */
 .spendly-site .step{flex-direction:column;align-items:center;text-align:center;gap:10px;}
 
-/* Karta KSeF: naglowek i badge na osi, ale wiersze faktur zostaja do lewej */
+/* Karta KSeF: naglowek i badge na osi, wiersze faktur do lewej (dane) */
 .spendly-site .ksef-card{text-align:center;}
 .spendly-site .ksef-card .inv-row{text-align:left;}
 
-/* Porownanie OCR vs KSeF */
+/* Porownanie OCR vs KSeF — naglowek na osi, lista jako blok na osi */
 .spendly-site .cmp-col{text-align:center;}
-.spendly-site .cmp-col li{justify-content:center;text-align:left;}
+.spendly-site .cmp-col ul{width:fit-content;margin-left:auto;margin-right:auto;}
+.spendly-site .cmp-col li{justify-content:flex-start;text-align:left;}
 
 /* Pasek statystyk */
 .spendly-site .band{text-align:center;}
 
-/* Cennik: plakietka „Najpopularniejszy" tez na os */
+/* Cennik — karta na osi, lista funkcji jako blok na osi */
 .spendly-site .plan{text-align:center;}
-.spendly-site .plan li{justify-content:center;text-align:left;}
-.spendly-site .plan.hot::before{left:50%;transform:translateX(-50%);}
 
-/* FAQ: caly blok na os; pytanie i ikona trzymaja sie razem, zamiast rozjezdzac
-   sie na krance (space-between przy wysrodkowaniu wyglada jak blad). */
+/* FAQ: blok na osi; pytanie i ikona trzymaja sie razem zamiast rozjezdzac sie
+   na krance (space-between przy wysrodkowaniu czyta sie jak blad). */
 .spendly-site .faq{margin-left:auto;margin-right:auto;text-align:center;}
 .spendly-site .qa .q{justify-content:center;gap:12px;}
 
@@ -258,9 +272,8 @@ html { scroll-behavior: smooth; }
 .spendly-site .cta-final p{margin-left:auto;margin-right:auto;}
 .spendly-site .cta-final .hero-cta{justify-content:center;}
 
-/* Stopka */
-.spendly-site .foot-col{text-align:center;}
-.spendly-site .foot-brand{text-align:center;}
+/* Stopka — kolumny ROWNE, inaczej ich srodki nie tworza wspolnego rytmu */
+.spendly-site .foot-col,.spendly-site .foot-brand{text-align:center;}
 .spendly-site .foot-brand p{margin-left:auto;margin-right:auto;}
 .spendly-site .foot-bottom{justify-content:center;text-align:center;}
 
@@ -281,7 +294,8 @@ html { scroll-behavior: smooth; }
   .spendly-site .wrap{padding:0 22px;}
 
   /* NAV: wordmark + motyw + hamburger w jednym pasku; linki i CTA w menu mobilnym. */
-  .spendly-site .nav-in{gap:10px;padding:9px 12px;margin-top:8px !important;}
+  .spendly-site .nav-in{gap:10px;padding:9px 12px;margin-top:8px;}
+  .spendly-site .nav-in.is-scrolled{margin-top:4px;}
   .spendly-site .nav-right{gap:8px;}
   .spendly-site .tgl{width:36px;height:36px;}
 
@@ -294,13 +308,13 @@ html { scroll-behavior: smooth; }
      Chowamy go: naglowek plynie i zawija sie sam na granicy slow. */
   .spendly-site h1 br{display:none;}
   .spendly-site h1{margin-bottom:16px;overflow-wrap:break-word;}
-  .spendly-site .lead{font-size:15.5px;line-height:1.62;}
+  .spendly-site .lead{font-size:15px;line-height:1.62;}
   .spendly-site .lead{margin-bottom:26px;}
   /* Przyciski w naturalnej szerokosci, nie na cala szerokosc ekranu — pelnoszerokosciowa
      terakotowa plyta dominuje ekran i kloci sie z redakcyjnym charakterem reszty. */
   .spendly-site .hero-cta{gap:10px;}
   .spendly-site .hero-cta .btn{width:auto;}
-  .spendly-site .hero-cta .btn-lg{padding:13px 20px;font-size:14.5px;}
+  .spendly-site .hero-cta .btn-lg{padding:13px 20px;font-size:15px;}
   .spendly-site .mock{margin-top:36px;padding:10px;}
   .spendly-site .mb-top{padding:12px 14px;}
   .spendly-site .mb-grid{padding:12px;gap:12px;}
