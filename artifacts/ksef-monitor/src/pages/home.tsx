@@ -13,7 +13,7 @@ type Theme = "dark" | "light";
 function Wordmark({ size }: { size: number }) {
   return (
     <span className="wm" style={{ fontSize: size }}>
-      spend<span className="ly">ly</span><span className="dot">.</span>
+      SPENDLY<span className="dot">.</span>
     </span>
   );
 }

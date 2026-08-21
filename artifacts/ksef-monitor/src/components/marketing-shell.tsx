@@ -17,7 +17,7 @@ export function MarketingNavBar({
   onToggle: () => void;
 }) {
   return (
-    <header style={{ position: "sticky", top: 0, zIndex: 50, background: c.navBg, borderBottom: `1px solid ${c.border}`, backdropFilter: "blur(12px)" }}>
+    <header style={{ position: "sticky", top: 0, zIndex: 50, background: c.navBg, borderBottom: `1px solid ${c.border}` }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60 }}>
         <Link href="/">
           <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.04em", color: c.accent, cursor: "pointer" }}>
