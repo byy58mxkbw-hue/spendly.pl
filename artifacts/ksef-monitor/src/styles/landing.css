@@ -215,6 +215,55 @@ html { scroll-behavior: smooth; }
 .spendly-site .foot-brand p{font-size:13.5px;color:var(--muted);line-height:1.6;margin-top:14px;max-width:260px;}
 .spendly-site .foot-bottom{display:flex;justify-content:space-between;align-items:center;padding-top:24px;border-top:1px solid var(--brd);font-size:12.5px;color:var(--faint);flex-wrap:wrap;gap:12px;}
 
+
+/* ── CENTROWANIE CALEJ STRONY ────────────────────────────────────────────────
+   Landing ma czytac sie jak strony marketingowe (/cennik) — wszystko na osi.
+   Blok stoi PRZED media queries, zeby nie nadpisywac ich ustawien siatek.
+
+   WYJATKI (celowo do lewej): makieta dashboardu i wiersze faktur w karcie KSeF.
+   To dane tabelaryczne — kwoty musza stac w kolumnie, inaczej nie da sie ich
+   porownac wzrokiem, a o to w tej aplikacji chodzi.                          */
+
+/* Karty funkcji: ikona na osi razem z tekstem */
+.spendly-site .feat{text-align:center;}
+.spendly-site .feat .fic{margin-left:auto;margin-right:auto;}
+
+/* Kroki KSeF: numer NAD trescia zamiast obok — inaczej wiersz z numerem
+   po lewej lamie os symetrii calej sekcji. */
+.spendly-site .step{flex-direction:column;align-items:center;text-align:center;gap:10px;}
+
+/* Karta KSeF: naglowek i badge na osi, ale wiersze faktur zostaja do lewej */
+.spendly-site .ksef-card{text-align:center;}
+.spendly-site .ksef-card .inv-row{text-align:left;}
+
+/* Porownanie OCR vs KSeF */
+.spendly-site .cmp-col{text-align:center;}
+.spendly-site .cmp-col li{justify-content:center;text-align:left;}
+
+/* Pasek statystyk */
+.spendly-site .band{text-align:center;}
+
+/* Cennik: plakietka „Najpopularniejszy" tez na os */
+.spendly-site .plan{text-align:center;}
+.spendly-site .plan li{justify-content:center;text-align:left;}
+.spendly-site .plan.hot::before{left:50%;transform:translateX(-50%);}
+
+/* FAQ: caly blok na os; pytanie i ikona trzymaja sie razem, zamiast rozjezdzac
+   sie na krance (space-between przy wysrodkowaniu wyglada jak blad). */
+.spendly-site .faq{margin-left:auto;margin-right:auto;text-align:center;}
+.spendly-site .qa .q{justify-content:center;gap:12px;}
+
+/* CTA koncowe */
+.spendly-site .cta-final{text-align:center;}
+.spendly-site .cta-final p{margin-left:auto;margin-right:auto;}
+.spendly-site .cta-final .hero-cta{justify-content:center;}
+
+/* Stopka */
+.spendly-site .foot-col{text-align:center;}
+.spendly-site .foot-brand{text-align:center;}
+.spendly-site .foot-brand p{margin-left:auto;margin-right:auto;}
+.spendly-site .foot-bottom{justify-content:center;text-align:center;}
+
 @media(max-width:860px){
   .spendly-site .nav-links{display:none;}
   .spendly-site .nav-desktop{display:none;}
