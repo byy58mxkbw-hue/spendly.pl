@@ -78,13 +78,17 @@ html { scroll-behavior: smooth; }
 .spendly-site .btn-lg{padding:14px 26px;font-size:15px;}
 
 /* ── HERO ── (lewa kolumna, bez wyśrodkowanego „generycznego hero") */
-.spendly-site .hero{padding:150px 0 70px;}
+.spendly-site .hero{padding:150px 0 70px;text-align:center;}
+.spendly-site .hero h1,.spendly-site .hero .lead{margin-left:auto;margin-right:auto;}
+.spendly-site .hero .hero-cta,.spendly-site .hero .microcopy{justify-content:center;}
+/* Makieta ma wlasny uklad tabelaryczny - nie dziedziczy centrowania. */
+.spendly-site .hero .mock{text-align:left;}
 .spendly-site .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--acc-text);padding:6px 10px;border-radius:2px;border:1px solid var(--brd);background:var(--acc-soft);margin-bottom:26px;}
 .spendly-site .eyebrow svg{width:14px;height:14px;}
 .spendly-site h1{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:clamp(2rem,5.2vw,3.6rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:22px;max-width:18ch;}
 /* Bez gradientu na tekście — akcent niesie sam kolor. */
 .spendly-site h1 .g{color:var(--acc-text);}
-.spendly-site .lead{font-size:clamp(16px,2.2vw,20px);color:var(--muted);line-height:1.6;max-width:620px;margin:0 0 34px;font-weight:400;}
+.spendly-site .lead{font-size:clamp(16px,2.2vw,20px);color:var(--muted);line-height:1.6;max-width:620px;margin:0 auto 34px;font-weight:400;}
 .spendly-site .hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
 .spendly-site .microcopy{font-size:13px;color:var(--faint);display:flex;gap:18px;flex-wrap:wrap;}
 .spendly-site .microcopy span{display:inline-flex;align-items:center;gap:6px;}
@@ -123,7 +127,7 @@ html { scroll-behavior: smooth; }
 
 /* section */
 .spendly-site section.blk{padding:80px 0;}
-.spendly-site .sec-head{max-width:640px;margin:0 0 52px;}
+.spendly-site .sec-head{max-width:640px;margin:0 auto 52px;text-align:center;}
 .spendly-site .sec-eye{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--acc-text);margin-bottom:14px;}
 .spendly-site h2{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:clamp(1.6rem,3.6vw,2.6rem);font-weight:600;letter-spacing:-0.028em;line-height:1.15;margin-bottom:16px;}
 .spendly-site .sec-head p{font-size:17px;color:var(--muted);line-height:1.6;}
