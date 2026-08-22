@@ -159,7 +159,11 @@ export default function Home() {
       {/* HERO */}
       <header className="hero wrap">
         <div className="eyebrow"><Zap />Zintegrowane z KSeF — gotowe na 2026</div>
-        <h1>Kontroluj koszty<br />zanim <span className="g">zjedzą Twoją marżę</span></h1>
+        {/* Spacja przed <br/> jest OBOWIAZKOWA: na telefonie chowamy <br> regula
+            .spendly-site h1 br{display:none}, a bez niej „koszty" i „zanim" skleja
+            sie w „kosztyzanim". Na desktopie spacja stoi na koncu linii, wiec jest
+            niewidoczna. */}
+        <h1>Kontroluj koszty{" "}<br />zanim <span className="g">zjedzą Twoją marżę</span></h1>
         <p className="lead">Faktury zakupowe wpadają <strong>automatycznie z KSeF</strong> — bez przepisywania, bez skanowania, bez limitów stron. Spendly pilnuje cen dostawców i alarmuje o podwyżce w dniu, w którym się pojawia — nie na koniec miesiąca.</p>
         <div className="hero-cta">
           <a className="btn btn-primary btn-lg" href="/sign-up" onClick={go("/sign-up")}>Rozpocznij za darmo <ArrowRight /></a>
