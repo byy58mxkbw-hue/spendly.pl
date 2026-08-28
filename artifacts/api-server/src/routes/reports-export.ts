@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import ExcelJS from "exceljs";
 import { periodFromQuery, previousPeriod, periodLabel, type Period } from "../lib/period";
 import { buildWorkbook, type AggRow, type Group, type Compare } from "../lib/reports-workbook";
+import { captureServer } from "../lib/telemetry";
 
 const router: IRouter = Router();
 
@@ -140,7 +141,7 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
       emptyMsg: `Brak zakupów dla „${ccName}" w okresie ${label}.`,
     };
     const wb = buildWorkbook(groups, cmp, true, opts);
-    await send(res, wb, period);
+    await send(res, wb, period, userId);
     return;
   }
 
@@ -161,10 +162,10 @@ router.get("/reports/products-by-cost-center.xlsx", async (req, res): Promise<vo
     emptyMsg: `Brak zakupów w okresie ${label}.`,
   };
   const wb = buildWorkbook(groups, cmp, true, opts);
-  await send(res, wb, period);
+  await send(res, wb, period, userId);
 });
 
-async function send(res: import("express").Response, wb: ExcelJS.Workbook, period: Period): Promise<void> {
+async function send(res: import("express").Response, wb: ExcelJS.Workbook, period: Period, userId: string): Promise<void> {
   const buffer = await wb.xlsx.writeBuffer();
   res.setHeader(
     "Content-Type",
@@ -172,6 +173,7 @@ async function send(res: import("express").Response, wb: ExcelJS.Workbook, perio
   );
   res.setHeader("Content-Disposition", `attachment; filename="raport-zakupy-${period.from}_${period.to}.xlsx"`);
   res.setHeader("Cache-Control", "no-store");
+  captureServer(userId, "report_exported", { format: "xlsx" });
   res.status(200).send(Buffer.from(buffer));
 }
 

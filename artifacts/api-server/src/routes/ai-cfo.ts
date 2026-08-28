@@ -6,6 +6,7 @@ import { PostAiCfoChatBody } from "@workspace/api-zod";
 import { AI_MONTHLY_LIMIT, normalizePlan, currentPeriod } from "../lib/ai-plan.js";
 import { computeTriggeredAlerts } from "../services/alert-checker.js";
 import { computeAllDishMargins } from "./food-cost.js";
+import { captureServer } from "../lib/telemetry.js";
 import {
   isCheapestSupplierQuery, isSupplierPriceChangesQuery, isProductPriceHistoryQuery,
   isPriceIncreasesQuery, isPriceAlertsQuery, isDishMarginsQuery, isInvoiceCompareQuery,
@@ -927,6 +928,8 @@ Odpowiadaj wyłącznie po polsku.`;
       req.log.warn({ err }, "ai-cfo enrichActions failed, using raw actions");
     }
   }
+
+  captureServer(userId, "ai_chat_message");
 
   res.json(parsed);
 });

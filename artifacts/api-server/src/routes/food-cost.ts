@@ -7,6 +7,8 @@ import { findOrCreateProductByName } from "../services/ksef-ingest";
 import { normalizeProductName } from "../lib/categorize-ai";
 import { periodFromQuery, monthsInRange } from "../lib/period";
 
+import { captureServer } from "../lib/telemetry.js";
+
 const router: IRouter = Router();
 
 // Unit conversion to a common base (grams / millilitres / pieces)
@@ -521,6 +523,8 @@ router.post("/food-cost/dishes", async (req, res): Promise<void> => {
       })),
     );
   }
+
+  captureServer(userId, "dish_saved", { ingredients: body.data.ingredients?.length ?? 0 });
 
   res.status(201).json({ id: dish.id });
 });

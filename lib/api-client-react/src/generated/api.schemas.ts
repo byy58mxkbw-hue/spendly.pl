@@ -471,6 +471,11 @@ export interface PriceAlert {
   thresholdPercent: number;
   isActive: boolean;
   createdAt: string;
+  /**
+     * Produkt, do którego alert faktycznie się dopasował (po znormalizowanej nazwie). `null` = alert nie pasuje do żadnego produktu i nigdy się nie odpali — UI pokazuje wtedy ostrzeżenie. Zwracane tylko przez listę.
+     * @nullable
+     */
+  matchedProductId?: number | null;
 }
 
 export interface CreatePriceAlertBody {

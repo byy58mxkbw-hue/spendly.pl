@@ -2,7 +2,7 @@ import { LegalLayout, LegalSection } from "@/components/legal-layout";
 
 export default function PolitykaPrywatnosci() {
   return (
-    <LegalLayout title="Polityka prywatności" updated="4 lipca 2026">
+    <LegalLayout title="Polityka prywatności" updated="28 sierpnia 2026">
       {(c) => {
         const B = ({ children }: { children: React.ReactNode }) => (
           <strong style={{ color: c.text, fontWeight: 600 }}>{children}</strong>
@@ -43,6 +43,7 @@ export default function PolitykaPrywatnosci() {
                 <li><B>OpenAI</B> — funkcje AI (asystent, OCR faktur, kategoryzacja). Do modeli przekazywany jest wyłącznie zakres danych niezbędny do wykonania zapytania.</li>
                 <li><B>Railway</B> — hosting aplikacji i bazy danych.</li>
                 <li><B>KSeF (Ministerstwo Finansów)</B> — źródło faktur pobieranych na żądanie Użytkownika.</li>
+                <li><B>PostHog</B> — analityka i telemetria produktowa. Serwery w Unii Europejskiej (region EU).</li>
               </ul>
             </LegalSection>
 
@@ -66,13 +67,27 @@ export default function PolitykaPrywatnosci() {
               kontakt@spendly.pl.</p>
             </LegalSection>
 
-            <LegalSection n="8" title="Pliki cookies i pamięć lokalna" c={c}>
+            <LegalSection n="8" title="Telemetria produktowa" c={c}>
+              <p style={{ marginBottom: 10 }}>Aby wiedzieć, które funkcje Serwisu działają poprawnie, a które
+              sprawiają trudność, rejestrujemy zdarzenia techniczne wykonywane przez zalogowanych Użytkowników
+              — na przykład zakończenie synchronizacji z KSeF, import faktury czy zapisanie receptury.
+              Zdarzenia te są wysyłane z naszego serwera i <B>nie zależą od zgody na pliki cookies</B>,
+              ponieważ nie korzystają z cookies ani z innego dostępu do pamięci Twojego urządzenia.</p>
+              <p style={{ marginBottom: 10 }}>Zapisujemy wyłącznie <B>rodzaj zdarzenia, jego czas i liczniki</B>
+              (np. liczbę zaimportowanych pozycji) wraz z identyfikatorem konta. <B>Nie trafiają tam treści
+              Twoich danych biznesowych</B> — nazwy produktów i dostawców, kwoty, numery NIP, treść rozmów
+              z asystentem AI ani tokeny dostępowe.</p>
+              <p>Podstawą przetwarzania jest nasz prawnie uzasadniony interes polegający na utrzymaniu
+              i rozwoju Serwisu. Możesz wnieść sprzeciw wobec tego przetwarzania, pisząc na kontakt@spendly.pl.</p>
+            </LegalSection>
+
+            <LegalSection n="9" title="Pliki cookies i pamięć lokalna" c={c}>
               <p>Serwis wykorzystuje pliki cookies oraz pamięć lokalną przeglądarki w celu utrzymania sesji
               logowania i zapamiętania preferencji (np. wybranego motywu kolorystycznego). Cookies dostawcy
               uwierzytelniania są niezbędne do działania Serwisu.</p>
             </LegalSection>
 
-            <LegalSection n="9" title="Zmiany polityki" c={c}>
+            <LegalSection n="10" title="Zmiany polityki" c={c}>
               <p>Polityka może być aktualizowana. O istotnych zmianach poinformujemy Użytkowników. Aktualna
               wersja jest zawsze dostępna w Serwisie.</p>
             </LegalSection>

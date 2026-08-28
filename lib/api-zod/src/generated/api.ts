@@ -1554,7 +1554,8 @@ export const ListPriceAlertsResponseItem = zod.object({
   "supplierName": zod.string().nullish(),
   "thresholdPercent": zod.number(),
   "isActive": zod.boolean(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "matchedProductId": zod.number().nullish().describe('Produkt, do którego alert faktycznie się dopasował (po znormalizowanej nazwie). `null` = alert nie pasuje do żadnego produktu i nigdy się nie odpali — UI pokazuje wtedy ostrzeżenie. Zwracane tylko przez listę.')
 })
 export const ListPriceAlertsResponse = zod.array(ListPriceAlertsResponseItem)
 
@@ -1575,7 +1576,8 @@ export const CreatePriceAlertResponse = zod.object({
   "supplierName": zod.string().nullish(),
   "thresholdPercent": zod.number(),
   "isActive": zod.boolean(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "matchedProductId": zod.number().nullish().describe('Produkt, do którego alert faktycznie się dopasował (po znormalizowanej nazwie). `null` = alert nie pasuje do żadnego produktu i nigdy się nie odpali — UI pokazuje wtedy ostrzeżenie. Zwracane tylko przez listę.')
 })
 
 
@@ -1617,7 +1619,8 @@ export const UpdatePriceAlertResponse = zod.object({
   "supplierName": zod.string().nullish(),
   "thresholdPercent": zod.number(),
   "isActive": zod.boolean(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "matchedProductId": zod.number().nullish().describe('Produkt, do którego alert faktycznie się dopasował (po znormalizowanej nazwie). `null` = alert nie pasuje do żadnego produktu i nigdy się nie odpali — UI pokazuje wtedy ostrzeżenie. Zwracane tylko przez listę.')
 })
 
 

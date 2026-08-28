@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { and, eq, desc } from "drizzle-orm";
 import { db, priceAlertsTable, suppliersTable, alertDismissalsTable } from "@workspace/db";
 import { toNum } from "../lib/parse";
+import { buildProductNameIndex, productNameKey } from "../lib/product-match";
+import { captureServer } from "../lib/telemetry";
 import {
   CreatePriceAlertBody,
   DeletePriceAlertParams,
@@ -15,29 +17,35 @@ const router: IRouter = Router();
 
 router.get("/price-alerts", async (req, res): Promise<void> => {
   const userId = req.userId!;
-  const alerts = await db
-    .select({
-      id: priceAlertsTable.id,
-      productName: priceAlertsTable.productName,
-      supplierId: priceAlertsTable.supplierId,
-      supplierName: suppliersTable.name,
-      thresholdPercent: priceAlertsTable.thresholdPercent,
-      isActive: priceAlertsTable.isActive,
-      createdAt: priceAlertsTable.createdAt,
-    })
-    .from(priceAlertsTable)
-    .leftJoin(
-      suppliersTable,
-      and(eq(priceAlertsTable.supplierId, suppliersTable.id), eq(suppliersTable.userId, userId)),
-    )
-    .where(eq(priceAlertsTable.userId, userId))
-    .orderBy(priceAlertsTable.createdAt);
+  const [alerts, productIndex] = await Promise.all([
+    db
+      .select({
+        id: priceAlertsTable.id,
+        productName: priceAlertsTable.productName,
+        supplierId: priceAlertsTable.supplierId,
+        supplierName: suppliersTable.name,
+        thresholdPercent: priceAlertsTable.thresholdPercent,
+        isActive: priceAlertsTable.isActive,
+        createdAt: priceAlertsTable.createdAt,
+      })
+      .from(priceAlertsTable)
+      .leftJoin(
+        suppliersTable,
+        and(eq(priceAlertsTable.supplierId, suppliersTable.id), eq(suppliersTable.userId, userId)),
+      )
+      .where(eq(priceAlertsTable.userId, userId))
+      .orderBy(priceAlertsTable.createdAt),
+    buildProductNameIndex(userId),
+  ]);
 
   res.json(
     alerts.map((a) => ({
       ...a,
       thresholdPercent: toNum(a.thresholdPercent),
       createdAt: a.createdAt.toISOString(),
+      // null = alert nie pasuje do żadnego produktu, więc nigdy się nie odpali.
+      // Bez tego pola awaria była całkowicie cicha (patrz `lib/product-match`).
+      matchedProductId: productIndex.get(productNameKey(a.productName))?.id ?? null,
     })),
   );
 });
@@ -59,6 +67,11 @@ router.post("/price-alerts", async (req, res): Promise<void> => {
       thresholdPercent: parsed.data.thresholdPercent.toString(),
     })
     .returning();
+
+  captureServer(userId, "alert_created", {
+    scoped_to_supplier: parsed.data.supplierId != null,
+    threshold_percent: parsed.data.thresholdPercent,
+  });
 
   res.status(201).json({
     ...alert,

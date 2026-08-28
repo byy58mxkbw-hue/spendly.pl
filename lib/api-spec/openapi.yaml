@@ -3253,6 +3253,12 @@ components:
           type: boolean
         createdAt:
           type: string
+        matchedProductId:
+          type: ["integer", "null"]
+          description: >-
+            Produkt, do którego alert faktycznie się dopasował (po znormalizowanej
+            nazwie). `null` = alert nie pasuje do żadnego produktu i nigdy się nie
+            odpali — UI pokazuje wtedy ostrzeżenie. Zwracane tylko przez listę.
       required:
         - id
         - productName

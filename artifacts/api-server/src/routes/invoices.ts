@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { toNum, toNumOrNull } from "../lib/parse";
+import { captureServer } from "../lib/telemetry";
 import { eq, desc, and, isNull, isNotNull, or, ilike, sql, gte, lte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, invoicesTable, invoiceItemsTable, suppliersTable, productsTable, costCentersTable } from "@workspace/db";
@@ -689,6 +690,8 @@ Important:
       extracted.supplierNip = extracted.supplierNip.replace(/[\s\-]/g, "");
     }
 
+    captureServer(req.userId!, "receipt_scanned");
+
     res.json({
       supplierNip: extracted.supplierNip ?? null,
       supplierName: extracted.supplierName ?? null,
@@ -868,6 +871,8 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
       vatRate: toNumOrNull(invoiceItem.vatRate),
     });
   }
+
+  captureServer(userId, "invoice_imported", { source: "manual", items: insertedItems.length });
 
   res.status(201).json({
     ...invoice,

@@ -59,6 +59,8 @@ import {
   LineChart,
 } from "@/lib/icons";
 import { formatDate, formatPercent, formatPrice } from "@/lib/format";
+import { productNameKey } from "@/lib/product-match";
+import { Combobox } from "@/components/ui/combobox";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/posthog";
 
@@ -89,6 +91,8 @@ type AlertItem = {
   thresholdPercent: number;
   isActive: boolean;
   createdAt: string;
+  /** null = nazwa nie pasuje do żadnego produktu, więc alert nigdy się nie odpali. */
+  matchedProductId?: number | null;
 };
 
 type FilterTab = "all" | "active" | "inactive";
@@ -114,12 +118,21 @@ export default function PriceAlerts() {
   const { data: products } = useListProducts({}, { query: { queryKey: getListProductsQueryKey({}) } });
 
   // Alerts store product name (no FK) — resolve name -> id to open the price chart.
+  // Normalizacja MUSI być ta sama co w backendzie (`lib/product-match.ts`),
+  // inaczej wykres otwiera się dla alertu, który realnie się nie dopasowuje.
   const productIdByName = useMemo(() => {
     const m = new Map<string, number>();
-    for (const p of products ?? []) m.set(p.name.toLowerCase().trim(), p.id);
+    for (const p of products ?? []) m.set(productNameKey(p.name), p.id);
     return m;
   }, [products]);
-  const resolveProductId = (name: string) => productIdByName.get(name.toLowerCase().trim()) ?? null;
+  const resolveProductId = (name: string) => productIdByName.get(productNameKey(name)) ?? null;
+
+  // Lista do wyboru w formularzu — nazwa zawsze pochodzi z realnych produktów,
+  // więc alert nie może powstać z literówką (to był powód cichych, martwych alertów).
+  const productOptions = useMemo(
+    () => (products ?? []).map((p) => ({ value: p.name, label: p.name })),
+    [products],
+  );
   const [historyProduct, setHistoryProduct] = useState<{ id: number; name: string } | null>(null);
 
   const createAlert = useCreatePriceAlert();
@@ -535,6 +548,14 @@ export default function PriceAlerts() {
                         <p className="text-xs text-muted-foreground truncate">
                           {alert.supplierName ?? "Wszyscy dostawcy"}
                         </p>
+                        {/* Alert bez dopasowania nigdy się nie odpali — dawniej milczał
+                            bez śladu, teraz mówi o tym wprost. */}
+                        {alert.matchedProductId == null && (
+                          <span className="mt-1 inline-flex items-center gap-1.5 text-xs text-warning">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                            Nie pasuje do żadnego produktu — nie zadziała. Wybierz produkt z listy.
+                          </span>
+                        )}
                       </button>
 
                       {/* Price-history chart */}
@@ -696,11 +717,21 @@ export default function PriceAlerts() {
                   name="productName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nazwa produktu</FormLabel>
+                      <FormLabel>Produkt</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="np. Masło extra 82%"
-                          {...field}
+                        <Combobox
+                          options={productOptions}
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder={
+                            productOptions.length === 0
+                              ? "Brak produktów — zaimportuj najpierw faktury"
+                              : "Wybierz produkt..."
+                          }
+                          searchPlaceholder="Szukaj produktu..."
+                          emptyText="Nie znaleziono takiego produktu."
+                          disabled={productOptions.length === 0}
+                          className="w-full"
                           data-testid="input-alert-product"
                         />
                       </FormControl>

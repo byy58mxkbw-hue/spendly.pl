@@ -35,6 +35,7 @@ import { scheduleAlertsCheck, scheduleKsefSyncAfter } from "../services/queue";
 import { resuggestForUser } from "./cost-centers";
 import { buildCostCenterModel, computeCostCenterSuggestion } from "../lib/cost-center-suggest.js";
 import { AdvisoryLock } from "../lib/advisory-lock";
+import { captureServer } from "../lib/telemetry";
 import {
   encryptXml,
   describeDbErr,
@@ -338,7 +339,7 @@ router.post("/ksef/sync", async (req, res): Promise<void> => {
   }
 
   try {
-    await runSync(req, userId, cfg, sendEvent);
+    await runSync(req, userId, cfg, sendEvent, "manual");
   } finally {
     await lock.release().catch((err: unknown) =>
       req.log.warn({ err: String(err) }, "Failed to release ksef_sync advisory lock"),
@@ -369,6 +370,11 @@ async function runSync(
   userId: string,
   cfg: NonNullable<Awaited<ReturnType<typeof loadConfig>>>,
   onProgress: (event: Record<string, unknown>) => void,
+  // "auto" = harmonogram w tle (bez udziału człowieka), "manual" = klik użytkownika.
+  // Rozróżnienie jest KLUCZOWE dla telemetrii: auto-sync leci z setInterval nawet
+  // dla użytkownika, który się nie loguje, więc wrzucony do jednego worka
+  // pokazywałby aktywność, której nie ma.
+  trigger: "manual" | "auto",
 ): Promise<void> {
   let token: string;
   try {
@@ -797,6 +803,13 @@ async function runSync(
     lastSyncedAt: updatedLastSyncedAt ? updatedLastSyncedAt.toISOString() : null,
   });
 
+  captureServer(userId, "ksef_sync_completed", {
+    trigger,
+    imported: summary.imported,
+    pending: summary.pending,
+    failed: summary.failed,
+  });
+
   // Fire-and-forget: recalculate price alert triggers after new invoices arrive.
   if (summary.imported > 0) {
     scheduleAlertsCheck(userId, req.log);
@@ -833,7 +846,7 @@ export async function runAutoSyncForUser(userId: string, log: Logger): Promise<v
   // runSync korzysta wyłącznie z req.log — podajemy lekki obiekt z loggerem.
   const ctx = { log } as unknown as Request;
   try {
-    await runSync(ctx, userId, cfg, () => { /* brak strumienia postępu w tle */ });
+    await runSync(ctx, userId, cfg, () => { /* brak strumienia postępu w tle */ }, "auto");
     log.info({ userId }, "Auto-sync KSeF zakończony");
   } catch (err) {
     log.warn({ userId, err: String(err) }, "Auto-sync KSeF nieudany");
@@ -1250,6 +1263,8 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
     req.log.warn({ err: String(err) }, "sugestia centrum po akceptacji pending nieudana");
   }
 
+  captureServer(userId, "pending_invoice_accepted", { items: created.items.length });
+
   res.json({
     id: created.inv.id,
     supplierId: supplier.id,
@@ -1286,6 +1301,7 @@ router.post("/ksef/pending/:id/reject", async (req, res): Promise<void> => {
         eq(ksefPendingInvoicesTable.status, "pending"),
       ),
     );
+  captureServer(userId, "pending_invoice_rejected");
   res.sendStatus(204);
 });
 

@@ -1,16 +1,16 @@
 import type { Logger } from "pino";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import {
   db,
   priceAlertsTable,
   alertDismissalsTable,
-  productsTable,
   invoiceItemsTable,
   invoicesTable,
   suppliersTable,
 } from "@workspace/db";
 import { toNum } from "../lib/parse";
 import { normalizeUnit } from "../lib/units";
+import { buildProductNameIndex, productNameKey } from "../lib/product-match";
 
 export interface TriggeredAlert {
   alertId: number;
@@ -26,33 +26,35 @@ export interface TriggeredAlert {
 }
 
 export async function computeTriggeredAlerts(userId: string): Promise<TriggeredAlert[]> {
-  const alerts = await db
-    .select({
-      id: priceAlertsTable.id,
-      productName: priceAlertsTable.productName,
-      supplierId: priceAlertsTable.supplierId,
-      supplierName: suppliersTable.name,
-      thresholdPercent: priceAlertsTable.thresholdPercent,
-    })
-    .from(priceAlertsTable)
-    .leftJoin(suppliersTable, eq(priceAlertsTable.supplierId, suppliersTable.id))
-    .where(and(eq(priceAlertsTable.userId, userId), eq(priceAlertsTable.isActive, true)));
-
-  const dismissals = await db
-    .select({ alertId: alertDismissalsTable.alertId, alertDate: alertDismissalsTable.alertDate })
-    .from(alertDismissalsTable)
-    .where(eq(alertDismissalsTable.userId, userId));
+  const [alerts, dismissals, productIndex] = await Promise.all([
+    db
+      .select({
+        id: priceAlertsTable.id,
+        productName: priceAlertsTable.productName,
+        supplierId: priceAlertsTable.supplierId,
+        supplierName: suppliersTable.name,
+        thresholdPercent: priceAlertsTable.thresholdPercent,
+      })
+      .from(priceAlertsTable)
+      .leftJoin(
+        suppliersTable,
+        and(eq(priceAlertsTable.supplierId, suppliersTable.id), eq(suppliersTable.userId, userId)),
+      )
+      .where(and(eq(priceAlertsTable.userId, userId), eq(priceAlertsTable.isActive, true))),
+    db
+      .select({ alertId: alertDismissalsTable.alertId, alertDate: alertDismissalsTable.alertDate })
+      .from(alertDismissalsTable)
+      .where(eq(alertDismissalsTable.userId, userId)),
+    buildProductNameIndex(userId),
+  ]);
 
   const dismissedSet = new Set(dismissals.map((d) => `${d.alertId}__${d.alertDate}`));
 
   const triggered = (
     await Promise.all(
       alerts.map(async (alert) => {
-        const [product] = await db
-          .select()
-          .from(productsTable)
-          .where(and(eq(productsTable.name, alert.productName), eq(productsTable.userId, userId)))
-          .limit(1);
+        // Dopasowanie tolerancyjne (wielkość liter, spacje) — patrz `productNameKey`.
+        const product = productIndex.get(productNameKey(alert.productName));
 
         if (!product) return null;
 
