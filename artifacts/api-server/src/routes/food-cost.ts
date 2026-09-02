@@ -8,6 +8,7 @@ import { normalizeProductName } from "../lib/categorize-ai";
 import { periodFromQuery, monthsInRange } from "../lib/period";
 
 import { captureServer } from "../lib/telemetry.js";
+import { normalizeName, groupPosByProduct } from "../lib/pos-group.js";
 
 const router: IRouter = Router();
 
@@ -603,43 +604,8 @@ router.delete("/food-cost/dishes/:id", async (req, res): Promise<void> => {
 });
 
 // ─── Import karty menu: AI odczytuje dania + szacowane gramatury ────────────────
-// Normalizacja nazwy jak w SQL matchu (regexp_replace(LOWER(name),'\s+',' ')) — do
-// dopasowania składników AI do istniejących produktów usera, po stronie JS (1 query).
-function normalizeName(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-// Wspólny prefiks całych słów — nazwa bazowa grupy wariantów (np. „Stek z Polędwicy Wołowej").
-function commonWordPrefix(names: string[]): string {
-  if (names.length === 0) return "";
-  if (names.length === 1) return names[0].trim();
-  const split = names.map((n) => n.trim().replace(/\s+/g, " ").split(" "));
-  const first = split[0];
-  const out: string[] = [];
-  for (let i = 0; i < first.length; i++) {
-    const w = first[i].toLowerCase();
-    if (split.every((s) => (s[i] ?? "").toLowerCase() === w)) out.push(first[i]);
-    else break;
-  }
-  return out.length > 0 ? out.join(" ") : names[0].trim();
-}
-
-// Grupuje pozycje POS po id produktu (warianty = wspólne id), sumując ilość i przychód.
-// Zachowuje też składowe warianty (`members`) — bo część produktów (np. herbata Sir Williams,
-// gdzie wariant = inny smak/koszt) użytkownik chce powiązać per-wariant, nie zbiorczo.
-type PosGroup = { name: string; qty: number; net: number; members: Array<{ name: string; qty: number; net: number }> };
-function groupPosByProduct(rows: Array<{ name: string; posProductId: string | null; qty: number; net: number }>): PosGroup[] {
-  const byKey = new Map<string, { members: Array<{ name: string; qty: number; net: number }>; qty: number; net: number }>();
-  for (const r of rows) {
-    const key = r.posProductId ? `id:${r.posProductId}` : `nm:${normalizeName(r.name)}`;
-    const g = byKey.get(key) ?? { members: [], qty: 0, net: 0 };
-    g.members.push({ name: r.name, qty: r.qty, net: r.net });
-    g.qty += r.qty;
-    g.net += r.net;
-    byKey.set(key, g);
-  }
-  return [...byKey.values()].map((g) => ({ name: commonWordPrefix(g.members.map((m) => m.name)), qty: g.qty, net: g.net, members: g.members }));
-}
+// normalizeName / groupPosByProduct żyją w ../lib/pos-group.ts — współdzielone
+// ze stroną Sprzedaż, żeby nie było dwóch rozjeżdżających się heurystyk.
 
 // Tokeny znaczące do dopasowania fuzzy składnik→produkt. Dzielimy na całe słowa
 // (granica słowa — rule 27), odrzucamy krótkie i szumowe, żeby "masło" trafiało

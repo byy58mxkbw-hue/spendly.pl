@@ -4,27 +4,33 @@ import { db, posSalesTable } from "@workspace/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { toNum } from "../lib/parse";
 import { periodFromQuery, previousPeriod, periodLabel, monthsInRange, type Period } from "../lib/period";
+import { commonWordPrefix, normalizeName, posGroupKey } from "../lib/pos-group";
 import { captureServer } from "../lib/telemetry";
 
 // Sprzedaż per pozycja menu z POS (pos_sales) dla wybranego okresu, z porównaniem
-// do poprzedniego równego okresu — zasila podstronę „Sprzedaż" (ile sztuk i za ile,
-// vs poprzedni miesiąc). Źródło danych wypełnia sync GoPOS.
+// do poprzedniego równego okresu — zasila podstronę „Sprzedaż".
+//
+// Pozycje są GRUPOWANE po id produktu z POS: stopnie wysmażenia steka („medium",
+// „well done") to warianty jednej pozycji menu i mają wspólne id, a osobne nazwy.
+// Rozbite na wiersze rozdrabniały listę i ukrywały fakt, że stek jako danie
+// sprzedaje się świetnie. Warianty zostają dostępne po rozwinięciu grupy.
 const router: IRouter = Router();
 
-type Agg = { qty: number; net: number };
+type RawRow = { name: string; posProductId: string | null; qty: number; net: number };
 
-async function aggregate(userId: string, periods: string[]): Promise<Map<string, Agg>> {
-  if (periods.length === 0) return new Map();
+async function fetchRows(userId: string, periods: string[]): Promise<RawRow[]> {
+  if (periods.length === 0) return [];
   const rows = await db
     .select({
-      productName: posSalesTable.productName,
+      name: posSalesTable.productName,
+      posProductId: posSalesTable.posProductId,
       qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
       net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
     })
     .from(posSalesTable)
     .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, periods)))
-    .groupBy(posSalesTable.productName);
-  return new Map(rows.map((r) => [r.productName, { qty: toNum(r.qty), net: toNum(r.net) }]));
+    .groupBy(posSalesTable.productName, posSalesTable.posProductId);
+  return rows.map((r) => ({ name: r.name, posProductId: r.posProductId, qty: toNum(r.qty), net: toNum(r.net) }));
 }
 
 // Procentowa zmiana względem poprzedniego okresu. `null` = brak bazy porównania
@@ -34,7 +40,7 @@ function changePct(current: number, previous: number | null | undefined): number
   return Math.round(((current - previous) / previous) * 1000) / 10;
 }
 
-export type SalesRow = {
+export type SalesLeaf = {
   productName: string;
   qty: number;
   netValue: number;
@@ -43,45 +49,100 @@ export type SalesRow = {
   qtyChangePct: number | null;
   netChangePct: number | null;
 };
+export type SalesGroup = SalesLeaf & {
+  /** Stabilny klucz grupy (id produktu z POS) — do wykresu i porównań. */
+  key: string;
+  /** Warianty (stopnie wysmażenia, smaki). Puste, gdy pozycja nie ma wariantów. */
+  variants: SalesLeaf[];
+};
 
-async function buildSalesRows(userId: string, period: Period): Promise<{ items: SalesRow[]; prev: Period }> {
+type Leaf = { name: string; qty: number; net: number; prevQty: number | null; prevNet: number | null };
+
+function makeLeaf(l: Leaf): SalesLeaf {
+  return {
+    productName: l.name,
+    qty: l.qty,
+    netValue: l.net,
+    prevQty: l.prevQty,
+    prevNet: l.prevNet,
+    qtyChangePct: changePct(l.qty, l.prevQty),
+    netChangePct: changePct(l.net, l.prevNet),
+  };
+}
+
+async function buildSalesGroups(userId: string, period: Period): Promise<{ groups: SalesGroup[]; prev: Period }> {
   const prev = previousPeriod(period);
-  const [cur, prv] = await Promise.all([
-    aggregate(userId, monthsInRange(period)),
-    aggregate(userId, monthsInRange(prev)),
+  const [curRows, prevRows] = await Promise.all([
+    fetchRows(userId, monthsInRange(period)),
+    fetchRows(userId, monthsInRange(prev)),
   ]);
 
-  const names = new Set<string>([...cur.keys(), ...prv.keys()]);
-  const items: SalesRow[] = [...names]
-    .map((productName) => {
-      const c = cur.get(productName) ?? { qty: 0, net: 0 };
-      const p = prv.get(productName);
-      return {
-        productName,
-        qty: c.qty,
-        netValue: c.net,
-        prevQty: p?.qty ?? null,
-        prevNet: p?.net ?? null,
-        qtyChangePct: changePct(c.qty, p?.qty),
-        netChangePct: changePct(c.net, p?.net),
-      };
-    })
-    // Sortowanie po WARTOŚCI, nie po ilości — pozycja sprzedana 300 razy po 4 zł
-    // znaczy dla wyniku mniej niż 40 dań po 90 zł.
-    .sort((a, b) => b.netValue - a.netValue);
+  // key -> (znormalizowana nazwa wariantu -> liść). Warianty łączymy między
+  // okresami po nazwie, grupy po kluczu POS.
+  const buckets = new Map<string, Map<string, Leaf>>();
+  const leafFor = (r: RawRow): Leaf => {
+    const key = posGroupKey(r);
+    let members = buckets.get(key);
+    if (!members) { members = new Map(); buckets.set(key, members); }
+    const nk = normalizeName(r.name);
+    let leaf = members.get(nk);
+    if (!leaf) { leaf = { name: r.name, qty: 0, net: 0, prevQty: null, prevNet: null }; members.set(nk, leaf); }
+    return leaf;
+  };
 
-  return { items, prev };
+  for (const r of curRows) {
+    const leaf = leafFor(r);
+    leaf.qty += r.qty;
+    leaf.net += r.net;
+  }
+  for (const r of prevRows) {
+    const leaf = leafFor(r);
+    leaf.prevQty = (leaf.prevQty ?? 0) + r.qty;
+    leaf.prevNet = (leaf.prevNet ?? 0) + r.net;
+  }
+
+  const groups: SalesGroup[] = [...buckets.entries()].map(([key, membersMap]) => {
+    const members = [...membersMap.values()];
+    const qty = members.reduce((s, m) => s + m.qty, 0);
+    const net = members.reduce((s, m) => s + m.net, 0);
+    // Suma poprzedniego okresu zostaje `null`, gdy ŻADEN wariant nie miał
+    // sprzedaży — inaczej nowa pozycja pokazywałaby spadek z zera.
+    const hasPrev = members.some((m) => m.prevQty != null || m.prevNet != null);
+    const prevQty = hasPrev ? members.reduce((s, m) => s + (m.prevQty ?? 0), 0) : null;
+    const prevNet = hasPrev ? members.reduce((s, m) => s + (m.prevNet ?? 0), 0) : null;
+
+    // Nazwa grupy z UNII wariantów obu okresów — dzięki temu nie zmienia się,
+    // gdy w jednym miesiącu sprzedał się tylko jeden stopień wysmażenia.
+    const name = commonWordPrefix(members.map((m) => m.name));
+
+    return {
+      key,
+      productName: name,
+      qty,
+      netValue: net,
+      prevQty,
+      prevNet,
+      qtyChangePct: changePct(qty, prevQty),
+      netChangePct: changePct(net, prevNet),
+      variants: members.length > 1 ? members.map(makeLeaf).sort((a, b) => b.netValue - a.netValue) : [],
+    };
+  });
+
+  // Sortowanie po WARTOŚCI, nie ilości — 300 kaw po 4 zł znaczy dla wyniku
+  // mniej niż 40 dań po 90 zł. Front i tak pozwala przesortować.
+  groups.sort((a, b) => b.netValue - a.netValue);
+  return { groups, prev };
 }
 
 router.get("/sales", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const period = periodFromQuery(req.query);
-  const { items } = await buildSalesRows(userId, period);
+  const { groups } = await buildSalesGroups(userId, period);
 
-  const totalQty = items.reduce((s, i) => s + i.qty, 0);
-  const totalNet = items.reduce((s, i) => s + i.netValue, 0);
-  const prevTotalQty = items.reduce((s, i) => s + (i.prevQty ?? 0), 0);
-  const prevTotalNet = items.reduce((s, i) => s + (i.prevNet ?? 0), 0);
+  const totalQty = groups.reduce((s, g) => s + g.qty, 0);
+  const totalNet = groups.reduce((s, g) => s + g.netValue, 0);
+  const prevTotalQty = groups.reduce((s, g) => s + (g.prevQty ?? 0), 0);
+  const prevTotalNet = groups.reduce((s, g) => s + (g.prevNet ?? 0), 0);
 
   res.json({
     from: period.from,
@@ -92,18 +153,23 @@ router.get("/sales", async (req, res): Promise<void> => {
     prevTotalNet,
     totalQtyChangePct: changePct(totalQty, prevTotalQty),
     totalNetChangePct: changePct(totalNet, prevTotalNet),
-    items,
+    items: groups,
   });
 });
 
 // ─── Historia jednej pozycji menu, miesiąc po miesiącu ────────────────────────
 // Zasila wykres otwierany kliknięciem w wiersz. Osobny endpoint, bo lista zna
 // tylko dwa okresy — tu chcemy pełny przebieg, żeby zobaczyć sezonowość.
+//
+// `key` = cała grupa (stek ze wszystkimi wysmażeniami), `productName` = jeden
+// wariant. Klucz, nie nazwa: nazwa grupy jest wyliczana z wariantów obecnych
+// w okresie, więc jako identyfikator byłaby ruchoma.
 router.get("/sales/trend", async (req, res): Promise<void> => {
   const userId = req.userId!;
+  const key = req.query.key != null ? String(req.query.key) : "";
   const productName = req.query.productName != null ? String(req.query.productName) : "";
-  if (!productName.trim()) {
-    res.status(400).json({ error: "Podaj productName" });
+  if (!key.trim() && !productName.trim()) {
+    res.status(400).json({ error: "Podaj key albo productName" });
     return;
   }
 
@@ -122,23 +188,34 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
   const rows = await db
     .select({
       period: posSalesTable.period,
+      name: posSalesTable.productName,
+      posProductId: posSalesTable.posProductId,
       qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
       net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
     })
     .from(posSalesTable)
-    .where(
-      and(
-        eq(posSalesTable.userId, userId),
-        eq(posSalesTable.productName, productName),
-        inArray(posSalesTable.period, periods),
-      ),
-    )
-    .groupBy(posSalesTable.period);
+    .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, periods)))
+    .groupBy(posSalesTable.period, posSalesTable.productName, posSalesTable.posProductId);
 
-  const byPeriod = new Map(rows.map((r) => [r.period, { qty: toNum(r.qty), net: toNum(r.net) }]));
+  const wantKey = key.trim();
+  const wantName = normalizeName(productName);
+  const byPeriod = new Map<string, { qty: number; net: number }>();
+  const names = new Set<string>();
+  for (const r of rows) {
+    const match = wantKey
+      ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
+      : normalizeName(r.name) === wantName;
+    if (!match) continue;
+    names.add(r.name);
+    const cur = byPeriod.get(r.period) ?? { qty: 0, net: 0 };
+    cur.qty += toNum(r.qty);
+    cur.net += toNum(r.net);
+    byPeriod.set(r.period, cur);
+  }
 
   res.json({
-    productName,
+    productName: wantKey ? commonWordPrefix([...names]) : productName,
+    variantCount: names.size,
     months: periods.map((month) => {
       const v = byPeriod.get(month);
       const qty = v?.qty ?? 0;
@@ -166,7 +243,7 @@ const round = (n: number, d: number) => Math.round(n * 10 ** d) / 10 ** d;
 router.get("/sales.xlsx", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const period = periodFromQuery(req.query);
-  const { items, prev } = await buildSalesRows(userId, period);
+  const { groups, prev } = await buildSalesGroups(userId, period);
 
   const label = periodLabel(period);
   const prevLabel = periodLabel(prev);
@@ -206,7 +283,9 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
   // Kwoty NETTO — POS raportuje sprzedaż netto (`pos_sales.net_value`). To inna
   // podstawa niż wydatki z faktur (BRUTTO, reguła 29). Piszemy to na arkuszu,
   // żeby nikt nie zestawił tych dwóch liczb wprost ze sobą.
-  const subRow = ws.addRow([`Kwoty netto ze sprzedaży POS · porównanie z okresem: ${prevLabel}`]);
+  const subRow = ws.addRow([
+    `Kwoty netto ze sprzedaży POS · porównanie z okresem: ${prevLabel} · warianty (np. stopnie wysmażenia) wcięte pod pozycją`,
+  ]);
   ws.mergeCells(subRow.number, 1, subRow.number, nCols);
   subRow.getCell(1).font = { italic: true, size: 10, color: { argb: "FF64748B" } };
 
@@ -217,21 +296,21 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
     c.alignment = { vertical: "middle", wrapText: true };
   });
 
-  if (items.length === 0) {
+  if (groups.length === 0) {
     const empty = ws.addRow([`Brak danych sprzedaży w okresie ${label}.`]);
     ws.mergeCells(empty.number, 1, empty.number, nCols);
     empty.getCell(1).font = { italic: true, color: { argb: "FF64748B" } };
   }
 
-  for (const it of items) {
+  function addLeafRow(l: SalesLeaf, variant: boolean) {
     const row = ws.addRow([
-      it.productName,
-      round(it.qty, 2),
-      it.prevQty != null ? round(it.prevQty, 2) : null,
-      it.qtyChangePct != null ? round(it.qtyChangePct / 100, 6) : "nowa",
-      round(it.netValue, 2),
-      it.prevNet != null ? round(it.prevNet, 2) : null,
-      it.netChangePct != null ? round(it.netChangePct / 100, 6) : "nowa",
+      l.productName,
+      round(l.qty, 2),
+      l.prevQty != null ? round(l.prevQty, 2) : null,
+      l.qtyChangePct != null ? round(l.qtyChangePct / 100, 6) : "nowa",
+      round(l.netValue, 2),
+      l.prevNet != null ? round(l.prevNet, 2) : null,
+      l.netChangePct != null ? round(l.netChangePct / 100, 6) : "nowa",
     ]);
     row.getCell(2).numFmt = QTY;
     row.getCell(3).numFmt = QTY;
@@ -239,15 +318,29 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
     row.getCell(5).numFmt = CUR;
     row.getCell(6).numFmt = CUR;
     row.getCell(7).numFmt = PCT;
+    if (variant) {
+      // Wcięcie + szarość: wariant jest składową wiersza wyżej, nie osobną
+      // pozycją. Bez tego sumy w arkuszu wyglądałyby na policzone podwójnie.
+      row.getCell(1).alignment = { indent: 2 };
+      row.eachCell({ includeEmpty: true }, (c) => { c.font = { size: 10, color: { argb: "FF64748B" } }; });
+    } else {
+      row.getCell(1).font = { bold: true };
+    }
+    return row;
   }
 
-  if (items.length > 0) {
-    const totalQty = items.reduce((s, i) => s + i.qty, 0);
-    const prevQty = items.reduce((s, i) => s + (i.prevQty ?? 0), 0);
-    const totalNet = items.reduce((s, i) => s + i.netValue, 0);
-    const prevNet = items.reduce((s, i) => s + (i.prevNet ?? 0), 0);
+  for (const g of groups) {
+    addLeafRow(g, false);
+    for (const v of g.variants) addLeafRow(v, true);
+  }
+
+  if (groups.length > 0) {
+    const totalQty = groups.reduce((s, g) => s + g.qty, 0);
+    const prevQty = groups.reduce((s, g) => s + (g.prevQty ?? 0), 0);
+    const totalNet = groups.reduce((s, g) => s + g.netValue, 0);
+    const prevNet = groups.reduce((s, g) => s + (g.prevNet ?? 0), 0);
     const sum = ws.addRow([
-      "SUMA",
+      "SUMA (bez wierszy wciętych)",
       round(totalQty, 2),
       round(prevQty, 2),
       prevQty > 0 ? round((totalQty - prevQty) / prevQty, 6) : null,

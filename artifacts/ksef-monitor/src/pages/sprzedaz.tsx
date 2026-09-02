@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { Fragment, useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useClerk } from "@clerk/react";
 import { apiUrl } from "@/lib/api-base";
 import { Layout, PageHeader } from "@/components/layout";
@@ -8,13 +8,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2 } from "@/lib/icons";
+import { ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2 } from "@/lib/icons";
 
 // Wykres pojedynczej pozycji ładowany leniwie — ciągnie recharts, który nie ma
 // czego szukać w głównym chunku strony z tabelą.
 const SalesTrendModal = lazy(() => import("./sprzedaz/sales-trend-modal").then((m) => ({ default: m.SalesTrendModal })));
 
-type SalesItem = {
+type SalesLeaf = {
   productName: string;
   qty: number;
   netValue: number;
@@ -23,6 +23,9 @@ type SalesItem = {
   qtyChangePct: number | null;
   netChangePct: number | null;
 };
+// Grupa = pozycja menu. Warianty (stopnie wysmażenia, smaki) mają w POS wspólne
+// id produktu i są tu składowymi, nie osobnymi pozycjami.
+type SalesItem = SalesLeaf & { key: string; variants: SalesLeaf[] };
 type SalesResponse = {
   from: string;
   to: string;
@@ -64,7 +67,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   netChangePct: "desc",
 };
 
-function compareItems(a: SalesItem, b: SalesItem, sort: Sort): number {
+function compareItems(a: SalesLeaf, b: SalesLeaf, sort: Sort): number {
   const mul = sort.dir === "asc" ? 1 : -1;
   if (sort.key === "productName") {
     // localeCompare z "pl" — inaczej Ł ląduje za Z, a ą za z.
@@ -134,8 +137,18 @@ export default function Sprzedaz() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
-  const [trendItem, setTrendItem] = useState<string | null>(null);
+  const [trend, setTrend] = useState<{ label: string; key?: string; name?: string } | null>(null);
   const [sort, setSort] = useState<Sort>({ key: "netValue", dir: "desc" });
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   // Ten sam nagłówek drugi raz = odwrócenie kierunku. Inny nagłówek = jego
   // własny domyślny kierunek.
@@ -273,22 +286,68 @@ export default function Sprzedaz() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {items.map((it, i) => (
-                    <tr
-                      key={i}
-                      onClick={() => setTrendItem(it.productName)}
-                      className="cursor-pointer hover:bg-secondary/30 transition-colors"
-                      title="Pokaż sprzedaż miesiąc po miesiącu"
-                    >
-                      <td className="px-5 py-2.5 max-w-[280px]"><span className="text-sm text-foreground truncate block">{it.productName}</span></td>
-                      <td className="text-right px-3 py-2.5 text-sm font-medium text-foreground">{fmtQty(it.qty)}</td>
-                      <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{it.prevQty != null ? fmtQty(it.prevQty) : "—"}</td>
-                      <td className="text-right px-3 py-2.5 text-xs font-medium"><ChangeCell pct={it.qtyChangePct} /></td>
-                      <td className="text-right px-3 py-2.5 text-sm font-semibold text-foreground">{formatPrice(it.netValue)}</td>
-                      <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{it.prevNet != null ? formatPrice(it.prevNet) : "—"}</td>
-                      <td className="text-right px-5 py-2.5 text-xs font-medium"><ChangeCell pct={it.netChangePct} /></td>
-                    </tr>
-                  ))}
+                  {items.map((it) => {
+                    const isOpen = expanded.has(it.key);
+                    const hasVariants = it.variants.length > 0;
+                    return (
+                      <Fragment key={it.key}>
+                        <tr
+                          onClick={() => setTrend({ label: it.productName, key: it.key })}
+                          className="cursor-pointer hover:bg-secondary/30 transition-colors"
+                          title="Pokaż sprzedaż miesiąc po miesiącu"
+                        >
+                          <td className="px-5 py-2.5 max-w-[300px]">
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              {hasVariants ? (
+                                <button
+                                  type="button"
+                                  // Strzałka rozwija warianty, reszta wiersza otwiera wykres.
+                                  // Bez stopPropagation jedno kliknięcie robiłoby oba naraz.
+                                  onClick={(e) => { e.stopPropagation(); toggleExpanded(it.key); }}
+                                  aria-expanded={isOpen}
+                                  aria-label={isOpen ? "Zwiń warianty" : "Rozwiń warianty"}
+                                  className="p-0.5 -ml-1 text-muted-foreground hover:text-foreground shrink-0"
+                                >
+                                  {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                                </button>
+                              ) : (
+                                <span className="w-[18px] shrink-0" aria-hidden />
+                              )}
+                              <span className="text-sm text-foreground truncate">{it.productName}</span>
+                              {hasVariants && (
+                                <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">({it.variants.length})</span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="text-right px-3 py-2.5 text-sm font-medium text-foreground">{fmtQty(it.qty)}</td>
+                          <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{it.prevQty != null ? fmtQty(it.prevQty) : "—"}</td>
+                          <td className="text-right px-3 py-2.5 text-xs font-medium"><ChangeCell pct={it.qtyChangePct} /></td>
+                          <td className="text-right px-3 py-2.5 text-sm font-semibold text-foreground">{formatPrice(it.netValue)}</td>
+                          <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{it.prevNet != null ? formatPrice(it.prevNet) : "—"}</td>
+                          <td className="text-right px-5 py-2.5 text-xs font-medium"><ChangeCell pct={it.netChangePct} /></td>
+                        </tr>
+                        {isOpen &&
+                          [...it.variants].sort((a, b) => compareItems(a, b, sort)).map((v) => (
+                            <tr
+                              key={v.productName}
+                              onClick={() => setTrend({ label: v.productName, name: v.productName })}
+                              className="cursor-pointer bg-secondary/20 hover:bg-secondary/40 transition-colors"
+                              title="Pokaż sprzedaż tego wariantu miesiąc po miesiącu"
+                            >
+                              <td className="px-5 py-2 pl-12 max-w-[300px]">
+                                <span className="text-xs text-muted-foreground truncate block">{v.productName}</span>
+                              </td>
+                              <td className="text-right px-3 py-2 text-xs text-foreground">{fmtQty(v.qty)}</td>
+                              <td className="text-right px-3 py-2 text-xs text-muted-foreground">{v.prevQty != null ? fmtQty(v.prevQty) : "—"}</td>
+                              <td className="text-right px-3 py-2 text-xs"><ChangeCell pct={v.qtyChangePct} /></td>
+                              <td className="text-right px-3 py-2 text-xs text-foreground">{formatPrice(v.netValue)}</td>
+                              <td className="text-right px-3 py-2 text-xs text-muted-foreground">{v.prevNet != null ? formatPrice(v.prevNet) : "—"}</td>
+                              <td className="text-right px-5 py-2 text-xs"><ChangeCell pct={v.netChangePct} /></td>
+                            </tr>
+                          ))}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -296,9 +355,14 @@ export default function Sprzedaz() {
         )}
       </div>
 
-      {trendItem && (
+      {trend && (
         <Suspense fallback={null}>
-          <SalesTrendModal productName={trendItem} onClose={() => setTrendItem(null)} />
+          <SalesTrendModal
+            label={trend.label}
+            groupKey={trend.key}
+            productName={trend.name}
+            onClose={() => setTrend(null)}
+          />
         </Suspense>
       )}
     </Layout>

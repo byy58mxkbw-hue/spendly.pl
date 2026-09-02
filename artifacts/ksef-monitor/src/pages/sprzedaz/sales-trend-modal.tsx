@@ -34,7 +34,7 @@ function monthLong(ym: string): string {
 }
 
 type TrendMonth = { month: string; qty: number; netValue: number; avgPrice: number | null };
-type TrendResponse = { productName: string; months: TrendMonth[] };
+type TrendResponse = { productName: string; variantCount: number; months: TrendMonth[] };
 
 type Metric = "qty" | "net";
 
@@ -66,7 +66,15 @@ function ChartTooltip({ active, payload, metric }: {
   );
 }
 
-export function SalesTrendModal({ productName, onClose }: { productName: string; onClose: () => void }) {
+export function SalesTrendModal({ label, groupKey, productName, onClose }: {
+  /** Nazwa do nagłówka — mamy ją od razu, więc tytuł nie mruga po wczytaniu. */
+  label: string;
+  /** Klucz grupy z POS: wykres obejmuje wszystkie warianty (np. wszystkie wysmażenia). */
+  groupKey?: string;
+  /** Pojedynczy wariant — gdy użytkownik kliknął w rozwiniętą pozycję. */
+  productName?: string;
+  onClose: () => void;
+}) {
   const { session } = useClerk();
   const [data, setData] = useState<TrendResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,15 +86,17 @@ export function SalesTrendModal({ productName, onClose }: { productName: string;
     setLoading(true);
     void (async () => {
       const token = await session?.getToken();
-      const res = await fetch(
-        apiUrl(`/api/sales/trend?productName=${encodeURIComponent(productName)}&months=${MONTHS}`),
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-      );
+      const q = groupKey
+        ? `key=${encodeURIComponent(groupKey)}`
+        : `productName=${encodeURIComponent(productName ?? "")}`;
+      const res = await fetch(apiUrl(`/api/sales/trend?${q}&months=${MONTHS}`), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const json = res.ok ? ((await res.json()) as TrendResponse) : null;
       if (!cancelled) { setData(json); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [productName, session]);
+  }, [groupKey, productName, session]);
 
   const rows = useMemo(
     () => (data?.months ?? []).map((m) => ({ ...m, label: monthShort(m.month) })),
@@ -107,8 +117,15 @@ export function SalesTrendModal({ productName, onClose }: { productName: string;
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="head-display text-lg">{productName}</DialogTitle>
+          <DialogTitle className="head-display text-lg">{label}</DialogTitle>
         </DialogHeader>
+        {/* Bez tego wykres grupy wyglądałby na sprzedaż jednej pozycji,
+            a jest sumą kilku wariantów. */}
+        {groupKey && (data?.variantCount ?? 0) > 1 && (
+          <p className="text-xs text-muted-foreground -mt-2">
+            Razem {data!.variantCount} warianty tej pozycji.
+          </p>
+        )}
 
         {loading ? (
           <Skeleton className="h-64 w-full" />
