@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Search, ShoppingBag, Download, Loader2 } from "@/lib/icons";
+import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2 } from "@/lib/icons";
 
 // Wykres pojedynczej pozycji ładowany leniwie — ciągnie recharts, który nie ma
 // czego szukać w głównym chunku strony z tabelą.
@@ -48,6 +48,73 @@ function tone(pct: number | null): string {
   return pct > 0 ? "text-positive" : pct < 0 ? "text-negative" : "text-muted-foreground";
 }
 
+type SortKey = "productName" | "qty" | "prevQty" | "qtyChangePct" | "netValue" | "prevNet" | "netChangePct";
+type SortDir = "asc" | "desc";
+type Sort = { key: SortKey; dir: SortDir };
+
+// Domyslny kierunek per kolumna: nazwy czyta sie od A, liczby ogląda od
+// najwiekszej. Inaczej pierwszy klik w „Sprzedano" pokazywalby same zera.
+const DEFAULT_DIR: Record<SortKey, SortDir> = {
+  productName: "asc",
+  qty: "desc",
+  prevQty: "desc",
+  qtyChangePct: "desc",
+  netValue: "desc",
+  prevNet: "desc",
+  netChangePct: "desc",
+};
+
+function compareItems(a: SalesItem, b: SalesItem, sort: Sort): number {
+  const mul = sort.dir === "asc" ? 1 : -1;
+  if (sort.key === "productName") {
+    // localeCompare z "pl" — inaczej Ł ląduje za Z, a ą za z.
+    return a.productName.localeCompare(b.productName, "pl") * mul;
+  }
+  const av = a[sort.key];
+  const bv = b[sort.key];
+  // Puste ("nowa pozycja", brak poprzedniego miesiąca) ZAWSZE na końcu,
+  // niezależnie od kierunku — inaczej odwrócenie sortowania wypycha na górę
+  // wiersze bez danych i chowa te, po które użytkownik kliknął.
+  if (av == null || bv == null) {
+    if (av == null && bv == null) return 0;
+    return av == null ? 1 : -1;
+  }
+  return (av - bv) * mul;
+}
+
+function SortHeader({ label, sortKey, sort, onSort, align = "right", className }: {
+  label: string;
+  sortKey: SortKey;
+  sort: Sort;
+  onSort: (k: SortKey) => void;
+  align?: "left" | "right";
+  className?: string;
+}) {
+  const active = sort.key === sortKey;
+  return (
+    <th
+      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+      className={cn(align === "left" ? "text-left" : "text-right", className)}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        aria-label={`Sortuj wg: ${label}`}
+        className={cn(
+          "inline-flex items-center gap-1 uppercase tracking-wide transition-colors hover:text-foreground",
+          align === "right" && "flex-row-reverse",
+          active && "text-foreground",
+        )}
+      >
+        {label}
+        {active
+          ? (sort.dir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)
+          : <ChevronsUpDown className="w-3 h-3 opacity-30" />}
+      </button>
+    </th>
+  );
+}
+
 function ChangeCell({ pct }: { pct: number | null }) {
   if (pct == null) return <span className="text-muted-foreground">nowa</span>;
   const up = pct > 0;
@@ -68,6 +135,13 @@ export default function Sprzedaz() {
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
   const [trendItem, setTrendItem] = useState<string | null>(null);
+  const [sort, setSort] = useState<Sort>({ key: "netValue", dir: "desc" });
+
+  // Ten sam nagłówek drugi raz = odwrócenie kierunku. Inny nagłówek = jego
+  // własny domyślny kierunek.
+  function toggleSort(key: SortKey) {
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: DEFAULT_DIR[key] }));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -84,8 +158,9 @@ export default function Sprzedaz() {
   const items = useMemo(() => {
     const list = data?.items ?? [];
     const q = search.trim().toLowerCase();
-    return q ? list.filter((i) => i.productName.toLowerCase().includes(q)) : list;
-  }, [data, search]);
+    const filtered = q ? list.filter((i) => i.productName.toLowerCase().includes(q)) : list;
+    return [...filtered].sort((a, b) => compareItems(a, b, sort));
+  }, [data, search, sort]);
 
   const empty = !loading && (!data || data.items.length === 0);
 
@@ -188,13 +263,13 @@ export default function Sprzedaz() {
               <table className="w-full min-w-[760px] tabular-nums">
                 <thead>
                   <tr className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-secondary/30">
-                    <th className="text-left px-5 py-2">Pozycja</th>
-                    <th className="text-right px-3 py-2">Sprzedano</th>
-                    <th className="text-right px-3 py-2">Poprz. mies.</th>
-                    <th className="text-right px-3 py-2">Zmiana</th>
-                    <th className="text-right px-3 py-2">Wartość netto</th>
-                    <th className="text-right px-3 py-2">Poprz. mies.</th>
-                    <th className="text-right px-5 py-2">Zmiana</th>
+                    <SortHeader label="Pozycja" sortKey="productName" sort={sort} onSort={toggleSort} align="left" className="px-5 py-2" />
+                    <SortHeader label="Sprzedano" sortKey="qty" sort={sort} onSort={toggleSort} className="px-3 py-2" />
+                    <SortHeader label="Poprz. mies." sortKey="prevQty" sort={sort} onSort={toggleSort} className="px-3 py-2" />
+                    <SortHeader label="Zmiana" sortKey="qtyChangePct" sort={sort} onSort={toggleSort} className="px-3 py-2" />
+                    <SortHeader label="Wartość netto" sortKey="netValue" sort={sort} onSort={toggleSort} className="px-3 py-2" />
+                    <SortHeader label="Poprz. mies." sortKey="prevNet" sort={sort} onSort={toggleSort} className="px-3 py-2" />
+                    <SortHeader label="Zmiana" sortKey="netChangePct" sort={sort} onSort={toggleSort} className="px-5 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
