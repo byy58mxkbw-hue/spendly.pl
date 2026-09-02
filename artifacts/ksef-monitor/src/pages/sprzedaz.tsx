@@ -1,15 +1,39 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useClerk } from "@clerk/react";
 import { apiUrl } from "@/lib/api-base";
 import { Layout, PageHeader } from "@/components/layout";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Search, ShoppingBag } from "@/lib/icons";
+import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Search, ShoppingBag, Download, Loader2 } from "@/lib/icons";
 
-type SalesItem = { productName: string; qty: number; netValue: number; prevQty: number | null; qtyChangePct: number | null };
-type SalesResponse = { from: string; to: string; totalQty: number; totalNet: number; items: SalesItem[] };
+// Wykres pojedynczej pozycji ładowany leniwie — ciągnie recharts, który nie ma
+// czego szukać w głównym chunku strony z tabelą.
+const SalesTrendModal = lazy(() => import("./sprzedaz/sales-trend-modal").then((m) => ({ default: m.SalesTrendModal })));
+
+type SalesItem = {
+  productName: string;
+  qty: number;
+  netValue: number;
+  prevQty: number | null;
+  prevNet: number | null;
+  qtyChangePct: number | null;
+  netChangePct: number | null;
+};
+type SalesResponse = {
+  from: string;
+  to: string;
+  totalQty: number;
+  totalNet: number;
+  prevTotalQty: number;
+  prevTotalNet: number;
+  totalQtyChangePct: number | null;
+  totalNetChangePct: number | null;
+  items: SalesItem[];
+};
 
 const MONTHS = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
 function monthLabel(m: string): string { const [y, mm] = m.split("-").map(Number); return `${MONTHS[mm - 1]} ${y}`; }
@@ -17,12 +41,33 @@ function shiftMonth(m: string, d: number): string { const [y, mm] = m.split("-")
 function currentMonth(): string { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`; }
 const fmtQty = (v: number) => new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 }).format(v);
 
+// Sprzedaż to przychód: wzrost jest dobry. Odwrotnie niż przy kosztach, gdzie
+// terakota oznacza „drożej" — dlatego tu rosnąca strzałka jest oliwkowa.
+function tone(pct: number | null): string {
+  if (pct == null) return "text-muted-foreground";
+  return pct > 0 ? "text-positive" : pct < 0 ? "text-negative" : "text-muted-foreground";
+}
+
+function ChangeCell({ pct }: { pct: number | null }) {
+  if (pct == null) return <span className="text-muted-foreground">nowa</span>;
+  const up = pct > 0;
+  return (
+    <span className={cn("inline-flex items-center justify-end gap-0.5", tone(pct))}>
+      {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+      {Math.abs(pct).toFixed(0)}%
+    </span>
+  );
+}
+
 export default function Sprzedaz() {
   const { session } = useClerk();
+  const { toast } = useToast();
   const [month, setMonth] = useState(currentMonth());
   const [data, setData] = useState<SalesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [trendItem, setTrendItem] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,18 +89,61 @@ export default function Sprzedaz() {
 
   const empty = !loading && (!data || data.items.length === 0);
 
+  // Endpoint binarny — poza Orvalem, jak eksport raportów zakupowych.
+  async function exportXlsx() {
+    setExporting(true);
+    try {
+      const token = await session?.getToken();
+      const res = await fetch(apiUrl(`/api/sales.xlsx?month=${month}`), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status}${body ? ` — ${body.slice(0, 120)}` : ""}`);
+      }
+      const blob = await res.blob();
+      if (blob.size === 0) throw new Error("Pusty plik z serwera");
+      const fname = `sprzedaz-${month}.xlsx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fname;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast({ title: "Pobrano zestawienie sprzedaży", description: fname });
+    } catch (err) {
+      console.error("Eksport Excel nie powiódł się:", err);
+      toast({
+        variant: "destructive",
+        title: "Nie udało się pobrać pliku Excel",
+        description: err instanceof Error ? err.message : "Nieznany błąd",
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto px-4 md:px-6 py-5 md:py-7">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-5 md:py-7">
         <div className="flex flex-col md:flex-row md:items-center gap-3 mb-5">
           <div className="flex-1 min-w-0">
             <PageHeader title="Sprzedaż" />
-            <p className="text-xs text-muted-foreground mt-0.5">Ile czego sprzedano — z GoPOS, z porównaniem do poprzedniego miesiąca.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Ile czego sprzedano i za ile — z GoPOS, z porównaniem do poprzedniego miesiąca.</p>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button onClick={() => setMonth(shiftMonth(month, -1))} className="p-1.5 rounded-lg border border-border hover:bg-secondary/50" aria-label="Poprzedni miesiąc"><ChevronLeft className="w-4 h-4" /></button>
-            <span className="text-sm font-medium px-2 min-w-[120px] text-center capitalize">{monthLabel(month)}</span>
-            <button onClick={() => setMonth(shiftMonth(month, 1))} disabled={month >= currentMonth()} className="p-1.5 rounded-lg border border-border hover:bg-secondary/50 disabled:opacity-40" aria-label="Następny miesiąc"><ChevronRight className="w-4 h-4" /></button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={exportXlsx} disabled={exporting || empty} className="gap-1.5">
+              {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+              Excel
+            </Button>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setMonth(shiftMonth(month, -1))} className="p-1.5 rounded-lg border border-border hover:bg-secondary/50" aria-label="Poprzedni miesiąc"><ChevronLeft className="w-4 h-4" /></button>
+              <span className="text-sm font-medium px-2 min-w-[120px] text-center capitalize">{monthLabel(month)}</span>
+              <button onClick={() => setMonth(shiftMonth(month, 1))} disabled={month >= currentMonth()} className="p-1.5 rounded-lg border border-border hover:bg-secondary/50 disabled:opacity-40" aria-label="Następny miesiąc"><ChevronRight className="w-4 h-4" /></button>
+            </div>
           </div>
         </div>
 
@@ -70,10 +158,26 @@ export default function Sprzedaz() {
         ) : (
           <div className="glass overflow-hidden">
             <div className="px-4 md:px-5 py-3 border-b border-border flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-baseline gap-4">
+              <div className="flex items-baseline gap-4 flex-wrap">
                 <div><span className="text-xs text-muted-foreground">Pozycji</span> <span className="text-sm font-semibold">{data!.items.length}</span></div>
-                <div><span className="text-xs text-muted-foreground">Sprzedano</span> <span className="text-sm font-semibold tabular-nums">{fmtQty(data!.totalQty)}</span></div>
-                <div><span className="text-xs text-muted-foreground">Wartość netto</span> <span className="text-sm font-semibold tabular-nums">{formatPrice(data!.totalNet)}</span></div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Sprzedano</span>{" "}
+                  <span className="text-sm font-semibold tabular-nums">{fmtQty(data!.totalQty)}</span>
+                  {data!.totalQtyChangePct != null && (
+                    <span className={cn("text-xs ml-1 tabular-nums", tone(data!.totalQtyChangePct))}>
+                      ({data!.totalQtyChangePct > 0 ? "+" : ""}{data!.totalQtyChangePct.toFixed(0)}%)
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Wartość netto</span>{" "}
+                  <span className="text-sm font-semibold tabular-nums">{formatPrice(data!.totalNet)}</span>
+                  {data!.totalNetChangePct != null && (
+                    <span className={cn("text-xs ml-1 tabular-nums", tone(data!.totalNetChangePct))}>
+                      ({data!.totalNetChangePct > 0 ? "+" : ""}{data!.totalNetChangePct.toFixed(0)}%)
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -81,41 +185,47 @@ export default function Sprzedaz() {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] tabular-nums">
+              <table className="w-full min-w-[760px] tabular-nums">
                 <thead>
                   <tr className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-secondary/30">
                     <th className="text-left px-5 py-2">Pozycja</th>
                     <th className="text-right px-3 py-2">Sprzedano</th>
                     <th className="text-right px-3 py-2">Poprz. mies.</th>
                     <th className="text-right px-3 py-2">Zmiana</th>
-                    <th className="text-right px-5 py-2">Wartość netto</th>
+                    <th className="text-right px-3 py-2">Wartość netto</th>
+                    <th className="text-right px-3 py-2">Poprz. mies.</th>
+                    <th className="text-right px-5 py-2">Zmiana</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {items.map((it, i) => {
-                    const up = (it.qtyChangePct ?? 0) > 0;
-                    return (
-                      <tr key={i}>
-                        <td className="px-5 py-2.5 max-w-[280px]"><span className="text-sm text-foreground truncate block">{it.productName}</span></td>
-                        <td className="text-right px-3 py-2.5 text-sm font-medium text-foreground">{fmtQty(it.qty)}</td>
-                        <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{it.prevQty != null ? fmtQty(it.prevQty) : "—"}</td>
-                        <td className={cn("text-right px-3 py-2.5 text-xs font-medium", it.qtyChangePct == null ? "text-muted-foreground" : up ? "text-warning" : "text-positive")}>
-                          {it.qtyChangePct == null ? "nowe" : (
-                            <span className="inline-flex items-center justify-end gap-0.5">
-                              {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}{Math.abs(it.qtyChangePct).toFixed(0)}%
-                            </span>
-                          )}
-                        </td>
-                        <td className="text-right px-5 py-2.5 text-sm font-semibold text-foreground">{formatPrice(it.netValue)}</td>
-                      </tr>
-                    );
-                  })}
+                  {items.map((it, i) => (
+                    <tr
+                      key={i}
+                      onClick={() => setTrendItem(it.productName)}
+                      className="cursor-pointer hover:bg-secondary/30 transition-colors"
+                      title="Pokaż sprzedaż miesiąc po miesiącu"
+                    >
+                      <td className="px-5 py-2.5 max-w-[280px]"><span className="text-sm text-foreground truncate block">{it.productName}</span></td>
+                      <td className="text-right px-3 py-2.5 text-sm font-medium text-foreground">{fmtQty(it.qty)}</td>
+                      <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{it.prevQty != null ? fmtQty(it.prevQty) : "—"}</td>
+                      <td className="text-right px-3 py-2.5 text-xs font-medium"><ChangeCell pct={it.qtyChangePct} /></td>
+                      <td className="text-right px-3 py-2.5 text-sm font-semibold text-foreground">{formatPrice(it.netValue)}</td>
+                      <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{it.prevNet != null ? formatPrice(it.prevNet) : "—"}</td>
+                      <td className="text-right px-5 py-2.5 text-xs font-medium"><ChangeCell pct={it.netChangePct} /></td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           </div>
         )}
       </div>
+
+      {trendItem && (
+        <Suspense fallback={null}>
+          <SalesTrendModal productName={trendItem} onClose={() => setTrendItem(null)} />
+        </Suspense>
+      )}
     </Layout>
   );
 }
