@@ -35,6 +35,27 @@ export function posGroupKey(row: { name: string; posProductId: string | null }):
   return row.posProductId ? `id:${row.posProductId}` : `nm:${normalizeName(row.name)}`;
 }
 
+/**
+ * „Parasole" — pozycje, które w menu są JEDNĄ ofertą, mimo że w POS mają osobne
+ * produkty z osobnymi id: zestawy lunchowe („Schab lunch", „Pulpety lunch",
+ * „Placki ziemniaczane lunch"). Grupowanie po id ich nie skleja, bo to naprawdę
+ * różne produkty — sklejamy je dopiero po nazwie, poziom wyżej.
+ *
+ * Dopasowanie po GRANICY SŁOWA (reguła 27), nigdy `includes()` — surowe
+ * szukanie „lunch" trafiłoby w „Lunchbox" albo „Brunch" i cicho scaliło
+ * pozycje, które nie mają ze sobą nic wspólnego.
+ */
+const UMBRELLAS: Array<{ label: string; pattern: RegExp }> = [
+  { label: "Lunch", pattern: /(?:^|\s)lunch(?:$|\s)/i },
+];
+
+/** Etykieta parasola dla nazwy pozycji albo `null`, gdy żaden nie pasuje. */
+export function umbrellaFor(name: string): string | null {
+  const n = normalizeName(name);
+  for (const u of UMBRELLAS) if (u.pattern.test(n)) return u.label;
+  return null;
+}
+
 export type PosMember = { name: string; qty: number; net: number };
 export type PosGroup = { key: string; name: string; qty: number; net: number; members: PosMember[] };
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { commonWordPrefix, groupPosByProduct, posGroupKey } from "./pos-group";
+import { commonWordPrefix, groupPosByProduct, posGroupKey, umbrellaFor } from "./pos-group";
 
 describe("commonWordPrefix", () => {
   it("wyciąga nazwę bazową ze stopni wysmażenia", () => {
@@ -91,5 +91,30 @@ describe("groupPosByProduct", () => {
       { name: "Stek z rostbefu Medium", posProductId: "5", qty: 1, net: 10 },
     ]);
     expect(groups[0].key).toBe("id:5");
+  });
+});
+
+describe("umbrellaFor", () => {
+  it("skleja zestawy lunchowe niezależnie od dania", () => {
+    for (const n of ["Schab lunch", "Pulpety lunch", "Placki ziemniaczane lunch", "Filet z kurczaka lunch"]) {
+      expect(umbrellaFor(n)).toBe("Lunch");
+    }
+  });
+
+  it("łapie LUNCH pisany wielkimi literami i na początku nazwy", () => {
+    expect(umbrellaFor("LUNCH schabowy")).toBe("Lunch");
+    expect(umbrellaFor("Lunch dnia")).toBe("Lunch");
+  });
+
+  it("NIE łapie słowa w środku innego wyrazu (reguła 27)", () => {
+    // To jest cały powód, dla którego wzorzec ma granicę słowa zamiast includes().
+    expect(umbrellaFor("Lunchbox na wynos")).toBeNull();
+    expect(umbrellaFor("Brunch niedzielny")).toBeNull();
+  });
+
+  it("zwykłe dania zostają poza parasolem", () => {
+    expect(umbrellaFor("Stek z Polędwicy Wołowej Medium")).toBeNull();
+    expect(umbrellaFor("Tatar Wołowy")).toBeNull();
+    expect(umbrellaFor("Grillowany łosoś")).toBeNull();
   });
 });

@@ -4,7 +4,7 @@ import { db, posSalesTable } from "@workspace/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { toNum } from "../lib/parse";
 import { periodFromQuery, previousPeriod, periodLabel, monthsInRange, type Period } from "../lib/period";
-import { commonWordPrefix, normalizeName, posGroupKey } from "../lib/pos-group";
+import { commonWordPrefix, normalizeName, posGroupKey, umbrellaFor } from "../lib/pos-group";
 import { captureServer } from "../lib/telemetry";
 
 // Sprzedaż per pozycja menu z POS (pos_sales) dla wybranego okresu, z porównaniem
@@ -58,6 +58,18 @@ export type SalesGroup = SalesLeaf & {
 
 type Leaf = { name: string; qty: number; net: number; prevQty: number | null; prevNet: number | null };
 
+// Sumy grupy liści + zmiany procentowe. `prev` zostaje `null`, gdy ŻADEN liść
+// nie miał sprzedaży w poprzednim okresie — inaczej nowa pozycja pokazywałaby
+// spadek z zera zamiast „nowa".
+function totalsOf(members: Leaf[]): Omit<SalesLeaf, "productName"> {
+  const qty = members.reduce((s, m) => s + m.qty, 0);
+  const net = members.reduce((s, m) => s + m.net, 0);
+  const hasPrev = members.some((m) => m.prevQty != null || m.prevNet != null);
+  const prevQty = hasPrev ? members.reduce((s, m) => s + (m.prevQty ?? 0), 0) : null;
+  const prevNet = hasPrev ? members.reduce((s, m) => s + (m.prevNet ?? 0), 0) : null;
+  return { qty, netValue: net, prevQty, prevNet, qtyChangePct: changePct(qty, prevQty), netChangePct: changePct(net, prevNet) };
+}
+
 function makeLeaf(l: Leaf): SalesLeaf {
   return {
     productName: l.name,
@@ -101,32 +113,69 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
     leaf.prevNet = (leaf.prevNet ?? 0) + r.net;
   }
 
-  const groups: SalesGroup[] = [...buckets.entries()].map(([key, membersMap]) => {
+  // Poziom 1: pozycja POS (warianty = stopnie wysmażenia itp.).
+  const subGroups = [...buckets.entries()].map(([key, membersMap]) => {
     const members = [...membersMap.values()];
-    const qty = members.reduce((s, m) => s + m.qty, 0);
-    const net = members.reduce((s, m) => s + m.net, 0);
-    // Suma poprzedniego okresu zostaje `null`, gdy ŻADEN wariant nie miał
-    // sprzedaży — inaczej nowa pozycja pokazywałaby spadek z zera.
-    const hasPrev = members.some((m) => m.prevQty != null || m.prevNet != null);
-    const prevQty = hasPrev ? members.reduce((s, m) => s + (m.prevQty ?? 0), 0) : null;
-    const prevNet = hasPrev ? members.reduce((s, m) => s + (m.prevNet ?? 0), 0) : null;
-
-    // Nazwa grupy z UNII wariantów obu okresów — dzięki temu nie zmienia się,
-    // gdy w jednym miesiącu sprzedał się tylko jeden stopień wysmażenia.
-    const name = commonWordPrefix(members.map((m) => m.name));
-
     return {
       key,
-      productName: name,
-      qty,
-      netValue: net,
-      prevQty,
-      prevNet,
-      qtyChangePct: changePct(qty, prevQty),
-      netChangePct: changePct(net, prevNet),
-      variants: members.length > 1 ? members.map(makeLeaf).sort((a, b) => b.netValue - a.netValue) : [],
+      // Nazwa z UNII wariantów obu okresów — nie zmienia się, gdy w jednym
+      // miesiącu sprzedał się tylko jeden stopień wysmażenia.
+      name: commonWordPrefix(members.map((m) => m.name)),
+      members,
     };
   });
+
+  // Poziom 2: parasol po nazwie (zestawy lunchowe). Osobne produkty POS, ale
+  // dla właściciela to jedna oferta — chce widzieć „ile zrobił lunch".
+  const umbrellas = new Map<string, typeof subGroups>();
+  const standalone: typeof subGroups = [];
+  for (const sg of subGroups) {
+    const label = umbrellaFor(sg.name);
+    if (label) {
+      const list = umbrellas.get(label) ?? [];
+      list.push(sg);
+      umbrellas.set(label, list);
+    } else {
+      standalone.push(sg);
+    }
+  }
+
+  const groups: SalesGroup[] = [];
+
+  for (const sg of standalone) {
+    groups.push({
+      key: sg.key,
+      ...totalsOf(sg.members),
+      productName: sg.name,
+      variants: sg.members.length > 1 ? sg.members.map(makeLeaf).sort((a, b) => b.netValue - a.netValue) : [],
+    });
+  }
+
+  for (const [label, list] of umbrellas) {
+    // Parasol z jedną pozycją to nie parasol — pokazujemy ją normalnie,
+    // żeby nie tworzyć sztucznego poziomu nad pojedynczym daniem.
+    if (list.length === 1) {
+      const sg = list[0];
+      groups.push({
+        key: sg.key,
+        ...totalsOf(sg.members),
+        productName: sg.name,
+        variants: sg.members.length > 1 ? sg.members.map(makeLeaf).sort((a, b) => b.netValue - a.netValue) : [],
+      });
+      continue;
+    }
+    const allMembers = list.flatMap((sg) => sg.members);
+    groups.push({
+      key: `um:${normalizeName(label)}`,
+      ...totalsOf(allMembers),
+      productName: label,
+      // Warianty parasola to POZYCJE MENU (Schab lunch, Pulpety lunch), a nie
+      // ich własne warianty — inaczej lista miałaby trzy poziomy zagnieżdżenia.
+      variants: list
+        .map((sg) => ({ ...totalsOf(sg.members), productName: sg.name }))
+        .sort((a, b) => b.netValue - a.netValue),
+    });
+  }
 
   // Sortowanie po WARTOŚCI, nie ilości — 300 kaw po 4 zł znaczy dla wyniku
   // mniej niż 40 dań po 90 zł. Front i tak pozwala przesortować.
@@ -199,12 +248,17 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
 
   const wantKey = key.trim();
   const wantName = normalizeName(productName);
+  // Klucz parasola ("um:lunch") nie występuje na żadnym wierszu — to grupa
+  // wyliczana z NAZW. Bez tej gałęzi wykres dla „Lunch" byłby pusty.
+  const wantUmbrella = wantKey.startsWith("um:") ? wantKey.slice(3) : null;
   const byPeriod = new Map<string, { qty: number; net: number }>();
   const names = new Set<string>();
   for (const r of rows) {
-    const match = wantKey
-      ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
-      : normalizeName(r.name) === wantName;
+    const match = wantUmbrella
+      ? normalizeName(umbrellaFor(r.name) ?? "") === wantUmbrella
+      : wantKey
+        ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
+        : normalizeName(r.name) === wantName;
     if (!match) continue;
     names.add(r.name);
     const cur = byPeriod.get(r.period) ?? { qty: 0, net: 0 };
@@ -214,7 +268,11 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
   }
 
   res.json({
-    productName: wantKey ? commonWordPrefix([...names]) : productName,
+    productName: wantUmbrella
+      ? (umbrellaFor([...names][0] ?? "") ?? wantUmbrella)
+      : wantKey
+        ? commonWordPrefix([...names])
+        : productName,
     variantCount: names.size,
     months: periods.map((month) => {
       const v = byPeriod.get(month);
