@@ -1,7 +1,7 @@
 ---
 slug: raport-sprzedazy-z-pos
 title: Jak czytać raport sprzedaży z POS — na co patrzeć co miesiąc
-description: Raport sprzedaży z systemu POS pokazuje ilości i wartości, ale sam z siebie niczego nie tłumaczy. Pokazujemy, które cztery liczby warto sprawdzać co miesiąc i jakie pułapki kryje porównanie miesiąc do miesiąca.
+description: Które cztery liczby z raportu POS sprawdzać co miesiąc i jakie pułapki kryje porównanie sprzedaży miesiąc do miesiąca.
 date: 2026-09-04
 updated: 2026-09-04
 category: Operacje

@@ -1,7 +1,7 @@
 ---
 slug: ksef-limit-10-tysiecy-gastronomia
 title: KSeF a limit 10 000 zł — czy Twoja restauracja jeszcze nie musi wystawiać e-faktur
-description: Do końca 2026 roku firmy ze sprzedażą fakturową poniżej 10 000 zł miesięcznie mogą wystawiać faktury po staremu. Tłumaczymy, jak liczyć ten limit w gastronomii i dlaczego zwolnienie i tak nie zwalnia z odbierania faktur.
+description: Do końca 2026 firmy ze sprzedażą fakturową poniżej 10 000 zł miesięcznie mogą fakturować po staremu. Jak liczyć ten limit w gastronomii?
 date: 2026-09-04
 updated: 2026-09-04
 category: KSeF
