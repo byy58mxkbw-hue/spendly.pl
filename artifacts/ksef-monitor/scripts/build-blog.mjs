@@ -18,15 +18,22 @@ const SITEMAP = path.join(ROOT, "public", "sitemap.xml");
 const SITE = "https://www.spendly.pl";
 
 // ── Strony statyczne (poza blogiem) do sitemapy ─────────────────────────────
+// `lastmod` MUSI odpowiadać realnej dacie zmiany treści, a nie dacie builda.
+// Wcześniej każdy deploy przestawiał wszystkie strony statyczne na „dzisiaj",
+// czyli przy każdej poprawce w kodzie mówiliśmy Google, że zmienił się cennik
+// i strona główna. Google traktuje wtedy lastmod jako szum i przestaje mu ufać.
+// Aktualizuj datę ręcznie, gdy naprawdę zmienisz treść danej strony.
 const STATIC_URLS = [
-  { loc: "/", changefreq: "monthly", priority: "1.0" },
-  { loc: "/ksef", changefreq: "monthly", priority: "0.8" },
-  { loc: "/food-cost", changefreq: "monthly", priority: "0.8" },
-  { loc: "/ocr-faktur", changefreq: "monthly", priority: "0.8" },
-  { loc: "/cennik", changefreq: "monthly", priority: "0.8" },
-  { loc: "/blog", changefreq: "weekly", priority: "0.7" },
-  { loc: "/regulamin", changefreq: "yearly", priority: "0.3" },
-  { loc: "/polityka-prywatnosci", changefreq: "yearly", priority: "0.3" },
+  { loc: "/", changefreq: "monthly", priority: "1.0", lastmod: "2026-09-02" },
+  { loc: "/ksef", changefreq: "monthly", priority: "0.8", lastmod: "2026-07-16" },
+  { loc: "/food-cost", changefreq: "monthly", priority: "0.8", lastmod: "2026-07-16" },
+  { loc: "/ocr-faktur", changefreq: "monthly", priority: "0.8", lastmod: "2026-07-16" },
+  { loc: "/cennik", changefreq: "monthly", priority: "0.8", lastmod: "2026-09-02" },
+  // Indeks bloga zmienia się realnie przy każdym nowym artykule — datę bierzemy
+  // z najnowszego wpisu, więc jest prawdziwa bez ręcznego pilnowania.
+  { loc: "/blog", changefreq: "weekly", priority: "0.7", lastmod: null },
+  { loc: "/regulamin", changefreq: "yearly", priority: "0.3", lastmod: "2026-07-04" },
+  { loc: "/polityka-prywatnosci", changefreq: "yearly", priority: "0.3", lastmod: "2026-08-28" },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -503,8 +510,14 @@ ${footer()}
 // ── Sitemap ──────────────────────────────────────────────────────────────────
 function writeSitemap(posts) {
   const today = new Date().toISOString().slice(0, 10);
+  // Najnowsza data publikacji/aktualizacji artykułu — dla indeksu bloga.
+  const newestPost = posts
+    .map((p) => p.meta.updated || p.meta.date)
+    .filter(Boolean)
+    .sort()
+    .pop();
   const urls = [
-    ...STATIC_URLS.map((u) => ({ ...u, lastmod: today })),
+    ...STATIC_URLS.map((u) => ({ ...u, lastmod: u.lastmod ?? newestPost ?? today })),
     ...posts.map((p) => ({
       loc: `/blog/${p.slug}`,
       changefreq: "monthly",
