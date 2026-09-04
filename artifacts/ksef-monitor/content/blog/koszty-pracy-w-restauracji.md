@@ -20,7 +20,7 @@ Labor cost % = (całkowity koszt pracy / przychód netto ze sprzedaży) × 100
 Kluczowe słowo to **całkowity**. Do rachunku wchodzi nie tylko kwota z paska wypłaty:
 
 - wynagrodzenia brutto (etaty, zlecenia, B2B),
-- składki ZUS po stronie pracodawcy,
+- składki ZUS po stronie pracodawcy (ok. 20% kwoty brutto — patrz [wyliczenie przy płacy minimalnej 2027](/blog/placa-minimalna-2027-gastronomia)),
 - premie, napiwki rozliczane przez lokal, nadgodziny,
 - koszt pracy własnej właściciela (jeśli sam stoisz na kuchni — wyceń swoją pracę),
 - odzież robocza, badania, szkolenia, rekrutacja i rotacja.
