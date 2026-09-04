@@ -31,7 +31,7 @@ Nie chodzi o śledzenie wszystkiego — chodzi o właściwe pytania:
 
 **2. Arkusz kalkulacyjny.** Tabela z cenami kluczowych surowców, uzupełniana po każdej dostawie. Działa, dopóki ktoś ją uzupełnia — a przy 300 pozycjach i kilku dostawcach zwykle przestaje po drugim miesiącu.
 
-**3. Automat na fakturach.** Ceny czytane wprost z dokumentów, bez przepisywania, z alertem przy przekroczeniu progu zmiany. Jedyne podejście, które nie zależy od czyjejś dyscypliny — i jedyne sensowne, gdy dostaw jest kilkanaście tygodniowo. Po wejściu [KSeF](/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy) wszystkie faktury i tak są w jednym miejscu w formie danych, nie skanów.
+**3. Automat na fakturach.** Ceny czytane wprost z dokumentów, bez przepisywania, z alertem przy przekroczeniu progu zmiany. Jedyne podejście, które nie zależy od czyjejś dyscypliny — i jedyne sensowne, gdy dostaw jest kilkanaście tygodniowo. Po wejściu [KSeF](/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy) wszystkie faktury i tak są w jednym miejscu [w formie danych, nie skanów](/blog/jak-czytac-fakture-ksef).
 
 ## Jak reagować na podwyżkę
 

@@ -11,7 +11,7 @@ lead: Jest taka kwota sprzedaży, poniżej której dokładasz do lokalu każdego
 
 ## Dwa rodzaje kosztów
 
-**Koszty stałe** ponosisz niezależnie od tego, ilu masz gości: czynsz, abonamenty, ubezpieczenie, księgowość, część wynagrodzeń (obsada, która musi być zawsze), amortyzacja sprzętu, leasing.
+**Koszty stałe** ponosisz niezależnie od tego, ilu masz gości: czynsz, abonamenty, ubezpieczenie, księgowość, część [wynagrodzeń](/blog/koszty-pracy-w-restauracji) (obsada, która musi być zawsze), amortyzacja sprzętu, leasing.
 
 **Koszty zmienne** rosną wraz ze sprzedażą: surowce, opakowania na wynos, prowizje od płatności kartą i od dostaw, część kosztów pracy (dodatkowe zmiany w weekendy), zużycie energii zależne od produkcji.
 

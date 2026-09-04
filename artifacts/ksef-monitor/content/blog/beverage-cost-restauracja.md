@@ -68,6 +68,6 @@ Bar bywa przy tym kołem ratunkowym rentowności: przy food coście 32% i bevera
 
 ## Jak liczyć to bez arkuszy
 
-Beverage cost wymaga trzech rzeczy: faktur zakupowych z pozycjami, przychodu ze sprzedaży napojów i inwentaryzacji baru. Pierwsze dwie od 2026 roku są dostępne automatycznie — faktury przychodzą przez [KSeF](/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy), a sprzedaż jest w systemie POS.
+Beverage cost wymaga trzech rzeczy: [faktur zakupowych z pozycjami](/blog/jak-czytac-fakture-ksef), przychodu ze sprzedaży napojów i inwentaryzacji baru. Pierwsze dwie od 2026 roku są dostępne automatycznie — faktury przychodzą przez [KSeF](/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy), a sprzedaż jest w systemie POS.
 
 [Spendly](/) pobiera faktury z KSeF, rozpoznaje pozycje i przypisuje je do kategorii — więc koszt napojów wylicza się sam, razem z porównaniem do poprzedniego miesiąca. Zostaje Ci policzenie stanu baru, którego żaden system nie zrobi za Ciebie.

@@ -82,7 +82,7 @@ Zależność jest prosta: **marża + food cost = 100%** (dla samych surowców). 
 ## Najczęstsze błędy
 
 1. **Mylenie marży z narzutem** — ustawienie „marży 150%" w praktyce oznacza dużo niższy realny zysk niż zakładany.
-2. **Liczenie od ceny brutto** — marżę i food cost liczy się od kwoty netto, VAT nie jest Twoim przychodem.
+2. **Liczenie od ceny brutto** — marżę i food cost liczy się od kwoty netto, [VAT nie jest Twoim przychodem](/blog/vat-w-gastronomii).
 3. **Wycena bez aktualnych kosztów** — narzut 200% na składniku, który podrożał o 25%, to już nie ta sama marża. Nieaktualne ceny cicho zjadają zysk.
 
 ## Jak trzymać marżę pod kontrolą

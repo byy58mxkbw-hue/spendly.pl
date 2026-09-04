@@ -52,7 +52,7 @@ W praktyce większość restauracji i firm gastronomicznych będących czynnymi 
 ## Co KSeF zmienia w restauracji?
 
 - **Koniec ręcznego zbierania faktur.** Nie musisz prosić dostawców o duplikaty ani przepisywać PDF-ów.
-- **Jeden format danych.** Każda faktura ma tę samą strukturę — łatwiej ją automatycznie przetworzyć.
+- **Jeden format danych.** Każda faktura ma [tę samą strukturę](/blog/jak-czytac-fakture-ksef) — łatwiej ją automatycznie przetworzyć.
 - **Szybszy obieg dokumentów.** Faktura jest w systemie w chwili wystawienia, nie po tygodniu.
 - **Mniej błędów księgowych.** Dane trafiają do systemu bez ręcznego przepisywania.
 

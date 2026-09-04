@@ -11,7 +11,7 @@ lead: Food cost mówi połowę prawdy. Dopiero prime cost — koszt surowców pl
 
 ## Czym jest prime cost?
 
-Prime cost to suma dwóch największych kosztów w restauracji: **kosztu surowców** (food cost + beverage cost) oraz **kosztu pracy** (wynagrodzenia, składki, benefity). To zwykle 55–70% wszystkich wydatków lokalu, dlatego jest najważniejszym wskaźnikiem, który realnie decyduje o zysku.
+Prime cost to suma dwóch największych kosztów w restauracji: **kosztu surowców** (food cost + [beverage cost](/blog/beverage-cost-restauracja)) oraz **[kosztu pracy](/blog/koszty-pracy-w-restauracji)** (wynagrodzenia, składki, benefity). To zwykle 55–70% wszystkich wydatków lokalu, dlatego jest najważniejszym wskaźnikiem, który realnie decyduje o zysku.
 
 Dlaczego liczy się razem, a nie osobno? Bo te dwa koszty można **wymieniać**. Kupujesz gotowe frytki zamiast obierać ziemniaki — food cost rośnie, ale koszt pracy spada. Prime cost pokazuje pełny obraz, którego sam [food cost](/blog/jak-liczyc-food-cost) nie daje.
 

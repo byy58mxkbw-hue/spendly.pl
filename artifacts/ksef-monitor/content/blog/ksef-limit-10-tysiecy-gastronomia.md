@@ -47,7 +47,7 @@ Innymi słowy: nawet najmniejszy bar, który jeszcze nie musi wystawiać faktur 
 
 Do tej pory zebranie faktur kosztowych zajmowało tygodnie — część przychodziła mailem, część z dostawą, część ginęła. Dlatego food cost liczyło się raz na kwartał, albo wcale.
 
-Od 2026 wszystkie faktury zakupowe są w jednym miejscu, w formacie ustrukturyzowanym — z pozycjami, ilościami, cenami jednostkowymi i stawkami VAT. To oznacza, że:
+Od 2026 wszystkie faktury zakupowe są w jednym miejscu, w [formacie ustrukturyzowanym](/blog/jak-czytac-fakture-ksef) — z pozycjami, ilościami, cenami jednostkowymi i stawkami VAT. To oznacza, że:
 
 - **food cost można liczyć co tydzień**, a nie raz na kwartał ([jak go policzyć](/blog/jak-liczyc-food-cost))
 - widać **podwyżki cen surowców w dniu, w którym się pojawiły**, a nie po dwóch miesiącach ([monitorowanie cen](/blog/monitorowanie-cen-surowcow))

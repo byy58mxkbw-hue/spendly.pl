@@ -47,7 +47,7 @@ Potrzebujesz trzech rzeczy:
 
 Potem dla każdego dania liczysz marżę jednostkową i mnożysz przez sprzedaż. Suma tych iloczynów podzielona przez łączną sprzedaż daje **średnią marżę ważoną** — to Twój próg pionowy. Próg poziomy to 70% podzielone przez liczbę pozycji: przy 40 daniach wychodzi 1,75% udziału w sztukach.
 
-Jedna pułapka rachunkowa: **cena z karty jest brutto, a koszt surowca z faktury netto**. Jeśli odejmiesz jedno od drugiego bez sprowadzenia do wspólnej podstawy, marża wyjdzie zawyżona o stawkę VAT — w gastronomii zwykle 8%. To wystarczy, żeby danie wskoczyło o ćwiartkę wyżej, niż na to zasługuje.
+Jedna pułapka rachunkowa: **cena z karty jest brutto, a koszt surowca z faktury netto**. Jeśli odejmiesz jedno od drugiego bez sprowadzenia do wspólnej podstawy, marża wyjdzie zawyżona o [stawkę VAT](/blog/vat-w-gastronomii) — w gastronomii zwykle 8%. To wystarczy, żeby danie wskoczyło o ćwiartkę wyżej, niż na to zasługuje.
 
 ## Kiedy analiza kłamie
 
