@@ -877,7 +877,7 @@ router.patch("/products/:id/correct-category", async (req, res): Promise<void> =
   const { category, subcategory } = body.data;
 
   const [product] = await db
-    .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit })
+    .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit, canonicalName: productsTable.canonicalName })
     .from(productsTable)
     .where(and(eq(productsTable.id, params.data.id), eq(productsTable.userId, userId)))
     .limit(1);
@@ -891,13 +891,26 @@ router.patch("/products/:id/correct-category", async (req, res): Promise<void> =
 
   // Z2: propaguj korektę na WSZYSTKIE produkty usera o tej samej znormalizowanej
   // nazwie (np. „Ser Cheddar 1kg" i „Ser Cheddar") — inaczej duplikaty zostają błędne.
-  // Match po znormalizowanej nazwie liczymy w JS; UPDATE po inArray (reguła 22, nie ANY()).
-  const targetNorm = normalizeProductName(product.name);
-  const candidates = await db
-    .select({ id: productsTable.id, name: productsTable.name })
-    .from(productsTable)
-    .where(eq(productsTable.userId, userId));
-  const ids = candidates.filter((p) => normalizeProductName(p.name) === targetNorm).map((p) => p.id);
+  // P6: kolumna canonical_name jest już zapisywana przy tworzeniu produktu (i uzupełniana
+  // wstecznie backfillem, patrz services/backfill-categories.ts) i zaindeksowana
+  // (products_user_canonical_name_idx) — szukamy duplikatów indeksowanym zapytaniem
+  // zamiast pełnego skanu wszystkich produktów usera + normalizacji w JS przy KAŻDEJ
+  // korekcie. Fallback na starą metodę tylko dla rzadkich legacy-wierszy bez canonical_name.
+  const targetNorm = product.canonicalName || normalizeProductName(product.name);
+  let ids: number[];
+  if (product.canonicalName) {
+    const candidates = await db
+      .select({ id: productsTable.id })
+      .from(productsTable)
+      .where(and(eq(productsTable.userId, userId), eq(productsTable.canonicalName, targetNorm)));
+    ids = candidates.map((p) => p.id);
+  } else {
+    const candidates = await db
+      .select({ id: productsTable.id, name: productsTable.name })
+      .from(productsTable)
+      .where(eq(productsTable.userId, userId));
+    ids = candidates.filter((p) => normalizeProductName(p.name) === targetNorm).map((p) => p.id);
+  }
   if (!ids.includes(params.data.id)) ids.push(params.data.id);
 
   await db
@@ -907,6 +920,7 @@ router.patch("/products/:id/correct-category", async (req, res): Promise<void> =
       subcategory: subcategory ?? null,
       classificationConfidence: 1.0,
       needsReview: false,
+      canonicalName: targetNorm,
     })
     .where(and(eq(productsTable.userId, userId), inArray(productsTable.id, ids)));
 

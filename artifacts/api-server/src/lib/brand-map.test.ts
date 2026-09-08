@@ -27,10 +27,36 @@ describe("matchBrand: brak false-positive na zwykłych nazwach", () => {
   }
 });
 
+// Audyt realnych danych (2026-09): "iglotex", "łowicz", "knorr" to marki wieloliniowe
+// (sprzedają pełny asortyment, nie tylko swoją "flagową" kategorię) — sztywne
+// mapowanie marka→kategoria psuło ich pozostałe produkty (np. orzechy/ryż pod
+// marką mrożonek, masło/ser pod marką konserw). Usunięte z BRAND_MAP celowo —
+// te produkty i tak trafiają poprawnie przez keywordy.
+describe("matchBrand: usunięte marki wieloliniowe nie wymuszają już jednej kategorii", () => {
+  it('"iglotex" nie jest już rozpoznawane jako marka (keywordy decydują)', () => {
+    expect(matchBrand("orzechy laskowe 1kg iglotex professional")).toBeNull();
+  });
+  it('"łowicz" nie jest już rozpoznawane jako marka', () => {
+    expect(matchBrand("masło extra 200g łowicz")).toBeNull();
+  });
+  it('"knorr" nie jest już rozpoznawane jako marka', () => {
+    expect(matchBrand("ryż długoziarnisty 5kg knorr")).toBeNull();
+  });
+  it('"piątnica" nie jest już rozpoznawane jako marka (robi też sery, nie tylko nabiał)', () => {
+    expect(matchBrand("serek do sushi śmietankowy piątnica")).toBeNull();
+  });
+  it('"mlekovita" nie jest już rozpoznawane jako marka (robi też sery, nie tylko nabiał)', () => {
+    expect(matchBrand("ser faruki wędzone mlekovita")).toBeNull();
+  });
+  it('"pudliszki" nie jest już rozpoznawane jako marka (robi też pomidory w puszce, nie tylko ketchup)', () => {
+    expect(matchBrand("pomidory pelati pudliszki")).toBeNull();
+  });
+});
+
 describe("matchBrand: kategorie marek istnieją w BUILTIN_CATEGORY_DEFS", () => {
   it("każda zmapowana marka wskazuje realną kategorię", () => {
     // Sanity: żadna marka nie mapuje na nieistniejące ID kategorii.
-    const samples = ["cheddar", "coca-cola", "barilla", "domestos", "nutella", "hortex", "łowicz", "tyskie"];
+    const samples = ["cheddar", "coca-cola", "barilla", "domestos", "nutella", "hortex", "bonduelle", "tyskie"];
     for (const s of samples) {
       const info = matchBrand(s);
       expect(info).not.toBeNull();

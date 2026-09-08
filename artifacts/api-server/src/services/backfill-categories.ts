@@ -12,6 +12,9 @@ import { eq, and, inArray } from "drizzle-orm";
 import { categorizeProductWithAI, normalizeProductName } from "../lib/categorize-ai.js";
 import { logger } from "../lib/logger.js";
 import { BUILTIN_CATEGORY_DEFS, categorizeProduct } from "../lib/categorize.js";
+import { matchBrand } from "../lib/brand-map.js";
+import { matchLearnedBrand } from "../lib/learned-brands.js";
+import { matchLearnedCategoryTerm } from "../lib/learned-category-terms.js";
 
 /**
  * Cleanup step: reset classification_confidence to NULL for products whose
@@ -255,6 +258,117 @@ async function fixMiscategorizedSery(): Promise<void> {
   }
 }
 
+/**
+ * P6 (Krok 7): uzupełnij `canonical_name` dla produktów, które go nie mają
+ * (utworzone przed wprowadzeniem kolumny albo przez ścieżkę, która jej nie
+ * ustawiała). Kolumna jest wykorzystywana przez indeksowaną propagację korekty
+ * kategorii (routes/products.ts, PATCH /products/:id/correct-category) — bez
+ * niej ta ścieżka spada na wolniejszy fallback (pełny skan + normalizacja w JS).
+ * Idempotentne: po pierwszym przebiegu wszystkie wiersze mają canonical_name.
+ */
+async function backfillMissingCanonicalNames(): Promise<void> {
+  try {
+    const rows = await db
+      .select({ id: productsTable.id, name: productsTable.name })
+      .from(productsTable)
+      .where(isNull(productsTable.canonicalName));
+
+    if (rows.length === 0) {
+      logger.info("backfill-categories: all products already have canonical_name");
+      return;
+    }
+
+    for (const row of rows) {
+      const canonicalName = normalizeProductName(row.name) || row.name.toLowerCase().trim();
+      await db.update(productsTable).set({ canonicalName }).where(eq(productsTable.id, row.id));
+    }
+    logger.info({ count: rows.length }, "backfill-categories: filled missing canonical_name");
+  } catch (err) {
+    logger.warn({ err }, "backfill-categories: backfillMissingCanonicalNames failed (non-fatal)");
+  }
+}
+
+/**
+ * Przeliczenie WSZYSTKICH już skategoryzowanych produktów silnikiem po jego
+ * przebudowie (fold diakrytyków, unifikacja front/backend, rozszerzone keywordy,
+ * usunięte nadmiernie szerokie marki, samo-uczenie Z10) — nie tylko tych w "inne"
+ * (to robią już reclassifyQueuedInneByKeywords/reclassifyToSery/fixMiscategorizedSery
+ * wyżej). Realny przykład z audytu: setki serów utknęły w "nabiał", bo trafiły tam
+ * ZANIM kategoria "Sery" (Z8) w ogóle istniała — findOrCreateProduct nigdy nie
+ * nadpisuje klasyfikacji, która nie jest null/"inne" (rule invoices.ts:560-573),
+ * więc bez tego kroku zostałyby tam na zawsze mimo poprawnego silnika.
+ *
+ * Celowo KONSERWATYWNE (bez wywołań AI — tylko deterministyczne ścieżki, ten sam
+ * porządek pierwszeństwa co w categorize-ai.ts minus AI): marka statyczna → marka
+ * nauczona → keyword → term nauczony. Aktualizuje tylko gdy:
+ *  - produkt NIE ma ręcznej korekty (product_corrections) — Z1 ma pierwszeństwo,
+ *  - classification_confidence != 1.0 (dodatkowy bezpiecznik dla starszych wierszy
+ *    sprzed istnienia tabeli product_corrections, ustawionych ręcznie na pewno),
+ *  - nowa kategoria != "inne" — NIGDY nie obniżamy do nieznanej (audyt pokazał
+ *    realne ryzyko: fraza z wieloma spacjami nie złapana przez keyword nie może
+ *    cofnąć poprawnej wcześniejszej klasyfikacji),
+ *  - nowa kategoria różni się od obecnej.
+ * Idempotentne: drugi przebieg dotyka 0 wierszy, gdy wszystko już przeliczone.
+ */
+async function reclassifyAllByDeterministicEngine(): Promise<void> {
+  try {
+    const rows = await db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        userId: productsTable.userId,
+        category: productsTable.category,
+        classificationConfidence: productsTable.classificationConfidence,
+      })
+      .from(productsTable);
+
+    if (rows.length === 0) return;
+
+    const corrections = await db
+      .select({ userId: productCorrectionsTable.userId, normalizedName: productCorrectionsTable.normalizedName })
+      .from(productCorrectionsTable);
+    const correctedKeys = new Set(corrections.map((c) => `${c.userId}::${c.normalizedName}`));
+
+    let moved = 0;
+    for (const row of rows) {
+      const canonicalName = normalizeProductName(row.name) || row.name.toLowerCase().trim();
+      if (correctedKeys.has(`${row.userId}::${canonicalName}`)) continue;
+      if (row.classificationConfidence === 1) continue;
+
+      const brand = matchBrand(canonicalName) ?? matchBrand(row.name.toLowerCase());
+      const learnedBrand = brand ? null : (await matchLearnedBrand(canonicalName)) ?? (await matchLearnedBrand(row.name.toLowerCase()));
+      const keywordCat = brand || learnedBrand ? "inne" : (categorizeProduct(canonicalName) !== "inne" ? categorizeProduct(canonicalName) : categorizeProduct(row.name.toLowerCase()));
+      const learnedTerm = brand || learnedBrand || keywordCat !== "inne" ? null : (await matchLearnedCategoryTerm(canonicalName)) ?? (await matchLearnedCategoryTerm(row.name.toLowerCase()));
+
+      const newCategory = brand?.category ?? learnedBrand?.category ?? (keywordCat !== "inne" ? keywordCat : null) ?? learnedTerm?.category ?? "inne";
+      const newSubcategory = brand?.subcategory ?? learnedBrand?.subcategory ?? learnedTerm?.subcategory ?? null;
+      const newConfidence = brand ? 0.92 : learnedBrand ? 0.85 : keywordCat !== "inne" ? 0.9 : learnedTerm ? 0.8 : 0;
+
+      if (newCategory === "inne" || newCategory === row.category) continue;
+
+      await db
+        .update(productsTable)
+        .set({
+          category: newCategory,
+          subcategory: newSubcategory,
+          classificationConfidence: newConfidence,
+          canonicalName,
+          needsReview: false,
+        })
+        .where(eq(productsTable.id, row.id));
+      moved++;
+    }
+
+    if (moved > 0) {
+      logger.info({ moved, scanned: rows.length }, "backfill-categories: reclassified already-categorized products (engine rebuild, no AI)");
+    } else {
+      logger.info({ scanned: rows.length }, "backfill-categories: no already-categorized products needed reclassification");
+    }
+  } catch (err) {
+    logger.warn({ err }, "backfill-categories: reclassifyAllByDeterministicEngine failed (non-fatal)");
+  }
+}
+
 const BATCH_SIZE = 10;
 const BATCH_DELAY_MS = 300;
 
@@ -288,6 +402,10 @@ async function processBatch(
 }
 
 export async function runCategoryBackfill(): Promise<void> {
+  // Step 0: uzupełnij canonical_name tam gdzie brakuje (potrzebne dla indeksowanej
+  // propagacji korekty kategorii, patrz routes/products.ts).
+  await backfillMissingCanonicalNames();
+
   // Step 1: Reset products with categories that aren't builtin or user-created
   await cleanupInvalidCategories();
 
@@ -301,6 +419,10 @@ export async function runCategoryBackfill(): Promise<void> {
   // Step 2c: Napraw falszywe trafienia do "sery" sprzed naprawy matchera slow kluczowych
   // (np. olej "koneser" lapany jako podciag "ser " bez granicy slowa).
   await fixMiscategorizedSery();
+
+  // Step 2d: przelicz WSZYSTKIE już skategoryzowane produkty przebudowanym silnikiem
+  // (nie tylko sery/inne wyżej) — patrz uzasadnienie przy funkcji.
+  await reclassifyAllByDeterministicEngine();
 
   try {
     const products = await db

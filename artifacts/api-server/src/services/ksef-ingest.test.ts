@@ -173,6 +173,28 @@ describe.skipIf(!RUN_DB)("ksef-ingest: importMatchedInvoice", () => {
     expect(inv.ksefNumber).toBe("KSEF-IMP-2");
   });
 
+  it("przekazuje domyślną kategorię dostawcy do klasyfikacji brakującego produktu (spójność z routes/invoices.ts)", async () => {
+    // Regresja P5/Krok6: findOrCreateProductByName wcześniej NIE przekazywał
+    // supplierDefaultCategory do categorizeProductWithAI — nowy produkt z nazwą
+    // bez dopasowania keywordu/marki lądował zawsze w "inne", inaczej niż przy
+    // ręcznym imporcie faktur (routes/invoices.ts), gdzie fallback dostawcy działał.
+    await db.update(suppliersTable).set({ defaultCategory: "opakowania" }).where(eq(suppliersTable.id, supRId));
+
+    const parsed = makeParsed({ invoiceNumber: "FV/IMP-DEFCAT/1" }, [item("Zzz Nieznany Towar Xyz", { name: "Zzz Nieznany Towar Xyz" })]);
+    const match = await tryMatch(ING_R, parsed);
+    expect(match.supplier?.defaultCategory).toBe("opakowania");
+
+    await importMatchedInvoice(ING_R, parsed, "<xml/>", "KSEF-IMP-DEFCAT", match, new Date());
+
+    const [prod] = await db.select({ category: productsTable.category, needsReview: productsTable.needsReview })
+      .from(productsTable)
+      .where(and(eq(productsTable.userId, ING_R), eq(productsTable.name, "Zzz Nieznany Towar Xyz")));
+    expect(prod?.category).toBe("opakowania");
+    expect(prod?.needsReview).toBe(true); // confidence 0.6 (fallback dostawcy) < 0.75
+
+    await db.update(suppliersTable).set({ defaultCategory: null }).where(eq(suppliersTable.id, supRId));
+  });
+
   it("płatność gotówką → faktura oznaczona jako opłacona", async () => {
     const parsed = makeParsed({ invoiceNumber: "FV/IMP-CASH/1", paymentMethod: "gotowka" }, [item("Masło", { name: "Masło" })]);
     const match = await tryMatch(ING_R, parsed);

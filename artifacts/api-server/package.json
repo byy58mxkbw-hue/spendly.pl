@@ -19,6 +19,7 @@
     "@opentelemetry/sdk-trace-base": "^2.9.0",
     "@sentry/node": "^10.64.0",
     "@workspace/api-zod": "workspace:*",
+    "@workspace/category-rules": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/integrations-openai-ai-server": "workspace:*",
     "@workspace/ksef-client": "workspace:*",

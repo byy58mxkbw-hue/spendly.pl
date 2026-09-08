@@ -36,6 +36,7 @@ import { resuggestForUser } from "./cost-centers";
 import { buildCostCenterModel, computeCostCenterSuggestion } from "../lib/cost-center-suggest.js";
 import { AdvisoryLock } from "../lib/advisory-lock";
 import { captureServer } from "../lib/telemetry";
+import { getUserCategories } from "../lib/categorize-ai.js";
 import {
   encryptXml,
   describeDbErr,
@@ -687,6 +688,8 @@ async function runSync(
         inArray(ksefPendingInvoicesTable.status, ["pending", "rejected"]),
       ),
     );
+  // Z3: kategorie usera pobrane leniwie (raz na cały handler, nie per pozycja/faktura).
+  let userCatsRetry: Array<{ id: string; label: string }> | undefined;
   for (const row of stillPending) {
     try {
       const parsed = row.parsedJson as ParsedFa3;
@@ -698,7 +701,8 @@ async function runSync(
       for (let i = 0; i < parsed.items.length; i++) {
         let pid = match.itemProductIds[i];
         if (pid == null) {
-          pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit);
+          userCatsRetry ??= (await getUserCategories(userId)).map((c) => ({ id: c.id, label: c.label }));
+          pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit, match.supplier.defaultCategory, userCatsRetry);
         }
         resolvedProductIds.push(pid);
       }
@@ -873,6 +877,8 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
 
   let imported = 0;
   let remainingPending = stillPending.length;
+  // Z3: kategorie usera pobrane leniwie (raz na cały handler, nie per pozycja/faktura).
+  let userCatsRetry: Array<{ id: string; label: string }> | undefined;
 
   for (const row of stillPending) {
     try {
@@ -885,7 +891,8 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
       for (let i = 0; i < parsed.items.length; i++) {
         let pid = match.itemProductIds[i];
         if (pid == null) {
-          pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit);
+          userCatsRetry ??= (await getUserCategories(userId)).map((c) => ({ id: c.id, label: c.label }));
+          pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit, match.supplier.defaultCategory, userCatsRetry);
         }
         resolvedProductIds.push(pid);
       }

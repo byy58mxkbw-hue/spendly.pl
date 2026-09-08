@@ -27,7 +27,7 @@ import {
   type ParsedFa3,
 } from "@workspace/ksef-client";
 import { decryptSecret, encryptSecret } from "../lib/encryption";
-import { categorizeProductWithAI } from "../lib/categorize-ai.js";
+import { categorizeProductWithAI, getUserCategories } from "../lib/categorize-ai.js";
 
 // Wiersz ksef_config (tenant-safe: zawsze filtrowany po userId/NIP u wywołującego).
 type KsefConfigRow = typeof ksefConfigTable.$inferSelect;
@@ -95,7 +95,7 @@ export function isoDate(d: Date): string {
 }
 
 export interface MatchResult {
-  supplier: { id: number; name: string; defaultCostCenterId: number | null } | null;
+  supplier: { id: number; name: string; defaultCostCenterId: number | null; defaultCategory: string | null } | null;
   itemProductIds: Array<number | null>;
   missingProducts: string[];
 }
@@ -104,6 +104,14 @@ export async function findOrCreateProductByName(
   userId: string,
   name: string,
   unit: string,
+  // Z: ujednolicenie ze ścieżką ręcznego importu faktur (routes/invoices.ts) — wcześniej
+  // ta funkcja NIE przekazywała domyślnej kategorii dostawcy ani kategorii usera do
+  // categorizeProductWithAI, co powodowało rozjazd wyników klasyfikacji między KSeF
+  // a ręcznym importem dla tej samej pozycji. Oba parametry opcjonalne — wywołania
+  // bez kontekstu dostawcy (np. import składników menu w routes/food-cost.ts) działają
+  // bez zmian.
+  supplierDefaultCategory?: string | null,
+  userCategories?: Array<{ id: string; label: string }>,
 ): Promise<number> {
   const trimmed = name.trim();
   const [existing] = await db
@@ -117,7 +125,7 @@ export async function findOrCreateProductByName(
     )
     .limit(1);
   if (existing) return existing.id;
-  const classification = await categorizeProductWithAI(trimmed, userId);
+  const classification = await categorizeProductWithAI(trimmed, userId, undefined, supplierDefaultCategory, userCategories);
   const [created] = await db
     .insert(productsTable)
     .values({
@@ -136,11 +144,16 @@ export async function findOrCreateProductByName(
 
 export async function tryMatch(userId: string, parsed: ParsedFa3): Promise<MatchResult> {
   const sellerNip = parsed.header.sellerNip ?? "";
-  let supplier: { id: number; name: string; defaultCostCenterId: number | null } | null = null;
+  let supplier: { id: number; name: string; defaultCostCenterId: number | null; defaultCategory: string | null } | null = null;
   if (sellerNip) {
     const cleaned = sellerNip.replace(/\D/g, "");
     const [s] = await db
-      .select({ id: suppliersTable.id, name: suppliersTable.name, defaultCostCenterId: suppliersTable.defaultCostCenterId })
+      .select({
+        id: suppliersTable.id,
+        name: suppliersTable.name,
+        defaultCostCenterId: suppliersTable.defaultCostCenterId,
+        defaultCategory: suppliersTable.defaultCategory,
+      })
       .from(suppliersTable)
       .where(
         and(
@@ -279,9 +292,15 @@ export async function importMatchedInvoice(
 ): Promise<boolean> {
   const supplier = match.supplier!;
   const resolvedProductIds: number[] = [];
+  let userCats: Array<{ id: string; label: string }> | undefined;
   for (let i = 0; i < parsed.items.length; i++) {
     let pid = match.itemProductIds[i];
-    if (pid == null) pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit);
+    if (pid == null) {
+      // Z3: pobierz kategorie usera RAZ (leniwie, tylko gdy faktycznie trzeba
+      // klasyfikować nowy produkt), zamiast per-pozycja — wzorzec z routes/invoices.ts.
+      userCats ??= (await getUserCategories(userId)).map((c) => ({ id: c.id, label: c.label }));
+      pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit, supplier.defaultCategory, userCats);
+    }
     resolvedProductIds.push(pid);
   }
   const totalAmount = parsed.header.totalGross ?? parsed.items.reduce((s, it) => s + it.gross, 0);

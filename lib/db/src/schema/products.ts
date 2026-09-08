@@ -26,6 +26,10 @@ export const productsTable = pgTable("products", {
   index("products_user_needs_review_idx").on(t.userId, t.needsReview),
   index("products_user_category_idx").on(t.userId, t.category),
   index("products_user_created_at_idx").on(t.userId, t.createdAt),
+  // P6: propagacja ręcznej korekty kategorii (routes/products.ts, correct-category)
+  // szuka duplikatów po (userId, canonicalName) zamiast pełnego skanu + normalizacji
+  // w JS dla każdego produktu usera przy KAŻDEJ korekcie.
+  index("products_user_canonical_name_idx").on(t.userId, t.canonicalName),
 ]);
 
 export const insertProductSchema = createInsertSchema(productsTable).omit({ id: true, userId: true, createdAt: true });

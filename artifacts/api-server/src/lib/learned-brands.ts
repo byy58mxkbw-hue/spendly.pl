@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db, learnedBrandsTable } from "@workspace/db";
 import type { Logger } from "pino";
+import { buildKeywordMatcher, normalizeForMatch, type KeywordMatcher } from "@workspace/category-rules";
 
 /**
  * Z9 — samo-uczenie się marek z detekcji AI (categorize-ai.ts, pole detectedBrand
@@ -19,18 +20,7 @@ export type LearnedBrandInfo = { category: string; subcategory: string | null };
 const MIN_OCCURRENCES_TO_TRUST = 2;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-const KW_WORD_CHARS = "a-z0-9ąćęłńóśźż";
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function buildMatcher(brand: string): (n: string) => boolean {
-  const b = brand.toLowerCase();
-  if (b.includes(" ")) return (n: string) => n.includes(b);
-  const re = new RegExp("(^|[^" + KW_WORD_CHARS + "])" + escapeRegex(b));
-  return (n: string) => re.test(n);
-}
-
-let cache: Array<{ test: (n: string) => boolean; info: LearnedBrandInfo }> = [];
+let cache: Array<{ test: KeywordMatcher; info: LearnedBrandInfo }> = [];
 let cacheLoadedAt = 0;
 let loadingPromise: Promise<void> | null = null;
 
@@ -45,7 +35,7 @@ async function loadCache(): Promise<void> {
     .where(sql`${learnedBrandsTable.occurrences} >= ${MIN_OCCURRENCES_TO_TRUST}`);
 
   cache = rows.map((r) => ({
-    test: buildMatcher(r.brand),
+    test: buildKeywordMatcher(r.brand),
     info: { category: r.category, subcategory: r.subcategory },
   }));
   cacheLoadedAt = Date.now();
@@ -66,7 +56,7 @@ export async function matchLearnedBrand(normalizedName: string): Promise<Learned
   } catch {
     return null; // DB chwilowo niedostępna — nie blokuj klasyfikacji, po prostu pomiń
   }
-  const n = normalizedName.toLowerCase();
+  const n = normalizeForMatch(normalizedName);
   for (const { test, info } of cache) {
     if (test(n)) return info;
   }
@@ -85,7 +75,9 @@ export async function recordBrandDetection(
   confidence: number,
   logger?: Logger,
 ): Promise<void> {
-  const brand = rawBrand.toLowerCase().trim();
+  // Fold diakrytyków PRZED zapisem — inaczej "Łaciate" (OCR/wpis z ogonkami) i
+  // "Laciate" (OCR/wpis bez ogonków) zapisałyby się jako dwa różne wpisy w tabeli.
+  const brand = normalizeForMatch(rawBrand).trim();
   if (!brand || brand.length < 3) return;
 
   try {

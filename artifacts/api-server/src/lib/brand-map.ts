@@ -1,7 +1,9 @@
+import { buildKeywordMatcher, normalizeForMatch, type KeywordMatcher } from "@workspace/category-rules";
+
 // Z6 — słownik marek / nazw własnych → kategoria + gotowa podkategoria.
 // Rozpoznanie marki daje pewne trafienie z granularną subcategory, bez pytania AI.
-// Klucz: znormalizowana marka (lowercase). Kategoria MUSI być istniejącym ID
-// (patrz BUILTIN_CATEGORY_DEFS w categorize.ts).
+// Klucz: znormalizowana marka (fold diakrytyków + lowercase). Kategoria MUSI być
+// istniejącym ID (patrz BUILTIN_CATEGORY_DEFS w @workspace/category-rules).
 //
 // Zasada doboru: tylko distinctive nazwy o niskim ryzyku false-positive na fragmencie
 // innego słowa. Krótkie/wieloznaczne pomijamy (np. „lech" łapałoby „lecho").
@@ -24,8 +26,11 @@ const BRAND_MAP: Record<string, BrandInfo> = {
   almette: { category: "sery", subcategory: "serek kremowy" },
   galbani: { category: "sery", subcategory: "mozzarella" },
   // ── Nabiał / mleczne ──
-  piątnica: { category: "nabiał", subcategory: "nabiał" },
-  mlekovita: { category: "nabiał", subcategory: "nabiał" },
+  // UWAGA: "piątnica" i "mlekovita" celowo USUNIĘTE (audyt danych 2026-09) — obie
+  // marki sprzedają też SERY pod tą samą nazwą (np. "Serek do sushi Piątnica",
+  // "Ser Faruki Mlekovita"), które przez sztywne mapowanie na "nabiał" nigdy nie
+  // trafiały do "sery". Mleko/śmietana tych marek i tak łapią się poprawnie przez
+  // keywordy ("mleko", "śmietana") — bez straty.
   łaciate: { category: "nabiał", subcategory: "mleko" },
   danio: { category: "nabiał", subcategory: "serek" },
   actimel: { category: "nabiał", subcategory: "jogurt" },
@@ -63,10 +68,17 @@ const BRAND_MAP: Record<string, BrandInfo> = {
   prosecco: { category: "alkohole", subcategory: "wino musujące" },
 
   // ── Przyprawy / sosy / oleje ──
+  // UWAGA: "knorr" celowo USUNIĘTE (audyt danych 2026-09) — Knorr sprzedaje też ryż
+  // i makarony pod tą samą marką ([KNORR] RYŻ DŁUGOZIARNISTY, [KNORR] MAKARON
+  // GWIAZDKI), które brand-map wrzucał do przypraw. Genuine produkty przyprawowe
+  // Knorr (sosy, primerba, esencje) i tak trafiają poprawnie przez keywordy
+  // ("sos ", "esencja", "primerba", "peperonata") — bez straty.
+  // UWAGA: "pudliszki" celowo USUNIĘTE (audyt danych 2026-09) — Pudliszki sprzedaje
+  // też pomidory w puszce/pelati pod tą samą marką (nie tylko ketchup), które przez
+  // sztywne mapowanie na "przyprawy" nigdy nie trafiały do "konserwy". Ketchup i tak
+  // łapie się poprawnie przez keyword "ketchup"/"keczup" — bez straty.
   tabasco: { category: "przyprawy", subcategory: "sos ostry" },
   heinz: { category: "przyprawy", subcategory: "ketchup" },
-  pudliszki: { category: "przyprawy", subcategory: "ketchup" },
-  knorr: { category: "przyprawy", subcategory: "bulion" },
   maggi: { category: "przyprawy", subcategory: "przyprawa" },
   vegeta: { category: "przyprawy", subcategory: "przyprawa" },
   kamis: { category: "przyprawy", subcategory: "przyprawa" },
@@ -85,11 +97,18 @@ const BRAND_MAP: Record<string, BrandInfo> = {
   kinder: { category: "slodycze", subcategory: "czekolada" },
 
   // ── Mrożonki ──
+  // UWAGA: "iglotex" celowo USUNIĘTE (audyt danych 2026-09) — "Iglotex Professional"
+  // to marka foodservice z PEŁNYM asortymentem (orzechy, bułka tarta, ryż, marynaty),
+  // nie tylko mrożonki. Sztywne mapowanie na "mrozonki" psuło 10/10 sprawdzonych
+  // produktów tej marki w realnych danych (orzechy laskowe, migdały, ryż arborio,
+  // borowiki marynowane trafiały do mrożonek). Keywordy i tak łapią poprawnie.
   hortex: { category: "mrozonki", subcategory: "mrożonki" },
-  iglotex: { category: "mrozonki", subcategory: "mrożonki" },
 
   // ── Konserwy / przetwory ──
-  łowicz: { category: "konserwy", subcategory: "przetwory" },
+  // UWAGA: "łowicz" celowo USUNIĘTE (audyt danych 2026-09) — Łowicz to marka
+  // wieloliniowa (nabiał: masło, mleko ORAZ przetwory), sztywne mapowanie na
+  // "konserwy" psuło produkty nabiałowe/serowe tej marki (masło, mleko UHT,
+  // a nawet ser Fellada trafiały do konserw). Keywordy łapią poprawnie bez marki.
   bonduelle: { category: "konserwy", subcategory: "warzywa konserwowe" },
 
   // ── Środki czystości ──
@@ -100,24 +119,17 @@ const BRAND_MAP: Record<string, BrandInfo> = {
   cif: { category: "srodki_czystosci", subcategory: "mleczko czyszczące" },
 };
 
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-// Prekompilacja dopasowań (matchBrand bywa w gorących pętlach importu).
-// Frazy ze spacją → includes; pojedyncze słowa → granica słowa z polskimi znakami.
-const BRAND_MATCHERS: Array<{ test: (n: string) => boolean; info: BrandInfo }> = Object.entries(
-  BRAND_MAP,
-).map(([brand, info]) => {
-  const b = brand.toLowerCase();
-  if (b.includes(" ")) return { test: (n: string) => n.includes(b), info };
-  const re = new RegExp("(^|[^a-z0-9ąćęłńóśźż])" + escapeRegex(b));
-  return { test: (n: string) => re.test(n), info };
-});
+// Prekompilacja dopasowań (matchBrand bywa w gorących pętlach importu). Wspólny
+// matcher z @workspace/category-rules — ten sam silnik co keywordy kategorii,
+// fold diakrytyków na marce PRZY KOMPILACJI (buildKeywordMatcher robi to samo
+// na wejściu w środku), więc "łaciate" i "laciate" trafiają w ten sam wpis.
+const BRAND_MATCHERS: Array<{ test: KeywordMatcher; info: BrandInfo }> = Object.entries(BRAND_MAP).map(
+  ([brand, info]) => ({ test: buildKeywordMatcher(brand), info }),
+);
 
 /** Rozpoznaj markę/nazwę własną w znormalizowanej nazwie produktu. */
 export function matchBrand(normalizedName: string): BrandInfo | null {
-  const n = normalizedName.toLowerCase();
+  const n = normalizeForMatch(normalizedName);
   for (const { test, info } of BRAND_MATCHERS) {
     if (test(n)) return info;
   }

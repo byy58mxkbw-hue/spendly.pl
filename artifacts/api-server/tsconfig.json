@@ -12,6 +12,9 @@
       "path": "../../lib/db"
     },
     {
+      "path": "../../lib/category-rules"
+    },
+    {
       "path": "../../lib/api-zod"
     },
     {

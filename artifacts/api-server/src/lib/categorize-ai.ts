@@ -6,6 +6,7 @@ import type { Logger } from "pino";
 import { categorizeProduct, BUILTIN_CATEGORY_DEFS } from "./categorize.js";
 import { matchBrand } from "./brand-map.js";
 import { matchLearnedBrand, recordBrandDetection } from "./learned-brands.js";
+import { matchLearnedCategoryTerm, recordCategoryTermDetection } from "./learned-category-terms.js";
 
 export interface ClassificationResult {
   category: string;
@@ -182,6 +183,18 @@ export async function categorizeProductWithAI(
     };
   }
 
+  // Step 2.5 (Z10): terminy kategorii nauczone wcześniej z detekcji AI — analogicznie
+  // do learned-brands (Z9), ale dla ogólnych rzeczowników, nie marek (np. rzadka
+  // nazwa sera bez marki). Sprawdzane DOPIERO po statycznym keyword matchingu, bo
+  // ten drugi jest ręcznie kurowany i ma pierwszeństwo przed w pełni automatycznym
+  // mechanizmem. Niższa pewność (0.8) niż statyczny keyword (0.9).
+  const learnedTerm =
+    (await matchLearnedCategoryTerm(canonicalName)) ?? (await matchLearnedCategoryTerm(productName.toLowerCase()));
+  if (learnedTerm) {
+    logger?.info({ productName, category: learnedTerm.category }, "categorize: learned category term match");
+    return { category: learnedTerm.category, subcategory: learnedTerm.subcategory, confidence: 0.8, canonicalName };
+  }
+
   // Step 3: Supplier default category — keyword missed, so fall back to the
   // supplier's configured category (if any) before paying for an AI call.
   if (supplierDefaultCategory) {
@@ -279,6 +292,12 @@ Znormalizowana nazwa: ${canonicalName}`;
       recordBrandDetection(detectedBrand, finalCategory, finalSubcategory, finalConfidence, logger)
         .catch((err) => logger?.warn({ err, detectedBrand }, "categorize-ai: recordBrandDetection failed"));
     }
+
+    // Z10: samo-uczenie ogólnych terminów kategorii (nie marek) — patrz Z9 wyżej,
+    // ten sam wzorzec fire-and-forget, próg pewności wyższy (0.75, patrz uzasadnienie
+    // w learned-category-terms.ts).
+    recordCategoryTermDetection(canonicalName, finalCategory, finalSubcategory, finalConfidence, logger)
+      .catch((err) => logger?.warn({ err }, "categorize-ai: recordCategoryTermDetection failed"));
 
     return {
       category: finalCategory,
