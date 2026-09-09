@@ -71,16 +71,26 @@ describe("categorizeProductWithAI: keyword/brand wygrywa bez wołania AI", () =>
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it("Z-user (term nauczony z ręcznej korekty TEGO usera) wygrywa PRZED brand-map", async () => {
+  it("Z-user (term nauczony z ręcznej korekty TEGO usera) łapie nieznany produkt, gdy keyword/brand milczą", async () => {
     // Symuluje: user wcześniej poprawił "drewno sosnowe ..." na własną kategorię
-    // "drzewo" — kolejny produkt z tym samym tokenem ("cheddar" tu tylko jako
-    // przykładowy token testowy, nie prawdziwy ser) trafia tam automatycznie,
-    // mimo że "cheddar" normalnie wygrałby jako marka (sery, 0.92).
+    // "drzewo" — kolejna partia z innym kodem, bez żadnego dopasowania keywordu/marki,
+    // trafia tam automatycznie zamiast do "inne" lub AI.
     matchLearnedUserTermMock.mockResolvedValueOnce({ category: "drzewo", subcategory: null });
-    const result = await categorizeProductWithAI("Cheddar Testowy Xyz", USER, undefined, undefined, CATS);
+    const result = await categorizeProductWithAI("Zzz Nieznany Towar Bez Marki", USER, undefined, undefined, CATS);
     expect(result.category).toBe("drzewo");
     expect(result.confidence).toBe(0.95);
     expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("Z-user NIE przebija już pewnego dopasowania keywordu (regresja: wkręt do drewna)", async () => {
+    // Regresja znaleziona na produkcji 2026-09: user nauczył term "drewno" (z korekty
+    // drewna budowlanego), co przebijało poprawne "techniczne" dla wkrętów do drewna.
+    // Celowo NIE ustawiamy tu mockResolvedValueOnce — jeśli kod błędnie sięgnie po
+    // Z-user, dostanie domyślne `null` (patrz deklaracja matchLearnedUserTermMock),
+    // co i tak zepsułoby wynik (spadłby do "inne"/AI) i ujawniło regresję.
+    const result = await categorizeProductWithAI("Wkręt podkładka ocynk 4.2x19 drewno", USER, undefined, undefined, CATS);
+    expect(result.category).toBe("techniczne");
+    expect(matchLearnedUserTermMock).not.toHaveBeenCalled();
   });
 });
 

@@ -148,18 +148,6 @@ export async function categorizeProductWithAI(
     };
   }
 
-  // Step 1.2 (Z-user): termy nauczone z WCZEŚNIEJSZYCH ręcznych korekt TEGO usera
-  // (np. user poprawił "drewno sosnowe WB0..." na własną kategorię "DRZEWO" —
-  // kolejna partia z innym kodem klasyfikacyjnym, ale wciąż "drewno sosnowe", trafia
-  // tu automatycznie). Działa też dla WŁASNYCH kategorii usera, których żaden globalny
-  // mechanizm (Z9/Z10) nie zna. Sprawdzane PRZED brand-map/keywordami — to osobisty,
-  // jawny wybór usera, więc ma pierwszeństwo przed regułami ogólnymi.
-  const userTerm = (await matchLearnedUserTerm(userId, canonicalName)) ?? (await matchLearnedUserTerm(userId, productName.toLowerCase()));
-  if (userTerm) {
-    logger?.info({ productName, category: userTerm.category }, "categorize: learned user-term match");
-    return { category: userTerm.category, subcategory: userTerm.subcategory, confidence: 0.95, canonicalName };
-  }
-
   // Step 1.5 (Z6): rozpoznanie marki/nazwy własnej → kategoria + gotowa subcategory.
   // Przed keywordami, bo daje granularną podkategorię (np. „cheddar" → Nabiał/ser cheddar).
   const brand = matchBrand(canonicalName) ?? matchBrand(productName.toLowerCase());
@@ -194,6 +182,23 @@ export async function categorizeProductWithAI(
       confidence: 0.9,
       canonicalName,
     };
+  }
+
+  // Step 2.2 (Z-user): termy nauczone z WCZEŚNIEJSZYCH ręcznych korekt TEGO usera
+  // (np. user poprawił "drewno sosnowe WB0..." na własną kategorię "DRZEWO" —
+  // kolejna partia z innym kodem klasyfikacyjnym, ale wciąż "drewno sosnowe", trafia
+  // tu automatycznie). Działa też dla WŁASNYCH kategorii usera, których żaden globalny
+  // mechanizm (Z9/Z10) nie zna. UWAGA (regresja znaleziona 2026-09): to MUSI być PO
+  // statycznym keywordzie (Step 2), nie przed — inaczej zbyt ogólny nauczony term
+  // (np. "drewno" z korekty drewna budowlanego) przebijał już poprawne, konkretne
+  // dopasowanie keywordu dla zupełnie innego produktu (np. "wkręt ... drewno" —
+  // wkręt do drewna, prawidłowo "techniczne" przez keyword "wkręt", błędnie
+  // nadpisywany na "drzewo"). Sprawdzane po keywordzie, przed Z10 (0.95 > 0.8 —
+  // osobisty wybór usera ma pierwszeństwo przed globalnym, automatycznym Z10).
+  const userTerm = (await matchLearnedUserTerm(userId, canonicalName)) ?? (await matchLearnedUserTerm(userId, productName.toLowerCase()));
+  if (userTerm) {
+    logger?.info({ productName, category: userTerm.category }, "categorize: learned user-term match");
+    return { category: userTerm.category, subcategory: userTerm.subcategory, confidence: 0.95, canonicalName };
   }
 
   // Step 2.5 (Z10): terminy kategorii nauczone wcześniej z detekcji AI — analogicznie

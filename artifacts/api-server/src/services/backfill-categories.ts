@@ -373,18 +373,22 @@ async function reclassifyAllByDeterministicEngine(): Promise<void> {
       if (correctedKeys.has(`${row.userId}::${canonicalName}`)) continue;
       if (row.classificationConfidence === 1) continue;
 
-      // Z-user ma pierwszeństwo przed wszystkim innym (patrz lib/learned-user-terms.ts)
-      // — to jawny, osobisty wybór TEGO usera, jedyny sposób, w jaki produkty trafiają
-      // do WŁASNYCH kategorii usera (np. "DRZEWO") bez ręcznej korekty każdego wariantu.
-      const userTerm = (await matchLearnedUserTerm(row.userId, canonicalName)) ?? (await matchLearnedUserTerm(row.userId, row.name.toLowerCase()));
-      const brand = userTerm ? null : matchBrand(canonicalName) ?? matchBrand(row.name.toLowerCase());
-      const learnedBrand = userTerm || brand ? null : (await matchLearnedBrand(canonicalName)) ?? (await matchLearnedBrand(row.name.toLowerCase()));
-      const keywordCat = userTerm || brand || learnedBrand ? "inne" : (categorizeProduct(canonicalName) !== "inne" ? categorizeProduct(canonicalName) : categorizeProduct(row.name.toLowerCase()));
-      const learnedTerm = userTerm || brand || learnedBrand || keywordCat !== "inne" ? null : (await matchLearnedCategoryTerm(canonicalName)) ?? (await matchLearnedCategoryTerm(row.name.toLowerCase()));
+      // UWAGA (regresja znaleziona 2026-09): Z-user MUSI być PO statycznym keywordzie,
+      // nie przed — inaczej zbyt ogólny nauczony term (np. "drewno" z korekty drewna
+      // budowlanego) przebijał już poprawne, konkretne dopasowanie keywordu dla
+      // zupełnie innego produktu (np. "wkręt ... drewno" — wkręt do drewna, prawidłowo
+      // "techniczne" przez keyword "wkręt", błędnie nadpisywany na "drzewo"). Kolejność
+      // musi być identyczna jak w categorize-ai.ts: brand → learned brand → keyword →
+      // Z-user → learned category term.
+      const brand = matchBrand(canonicalName) ?? matchBrand(row.name.toLowerCase());
+      const learnedBrand = brand ? null : (await matchLearnedBrand(canonicalName)) ?? (await matchLearnedBrand(row.name.toLowerCase()));
+      const keywordCat = brand || learnedBrand ? "inne" : (categorizeProduct(canonicalName) !== "inne" ? categorizeProduct(canonicalName) : categorizeProduct(row.name.toLowerCase()));
+      const userTerm = brand || learnedBrand || keywordCat !== "inne" ? null : (await matchLearnedUserTerm(row.userId, canonicalName)) ?? (await matchLearnedUserTerm(row.userId, row.name.toLowerCase()));
+      const learnedTerm = brand || learnedBrand || keywordCat !== "inne" || userTerm ? null : (await matchLearnedCategoryTerm(canonicalName)) ?? (await matchLearnedCategoryTerm(row.name.toLowerCase()));
 
-      const newCategory = userTerm?.category ?? brand?.category ?? learnedBrand?.category ?? (keywordCat !== "inne" ? keywordCat : null) ?? learnedTerm?.category ?? "inne";
-      const newSubcategory = userTerm?.subcategory ?? brand?.subcategory ?? learnedBrand?.subcategory ?? learnedTerm?.subcategory ?? null;
-      const newConfidence = userTerm ? 0.95 : brand ? 0.92 : learnedBrand ? 0.85 : keywordCat !== "inne" ? 0.9 : learnedTerm ? 0.8 : 0;
+      const newCategory = brand?.category ?? learnedBrand?.category ?? (keywordCat !== "inne" ? keywordCat : null) ?? userTerm?.category ?? learnedTerm?.category ?? "inne";
+      const newSubcategory = brand?.subcategory ?? learnedBrand?.subcategory ?? userTerm?.subcategory ?? learnedTerm?.subcategory ?? null;
+      const newConfidence = brand ? 0.92 : learnedBrand ? 0.85 : keywordCat !== "inne" ? 0.9 : userTerm ? 0.95 : learnedTerm ? 0.8 : 0;
 
       if (newCategory === "inne" || newCategory === row.category) continue;
 
