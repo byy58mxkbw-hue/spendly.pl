@@ -7,6 +7,7 @@ import { categorizeProduct, BUILTIN_CATEGORY_DEFS } from "./categorize.js";
 import { matchBrand } from "./brand-map.js";
 import { matchLearnedBrand, recordBrandDetection } from "./learned-brands.js";
 import { matchLearnedCategoryTerm, recordCategoryTermDetection } from "./learned-category-terms.js";
+import { matchLearnedUserTerm, recordUserCorrectionTerms } from "./learned-user-terms.js";
 
 export interface ClassificationResult {
   category: string;
@@ -145,6 +146,18 @@ export async function categorizeProductWithAI(
       confidence: 1.0,
       canonicalName,
     };
+  }
+
+  // Step 1.2 (Z-user): termy nauczone z WCZEŚNIEJSZYCH ręcznych korekt TEGO usera
+  // (np. user poprawił "drewno sosnowe WB0..." na własną kategorię "DRZEWO" —
+  // kolejna partia z innym kodem klasyfikacyjnym, ale wciąż "drewno sosnowe", trafia
+  // tu automatycznie). Działa też dla WŁASNYCH kategorii usera, których żaden globalny
+  // mechanizm (Z9/Z10) nie zna. Sprawdzane PRZED brand-map/keywordami — to osobisty,
+  // jawny wybór usera, więc ma pierwszeństwo przed regułami ogólnymi.
+  const userTerm = (await matchLearnedUserTerm(userId, canonicalName)) ?? (await matchLearnedUserTerm(userId, productName.toLowerCase()));
+  if (userTerm) {
+    logger?.info({ productName, category: userTerm.category }, "categorize: learned user-term match");
+    return { category: userTerm.category, subcategory: userTerm.subcategory, confidence: 0.95, canonicalName };
   }
 
   // Step 1.5 (Z6): rozpoznanie marki/nazwy własnej → kategoria + gotowa subcategory.
@@ -323,6 +336,7 @@ export async function saveProductCorrection(
   correctedSubcategory: string | null,
 ): Promise<void> {
   const normalizedName = normalizeProductName(productName);
+  const canonicalName = normalizedName || productName.toLowerCase().trim();
   try {
     await db
       .insert(productCorrectionsTable)
@@ -330,11 +344,17 @@ export async function saveProductCorrection(
         userId,
         productId,
         productName,
-        normalizedName: normalizedName || productName.toLowerCase().trim(),
+        normalizedName: canonicalName,
         correctedCategory,
         correctedSubcategory,
       });
   } catch (err) {
     // Non-fatal — log but don't throw
   }
+
+  // Z-user: zapamiętaj charakterystyczne słowa z tej korekty, żeby przyszłe podobne
+  // produkty (inny dostawca, inny kod/wariant) trafiły tu automatycznie — patrz
+  // lib/learned-user-terms.ts. Fire-and-forget, nie blokuje odpowiedzi korekty.
+  recordUserCorrectionTerms(userId, canonicalName, correctedCategory, correctedSubcategory)
+    .catch(() => {});
 }

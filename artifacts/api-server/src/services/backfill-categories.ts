@@ -15,6 +15,7 @@ import { BUILTIN_CATEGORY_DEFS, categorizeProduct } from "../lib/categorize.js";
 import { matchBrand } from "../lib/brand-map.js";
 import { matchLearnedBrand } from "../lib/learned-brands.js";
 import { matchLearnedCategoryTerm } from "../lib/learned-category-terms.js";
+import { matchLearnedUserTerm, recordUserCorrectionTerms } from "../lib/learned-user-terms.js";
 
 /**
  * Cleanup step: reset classification_confidence to NULL for products whose
@@ -310,6 +311,43 @@ async function backfillMissingCanonicalNames(): Promise<void> {
  *  - nowa kategoria różni się od obecnej.
  * Idempotentne: drugi przebieg dotyka 0 wierszy, gdy wszystko już przeliczone.
  */
+/**
+ * Zasil learned_user_category_terms z historycznych, już istniejących korekt
+ * (product_corrections) — bez tego kroku samo-uczenie (Z-user, patrz
+ * lib/learned-user-terms.ts) działałoby tylko dla korekt zrobionych PO wdrożeniu
+ * tej funkcji. User zgłosił dokładnie ten przypadek: ręcznie poprawił 2 produkty
+ * na własną kategorię "DRZEWO" tydzień wcześniej, a kolejne podobne partie i tak
+ * lądowały w "inne", bo mechanizm jeszcze nie istniał w momencie tamtej korekty.
+ *
+ * Bezpieczne przy każdym starcie: recordUserCorrectionTerms samo pilnuje
+ * duplikatów/konfliktów (patrz tamten plik), więc ponowne uruchomienie tylko
+ * podbija occurrences dla już znanych termów — nieszkodliwe.
+ */
+async function seedLearnedUserTermsFromCorrections(): Promise<void> {
+  try {
+    const corrections = await db
+      .select({
+        userId: productCorrectionsTable.userId,
+        normalizedName: productCorrectionsTable.normalizedName,
+        correctedCategory: productCorrectionsTable.correctedCategory,
+        correctedSubcategory: productCorrectionsTable.correctedSubcategory,
+      })
+      .from(productCorrectionsTable);
+
+    if (corrections.length === 0) {
+      logger.info("backfill-categories: no historical corrections to seed learned-user-terms from");
+      return;
+    }
+
+    for (const c of corrections) {
+      await recordUserCorrectionTerms(c.userId, c.normalizedName, c.correctedCategory, c.correctedSubcategory);
+    }
+    logger.info({ count: corrections.length }, "backfill-categories: seeded learned-user-terms from historical corrections");
+  } catch (err) {
+    logger.warn({ err }, "backfill-categories: seedLearnedUserTermsFromCorrections failed (non-fatal)");
+  }
+}
+
 async function reclassifyAllByDeterministicEngine(): Promise<void> {
   try {
     const rows = await db
@@ -335,14 +373,18 @@ async function reclassifyAllByDeterministicEngine(): Promise<void> {
       if (correctedKeys.has(`${row.userId}::${canonicalName}`)) continue;
       if (row.classificationConfidence === 1) continue;
 
-      const brand = matchBrand(canonicalName) ?? matchBrand(row.name.toLowerCase());
-      const learnedBrand = brand ? null : (await matchLearnedBrand(canonicalName)) ?? (await matchLearnedBrand(row.name.toLowerCase()));
-      const keywordCat = brand || learnedBrand ? "inne" : (categorizeProduct(canonicalName) !== "inne" ? categorizeProduct(canonicalName) : categorizeProduct(row.name.toLowerCase()));
-      const learnedTerm = brand || learnedBrand || keywordCat !== "inne" ? null : (await matchLearnedCategoryTerm(canonicalName)) ?? (await matchLearnedCategoryTerm(row.name.toLowerCase()));
+      // Z-user ma pierwszeństwo przed wszystkim innym (patrz lib/learned-user-terms.ts)
+      // — to jawny, osobisty wybór TEGO usera, jedyny sposób, w jaki produkty trafiają
+      // do WŁASNYCH kategorii usera (np. "DRZEWO") bez ręcznej korekty każdego wariantu.
+      const userTerm = (await matchLearnedUserTerm(row.userId, canonicalName)) ?? (await matchLearnedUserTerm(row.userId, row.name.toLowerCase()));
+      const brand = userTerm ? null : matchBrand(canonicalName) ?? matchBrand(row.name.toLowerCase());
+      const learnedBrand = userTerm || brand ? null : (await matchLearnedBrand(canonicalName)) ?? (await matchLearnedBrand(row.name.toLowerCase()));
+      const keywordCat = userTerm || brand || learnedBrand ? "inne" : (categorizeProduct(canonicalName) !== "inne" ? categorizeProduct(canonicalName) : categorizeProduct(row.name.toLowerCase()));
+      const learnedTerm = userTerm || brand || learnedBrand || keywordCat !== "inne" ? null : (await matchLearnedCategoryTerm(canonicalName)) ?? (await matchLearnedCategoryTerm(row.name.toLowerCase()));
 
-      const newCategory = brand?.category ?? learnedBrand?.category ?? (keywordCat !== "inne" ? keywordCat : null) ?? learnedTerm?.category ?? "inne";
-      const newSubcategory = brand?.subcategory ?? learnedBrand?.subcategory ?? learnedTerm?.subcategory ?? null;
-      const newConfidence = brand ? 0.92 : learnedBrand ? 0.85 : keywordCat !== "inne" ? 0.9 : learnedTerm ? 0.8 : 0;
+      const newCategory = userTerm?.category ?? brand?.category ?? learnedBrand?.category ?? (keywordCat !== "inne" ? keywordCat : null) ?? learnedTerm?.category ?? "inne";
+      const newSubcategory = userTerm?.subcategory ?? brand?.subcategory ?? learnedBrand?.subcategory ?? learnedTerm?.subcategory ?? null;
+      const newConfidence = userTerm ? 0.95 : brand ? 0.92 : learnedBrand ? 0.85 : keywordCat !== "inne" ? 0.9 : learnedTerm ? 0.8 : 0;
 
       if (newCategory === "inne" || newCategory === row.category) continue;
 
@@ -419,6 +461,11 @@ export async function runCategoryBackfill(): Promise<void> {
   // Step 2c: Napraw falszywe trafienia do "sery" sprzed naprawy matchera slow kluczowych
   // (np. olej "koneser" lapany jako podciag "ser " bez granicy slowa).
   await fixMiscategorizedSery();
+
+  // Step 2c-2: zasil samo-uczenie z własnych kategorii usera historycznymi korektami
+  // (Z-user) — musi być PRZED reclassifyAllByDeterministicEngine, żeby ten krok mógł
+  // już z niego skorzystać w tym samym przebiegu startowym.
+  await seedLearnedUserTermsFromCorrections();
 
   // Step 2d: przelicz WSZYSTKIE już skategoryzowane produkty przebudowanym silnikiem
   // (nie tylko sery/inne wyżej) — patrz uzasadnienie przy funkcji.

@@ -20,6 +20,11 @@ vi.mock("./learned-category-terms.js", () => ({
   matchLearnedCategoryTerm: vi.fn().mockResolvedValue(null),
   recordCategoryTermDetection: vi.fn().mockResolvedValue(undefined),
 }));
+const matchLearnedUserTermMock = vi.fn().mockResolvedValue(null);
+vi.mock("./learned-user-terms.js", () => ({
+  matchLearnedUserTerm: (...args: unknown[]) => matchLearnedUserTermMock(...args),
+  recordUserCorrectionTerms: vi.fn().mockResolvedValue(undefined),
+}));
 // getUserCategories/getLatestCorrection uderzają w DB — nie potrzebne dla testów
 // czystego pipeline'u (brak korekty, lista kategorii nieużywana gdy AI nie jest wołane;
 // gdy AI JEST wołane, przekazujemy userCategories jawnie w argumencie, więc DB i tak
@@ -63,6 +68,18 @@ describe("categorizeProductWithAI: keyword/brand wygrywa bez wołania AI", () =>
     const result = await categorizeProductWithAI("Coca-Cola 1L", USER, undefined, undefined, CATS);
     expect(result.category).toBe("napoje");
     expect(result.confidence).toBe(0.92);
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("Z-user (term nauczony z ręcznej korekty TEGO usera) wygrywa PRZED brand-map", async () => {
+    // Symuluje: user wcześniej poprawił "drewno sosnowe ..." na własną kategorię
+    // "drzewo" — kolejny produkt z tym samym tokenem ("cheddar" tu tylko jako
+    // przykładowy token testowy, nie prawdziwy ser) trafia tam automatycznie,
+    // mimo że "cheddar" normalnie wygrałby jako marka (sery, 0.92).
+    matchLearnedUserTermMock.mockResolvedValueOnce({ category: "drzewo", subcategory: null });
+    const result = await categorizeProductWithAI("Cheddar Testowy Xyz", USER, undefined, undefined, CATS);
+    expect(result.category).toBe("drzewo");
+    expect(result.confidence).toBe(0.95);
     expect(createMock).not.toHaveBeenCalled();
   });
 });

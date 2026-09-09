@@ -14,6 +14,7 @@ export * from "./dishes";
 export * from "./ai-usage";
 export * from "./learned-brands";
 export * from "./learned-category-terms";
+export * from "./learned-user-category-terms";
 export * from "./restaurant-revenue";
 export * from "./gopos-config";
 export * from "./pos-sales";
