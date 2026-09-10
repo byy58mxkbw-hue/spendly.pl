@@ -31,7 +31,7 @@ export async function getGoposToken(clientId: string, clientSecret: string, orga
   return json.access_token;
 }
 
-export type GoposSalesItem = { name: string; productId: string | null; qty: number; net: number };
+export type GoposSalesItem = { name: string; productId: string | null; category: string | null; qty: number; net: number };
 export type GoposMonthlySales = { revenueNet: number; items: GoposSalesItem[] };
 
 // amount z GoPOS bywa liczbą lub {amount, currency} — normalizacja.
@@ -41,54 +41,45 @@ function amount(v: unknown): number {
   return 0;
 }
 
-// DIAGNOSTYKA (tymczasowa, do usunięcia po ustaleniu kontraktu) — PRODUCT_CATEGORY
-// znaleziony (poprzednie próby: CATEGORY/GROUP/itd. odrzucone jako group_not_exists_*).
-// Ten log pokazuje TYLKO pierwszą kategorię z pełną (nieprzyciętą) zawartością, żeby
-// ustalić dokładny kształt zagnieżdżenia kategoria→produkt przed napisaniem parsera.
-export async function probeCategoryGrouping(token: string, organizationId: string, from: string, to: string): Promise<unknown> {
-  const dr = `${from.replace("T", "'T'")},${to.replace("T", "'T'")}`;
-  const url = `${API_BASE}/reports/order_items?organization_id=${organizationId}&groups=NONE,PRODUCT_CATEGORY,PRODUCT&date_range=${dr}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: ACCEPT } });
-  const text = await res.text();
-  let json: unknown;
-  try { json = JSON.parse(text); } catch { return { status: res.status, raw: text.slice(0, 1000) }; }
-  const rep = (json as { reports?: unknown[] }).reports?.[0] as { sub_report?: unknown[] } | undefined;
-  const firstCategory = rep?.sub_report?.[0];
-  const firstCategoryProduct = (firstCategory as { sub_report?: unknown[] } | undefined)?.sub_report?.[0];
-  return {
-    status: res.status,
-    categoryCount: rep?.sub_report?.length ?? 0,
-    firstCategoryFull: firstCategory,
-    firstCategoryFirstProductFull: firstCategoryProduct,
-    allCategoryNames: (rep?.sub_report ?? []).map((c) => (c as { group_by_value?: { name?: string } }).group_by_value?.name),
-  };
-}
+type GoposProductNode = {
+  group_by_value?: { name?: string; id?: string | number };
+  aggregate?: { sales?: { product_quantity?: number; net_total_money?: unknown } };
+};
+type GoposCategoryNode = { group_by_value?: { name?: string }; sub_report?: GoposProductNode[] };
 
-// Sprzedaż w zakresie [from,to] (ISO 'YYYY-MM-DDTHH:mm:ss'): obrót netto + pozycje.
-// Jedno wywołanie order_items z groups=NONE,PRODUCT daje sumę i rozbicie per pozycja.
+// Sprzedaż w zakresie [from,to] (ISO 'YYYY-MM-DDTHH:mm:ss'): obrót netto + pozycje,
+// z kategorią menu z GoPOS (zakładka „Konfiguracja Menu" w panelu GoPOS).
+// Kontrakt potwierdzony na żywo 2026-09-10 (org 3130): `groups=NONE,PRODUCT_CATEGORY,PRODUCT`
+// zwraca DWUPOZIOMOWE zagnieżdżenie — `reports[0].sub_report[]` to kategorie
+// (`group_by_type: "PRODUCT_CATEGORY"`), a ich WŁASNE `sub_report[]` to produkty w tej
+// kategorii (`group_by_type: "PRODUCT"`). Same nazwy kategorii co w „Konfiguracja Menu"
+// (DANIA GŁÓWNE, NAPOJE, LUNCH, Inne, ...). Próby innych nazw wymiaru (CATEGORY, GROUP,
+// MENU_GROUP, MENU_CATEGORY, PRODUCT_GROUP, CATEGORY_GROUP, TAG) GoPOS odrzuca 422
+// (`group_not_exists_*`) — PRODUCT_CATEGORY jest jedyną poprawną nazwą.
 export async function fetchSales(token: string, organizationId: string, from: string, to: string): Promise<GoposMonthlySales> {
   // Uwaga (dziwactwo GoPOS): filtr to `date_range` z LITERALNYMI apostrofami wokół T,
   // dokładnie jak w docsach: `2026-07-01'T'00:00:00,2026-07-31'T'23:59:59`. ISO bez
   // apostrofów albo `closed_at` zwracają pusto/500. Wartość idzie surowo (bez enkodowania).
   const dr = `${from.replace("T", "'T'")},${to.replace("T", "'T'")}`;
-  const url = `${API_BASE}/reports/order_items?organization_id=${organizationId}&groups=NONE,PRODUCT&date_range=${dr}`;
+  const url = `${API_BASE}/reports/order_items?organization_id=${organizationId}&groups=NONE,PRODUCT_CATEGORY,PRODUCT&date_range=${dr}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: ACCEPT } });
   if (!res.ok) throw new GoposError(res.status, `GoPOS raport sprzedaży: HTTP ${res.status}.`);
   const json = (await res.json()) as {
-    reports?: Array<{
-      aggregate?: { sales?: { net_total_money?: unknown } };
-      sub_report?: Array<{ group_by_value?: { name?: string; id?: string | number }; aggregate?: { sales?: { product_quantity?: number; net_total_money?: unknown } } }>;
-    }>;
+    reports?: Array<{ aggregate?: { sales?: { net_total_money?: unknown } }; sub_report?: GoposCategoryNode[] }>;
   };
   const rep = json.reports?.[0];
   const revenueNet = amount(rep?.aggregate?.sales?.net_total_money);
   const items: GoposSalesItem[] = (rep?.sub_report ?? [])
-    .map((s) => ({
-      name: (s.group_by_value?.name ?? "").trim(),
-      productId: s.group_by_value?.id != null ? String(s.group_by_value.id) : null,
-      qty: Number(s.aggregate?.sales?.product_quantity ?? 0),
-      net: amount(s.aggregate?.sales?.net_total_money),
-    }))
+    .flatMap((cat) => {
+      const category = (cat.group_by_value?.name ?? "").trim() || null;
+      return (cat.sub_report ?? []).map((s) => ({
+        name: (s.group_by_value?.name ?? "").trim(),
+        productId: s.group_by_value?.id != null ? String(s.group_by_value.id) : null,
+        category,
+        qty: Number(s.aggregate?.sales?.product_quantity ?? 0),
+        net: amount(s.aggregate?.sales?.net_total_money),
+      }));
+    })
     .filter((i) => i.name);
   return { revenueNet, items };
 }

@@ -17,7 +17,7 @@ import { buildDishCategoryIndex } from "./food-cost.js";
 // sprzedaje się świetnie. Warianty zostają dostępne po rozwinięciu grupy.
 const router: IRouter = Router();
 
-type RawRow = { name: string; posProductId: string | null; qty: number; net: number };
+type RawRow = { name: string; posProductId: string | null; category: string | null; qty: number; net: number };
 
 async function fetchRows(userId: string, periods: string[]): Promise<RawRow[]> {
   if (periods.length === 0) return [];
@@ -25,13 +25,16 @@ async function fetchRows(userId: string, periods: string[]): Promise<RawRow[]> {
     .select({
       name: posSalesTable.productName,
       posProductId: posSalesTable.posProductId,
+      // MAX (nie do GROUP BY): kategoria jest stała dla tego produktu przez cały okres,
+      // MAX daje jedną wartość zamiast rozbijania sumy na wiersz per miesiąc.
+      category: sql<string | null>`MAX(${posSalesTable.category})`,
       qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
       net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
     })
     .from(posSalesTable)
     .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, periods)))
     .groupBy(posSalesTable.productName, posSalesTable.posProductId);
-  return rows.map((r) => ({ name: r.name, posProductId: r.posProductId, qty: toNum(r.qty), net: toNum(r.net) }));
+  return rows.map((r) => ({ name: r.name, posProductId: r.posProductId, category: r.category, qty: toNum(r.qty), net: toNum(r.net) }));
 }
 
 // Procentowa zmiana względem poprzedniego okresu. `null` = brak bazy porównania
@@ -59,7 +62,7 @@ export type SalesGroup = SalesLeaf & {
   category: string | null;
 };
 
-type Leaf = { name: string; qty: number; net: number; prevQty: number | null; prevNet: number | null };
+type Leaf = { name: string; qty: number; net: number; prevQty: number | null; prevNet: number | null; category: string | null };
 
 // Sumy grupy liści + zmiany procentowe. `prev` zostaje `null`, gdy ŻADEN liść
 // nie miał sprzedaży w poprzednim okresie — inaczej nowa pozycja pokazywałaby
@@ -102,7 +105,7 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
     if (!members) { members = new Map(); buckets.set(key, members); }
     const nk = normalizeName(r.name);
     let leaf = members.get(nk);
-    if (!leaf) { leaf = { name: r.name, qty: 0, net: 0, prevQty: null, prevNet: null }; members.set(nk, leaf); }
+    if (!leaf) { leaf = { name: r.name, qty: 0, net: 0, prevQty: null, prevNet: null, category: null }; members.set(nk, leaf); }
     return leaf;
   };
 
@@ -110,11 +113,13 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
     const leaf = leafFor(r);
     leaf.qty += r.qty;
     leaf.net += r.net;
+    leaf.category = leaf.category ?? r.category;
   }
   for (const r of prevRows) {
     const leaf = leafFor(r);
     leaf.prevQty = (leaf.prevQty ?? 0) + r.qty;
     leaf.prevNet = (leaf.prevNet ?? 0) + r.net;
+    leaf.category = leaf.category ?? r.category;
   }
 
   // Poziom 1: pozycja POS (warianty = stopnie wysmażenia itp.).
@@ -126,6 +131,8 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       // miesiącu sprzedał się tylko jeden stopień wysmażenia.
       name: commonWordPrefix(members.map((m) => m.name)),
       members,
+      // Warianty tego samego produktu POS dzielą kategorię — wystarczy jeden nośnik.
+      category: members.find((m) => m.category)?.category ?? null,
     };
   });
 
@@ -152,7 +159,10 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       ...totalsOf(sg.members),
       productName: sg.name,
       variants: sg.members.length > 1 ? sg.members.map(makeLeaf).sort((a, b) => b.netValue - a.netValue) : [],
-      category: categoryForSaleName(sg.name, dishIndex),
+      // Kategoria z samego GoPOS (zakładka „Konfiguracja Menu") ma priorytet — to
+      // prawda z POS, nie zgadywanka po nazwie. Dopasowanie do Food Cost to fallback
+      // (starsze zsynchronizowane dane bez kategorii, albo źródło inne niż GoPOS).
+      category: sg.category ?? categoryForSaleName(sg.name, dishIndex),
     });
   }
 
@@ -166,14 +176,15 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
         ...totalsOf(sg.members),
         productName: sg.name,
         variants: sg.members.length > 1 ? sg.members.map(makeLeaf).sort((a, b) => b.netValue - a.netValue) : [],
-        category: categoryForSaleName(sg.name, dishIndex),
+        category: sg.category ?? categoryForSaleName(sg.name, dishIndex),
       });
       continue;
     }
     const allMembers = list.flatMap((sg) => sg.members);
-    // Kategoria parasola po ETYKIECIE parasola ("Lunch"), nie po pojedynczych
-    // pozycjach wewnątrz — parasol to JEDNA oferta dla właściciela (patrz komentarz
-    // przy UMBRELLAS w pos-group.ts), więc dostaje jedną, spójną kategorię.
+    // Kategoria parasola: najpierw kategoria GoPOS współdzielona przez jego pozycje
+    // (zestawy lunchowe realnie bywają jedną kategorią menu w GoPOS też), inaczej
+    // dopasowanie po ETYKIECIE parasola ("Lunch") do Food Cost jako fallback.
+    const goposCategory = list.find((sg) => sg.category)?.category ?? null;
     groups.push({
       key: `um:${normalizeName(label)}`,
       ...totalsOf(allMembers),
@@ -183,7 +194,7 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       variants: list
         .map((sg) => ({ ...totalsOf(sg.members), productName: sg.name }))
         .sort((a, b) => b.netValue - a.netValue),
-      category: categoryForSaleName(label, dishIndex),
+      category: goposCategory ?? categoryForSaleName(label, dishIndex),
     });
   }
 

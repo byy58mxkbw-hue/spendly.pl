@@ -13,6 +13,9 @@ export const posSalesTable = pgTable("pos_sales", {
   productName: text("product_name").notNull(),
   // Id produktu z POS — warianty (np. wysmażenia steka) mają wspólne id → łączymy po nim.
   posProductId: text("pos_product_id"),
+  // Kategoria menu z POS (GoPOS: zakładka „Konfiguracja Menu", np. „DANIA GŁÓWNE", „NAPOJE").
+  // `null` dla źródeł bez tego wymiaru (import ręczny) — front pokazuje wtedy „Niezakategoryzowane".
+  category: text("category"),
   qty: numeric("qty", { precision: 12, scale: 3 }).notNull().default("0"),
   netValue: numeric("net_value", { precision: 12, scale: 2 }).notNull().default("0"),
   source: text("source").notNull().default("gopos"),

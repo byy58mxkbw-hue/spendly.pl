@@ -2,7 +2,7 @@ import type { Logger } from "pino";
 import { db, goposConfigTable, restaurantRevenueTable, posSalesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { decryptSecret } from "../lib/encryption";
-import { getGoposToken, fetchSales, probeCategoryGrouping } from "./gopos-client";
+import { getGoposToken, fetchSales } from "./gopos-client";
 
 // Ostatnie n miesięcy jako 'YYYY-MM' (bieżący + poprzednie).
 function lastMonths(n: number): string[] {
@@ -38,16 +38,6 @@ export async function syncGoposForUser(userId: string, log: Logger, monthsBack =
   let itemUpserts = 0;
   const months = lastMonths(monthsBack);
 
-  // DIAGNOSTYKA (tymczasowa): sprawdzamy, czy GoPOS udostępnia wymiar kategorii/grupy menu
-  // w tym samym raporcie. Tylko dla najnowszego miesiąca, tylko log — nie wpływa na zapis danych.
-  try {
-    const { from, to } = monthBounds(months[0]);
-    const probe = await probeCategoryGrouping(token, cfg.locationId, from, to);
-    log.info({ userId, probe }, "GoPOS: PROBE wymiarow grupowania + endpointow katalogu (diagnostyka kategorii menu)");
-  } catch (err) {
-    log.warn({ userId, err: String(err) }, "GoPOS: probe kategorii nieudany (nieistotne dla sync)");
-  }
-
   for (const period of months) {
     const { from, to } = monthBounds(period);
     const { revenueNet, items } = await fetchSales(token, cfg.locationId, from, to);
@@ -62,10 +52,10 @@ export async function syncGoposForUser(userId: string, log: Logger, monthsBack =
     revenueUpserts++;
 
     // Dedupe po nazwie (GoPOS grupuje po produkcie, ale asekuracyjnie) + bulk upsert.
-    const byName = new Map<string, { qty: number; net: number; productId: string | null }>();
-    for (const it of items) byName.set(it.name, { qty: it.qty, net: it.net, productId: it.productId });
+    const byName = new Map<string, { qty: number; net: number; productId: string | null; category: string | null }>();
+    for (const it of items) byName.set(it.name, { qty: it.qty, net: it.net, productId: it.productId, category: it.category });
     const rows = [...byName.entries()].map(([productName, v]) => ({
-      userId, period, productName, posProductId: v.productId, qty: v.qty.toString(), netValue: v.net.toFixed(2), source: "gopos",
+      userId, period, productName, posProductId: v.productId, category: v.category, qty: v.qty.toString(), netValue: v.net.toFixed(2), source: "gopos",
     }));
     if (rows.length > 0) {
       await db
@@ -73,7 +63,14 @@ export async function syncGoposForUser(userId: string, log: Logger, monthsBack =
         .values(rows)
         .onConflictDoUpdate({
           target: [posSalesTable.userId, posSalesTable.period, posSalesTable.productName],
-          set: { posProductId: sql`excluded.pos_product_id`, qty: sql`excluded.qty`, netValue: sql`excluded.net_value`, source: sql`excluded.source`, updatedAt: sql`now()` },
+          set: {
+            posProductId: sql`excluded.pos_product_id`,
+            category: sql`excluded.category`,
+            qty: sql`excluded.qty`,
+            netValue: sql`excluded.net_value`,
+            source: sql`excluded.source`,
+            updatedAt: sql`now()`,
+          },
         });
       itemUpserts += rows.length;
     }

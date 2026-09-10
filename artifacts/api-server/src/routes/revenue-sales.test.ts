@@ -134,12 +134,18 @@ describe.skipIf(!RUN_DB)("Sprzedaż wg kategorii dania", () => {
     // Ręczne powiązanie (posProductName override) → kategoria "Burgery", mimo że
     // nazwa sprzedaży w POS jest inna niż nazwa dania w menu.
     await db.insert(dishesTable).values({ userId: UC, name: "Burger szefa kuchni", sellPrice: "28", category: "Burgery", posProductName: "Burger" });
+    // Danie o tej samej nazwie co pozycja POS, ale z INNĄ kategorią niż ta z GoPOS —
+    // sprawdza, że kategoria z samego POS wygrywa nad dopasowaniem do Food Cost.
+    await db.insert(dishesTable).values({ userId: UC, name: "Zupa dnia", sellPrice: "18", category: "Przystawki" });
 
     await db.insert(posSalesTable).values([
       { userId: UC, period: "2026-07", productName: "Filet z kurczaka", qty: "100", netValue: "4000", source: "test" },
       { userId: UC, period: "2026-07", productName: "Burger", qty: "50", netValue: "2500", source: "test" },
       // Bez żadnego dania w Food Cost — musi trafić do „Niezakategoryzowane".
       { userId: UC, period: "2026-07", productName: "Sok pomarańczowy", qty: "20", netValue: "500", source: "test" },
+      // Kategoria wprost z GoPOS (jak zapisana przez syncGoposForUser) — ma priorytet
+      // nad dopasowaniem po nazwie do Food Cost, gdzie ta sama nazwa ma inną kategorię.
+      { userId: UC, period: "2026-07", productName: "Zupa dnia", category: "ZUPY R", qty: "30", netValue: "600", source: "gopos" },
     ]);
   });
 
@@ -161,15 +167,27 @@ describe.skipIf(!RUN_DB)("Sprzedaż wg kategorii dania", () => {
     expect(sok?.category).toBeNull();
   });
 
+  it("/sales: kategoria zapisana wprost z GoPOS ma priorytet nad dopasowaniem do Food Cost", async () => {
+    const r = (await get("/api/sales?month=2026-07")) as {
+      items: Array<{ productName: string; category: string | null }>;
+    };
+    const zupa = r.items.find((i) => i.productName === "Zupa dnia");
+    // Danie "Zupa dnia" w Food Cost ma kategorię "Przystawki" — ale pos_sales niesie
+    // "ZUPY R" wprost z GoPOS, więc TO ma wygrać, nie dopasowanie po nazwie.
+    expect(zupa?.category).toBe("ZUPY R");
+  });
+
   it("/sales: categoryBreakdown sumuje po kategorii, sortuje malejąco, pct ≈ 100", async () => {
     const r = (await get("/api/sales?month=2026-07")) as {
       categoryBreakdown: Array<{ category: string; label: string; netValue: number; qty: number; pct: number }>;
     };
-    expect(r.categoryBreakdown).toHaveLength(3); // Dania główne, Burgery, Niezakategoryzowane
-    // 4000 > 2500 > 500 — posortowane malejąco po wartości.
+    expect(r.categoryBreakdown).toHaveLength(4); // Dania główne, Burgery, ZUPY R, Niezakategoryzowane
+    // 4000 > 2500 > 600 > 500 — posortowane malejąco po wartości.
     expect(r.categoryBreakdown[0].label).toBe("Dania główne");
     expect(r.categoryBreakdown[0].netValue).toBeCloseTo(4000, 2);
     expect(r.categoryBreakdown[1].label).toBe("Burgery");
+    expect(r.categoryBreakdown[2].label).toBe("ZUPY R");
+    expect(r.categoryBreakdown[2].netValue).toBeCloseTo(600, 2);
     const uncategorized = r.categoryBreakdown.find((c) => c.label === "Niezakategoryzowane");
     expect(uncategorized?.netValue).toBeCloseTo(500, 2);
     expect(uncategorized?.qty).toBeCloseTo(20, 2);
