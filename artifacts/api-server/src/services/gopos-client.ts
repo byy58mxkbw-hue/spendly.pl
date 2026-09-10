@@ -41,51 +41,27 @@ function amount(v: unknown): number {
   return 0;
 }
 
-// DIAGNOSTYKA (tymczasowa, do usunięcia po ustaleniu kontraktu) — pierwsza próba,
-// groups=NONE,CATEGORY,PRODUCT, odrzucona przez GoPOS: group_not_exists_category.
-// Więc dalej próbujemy innych nazw wymiaru grupowania + osobnych endpointów katalogu/menu,
-// żeby znaleźć jak GoPOS udostępnia przypisanie pozycji do kategorii z zakładki „Konfiguracja Menu".
-const GROUP_DIMENSION_CANDIDATES = ["GROUP", "PRODUCT_GROUP", "MENU_GROUP", "MENU_CATEGORY", "PRODUCT_CATEGORY", "CATEGORY_GROUP", "TAG"];
-const CATALOG_ENDPOINT_CANDIDATES = ["/products", "/menus", "/menu", "/pos_groups", "/groups", "/categories", "/product_groups"];
-
-async function probeOne(url: string, token: string): Promise<{ url: string; status: number; body: unknown }> {
-  try {
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: ACCEPT } });
-    const text = await res.text();
-    let body: unknown = text.slice(0, 500);
-    try { body = JSON.parse(text); } catch { /* zostaw jako urwany tekst */ }
-    // Dla sukcesu okrawamy duże odpowiedzi (sama struktura kluczy + parę pierwszych elementów
-    // tablic wystarczy do rozpoznania kształtu), dla błędu zostawiamy całość (zwykle krótka).
-    if (res.ok && body && typeof body === "object") body = trimForLog(body);
-    return { url, status: res.status, body };
-  } catch (err) {
-    return { url, status: -1, body: String(err) };
-  }
-}
-
-// Skraca duże odpowiedzi do logów: tablice → pierwsze 2 elementy + licznik, głębokość ograniczona.
-function trimForLog(v: unknown, depth = 0): unknown {
-  if (depth > 4) return "…";
-  if (Array.isArray(v)) return { _count: v.length, _sample: v.slice(0, 2).map((x) => trimForLog(x, depth + 1)) };
-  if (v && typeof v === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [k, val] of Object.entries(v as Record<string, unknown>)) out[k] = trimForLog(val, depth + 1);
-    return out;
-  }
-  return v;
-}
-
+// DIAGNOSTYKA (tymczasowa, do usunięcia po ustaleniu kontraktu) — PRODUCT_CATEGORY
+// znaleziony (poprzednie próby: CATEGORY/GROUP/itd. odrzucone jako group_not_exists_*).
+// Ten log pokazuje TYLKO pierwszą kategorię z pełną (nieprzyciętą) zawartością, żeby
+// ustalić dokładny kształt zagnieżdżenia kategoria→produkt przed napisaniem parsera.
 export async function probeCategoryGrouping(token: string, organizationId: string, from: string, to: string): Promise<unknown> {
   const dr = `${from.replace("T", "'T'")},${to.replace("T", "'T'")}`;
-  const groupAttempts = await Promise.all(
-    GROUP_DIMENSION_CANDIDATES.map((dim) =>
-      probeOne(`${API_BASE}/reports/order_items?organization_id=${organizationId}&groups=NONE,${dim},PRODUCT&date_range=${dr}`, token),
-    ),
-  );
-  const catalogAttempts = await Promise.all(
-    CATALOG_ENDPOINT_CANDIDATES.map((path) => probeOne(`${API_BASE}${path}?organization_id=${organizationId}`, token)),
-  );
-  return { groupAttempts, catalogAttempts };
+  const url = `${API_BASE}/reports/order_items?organization_id=${organizationId}&groups=NONE,PRODUCT_CATEGORY,PRODUCT&date_range=${dr}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: ACCEPT } });
+  const text = await res.text();
+  let json: unknown;
+  try { json = JSON.parse(text); } catch { return { status: res.status, raw: text.slice(0, 1000) }; }
+  const rep = (json as { reports?: unknown[] }).reports?.[0] as { sub_report?: unknown[] } | undefined;
+  const firstCategory = rep?.sub_report?.[0];
+  const firstCategoryProduct = (firstCategory as { sub_report?: unknown[] } | undefined)?.sub_report?.[0];
+  return {
+    status: res.status,
+    categoryCount: rep?.sub_report?.length ?? 0,
+    firstCategoryFull: firstCategory,
+    firstCategoryFirstProductFull: firstCategoryProduct,
+    allCategoryNames: (rep?.sub_report ?? []).map((c) => (c as { group_by_value?: { name?: string } }).group_by_value?.name),
+  };
 }
 
 // Sprzedaż w zakresie [from,to] (ISO 'YYYY-MM-DDTHH:mm:ss'): obrót netto + pozycje.
