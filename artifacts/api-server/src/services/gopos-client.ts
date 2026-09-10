@@ -41,6 +41,19 @@ function amount(v: unknown): number {
   return 0;
 }
 
+// DIAGNOSTYKA (tymczasowa, do usunięcia po ustaleniu kontraktu) — sprawdza, czy ten sam
+// raport order_items zwraca też wymiar kategorii/grupy menu przy groups=NONE,CATEGORY,PRODUCT
+// (zagnieżdżone sub_report: kategoria → produkt). Zwraca surowy JSON do logów, nic nie zapisuje.
+export async function probeCategoryGrouping(token: string, organizationId: string, from: string, to: string): Promise<unknown> {
+  const dr = `${from.replace("T", "'T'")},${to.replace("T", "'T'")}`;
+  const url = `${API_BASE}/reports/order_items?organization_id=${organizationId}&groups=NONE,CATEGORY,PRODUCT&date_range=${dr}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: ACCEPT } });
+  const text = await res.text();
+  let json: unknown = text;
+  try { json = JSON.parse(text); } catch { /* zostaw jako tekst (np. błąd HTML) */ }
+  return { status: res.status, body: json };
+}
+
 // Sprzedaż w zakresie [from,to] (ISO 'YYYY-MM-DDTHH:mm:ss'): obrót netto + pozycje.
 // Jedno wywołanie order_items z groups=NONE,PRODUCT daje sumę i rozbicie per pozycja.
 export async function fetchSales(token: string, organizationId: string, from: string, to: string): Promise<GoposMonthlySales> {

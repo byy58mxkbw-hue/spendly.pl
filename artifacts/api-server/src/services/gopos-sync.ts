@@ -2,7 +2,7 @@ import type { Logger } from "pino";
 import { db, goposConfigTable, restaurantRevenueTable, posSalesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { decryptSecret } from "../lib/encryption";
-import { getGoposToken, fetchSales } from "./gopos-client";
+import { getGoposToken, fetchSales, probeCategoryGrouping } from "./gopos-client";
 
 // Ostatnie n miesięcy jako 'YYYY-MM' (bieżący + poprzednie).
 function lastMonths(n: number): string[] {
@@ -37,6 +37,16 @@ export async function syncGoposForUser(userId: string, log: Logger, monthsBack =
   let revenueUpserts = 0;
   let itemUpserts = 0;
   const months = lastMonths(monthsBack);
+
+  // DIAGNOSTYKA (tymczasowa): sprawdzamy, czy GoPOS udostępnia wymiar kategorii/grupy menu
+  // w tym samym raporcie. Tylko dla najnowszego miesiąca, tylko log — nie wpływa na zapis danych.
+  try {
+    const { from, to } = monthBounds(months[0]);
+    const probe = await probeCategoryGrouping(token, cfg.locationId, from, to);
+    log.info({ userId, probe }, "GoPOS: PROBE groups=NONE,CATEGORY,PRODUCT (diagnostyka kategorii menu)");
+  } catch (err) {
+    log.warn({ userId, err: String(err) }, "GoPOS: probe kategorii nieudany (nieistotne dla sync)");
+  }
 
   for (const period of months) {
     const { from, to } = monthBounds(period);
