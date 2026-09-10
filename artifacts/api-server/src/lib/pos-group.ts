@@ -56,6 +56,50 @@ export function umbrellaFor(name: string): string | null {
   return null;
 }
 
+/**
+ * Najlepszy kandydat po nazwie: dokładny prefiks słowny > odwrotny prefiks >
+ * obustronne zawieranie od 4 znaków. Ta sama heurystyka co w `findSales`
+ * (food-cost.ts) — wydzielona tu, żeby dopasowanie kategorii sprzedaży
+ * (`categoryForSaleName`) używało dokładnie tej samej logiki, a nie trzeciej kopii.
+ * Wywołujący normalizuje `target` i klucze kandydatów PRZED wywołaniem.
+ */
+export function bestFuzzyMatch<T>(target: string, candidates: Array<[string, T]>): T | null {
+  let best: T | null = null;
+  let bestScore = 0;
+  for (const [k, v] of candidates) {
+    let score = 0;
+    if (target.startsWith(k + " ")) score = 1000 + k.length;
+    else if (k.startsWith(target + " ")) score = 500 + target.length;
+    else if (k.length >= 4 && target.length >= 4 && (k.includes(target) || target.includes(k))) {
+      score = Math.min(k.length, target.length);
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = v;
+    }
+  }
+  return best;
+}
+
+/**
+ * Kategoria dania dla nazwy pozycji sprzedaży POS. Priorytet: (1) ręczne
+ * powiązanie `posProductName` (override), (2) dokładna nazwa dania, (3) fuzzy
+ * po nazwach dań. `null` = brak dopasowania (wołający pokazuje „Niezakategoryzowane").
+ * Danie dopasowane, ale bez wypełnionej kategorii, też daje `null` — nie
+ * schodzimy do fuzzy, bo dopasowanie już jest jednoznaczne.
+ */
+export function categoryForSaleName(
+  saleName: string,
+  index: { byOverride: Map<string, string | null>; byDishName: Array<[string, string | null]> },
+): string | null {
+  const target = normalizeName(saleName);
+  if (!target) return null;
+  if (index.byOverride.has(target)) return index.byOverride.get(target) ?? null;
+  const exact = index.byDishName.find(([name]) => name === target);
+  if (exact) return exact[1];
+  return bestFuzzyMatch(target, index.byDishName);
+}
+
 export type PosMember = { name: string; qty: number; net: number };
 export type PosGroup = { key: string; name: string; qty: number; net: number; members: PosMember[] };
 

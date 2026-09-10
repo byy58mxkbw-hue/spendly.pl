@@ -4,8 +4,9 @@ import { db, posSalesTable } from "@workspace/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { toNum } from "../lib/parse";
 import { periodFromQuery, previousPeriod, periodLabel, monthsInRange, type Period } from "../lib/period";
-import { commonWordPrefix, normalizeName, posGroupKey, umbrellaFor } from "../lib/pos-group";
+import { categoryForSaleName, commonWordPrefix, normalizeName, posGroupKey, umbrellaFor } from "../lib/pos-group";
 import { captureServer } from "../lib/telemetry";
+import { buildDishCategoryIndex } from "./food-cost.js";
 
 // Sprzedaż per pozycja menu z POS (pos_sales) dla wybranego okresu, z porównaniem
 // do poprzedniego równego okresu — zasila podstronę „Sprzedaż".
@@ -54,6 +55,8 @@ export type SalesGroup = SalesLeaf & {
   key: string;
   /** Warianty (stopnie wysmażenia, smaki). Puste, gdy pozycja nie ma wariantów. */
   variants: SalesLeaf[];
+  /** Kategoria dania (z Food Cost, dopasowana po nazwie) — `null` = brak dopasowania. */
+  category: string | null;
 };
 
 type Leaf = { name: string; qty: number; net: number; prevQty: number | null; prevNet: number | null };
@@ -84,9 +87,10 @@ function makeLeaf(l: Leaf): SalesLeaf {
 
 async function buildSalesGroups(userId: string, period: Period): Promise<{ groups: SalesGroup[]; prev: Period }> {
   const prev = previousPeriod(period);
-  const [curRows, prevRows] = await Promise.all([
+  const [curRows, prevRows, dishIndex] = await Promise.all([
     fetchRows(userId, monthsInRange(period)),
     fetchRows(userId, monthsInRange(prev)),
+    buildDishCategoryIndex(userId),
   ]);
 
   // key -> (znormalizowana nazwa wariantu -> liść). Warianty łączymy między
@@ -148,6 +152,7 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       ...totalsOf(sg.members),
       productName: sg.name,
       variants: sg.members.length > 1 ? sg.members.map(makeLeaf).sort((a, b) => b.netValue - a.netValue) : [],
+      category: categoryForSaleName(sg.name, dishIndex),
     });
   }
 
@@ -161,10 +166,14 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
         ...totalsOf(sg.members),
         productName: sg.name,
         variants: sg.members.length > 1 ? sg.members.map(makeLeaf).sort((a, b) => b.netValue - a.netValue) : [],
+        category: categoryForSaleName(sg.name, dishIndex),
       });
       continue;
     }
     const allMembers = list.flatMap((sg) => sg.members);
+    // Kategoria parasola po ETYKIECIE parasola ("Lunch"), nie po pojedynczych
+    // pozycjach wewnątrz — parasol to JEDNA oferta dla właściciela (patrz komentarz
+    // przy UMBRELLAS w pos-group.ts), więc dostaje jedną, spójną kategorię.
     groups.push({
       key: `um:${normalizeName(label)}`,
       ...totalsOf(allMembers),
@@ -174,6 +183,7 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       variants: list
         .map((sg) => ({ ...totalsOf(sg.members), productName: sg.name }))
         .sort((a, b) => b.netValue - a.netValue),
+      category: categoryForSaleName(label, dishIndex),
     });
   }
 
@@ -181,6 +191,33 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
   // mniej niż 40 dań po 90 zł. Front i tak pozwala przesortować.
   groups.sort((a, b) => b.netValue - a.netValue);
   return { groups, prev };
+}
+
+export type CategoryBreakdownEntry = { category: string; label: string; netValue: number; qty: number; pct: number };
+
+const UNCATEGORIZED = "__uncategorized__";
+
+// Rozkład wartości sprzedaży wg kategorii dania — grupy bez dopasowania trafiają
+// pod jeden stały klucz, żeby front mógł je zawsze pokazać na końcu listy.
+function buildCategoryBreakdown(groups: SalesGroup[]): CategoryBreakdownEntry[] {
+  const byCategory = new Map<string, { label: string; netValue: number; qty: number }>();
+  for (const g of groups) {
+    const key = g.category ?? UNCATEGORIZED;
+    const cur = byCategory.get(key) ?? { label: g.category ?? "Niezakategoryzowane", netValue: 0, qty: 0 };
+    cur.netValue += g.netValue;
+    cur.qty += g.qty;
+    byCategory.set(key, cur);
+  }
+  const totalNet = [...byCategory.values()].reduce((s, v) => s + v.netValue, 0);
+  return [...byCategory.entries()]
+    .map(([category, v]) => ({
+      category,
+      label: v.label,
+      netValue: v.netValue,
+      qty: v.qty,
+      pct: totalNet > 0 ? Math.round((v.netValue / totalNet) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.netValue - a.netValue);
 }
 
 router.get("/sales", async (req, res): Promise<void> => {
@@ -203,6 +240,7 @@ router.get("/sales", async (req, res): Promise<void> => {
     totalQtyChangePct: changePct(totalQty, prevTotalQty),
     totalNetChangePct: changePct(totalNet, prevTotalNet),
     items: groups,
+    categoryBreakdown: buildCategoryBreakdown(groups),
   });
 });
 
@@ -308,6 +346,7 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
 
   const headers = [
     "Pozycja",
+    "Kategoria",
     "Sprzedano",
     `Sprzedano (${prevLabel})`,
     "Zmiana ilości",
@@ -315,7 +354,7 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
     `Wartość netto (${prevLabel})`,
     "Zmiana wartości",
   ];
-  const widths = [46, 12, 18, 14, 16, 20, 16];
+  const widths = [46, 20, 12, 18, 14, 16, 20, 16];
   const nCols = headers.length;
 
   const wb = new ExcelJS.Workbook();
@@ -360,9 +399,10 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
     empty.getCell(1).font = { italic: true, color: { argb: "FF64748B" } };
   }
 
-  function addLeafRow(l: SalesLeaf, variant: boolean) {
+  function addLeafRow(l: SalesLeaf, variant: boolean, category?: string) {
     const row = ws.addRow([
       l.productName,
+      category ?? "",
       round(l.qty, 2),
       l.prevQty != null ? round(l.prevQty, 2) : null,
       l.qtyChangePct != null ? round(l.qtyChangePct / 100, 6) : "nowa",
@@ -370,12 +410,12 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
       l.prevNet != null ? round(l.prevNet, 2) : null,
       l.netChangePct != null ? round(l.netChangePct / 100, 6) : "nowa",
     ]);
-    row.getCell(2).numFmt = QTY;
     row.getCell(3).numFmt = QTY;
-    row.getCell(4).numFmt = PCT;
-    row.getCell(5).numFmt = CUR;
+    row.getCell(4).numFmt = QTY;
+    row.getCell(5).numFmt = PCT;
     row.getCell(6).numFmt = CUR;
-    row.getCell(7).numFmt = PCT;
+    row.getCell(7).numFmt = CUR;
+    row.getCell(8).numFmt = PCT;
     if (variant) {
       // Wcięcie + szarość: wariant jest składową wiersza wyżej, nie osobną
       // pozycją. Bez tego sumy w arkuszu wyglądałyby na policzone podwójnie.
@@ -388,7 +428,7 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
   }
 
   for (const g of groups) {
-    addLeafRow(g, false);
+    addLeafRow(g, false, g.category ?? "Niezakategoryzowane");
     for (const v of g.variants) addLeafRow(v, true);
   }
 
@@ -399,6 +439,7 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
     const prevNet = groups.reduce((s, g) => s + (g.prevNet ?? 0), 0);
     const sum = ws.addRow([
       "SUMA (bez wierszy wciętych)",
+      "",
       round(totalQty, 2),
       round(prevQty, 2),
       prevQty > 0 ? round((totalQty - prevQty) / prevQty, 6) : null,
@@ -410,12 +451,12 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
       c.font = { bold: true };
       c.border = { top: { style: "thin", color: { argb: "FF1F2937" } } };
     });
-    sum.getCell(2).numFmt = QTY;
     sum.getCell(3).numFmt = QTY;
-    sum.getCell(4).numFmt = PCT;
-    sum.getCell(5).numFmt = CUR;
+    sum.getCell(4).numFmt = QTY;
+    sum.getCell(5).numFmt = PCT;
     sum.getCell(6).numFmt = CUR;
-    sum.getCell(7).numFmt = PCT;
+    sum.getCell(7).numFmt = CUR;
+    sum.getCell(8).numFmt = PCT;
   }
 
   ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: nCols } };

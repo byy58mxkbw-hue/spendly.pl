@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { commonWordPrefix, groupPosByProduct, posGroupKey, umbrellaFor } from "./pos-group";
+import {
+  bestFuzzyMatch,
+  categoryForSaleName,
+  commonWordPrefix,
+  groupPosByProduct,
+  posGroupKey,
+  umbrellaFor,
+} from "./pos-group";
 
 describe("commonWordPrefix", () => {
   it("wyciąga nazwę bazową ze stopni wysmażenia", () => {
@@ -116,5 +123,68 @@ describe("umbrellaFor", () => {
     expect(umbrellaFor("Stek z Polędwicy Wołowej Medium")).toBeNull();
     expect(umbrellaFor("Tatar Wołowy")).toBeNull();
     expect(umbrellaFor("Grillowany łosoś")).toBeNull();
+  });
+});
+
+describe("bestFuzzyMatch", () => {
+  it("dłuższy dokładny prefiks słowny wygrywa nad krótszym", () => {
+    const candidates: Array<[string, string]> = [
+      ["stek", "krotki"],
+      ["stek z rostbefu", "dlugi-prefiks"],
+    ];
+    expect(bestFuzzyMatch("stek z rostbefu medium", candidates)).toBe("dlugi-prefiks");
+  });
+
+  it("odwrotny prefiks (kandydat dłuższy niż target)", () => {
+    const candidates: Array<[string, string]> = [["stek z rostbefu dla dwojga", "danie-na-dwoje"]];
+    expect(bestFuzzyMatch("stek z rostbefu", candidates)).toBe("danie-na-dwoje");
+  });
+
+  it("obustronne zawieranie tylko od 4 znaków", () => {
+    expect(bestFuzzyMatch("kawa", [["kawa mielona", "a"]])).toBe("a");
+    expect(bestFuzzyMatch("her", [["herbata", "b"]])).toBeNull();
+  });
+
+  it("brak jakiegokolwiek dopasowania → null", () => {
+    expect(bestFuzzyMatch("sok pomaranczowy", [["kawa", "a"], ["herbata", "b"]])).toBeNull();
+  });
+
+  it("przy remisie wygrywa pierwszy silniejszy wynik (dłuższy prefiks > krótszy)", () => {
+    const candidates: Array<[string, string]> = [
+      ["stek", "krotszy"],
+      ["stek z", "dluzszy"],
+    ];
+    expect(bestFuzzyMatch("stek z rostbefu", candidates)).toBe("dluzszy");
+  });
+});
+
+describe("categoryForSaleName", () => {
+  const index = {
+    byOverride: new Map<string, string | null>([["stek specjalny", "dania glowne"]]),
+    byDishName: [
+      ["stek z rostbefu", "dania glowne"],
+      ["kawa czarna", "napoje"],
+      ["deser bez kategorii", null],
+    ] as Array<[string, string | null]>,
+  };
+
+  it("ręczne powiązanie (override) ma priorytet nad dokładną nazwą dania", () => {
+    expect(categoryForSaleName("Stek Specjalny", index)).toBe("dania glowne");
+  });
+
+  it("dokładna nazwa dania trafia, gdy nie ma override", () => {
+    expect(categoryForSaleName("Kawa Czarna", index)).toBe("napoje");
+  });
+
+  it("fuzzy po nazwach dań, gdy nie ma dokładnego dopasowania", () => {
+    expect(categoryForSaleName("Stek z rostbefu medium", index)).toBe("dania glowne");
+  });
+
+  it("brak dopasowania → null", () => {
+    expect(categoryForSaleName("Sok pomarańczowy", index)).toBeNull();
+  });
+
+  it("danie dopasowane dokładnie, ale bez kategorii → null (nie schodzi do fuzzy)", () => {
+    expect(categoryForSaleName("Deser bez kategorii", index)).toBeNull();
   });
 });

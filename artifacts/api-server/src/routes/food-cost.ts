@@ -8,7 +8,7 @@ import { normalizeProductName } from "../lib/categorize-ai";
 import { periodFromQuery, monthsInRange } from "../lib/period";
 
 import { captureServer } from "../lib/telemetry.js";
-import { normalizeName, groupPosByProduct } from "../lib/pos-group.js";
+import { normalizeName, groupPosByProduct, bestFuzzyMatch } from "../lib/pos-group.js";
 
 const router: IRouter = Router();
 
@@ -249,6 +249,26 @@ export async function computeAllDishMargins(userId: string): Promise<DishMargin[
   });
 }
 
+// ─── Indeks kategorii dań (dla dopasowania kategorii sprzedaży POS→danie) ──────
+// Ten sam wzorzec co `computeAllDishMargins`: jedno zapytanie, reużywane przez
+// inny moduł (tu: routes/sales.ts, przez categoryForSaleName w pos-group.ts).
+export async function buildDishCategoryIndex(
+  userId: string,
+): Promise<{ byOverride: Map<string, string | null>; byDishName: Array<[string, string | null]> }> {
+  const dishes = await db
+    .select({ name: dishesTable.name, category: dishesTable.category, posProductName: dishesTable.posProductName })
+    .from(dishesTable)
+    .where(eq(dishesTable.userId, userId));
+
+  const byOverride = new Map<string, string | null>();
+  const byDishName: Array<[string, string | null]> = [];
+  for (const d of dishes) {
+    if (d.posProductName) byOverride.set(normalizeName(d.posProductName), d.category);
+    byDishName.push([normalizeName(d.name), d.category]);
+  }
+  return { byOverride, byDishName };
+}
+
 // ─── List dishes ──────────────────────────────────────────────────────────────
 router.get("/food-cost/dishes", async (req, res): Promise<void> => {
   res.json(await computeAllDishMargins(req.userId!));
@@ -341,16 +361,7 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
     const exactGroup = groupByNorm.get(target);
     if (exactGroup) return exactGroup;
     if (variant) return variant;
-    let best: { qty: number; net: number } | null = null;
-    let bestScore = 0;
-    for (const [k, v] of groupEntries) {
-      let score = 0;
-      if (target.startsWith(k + " ")) score = 1000 + k.length;
-      else if (k.startsWith(target + " ")) score = 500 + target.length;
-      else if (k.length >= 4 && target.length >= 4 && (k.includes(target) || target.includes(k))) score = Math.min(k.length, target.length);
-      if (score > bestScore) { bestScore = score; best = v; }
-    }
-    return best;
+    return bestFuzzyMatch(target, groupEntries);
   }
 
   let costTotal = 0;
