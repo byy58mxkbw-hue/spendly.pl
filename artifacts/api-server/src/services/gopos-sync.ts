@@ -43,7 +43,7 @@ export async function syncGoposForUser(userId: string, log: Logger, monthsBack =
   try {
     const { from, to } = monthBounds(months[0]);
     const probe = await probeCategoryGrouping(token, cfg.locationId, from, to);
-    log.info({ userId, probe }, "GoPOS: PROBE groups=NONE,CATEGORY,PRODUCT (diagnostyka kategorii menu)");
+    log.info({ userId, probe }, "GoPOS: PROBE wymiarow grupowania + endpointow katalogu (diagnostyka kategorii menu)");
   } catch (err) {
     log.warn({ userId, err: String(err) }, "GoPOS: probe kategorii nieudany (nieistotne dla sync)");
   }
