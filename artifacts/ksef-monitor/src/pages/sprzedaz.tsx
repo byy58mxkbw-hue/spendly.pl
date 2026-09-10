@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2 } from "@/lib/icons";
+import { Link } from "wouter";
+import { CHART_COLORS } from "./reports/components";
 
 // Wykres pojedynczej pozycji ładowany leniwie — ciągnie recharts, który nie ma
 // czego szukać w głównym chunku strony z tabelą.
@@ -25,7 +27,8 @@ type SalesLeaf = {
 };
 // Grupa = pozycja menu. Warianty (stopnie wysmażenia, smaki) mają w POS wspólne
 // id produktu i są tu składowymi, nie osobnymi pozycjami.
-type SalesItem = SalesLeaf & { key: string; variants: SalesLeaf[] };
+type SalesItem = SalesLeaf & { key: string; variants: SalesLeaf[]; category: string | null };
+type CategoryBreakdownEntry = { category: string; label: string; netValue: number; qty: number; pct: number };
 type SalesResponse = {
   from: string;
   to: string;
@@ -36,7 +39,12 @@ type SalesResponse = {
   totalQtyChangePct: number | null;
   totalNetChangePct: number | null;
   items: SalesItem[];
+  categoryBreakdown: CategoryBreakdownEntry[];
 };
+
+// Musi być identyczne z kluczem w `routes/sales.ts` (buildCategoryBreakdown) —
+// pozycje bez dopasowanego dania trafiają pod ten stały klucz.
+const UNCATEGORIZED = "__uncategorized__";
 
 const MONTHS = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
 function monthLabel(m: string): string { const [y, mm] = m.split("-").map(Number); return `${MONTHS[mm - 1]} ${y}`; }
@@ -140,6 +148,13 @@ export default function Sprzedaz() {
   const [trend, setTrend] = useState<{ label: string; key?: string; name?: string } | null>(null);
   const [sort, setSort] = useState<Sort>({ key: "netValue", dir: "desc" });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // "" = brak filtra kategorii; inaczej wartość `category` z categoryBreakdown
+  // (klucz UNCATEGORIZED dla „Niezakategoryzowane").
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+
+  function toggleCategoryFilter(category: string) {
+    setCategoryFilter((prev) => (prev === category ? "" : category));
+  }
 
   function toggleExpanded(key: string) {
     setExpanded((prev) => {
@@ -171,9 +186,23 @@ export default function Sprzedaz() {
   const items = useMemo(() => {
     const list = data?.items ?? [];
     const q = search.trim().toLowerCase();
-    const filtered = q ? list.filter((i) => i.productName.toLowerCase().includes(q)) : list;
+    let filtered = q ? list.filter((i) => i.productName.toLowerCase().includes(q)) : list;
+    if (categoryFilter) {
+      filtered = filtered.filter((i) =>
+        categoryFilter === UNCATEGORIZED ? i.category == null : i.category === categoryFilter,
+      );
+    }
     return [...filtered].sort((a, b) => compareItems(a, b, sort));
-  }, [data, search, sort]);
+  }, [data, search, sort, categoryFilter]);
+
+  // „Niezakategoryzowane" zawsze na końcu, niezależnie od wartości sprzedaży —
+  // to podpowiedź do dokończenia powiązania, nie wynik do rywalizacji o pozycję.
+  const categoryBreakdown = useMemo(() => {
+    const list = data?.categoryBreakdown ?? [];
+    const uncategorized = list.filter((c) => c.category === UNCATEGORIZED);
+    const rest = list.filter((c) => c.category !== UNCATEGORIZED);
+    return [...rest, ...uncategorized];
+  }, [data]);
 
   const empty = !loading && (!data || data.items.length === 0);
 
@@ -244,6 +273,53 @@ export default function Sprzedaz() {
             <p className="text-sm text-muted-foreground">Podłącz i zsynchronizuj GoPOS w ustawieniach integracji.</p>
           </div>
         ) : (
+          <>
+            {categoryBreakdown.length > 0 && (
+              <div className="glass p-4 mb-4">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                  Sprzedaż wg kategorii dania
+                </div>
+                <div className="space-y-3">
+                  {categoryBreakdown.map((c, i) => {
+                    const isUncategorized = c.category === UNCATEGORIZED;
+                    const color = isUncategorized ? "hsl(var(--muted-foreground))" : CHART_COLORS[i % CHART_COLORS.length];
+                    const active = categoryFilter === c.category;
+                    const dimmed = categoryFilter !== "" && !active;
+                    return (
+                      <button
+                        key={c.category}
+                        type="button"
+                        onClick={() => toggleCategoryFilter(c.category)}
+                        aria-pressed={active}
+                        className={cn("w-full text-left transition-opacity", dimmed && "opacity-40")}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                            <span className="text-xs text-foreground truncate">{c.label}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[11px] text-muted-foreground tabular-nums">{c.pct.toFixed(0)}%</span>
+                            <span className="text-xs font-semibold tabular-nums">{formatPrice(c.netValue)}</span>
+                          </div>
+                        </div>
+                        <div className="h-1 bg-secondary rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${c.pct}%`, background: color }} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {categoryBreakdown.some((c) => c.category === UNCATEGORIZED) && (
+                  <p className="text-[11px] text-muted-foreground mt-3">
+                    Część sprzedaży nie jest przypisana do kategorii dania.{" "}
+                    <Link href="/food-cost" className="underline hover:text-foreground">
+                      Dokończ powiązanie w Food Cost →
+                    </Link>
+                  </p>
+                )}
+              </div>
+            )}
           <div className="glass overflow-hidden">
             <div className="px-4 md:px-5 py-3 border-b border-border flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-baseline gap-4 flex-wrap">
@@ -313,7 +389,12 @@ export default function Sprzedaz() {
                               ) : (
                                 <span className="w-[18px] shrink-0" aria-hidden />
                               )}
-                              <span className="text-sm text-foreground truncate">{it.productName}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className="text-sm text-foreground truncate block">{it.productName}</span>
+                                {it.category && (
+                                  <span className="text-[10px] text-muted-foreground truncate block">{it.category}</span>
+                                )}
+                              </span>
                               {hasVariants && (
                                 <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">({it.variants.length})</span>
                               )}
@@ -352,6 +433,7 @@ export default function Sprzedaz() {
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
 
