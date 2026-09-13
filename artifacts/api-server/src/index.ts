@@ -9,6 +9,7 @@ import { ensureGoposTables } from "./services/ensure-gopos.js";
 import { ensureDishIngredientColumns } from "./services/ensure-dish-columns.js";
 import { ensureDecodedNames } from "./services/ensure-decoded-names.js";
 import { ensureGrossInvoiceTotals } from "./services/ensure-gross-invoice-totals.js";
+import { ensureEmailLogTable } from "./services/ensure-email.js";
 import { startQueue } from "./services/queue.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
@@ -78,6 +79,9 @@ app.listen(port, (err) => {
 
   // Tabele integracji GoPOS (config + sprzedaż per pozycja) — idempotentne DDL, zawsze.
   ensureGoposTables(logger).catch((err) => logger.error({ err }, "gopos: migracja nieudana"));
+
+  // Log wysłanych maili (dedup webhooków Clerk) — idempotentne DDL, zawsze.
+  ensureEmailLogTable(logger).catch((err) => logger.error({ err }, "email_log: migracja nieudana"));
 
   // Kolumny szacowanej ceny AI w dish_ingredients (fallback food cost) — idempotentne DDL.
   ensureDishIngredientColumns(logger).catch((err) => logger.error({ err }, "dish_ingredients est_*: migracja nieudana"));

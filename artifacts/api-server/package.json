@@ -38,7 +38,8 @@
     "pdf-to-img": "^6.1.0",
     "pg-boss": "^12.26.1",
     "pino": "^9",
-    "pino-http": "^10"
+    "pino-http": "^10",
+    "svix": "^2.5.0"
   },
   "devDependencies": {
     "@types/compression": "^1.8.1",

@@ -20,6 +20,9 @@ declare global {
     interface Request {
       userId?: string;
       plan?: "free" | "pro" | "business";
+      // Surowe bajty body — przechwycone w app.ts (verify callback express.json)
+      // do weryfikacji podpisu Svix na webhookach (routes/webhooks.ts).
+      rawBody?: Buffer;
     }
   }
 }

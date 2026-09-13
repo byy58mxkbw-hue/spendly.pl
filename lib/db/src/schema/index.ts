@@ -18,3 +18,4 @@ export * from "./learned-user-category-terms";
 export * from "./restaurant-revenue";
 export * from "./gopos-config";
 export * from "./pos-sales";
+export * from "./email-log";

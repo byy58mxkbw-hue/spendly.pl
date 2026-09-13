@@ -185,7 +185,11 @@ app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use((req, res, next) => {
   const limit = req.path.includes("/invoices/scan-receipt") ? "15mb" : "2mb";
-  express.json({ limit })(req, res, next);
+  // `verify` przechwytuje surowe bajty body przy okazji parsowania — potrzebne
+  // do weryfikacji podpisu Svix na webhooku Clerk (routes/webhooks.ts), który
+  // wymaga oryginalnych bajtów, nie ponownie zserializowanego JSON-a. Nie
+  // zmienia zachowania dla żadnej innej trasy (req.body dalej parsowany jak dawniej).
+  express.json({ limit, verify: (req, _res, buf) => { (req as Request).rawBody = buf; } })(req, res, next);
 });
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
