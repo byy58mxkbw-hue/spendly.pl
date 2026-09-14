@@ -5,6 +5,7 @@ import { sendEmail, upsertContact } from "./resend-client.js";
 import { welcomeEmailHtml } from "../lib/email-templates.js";
 
 const DEFAULT_FROM = "Spendly <onboarding@resend.dev>";
+const DEFAULT_REPLY_TO = "spendlykontakt@gmail.com";
 
 // Mail powitalny po rejestracji (wołany z routes/webhooks.ts na zdarzenie Clerk
 // `user.created`). Nic nie wysyła, dopóki RESEND_API_KEY nie jest ustawiony —
@@ -42,6 +43,7 @@ export async function sendWelcomeEmailIfNeeded(
     await sendEmail(apiKey, {
       to: email,
       from: process.env.EMAIL_FROM || DEFAULT_FROM,
+      replyTo: process.env.EMAIL_REPLY_TO || DEFAULT_REPLY_TO,
       subject: "Witaj w Spendly",
       html: welcomeEmailHtml({ firstName }),
     });
