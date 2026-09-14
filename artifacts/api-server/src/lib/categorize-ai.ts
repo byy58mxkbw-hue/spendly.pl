@@ -1,7 +1,7 @@
 import { db } from "@workspace/db";
 import { userCategoriesTable, productCorrectionsTable } from "@workspace/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { openai, aiObservabilityEnabled } from "@workspace/integrations-openai-ai-server";
 import type { Logger } from "pino";
 import { categorizeProduct, BUILTIN_CATEGORY_DEFS } from "./categorize.js";
 import { matchBrand } from "./brand-map.js";
@@ -268,6 +268,10 @@ Znormalizowana nazwa: ${canonicalName}`;
         max_tokens: 120,
         temperature: 0,
         response_format: { type: "json_object" },
+        // PostHog AI Observability (metadane: koszt/tokeny/czas, patrz client.ts) — pole
+        // dokładane TYLKO gdy aktywne, żeby nigdy nie trafić jako nieznany parametr
+        // do samego API OpenAI przy zwykłym (nie-PostHog) kliencie.
+        ...(aiObservabilityEnabled ? { posthogDistinctId: userId } : {}),
       },
       { signal: controller.signal },
     );

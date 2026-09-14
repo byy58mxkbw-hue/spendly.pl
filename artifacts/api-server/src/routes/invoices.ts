@@ -15,7 +15,7 @@ import {
 } from "@workspace/api-zod";
 import { categorizeProductWithAI, getUserCategories, type ClassificationResult } from "../lib/categorize-ai.js";
 import { scheduleAlertsCheck } from "../services/queue";
-import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
+import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-openai-ai-server";
 import { encryptSecret } from "../lib/encryption";
 import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
 import { parseKSeFXml } from "../lib/invoice-xml-parse";
@@ -668,6 +668,8 @@ Important:
       response_format: { type: "json_object" },
       max_tokens: 2000,
       temperature: 0,
+      // PostHog AI Observability (metadane, patrz integrations-openai-ai-server/client.ts).
+      ...(aiObservabilityEnabled ? { posthogDistinctId: req.userId! } : {}),
     });
 
     const raw = response.choices[0]?.message?.content ?? "{}";

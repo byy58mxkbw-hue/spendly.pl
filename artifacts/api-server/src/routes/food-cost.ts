@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { db, dishesTable, dishIngredientsTable, productsTable, invoiceItemsTable, invoicesTable, posSalesTable, restaurantRevenueTable } from "@workspace/db";
 import { CreateDishBody, UpdateDishBody, GetDishParams, UpdateDishParams, DeleteDishParams, ImportMenuBody, SaveMenuDishesBody } from "@workspace/api-zod";
-import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
+import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-openai-ai-server";
 import { findOrCreateProductByName } from "../services/ksef-ingest";
 import { normalizeProductName } from "../lib/categorize-ai";
 import { periodFromQuery, monthsInRange } from "../lib/period";
@@ -735,6 +735,8 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
       response_format: { type: "json_object" },
       max_tokens: 4000,
       temperature: 0,
+      // PostHog AI Observability (metadane, patrz integrations-openai-ai-server/client.ts).
+      ...(aiObservabilityEnabled ? { posthogDistinctId: userId } : {}),
     });
     const raw = response.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw) as { dishes?: unknown };

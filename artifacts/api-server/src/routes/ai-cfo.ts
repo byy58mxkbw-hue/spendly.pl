@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { requireOpenAI } from "@workspace/integrations-openai-ai-server";
+import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-openai-ai-server";
 import { PostAiCfoChatBody } from "@workspace/api-zod";
 import { AI_MONTHLY_LIMIT, normalizePlan, currentPeriod } from "../lib/ai-plan.js";
 import { computeTriggeredAlerts } from "../services/alert-checker.js";
@@ -882,6 +882,8 @@ Odpowiadaj wyłącznie po polsku.`;
       model: "gpt-4o-mini",
       max_completion_tokens: 4000,
       messages,
+      // PostHog AI Observability (metadane, patrz integrations-openai-ai-server/client.ts).
+      ...(aiObservabilityEnabled ? { posthogDistinctId: userId } : {}),
     });
     raw = (resp.choices[0]?.message?.content ?? "").trim();
   } catch (err) {

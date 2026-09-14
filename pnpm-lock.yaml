@@ -917,6 +917,9 @@ importers:
 
   lib/integrations-openai-ai-server:
     dependencies:
+      '@posthog/ai':
+        specifier: ^8.11.0
+        version: 8.11.0(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.9.0(@opentelemetry/api@1.9.1))(openai@6.42.0(ws@8.21.0)(zod@3.25.76))(posthog-node@5.52.1)
       openai:
         specifier: ^6.27.0
         version: 6.42.0(ws@8.21.0)(zod@3.25.76)
@@ -926,6 +929,9 @@ importers:
       p-retry:
         specifier: ^7.1.1
         version: 7.1.1
+      posthog-node:
+        specifier: ^5.52.1
+        version: 5.52.1
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -2378,11 +2384,57 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  '@posthog/ai@8.11.0':
+    resolution: {integrity: sha512-9vptNSMQLef6Lzbbp7erY4i0XVAn98+X/kxFsG6k0xR6qamj+7CRX3yJnvWXV0a41yocuBcLNhY/p+ZqM5GZeA==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      '@ai-sdk/provider': ^2.0.0 || ^3.0.0 || ^4.0.0
+      '@anthropic-ai/sdk': '>=0.112.3 <0.123.0'
+      '@google/adk': ^2.0.0
+      '@google/genai': ^1.52.0
+      '@langchain/core': ^1.2.3
+      '@openai/agents': ^0.8.0
+      '@opentelemetry/api': ^1.9.0
+      '@opentelemetry/exporter-trace-otlp-http': '>=0.200.0 <1.0.0'
+      '@opentelemetry/sdk-trace-base': ^2.0.0
+      langchain: '>=1.5.5 <2.0.0'
+      openai: ^6.48.0
+      posthog-node: ^5.0.0
+    peerDependenciesMeta:
+      '@ai-sdk/provider':
+        optional: true
+      '@anthropic-ai/sdk':
+        optional: true
+      '@google/adk':
+        optional: true
+      '@google/genai':
+        optional: true
+      '@langchain/core':
+        optional: true
+      '@openai/agents':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      '@opentelemetry/exporter-trace-otlp-http':
+        optional: true
+      '@opentelemetry/sdk-trace-base':
+        optional: true
+      langchain:
+        optional: true
+      openai:
+        optional: true
+
   '@posthog/core@1.40.2':
     resolution: {integrity: sha512-H12j7O9iHGvpK9t2ko8W4pvfbV1pBDxrsWC1LA6yp2RhzwvC4T3sWhu+AekDQJSRSrJEWlB0t/Ueq9QhPSq7FQ==}
 
+  '@posthog/core@1.53.2':
+    resolution: {integrity: sha512-Knx8442G2LyPVIzLvhcBX/TIdeHpZhrYrtZou3Uw8FWfbr9gQtQeOZDCog3MWcDxJ+4vAnMAAOzf5cYpc7Gxyw==}
+
   '@posthog/types@1.393.0':
     resolution: {integrity: sha512-vzWeEJZ7ERQhFRoQYaP5jzN1JvIu46UJyHXsuv+dTGW2r3sMgREOhNxXLZjmFHwZ8/FOHQoyqqQmXTCXZSfMSg==}
+
+  '@posthog/types@1.411.1':
+    resolution: {integrity: sha512-Gd7tnSYctcSXup3naVlAgavvenByRao6rsSYdMgWgP35KE9jFn+rMHNRJeI5LNjJuLzMXHEVcgzAN7xcATefdw==}
 
   '@prettier/plugin-xml@2.2.0':
     resolution: {integrity: sha512-UWRmygBsyj4bVXvDiqSccwT1kmsorcwQwaIy30yVh8T+Gspx4OlC0shX1y+ZuwXZvgnafmpRYKks0bAu9urJew==}
@@ -7462,6 +7514,15 @@ packages:
   posthog-js@1.399.2:
     resolution: {integrity: sha512-xcvrGEgUYtIVcWPRlVfc/NkMo0IP9nwnM/dzJIAzjDOSewkdDk/9T4Vz1+gooEhXdQCPfG44jSK95mVJsoySqA==}
 
+  posthog-node@5.52.1:
+    resolution: {integrity: sha512-Xt0xazhAR1Bf2DEnPPZETkWx19jckKeMkJ4qMMTv1xuyKSNjy8AXREEkiuDbJWWr3k6KpgoYH6sURWBROpRKlA==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      rxjs: ^7.0.0
+    peerDependenciesMeta:
+      rxjs:
+        optional: true
+
   powershell-utils@0.1.0:
     resolution: {integrity: sha512-dM0jVuXJPsDN6DvRpea484tCUaMiXWjuCn++HGTqUWzGDjv5tZkEZldAJ/UMlqRYGFrD/etByo4/xOuC/snX2A==}
     engines: {node: '>=20'}
@@ -8720,6 +8781,10 @@ packages:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
 
+  uuid@11.1.1:
+    resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
+    hasBin: true
+
   uuid@3.4.0:
     resolution: {integrity: sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==}
     deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
@@ -9120,6 +9185,9 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+  zod@4.6.4:
+    resolution: {integrity: sha512-AXSD6hvGdvRjajG/l1cC+d6IrhH+sjmPKtYeQdJIK8MFJl3LyClzS+o/YsVC+zQZPupAaeH5skwwm8YqYH7BqA==}
 
   zustand@5.0.3:
     resolution: {integrity: sha512-14fwWQtU3pH4dE0dOpdMiWjddcH+QzKIgk1cl8epwSE7yag43k/AD/m4L6+K7DytAOr9gGBe3/EXj9g7cdostg==}
@@ -11108,11 +11176,28 @@ snapshots:
     dependencies:
       playwright: 1.61.0
 
+  '@posthog/ai@8.11.0(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.9.0(@opentelemetry/api@1.9.1))(openai@6.42.0(ws@8.21.0)(zod@3.25.76))(posthog-node@5.52.1)':
+    dependencies:
+      '@posthog/core': 1.53.2
+      posthog-node: 5.52.1
+      uuid: 11.1.1
+      zod: 4.6.4
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/sdk-trace-base': 2.9.0(@opentelemetry/api@1.9.1)
+      openai: 6.42.0(ws@8.21.0)(zod@3.25.76)
+
   '@posthog/core@1.40.2':
     dependencies:
       '@posthog/types': 1.393.0
 
+  '@posthog/core@1.53.2':
+    dependencies:
+      '@posthog/types': 1.411.1
+
   '@posthog/types@1.393.0': {}
+
+  '@posthog/types@1.411.1': {}
 
   '@prettier/plugin-xml@2.2.0':
     dependencies:
@@ -16925,6 +17010,10 @@ snapshots:
     transitivePeerDependencies:
       - preact-render-to-string
 
+  posthog-node@5.52.1:
+    dependencies:
+      '@posthog/core': 1.53.2
+
   powershell-utils@0.1.0: {}
 
   preact@10.24.2: {}
@@ -18269,6 +18358,8 @@ snapshots:
 
   utils-merge@1.0.1: {}
 
+  uuid@11.1.1: {}
+
   uuid@3.4.0: {}
 
   uuid@7.0.3: {}
@@ -18632,6 +18723,8 @@ snapshots:
       zod: 3.25.76
 
   zod@3.25.76: {}
+
+  zod@4.6.4: {}
 
   zustand@5.0.3(@types/react@19.1.17)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0)):
     optionalDependencies:

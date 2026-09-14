@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const createMock = vi.fn();
 vi.mock("@workspace/integrations-openai-ai-server", () => ({
   openai: { chat: { completions: { create: (...args: unknown[]) => createMock(...args) } } },
+  aiObservabilityEnabled: false,
 }));
 
 // recordBrandDetection/recordCategoryTermDetection dotykają bazy (fire-and-forget) —
