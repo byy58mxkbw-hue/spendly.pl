@@ -40,6 +40,7 @@ import {
   ChevronsUpDown,
   RefreshCw,
   Copy,
+  Mail,
 } from "@/lib/icons";
 import {
   BarChart,
@@ -181,6 +182,19 @@ function useDeleteUser() {
       if (!res.ok) throw new Error("Błąd usuwania konta");
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
+}
+
+type FeedbackBroadcastResult = { totalUsers: number; sent: number; skipped: number; failed: number };
+
+function useSendFeedbackBroadcast() {
+  const { session } = useClerk();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await authFetch(session, "/api/admin/send-feedback-email", { method: "POST" });
+      if (!res.ok) throw new Error("Błąd wysyłki maili z prośbą o opinię");
+      return res.json() as Promise<FeedbackBroadcastResult>;
+    },
   });
 }
 
@@ -397,12 +411,14 @@ export default function AdminUsers() {
   const blockUser = useBlockUser();
   const setPlan = useSetPlan();
   const deleteUser = useDeleteUser();
+  const sendFeedbackBroadcast = useSendFeedbackBroadcast();
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [feedbackConfirmOpen, setFeedbackConfirmOpen] = useState(false);
   const [sortCol, setSortCol] = useState<SortColumn>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -460,6 +476,19 @@ export default function AdminUsers() {
     }
   }
 
+  async function handleSendFeedbackBroadcast() {
+    setFeedbackConfirmOpen(false);
+    try {
+      const result = await sendFeedbackBroadcast.mutateAsync();
+      toast({
+        title: "Wysłano prośby o opinię",
+        description: `Wysłano: ${result.sent}, pominięto (już otrzymali): ${result.skipped}, błędów: ${result.failed}.`,
+      });
+    } catch {
+      toast({ title: "Błąd", description: "Nie udało się wysłać maili z prośbą o opinię.", variant: "destructive" });
+    }
+  }
+
   return (
     <Layout>
       <div className="px-4 py-5 md:px-8 md:py-8 max-w-6xl">
@@ -473,6 +502,16 @@ export default function AdminUsers() {
                   Odświeżono: {lastUpdated.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                 </span>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFeedbackConfirmOpen(true)}
+                disabled={sendFeedbackBroadcast.isPending}
+                className="gap-2"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                Wyślij prośbę o opinię
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -742,6 +781,24 @@ export default function AdminUsers() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Usuń konto
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={feedbackConfirmOpen} onOpenChange={setFeedbackConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Wysłać prośbę o opinię?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Mail z prośbą o opinię i informację o ewentualnych błędach trafi do wszystkich zarejestrowanych
+              użytkowników (poza kontami administratorów), którzy jeszcze go nie dostali. Tej operacji nie można cofnąć.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSendFeedbackBroadcast}>
+              Wyślij
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

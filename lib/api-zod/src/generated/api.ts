@@ -365,6 +365,17 @@ export const DeleteAdminUserResponse = zod.void()
 
 
 /**
+ * @summary Broadcast a one-off feedback-request email to all registered (non-admin) users
+ */
+export const PostAdminSendFeedbackEmailResponse = zod.object({
+  "totalUsers": zod.number(),
+  "sent": zod.number(),
+  "skipped": zod.number(),
+  "failed": zod.number()
+})
+
+
+/**
  * @summary Chat with AI CFO — returns a structured mini-report
  */
 export const postAiCfoChatBodyQuestionMax = 500;

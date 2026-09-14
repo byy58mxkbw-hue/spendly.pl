@@ -1371,6 +1371,13 @@ export type PatchAdminUserBlock200 = {
   blocked: boolean;
 };
 
+export type PostAdminSendFeedbackEmail200 = {
+  totalUsers: number;
+  sent: number;
+  skipped: number;
+  failed: number;
+};
+
 export type DeleteCostCenter200 = {
   deleted: boolean;
 };

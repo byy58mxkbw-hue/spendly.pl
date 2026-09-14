@@ -2,10 +2,11 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../lib/ai-plan.js";
+import { sendFeedbackRequestToAllUsers } from "../services/admin-broadcast.js";
 
 const router: IRouter = Router();
 
-const ADMIN_IDS = (process.env.ADMIN_USER_IDS ?? "")
+export const ADMIN_IDS = (process.env.ADMIN_USER_IDS ?? "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
@@ -18,7 +19,7 @@ export function denyAdmin(res: Response): void {
   res.status(403).json({ error: "Brak dostępu." });
 }
 
-interface ClerkUserRaw {
+export interface ClerkUserRaw {
   id: string;
   first_name: string | null;
   last_name: string | null;
@@ -39,7 +40,7 @@ async function clerkApiFetch(path: string): Promise<globalThis.Response> {
   });
 }
 
-async function fetchAllClerkUsers() {
+export async function fetchAllClerkUsers(): Promise<{ data: ClerkUserRaw[]; totalCount: number }> {
   const PAGE = 500;
   const allUsers: ClerkUserRaw[] = [];
   let offset = 0;
@@ -321,6 +322,21 @@ router.delete("/admin/users/:userId", async (req, res): Promise<void> => {
   if (!delRes.ok) { res.status(502).json({ error: "Dane usunięte z bazy, ale błąd usuwania konta w Clerk." }); return; }
 
   res.status(204).end();
+});
+
+// Jednorazowy (na razie) broadcast do WSZYSTKICH zarejestrowanych userów (poza
+// adminami) z prośbą o opinię/feedback. Dedup przez email_log (type=feedback_request)
+// — ponowne kliknięcie nie wysyła drugi raz do tych, którzy już dostali.
+router.post("/admin/send-feedback-email", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+
+  try {
+    const result = await sendFeedbackRequestToAllUsers(req.log);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err: String(err) }, "send-feedback-email failed");
+    res.status(500).json({ error: "Nie udało się wysłać maili z prośbą o opinię." });
+  }
 });
 
 export default router;

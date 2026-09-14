@@ -67,3 +67,16 @@ export function welcomeEmailHtml({ firstName }: { firstName: string | null }): s
     ${ctaButton("Przejdź do Spendly", APP_URL)}
   `);
 }
+
+// Jednorazowy broadcast do już zarejestrowanych userów (routes/admin.ts,
+// services/admin-broadcast.ts) — prośba o opinię/feedback. Bez przycisku CTA:
+// to prośba o odpowiedź mailem (reply-to), nie link do klikania.
+export function feedbackRequestEmailHtml({ firstName }: { firstName: string | null }): string {
+  const greeting = firstName ? `Cześć, ${firstName}!` : "Cześć!";
+  return shell(`
+    <p style="margin:0 0 16px 0; font-size:18px; font-weight:700;">${greeting}</p>
+    <p style="margin:0 0 12px 0;">Korzystasz ze Spendly od jakiegoś czasu i zależy nam na Twojej opinii.</p>
+    <p style="margin:0 0 12px 0;">Czy coś w aplikacji nie działa tak jak powinno, albo czegoś Ci brakuje? Chętnie się dowiemy — nawet jedno zdanie bardzo nam pomoże.</p>
+    <p style="margin:0 0 12px 0;">Wystarczy odpowiedzieć na tego maila.</p>
+  `);
+}

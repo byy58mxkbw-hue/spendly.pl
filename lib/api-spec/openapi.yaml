@@ -437,6 +437,33 @@ paths:
         "204":
           description: Deleted
 
+  /admin/send-feedback-email:
+    post:
+      operationId: postAdminSendFeedbackEmail
+      tags: [admin]
+      summary: Broadcast a one-off feedback-request email to all registered (non-admin) users
+      responses:
+        "200":
+          description: Broadcast summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalUsers:
+                    type: integer
+                  sent:
+                    type: integer
+                  skipped:
+                    type: integer
+                  failed:
+                    type: integer
+                required:
+                  - totalUsers
+                  - sent
+                  - skipped
+                  - failed
+
   /ai-cfo/chat:
     post:
       operationId: postAiCfoChat

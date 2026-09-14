@@ -105,6 +105,7 @@ import type {
   PatchAdminUserBlock200,
   PatchAdminUserBlockBody,
   PaymentsDashboard,
+  PostAdminSendFeedbackEmail200,
   PredictiveReport,
   PriceAlert,
   PriceChangeProduct,
@@ -1485,6 +1486,76 @@ export const useDeleteAdminUser = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteAdminUserMutationOptions(options));
+    }
+
+export const getPostAdminSendFeedbackEmailUrl = () => {
+
+
+
+
+  return `/api/admin/send-feedback-email`
+}
+
+/**
+ * @summary Broadcast a one-off feedback-request email to all registered (non-admin) users
+ */
+export const postAdminSendFeedbackEmail = async ( options?: RequestInit): Promise<PostAdminSendFeedbackEmail200> => {
+
+  return customFetch<PostAdminSendFeedbackEmail200>(getPostAdminSendFeedbackEmailUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostAdminSendFeedbackEmailMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminSendFeedbackEmail>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postAdminSendFeedbackEmail>>, TError,void, TContext> => {
+
+const mutationKey = ['postAdminSendFeedbackEmail'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postAdminSendFeedbackEmail>>, void> = () => {
+
+
+          return  postAdminSendFeedbackEmail(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostAdminSendFeedbackEmailMutationResult = NonNullable<Awaited<ReturnType<typeof postAdminSendFeedbackEmail>>>
+
+    export type PostAdminSendFeedbackEmailMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Broadcast a one-off feedback-request email to all registered (non-admin) users
+ */
+export const usePostAdminSendFeedbackEmail = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminSendFeedbackEmail>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postAdminSendFeedbackEmail>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPostAdminSendFeedbackEmailMutationOptions(options));
     }
 
 export const getPostAiCfoChatUrl = () => {
