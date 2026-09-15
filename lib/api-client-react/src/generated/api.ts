@@ -108,6 +108,7 @@ import type {
   PaymentsDashboard,
   PostAdminAnnounceTrial200,
   PostAdminBackfillTrial200,
+  PostAdminResyncClerkPlan200,
   PostAdminSendFeedbackEmail200,
   PredictiveReport,
   PriceAlert,
@@ -1629,6 +1630,76 @@ export const usePostAdminBackfillTrial = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getPostAdminBackfillTrialMutationOptions(options));
+    }
+
+export const getPostAdminResyncClerkPlanUrl = () => {
+
+
+
+
+  return `/api/admin/resync-clerk-plan`
+}
+
+/**
+ * @summary Force-resync Clerk publicMetadata.plan for every user with a subscriptions row, matching their real status
+ */
+export const postAdminResyncClerkPlan = async ( options?: RequestInit): Promise<PostAdminResyncClerkPlan200> => {
+
+  return customFetch<PostAdminResyncClerkPlan200>(getPostAdminResyncClerkPlanUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostAdminResyncClerkPlanMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminResyncClerkPlan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postAdminResyncClerkPlan>>, TError,void, TContext> => {
+
+const mutationKey = ['postAdminResyncClerkPlan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postAdminResyncClerkPlan>>, void> = () => {
+
+
+          return  postAdminResyncClerkPlan(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostAdminResyncClerkPlanMutationResult = NonNullable<Awaited<ReturnType<typeof postAdminResyncClerkPlan>>>
+
+    export type PostAdminResyncClerkPlanMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Force-resync Clerk publicMetadata.plan for every user with a subscriptions row, matching their real status
+ */
+export const usePostAdminResyncClerkPlan = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminResyncClerkPlan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postAdminResyncClerkPlan>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPostAdminResyncClerkPlanMutationOptions(options));
     }
 
 export const getPostAdminAnnounceTrialUrl = () => {

@@ -39,6 +39,7 @@ import {
   ChevronDown,
   ChevronsUpDown,
   RefreshCw,
+  RotateCcw,
   Copy,
   Mail,
   Clock,
@@ -218,6 +219,19 @@ function useAnnounceTrial() {
       const res = await authFetch(session, "/api/admin/announce-trial", { method: "POST" });
       if (!res.ok) throw new Error("Błąd wysyłki ogłoszenia o trialu");
       return res.json() as Promise<FeedbackBroadcastResult>;
+    },
+  });
+}
+
+type ClerkResyncResult = { totalSubscriptions: number; synced: number; failed: number };
+
+function useResyncClerkPlan() {
+  const { session } = useClerk();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await authFetch(session, "/api/admin/resync-clerk-plan", { method: "POST" });
+      if (!res.ok) throw new Error("Błąd synchronizacji planów");
+      return res.json() as Promise<ClerkResyncResult>;
     },
   });
 }
@@ -438,6 +452,7 @@ export default function AdminUsers() {
   const sendFeedbackBroadcast = useSendFeedbackBroadcast();
   const backfillTrial = useBackfillTrial();
   const announceTrial = useAnnounceTrial();
+  const resyncClerkPlan = useResyncClerkPlan();
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -544,6 +559,21 @@ export default function AdminUsers() {
     }
   }
 
+  // Naprawcze — bez potwierdzenia, bo to bezpieczna, idempotentna synchronizacja
+  // (tylko ustawia Clerk.publicMetadata.plan zgodnie z tym, co już jest w bazie).
+  async function handleResyncClerkPlan() {
+    try {
+      const result = await resyncClerkPlan.mutateAsync();
+      toast({
+        title: "Zsynchronizowano plany",
+        description: `Zsynchronizowano: ${result.synced}/${result.totalSubscriptions}, błędów: ${result.failed}.`,
+      });
+      void qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    } catch {
+      toast({ title: "Błąd", description: "Nie udało się zsynchronizować planów.", variant: "destructive" });
+    }
+  }
+
   return (
     <Layout>
       <div className="px-4 py-5 md:px-8 md:py-8 max-w-6xl">
@@ -576,6 +606,17 @@ export default function AdminUsers() {
               >
                 <Mail className="w-3.5 h-3.5" />
                 Wyślij ogłoszenie o trialu
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResyncClerkPlan}
+                disabled={resyncClerkPlan.isPending}
+                className="gap-2"
+                title="Naprawcze: wymusza ponowny sync planu do Clerk dla wszystkich userów z subskrypcją"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Zsynchronizuj plany
               </Button>
               <Button
                 variant="outline"

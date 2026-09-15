@@ -14,9 +14,10 @@ vi.mock("../routes/admin.js", () => ({
   ADMIN_IDS: ["user_admin"],
 }));
 
-import { startTrialForUser, getEffectivePlanStatus, backfillTrialForAllUsers } from "./subscriptions";
+import { startTrialForUser, getEffectivePlanStatus, backfillTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "./subscriptions";
 
 const noopLog = { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as unknown as import("pino").Logger;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const U = "test_subscriptions_user";
 const USERS = [U, "test_subscriptions_b", "user_admin"];
 
@@ -56,7 +57,7 @@ describe.skipIf(!RUN_DB)("subscriptions (trial)", () => {
       expect(row.status).toBe("trialing");
       expect(row.plan).toBe("pro");
       expect(row.trialEndsAt).not.toBeNull();
-      expect(patchClerkPublicMetadataMock).toHaveBeenCalledWith(U, { plan: "pro" });
+      expect(patchClerkPublicMetadataMock).toHaveBeenCalledWith(U, { plan: "pro" }, noopLog);
     });
 
     it("drugie wywołanie dla tego samego usera → idempotentne, nic nie zmienia", async () => {
@@ -98,7 +99,7 @@ describe.skipIf(!RUN_DB)("subscriptions (trial)", () => {
       expect(status.plan).toBe("free");
       expect(status.status).toBe("canceled");
       expect(status.daysLeft).toBe(0);
-      expect(patchClerkPublicMetadataMock).toHaveBeenCalledWith(U, { plan: "free" });
+      expect(patchClerkPublicMetadataMock).toHaveBeenCalledWith(U, { plan: "free" }, noopLog);
 
       const [row] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, U));
       expect(row.status).toBe("canceled");
@@ -116,6 +117,22 @@ describe.skipIf(!RUN_DB)("subscriptions (trial)", () => {
 
       const [adminRow] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, "user_admin"));
       expect(adminRow).toBeUndefined();
+    });
+  });
+
+  describe("resyncClerkPlanForAllSubscriptions", () => {
+    it("wymusza sync planu wg realnego statusu (trialing→plan, canceled→free), liczy błędy", async () => {
+      await db.insert(subscriptionsTable).values([
+        { userId: U, status: "trialing", plan: "pro", trialEndsAt: new Date(Date.now() + DAY_MS) },
+        { userId: "test_subscriptions_b", status: "canceled", plan: "pro" },
+      ]);
+      patchClerkPublicMetadataMock.mockReset();
+      patchClerkPublicMetadataMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+      const result = await resyncClerkPlanForAllSubscriptions(noopLog);
+      expect(result).toEqual({ totalSubscriptions: 2, synced: 1, failed: 1 });
+      expect(patchClerkPublicMetadataMock).toHaveBeenCalledWith(U, { plan: "pro" }, noopLog);
+      expect(patchClerkPublicMetadataMock).toHaveBeenCalledWith("test_subscriptions_b", { plan: "free" }, noopLog);
     });
   });
 });

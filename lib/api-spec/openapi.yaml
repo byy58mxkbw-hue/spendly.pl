@@ -488,6 +488,30 @@ paths:
                   - started
                   - alreadyHadSubscription
 
+  /admin/resync-clerk-plan:
+    post:
+      operationId: postAdminResyncClerkPlan
+      tags: [admin]
+      summary: Force-resync Clerk publicMetadata.plan for every user with a subscriptions row, matching their real status
+      responses:
+        "200":
+          description: Resync summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalSubscriptions:
+                    type: integer
+                  synced:
+                    type: integer
+                  failed:
+                    type: integer
+                required:
+                  - totalSubscriptions
+                  - synced
+                  - failed
+
   /admin/announce-trial:
     post:
       operationId: postAdminAnnounceTrial

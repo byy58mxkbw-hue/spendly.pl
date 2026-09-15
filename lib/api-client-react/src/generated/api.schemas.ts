@@ -1384,6 +1384,12 @@ export type PostAdminBackfillTrial200 = {
   alreadyHadSubscription: number;
 };
 
+export type PostAdminResyncClerkPlan200 = {
+  totalSubscriptions: number;
+  synced: number;
+  failed: number;
+};
+
 export type PostAdminAnnounceTrial200 = {
   totalUsers: number;
   sent: number;

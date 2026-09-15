@@ -386,6 +386,16 @@ export const PostAdminBackfillTrialResponse = zod.object({
 
 
 /**
+ * @summary Force-resync Clerk publicMetadata.plan for every user with a subscriptions row, matching their real status
+ */
+export const PostAdminResyncClerkPlanResponse = zod.object({
+  "totalSubscriptions": zod.number(),
+  "synced": zod.number(),
+  "failed": zod.number()
+})
+
+
+/**
  * @summary Broadcast a one-off trial-announcement email to all registered (non-admin) users
  */
 export const PostAdminAnnounceTrialResponse = zod.object({

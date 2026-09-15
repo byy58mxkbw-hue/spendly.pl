@@ -1,9 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import type { Logger } from "pino";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../lib/ai-plan.js";
 import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers } from "../services/admin-broadcast.js";
-import { backfillTrialForAllUsers } from "../services/subscriptions.js";
+import { backfillTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "../services/subscriptions.js";
 
 const router: IRouter = Router();
 
@@ -44,9 +45,16 @@ export async function clerkApiFetch(path: string): Promise<globalThis.Response> 
 // Scala `patch` do istniejącego public_metadata usera i zapisuje w Clerk — współdzielone
 // przez akcje admina (block, plan) i lib/subscriptions.ts (sync planu po starcie/wygaśnięciu
 // triala). Jedno miejsce do zamockowania w testach zamiast kopiowania fetch+PATCH.
-export async function patchClerkPublicMetadata(userId: string, patch: Record<string, unknown>): Promise<boolean> {
+// `log` opcjonalny — gdy podany, loguje DOKŁADNY powód niepowodzenia (status+body), bo bez
+// tego nieudany PATCH ginął jako gołe `false` (realny incydent: backfill triala 2026-09-15 —
+// 5/5 synców do Clerk ciche-nieudane, przyczyna nieznana z samego logu).
+export async function patchClerkPublicMetadata(userId: string, patch: Record<string, unknown>, log?: Logger): Promise<boolean> {
   const r = await clerkApiFetch(`/users/${userId}`);
-  if (!r.ok) return false;
+  if (!r.ok) {
+    const body = await r.text().catch(() => "");
+    log?.warn({ userId, step: "get", status: r.status, body: body.slice(0, 300) }, "patchClerkPublicMetadata: GET nieudany");
+    return false;
+  }
   const user = (await r.json()) as ClerkUserRaw;
   const currentMeta = user.public_metadata ?? {};
 
@@ -58,6 +66,10 @@ export async function patchClerkPublicMetadata(userId: string, patch: Record<str
     },
     body: JSON.stringify({ public_metadata: { ...currentMeta, ...patch } }),
   });
+  if (!patchRes.ok) {
+    const body = await patchRes.text().catch(() => "");
+    log?.warn({ userId, step: "patch", status: patchRes.status, body: body.slice(0, 300) }, "patchClerkPublicMetadata: PATCH nieudany");
+  }
   return patchRes.ok;
 }
 
@@ -243,7 +255,7 @@ router.patch("/admin/users/:userId/block", async (req, res): Promise<void> => {
   }
   const blocked = rawBlocked;
 
-  const ok = await patchClerkPublicMetadata(userId, { blocked });
+  const ok = await patchClerkPublicMetadata(userId, { blocked }, req.log);
   if (!ok) { res.status(502).json({ error: "Błąd aktualizacji Clerk" }); return; }
 
   res.json({ ok: true, blocked });
@@ -263,7 +275,7 @@ router.patch("/admin/users/:userId/plan", async (req, res): Promise<void> => {
   }
   const plan = raw as Plan;
 
-  const ok = await patchClerkPublicMetadata(userId, { plan });
+  const ok = await patchClerkPublicMetadata(userId, { plan }, req.log);
   if (!ok) { res.status(502).json({ error: "Błąd aktualizacji Clerk" }); return; }
 
   res.json({ ok: true, plan });
@@ -362,6 +374,22 @@ router.post("/admin/announce-trial", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err: String(err) }, "announce-trial failed");
     res.status(500).json({ error: "Nie udało się wysłać ogłoszenia o trialu." });
+  }
+});
+
+// Naprawcze: wymusza ponowny sync Clerk.publicMetadata.plan dla WSZYSTKICH userów
+// z wierszem w subscriptions, niezależnie czy trial był nadany wcześniej. Do użycia,
+// gdy /admin/backfill-trial zapisał trial w bazie, ale sync do Clerk się nie udał
+// (patrz log "sync planu do Clerk nieudany" — realny incydent 2026-09-15).
+router.post("/admin/resync-clerk-plan", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+
+  try {
+    const result = await resyncClerkPlanForAllSubscriptions(req.log);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err: String(err) }, "resync-clerk-plan failed");
+    res.status(500).json({ error: "Nie udało się zsynchronizować planów." });
   }
 });
 
