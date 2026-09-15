@@ -42,35 +42,31 @@ export async function clerkApiFetch(path: string): Promise<globalThis.Response> 
   });
 }
 
-// Scala `patch` do istniejącego public_metadata usera i zapisuje w Clerk — współdzielone
-// przez akcje admina (block, plan) i lib/subscriptions.ts (sync planu po starcie/wygaśnięciu
-// triala). Jedno miejsce do zamockowania w testach zamiast kopiowania fetch+PATCH.
-// `log` opcjonalny — gdy podany, loguje DOKŁADNY powód niepowodzenia (status+body), bo bez
-// tego nieudany PATCH ginął jako gołe `false` (realny incydent: backfill triala 2026-09-15 —
-// 5/5 synców do Clerk ciche-nieudane, przyczyna nieznana z samego logu).
+// Aktualizuje public_metadata usera w Clerk — współdzielone przez akcje admina (block,
+// plan) i lib/subscriptions.ts (sync planu po starcie/wygaśnięciu triala). Jedno miejsce
+// do zamockowania w testach zamiast kopiowania fetch+PATCH.
+//
+// Endpoint `PATCH /v1/users/{id}/metadata` (NIE `PATCH /v1/users/{id}` z polem
+// public_metadata w body — ten stary sposób Clerk już WYCOFAŁ, zwraca 422
+// `form_param_deprecated`; realny incydent na produkcji 2026-09-15, backfill triala
+// dla 5 userów w 100% ciche-nieudany, wykryte dopiero po dodaniu logowania body błędu).
+// Nowy endpoint robi DEEP MERGE po stronie Clerka — nie trzeba już samemu pobierać i
+// scalać istniejącego public_metadata (jeden request zamiast GET+PATCH).
+// `log` opcjonalny — gdy podany, loguje status+body nieudanego PATCH.
 export async function patchClerkPublicMetadata(userId: string, patch: Record<string, unknown>, log?: Logger): Promise<boolean> {
-  const r = await clerkApiFetch(`/users/${userId}`);
-  if (!r.ok) {
-    const body = await r.text().catch(() => "");
-    log?.warn({ userId, step: "get", status: r.status, body: body.slice(0, 300) }, "patchClerkPublicMetadata: GET nieudany");
-    return false;
-  }
-  const user = (await r.json()) as ClerkUserRaw;
-  const currentMeta = user.public_metadata ?? {};
-
-  const patchRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+  const res = await fetch(`https://api.clerk.com/v1/users/${userId}/metadata`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${process.env.CLERK_SECRET_KEY ?? ""}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ public_metadata: { ...currentMeta, ...patch } }),
+    body: JSON.stringify({ public_metadata: patch }),
   });
-  if (!patchRes.ok) {
-    const body = await patchRes.text().catch(() => "");
-    log?.warn({ userId, step: "patch", status: patchRes.status, body: body.slice(0, 300) }, "patchClerkPublicMetadata: PATCH nieudany");
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    log?.warn({ userId, status: res.status, body: body.slice(0, 300) }, "patchClerkPublicMetadata: PATCH nieudany");
   }
-  return patchRes.ok;
+  return res.ok;
 }
 
 export async function fetchAllClerkUsers(): Promise<{ data: ClerkUserRaw[]; totalCount: number }> {
