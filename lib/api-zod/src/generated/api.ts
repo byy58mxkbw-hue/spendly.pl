@@ -376,6 +376,38 @@ export const PostAdminSendFeedbackEmailResponse = zod.object({
 
 
 /**
+ * @summary Grant a 30-day pro trial to every registered (non-admin) user who doesn't have a subscription yet
+ */
+export const PostAdminBackfillTrialResponse = zod.object({
+  "totalUsers": zod.number(),
+  "started": zod.number(),
+  "alreadyHadSubscription": zod.number()
+})
+
+
+/**
+ * @summary Broadcast a one-off trial-announcement email to all registered (non-admin) users
+ */
+export const PostAdminAnnounceTrialResponse = zod.object({
+  "totalUsers": zod.number(),
+  "sent": zod.number(),
+  "skipped": zod.number(),
+  "failed": zod.number()
+})
+
+
+/**
+ * @summary Effective plan/subscription status for the current user (trial countdown banner)
+ */
+export const GetSubscriptionStatusResponse = zod.object({
+  "plan": zod.enum(['free', 'pro', 'business']),
+  "status": zod.enum(['trialing', 'active', 'past_due', 'canceled', 'none']),
+  "trialEndsAt": zod.string().nullable(),
+  "daysLeft": zod.number().nullable()
+})
+
+
+/**
  * @summary Chat with AI CFO — returns a structured mini-report
  */
 export const postAiCfoChatBodyQuestionMax = 500;

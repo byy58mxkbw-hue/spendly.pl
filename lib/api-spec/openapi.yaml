@@ -464,6 +464,88 @@ paths:
                   - skipped
                   - failed
 
+  /admin/backfill-trial:
+    post:
+      operationId: postAdminBackfillTrial
+      tags: [admin]
+      summary: Grant a 30-day pro trial to every registered (non-admin) user who doesn't have a subscription yet
+      responses:
+        "200":
+          description: Backfill summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalUsers:
+                    type: integer
+                  started:
+                    type: integer
+                  alreadyHadSubscription:
+                    type: integer
+                required:
+                  - totalUsers
+                  - started
+                  - alreadyHadSubscription
+
+  /admin/announce-trial:
+    post:
+      operationId: postAdminAnnounceTrial
+      tags: [admin]
+      summary: Broadcast a one-off trial-announcement email to all registered (non-admin) users
+      responses:
+        "200":
+          description: Broadcast summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalUsers:
+                    type: integer
+                  sent:
+                    type: integer
+                  skipped:
+                    type: integer
+                  failed:
+                    type: integer
+                required:
+                  - totalUsers
+                  - sent
+                  - skipped
+                  - failed
+
+  /subscription/status:
+    get:
+      operationId: getSubscriptionStatus
+      tags: [subscription]
+      summary: Effective plan/subscription status for the current user (trial countdown banner)
+      responses:
+        "200":
+          description: Subscription status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan:
+                    type: string
+                    enum: [free, pro, business]
+                  status:
+                    type: string
+                    enum: [trialing, active, past_due, canceled, none]
+                  trialEndsAt:
+                    type: string
+                    nullable: true
+                  daysLeft:
+                    type: integer
+                    nullable: true
+                required:
+                  - plan
+                  - status
+                  - trialEndsAt
+                  - daysLeft
+
   /ai-cfo/chat:
     post:
       operationId: postAiCfoChat

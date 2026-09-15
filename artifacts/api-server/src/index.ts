@@ -10,6 +10,7 @@ import { ensureDishIngredientColumns } from "./services/ensure-dish-columns.js";
 import { ensureDecodedNames } from "./services/ensure-decoded-names.js";
 import { ensureGrossInvoiceTotals } from "./services/ensure-gross-invoice-totals.js";
 import { ensureEmailLogTable } from "./services/ensure-email.js";
+import { ensureSubscriptionsTables } from "./services/ensure-subscriptions.js";
 import { startQueue } from "./services/queue.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
@@ -82,6 +83,9 @@ app.listen(port, (err) => {
 
   // Log wysłanych maili (dedup webhooków Clerk) — idempotentne DDL, zawsze.
   ensureEmailLogTable(logger).catch((err) => logger.error({ err }, "email_log: migracja nieudana"));
+
+  // Subskrypcje + płatności (trial, docelowo Tpay) — idempotentne DDL, zawsze.
+  ensureSubscriptionsTables(logger).catch((err) => logger.error({ err }, "subscriptions: migracja nieudana"));
 
   // Kolumny szacowanej ceny AI w dish_ingredients (fallback food cost) — idempotentne DDL.
   ensureDishIngredientColumns(logger).catch((err) => logger.error({ err }, "dish_ingredients est_*: migracja nieudana"));

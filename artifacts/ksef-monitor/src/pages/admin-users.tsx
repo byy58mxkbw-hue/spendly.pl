@@ -41,6 +41,7 @@ import {
   RefreshCw,
   Copy,
   Mail,
+  Clock,
 } from "@/lib/icons";
 import {
   BarChart,
@@ -186,6 +187,7 @@ function useDeleteUser() {
 }
 
 type FeedbackBroadcastResult = { totalUsers: number; sent: number; skipped: number; failed: number };
+type TrialBackfillResult = { totalUsers: number; started: number; alreadyHadSubscription: number };
 
 function useSendFeedbackBroadcast() {
   const { session } = useClerk();
@@ -193,6 +195,28 @@ function useSendFeedbackBroadcast() {
     mutationFn: async () => {
       const res = await authFetch(session, "/api/admin/send-feedback-email", { method: "POST" });
       if (!res.ok) throw new Error("Błąd wysyłki maili z prośbą o opinię");
+      return res.json() as Promise<FeedbackBroadcastResult>;
+    },
+  });
+}
+
+function useBackfillTrial() {
+  const { session } = useClerk();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await authFetch(session, "/api/admin/backfill-trial", { method: "POST" });
+      if (!res.ok) throw new Error("Błąd nadawania triala");
+      return res.json() as Promise<TrialBackfillResult>;
+    },
+  });
+}
+
+function useAnnounceTrial() {
+  const { session } = useClerk();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await authFetch(session, "/api/admin/announce-trial", { method: "POST" });
+      if (!res.ok) throw new Error("Błąd wysyłki ogłoszenia o trialu");
       return res.json() as Promise<FeedbackBroadcastResult>;
     },
   });
@@ -412,6 +436,8 @@ export default function AdminUsers() {
   const setPlan = useSetPlan();
   const deleteUser = useDeleteUser();
   const sendFeedbackBroadcast = useSendFeedbackBroadcast();
+  const backfillTrial = useBackfillTrial();
+  const announceTrial = useAnnounceTrial();
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -419,6 +445,8 @@ export default function AdminUsers() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [feedbackConfirmOpen, setFeedbackConfirmOpen] = useState(false);
+  const [backfillTrialConfirmOpen, setBackfillTrialConfirmOpen] = useState(false);
+  const [announceTrialConfirmOpen, setAnnounceTrialConfirmOpen] = useState(false);
   const [sortCol, setSortCol] = useState<SortColumn>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -489,6 +517,33 @@ export default function AdminUsers() {
     }
   }
 
+  async function handleBackfillTrial() {
+    setBackfillTrialConfirmOpen(false);
+    try {
+      const result = await backfillTrial.mutateAsync();
+      toast({
+        title: "Trial nadany",
+        description: `Nadano: ${result.started}, mieli już subskrypcję: ${result.alreadyHadSubscription}.`,
+      });
+      void qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    } catch {
+      toast({ title: "Błąd", description: "Nie udało się nadać triala.", variant: "destructive" });
+    }
+  }
+
+  async function handleAnnounceTrial() {
+    setAnnounceTrialConfirmOpen(false);
+    try {
+      const result = await announceTrial.mutateAsync();
+      toast({
+        title: "Wysłano ogłoszenie o trialu",
+        description: `Wysłano: ${result.sent}, pominięto (już otrzymali): ${result.skipped}, błędów: ${result.failed}.`,
+      });
+    } catch {
+      toast({ title: "Błąd", description: "Nie udało się wysłać ogłoszenia o trialu.", variant: "destructive" });
+    }
+  }
+
   return (
     <Layout>
       <div className="px-4 py-5 md:px-8 md:py-8 max-w-6xl">
@@ -502,6 +557,26 @@ export default function AdminUsers() {
                   Odświeżono: {lastUpdated.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                 </span>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBackfillTrialConfirmOpen(true)}
+                disabled={backfillTrial.isPending}
+                className="gap-2"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                Nadaj trial wszystkim
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAnnounceTrialConfirmOpen(true)}
+                disabled={announceTrial.isPending}
+                className="gap-2"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                Wyślij ogłoszenie o trialu
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -798,6 +873,45 @@ export default function AdminUsers() {
           <AlertDialogFooter>
             <AlertDialogCancel>Anuluj</AlertDialogCancel>
             <AlertDialogAction onClick={handleSendFeedbackBroadcast}>
+              Wyślij
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={backfillTrialConfirmOpen} onOpenChange={setBackfillTrialConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Nadać trial wszystkim?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Każdy zarejestrowany użytkownik (poza kontami administratorów), który jeszcze nie ma subskrypcji,
+              dostanie 30-dniowy trial planu Pro — bez podawania karty. Tej operacji nie można cofnąć. Zrób to
+              PRZED wysłaniem ogłoszenia o trialu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBackfillTrial}>
+              Nadaj trial
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={announceTrialConfirmOpen} onOpenChange={setAnnounceTrialConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Wysłać ogłoszenie o trialu?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Mail ogłaszający 30-dniowy trial planu Pro trafi do wszystkich zarejestrowanych użytkowników (poza
+              kontami administratorów), którzy jeszcze go nie dostali. Upewnij się, że najpierw kliknąłeś „Nadaj
+              trial wszystkim" — inaczej mail będzie odnosił się do triala, którego user jeszcze nie ma. Tej
+              operacji nie można cofnąć.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAnnounceTrial}>
               Wyślij
             </AlertDialogAction>
           </AlertDialogFooter>

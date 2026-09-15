@@ -1378,6 +1378,46 @@ export type PostAdminSendFeedbackEmail200 = {
   failed: number;
 };
 
+export type PostAdminBackfillTrial200 = {
+  totalUsers: number;
+  started: number;
+  alreadyHadSubscription: number;
+};
+
+export type PostAdminAnnounceTrial200 = {
+  totalUsers: number;
+  sent: number;
+  skipped: number;
+  failed: number;
+};
+
+export type GetSubscriptionStatus200Plan = typeof GetSubscriptionStatus200Plan[keyof typeof GetSubscriptionStatus200Plan];
+
+
+export const GetSubscriptionStatus200Plan = {
+  free: 'free',
+  pro: 'pro',
+  business: 'business',
+} as const;
+
+export type GetSubscriptionStatus200Status = typeof GetSubscriptionStatus200Status[keyof typeof GetSubscriptionStatus200Status];
+
+
+export const GetSubscriptionStatus200Status = {
+  trialing: 'trialing',
+  active: 'active',
+  past_due: 'past_due',
+  canceled: 'canceled',
+  none: 'none',
+} as const;
+
+export type GetSubscriptionStatus200 = {
+  plan: GetSubscriptionStatus200Plan;
+  status: GetSubscriptionStatus200Status;
+  trialEndsAt: string | null;
+  daysLeft: number | null;
+};
+
 export type DeleteCostCenter200 = {
   deleted: boolean;
 };

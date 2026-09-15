@@ -43,6 +43,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useToast } from "@/hooks/use-toast";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { AiAssistant } from "@/components/ai-assistant";
+import { TrialBanner } from "@/components/trial-banner";
 import { useTheme } from "@/hooks/use-theme";
 
 type NavItem = { path: string; label: string; icon: React.ElementType };
@@ -784,6 +785,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="flex-1 min-w-0 overflow-y-auto pt-14 md:pt-0 relative z-10"
         style={{ paddingBottom: "calc(4rem + env(safe-area-inset-bottom))" }}
       >
+        <TrialBanner />
         {children}
       </main>
 

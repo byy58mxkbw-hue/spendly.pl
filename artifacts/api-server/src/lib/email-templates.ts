@@ -80,3 +80,16 @@ export function feedbackRequestEmailHtml({ firstName }: { firstName: string | nu
     <p style="margin:0 0 12px 0;">Wystarczy odpowiedzieć na tego maila.</p>
   `);
 }
+
+// Jednorazowe ogłoszenie startu 30-dniowego triala pro (routes/admin.ts:
+// /admin/announce-trial, wołane PO nadaniu triala — patrz admin-broadcast.ts).
+export function trialAnnouncementEmailHtml({ firstName, trialEndsAtLabel }: { firstName: string | null; trialEndsAtLabel: string }): string {
+  const greeting = firstName ? `Cześć, ${firstName}!` : "Cześć!";
+  return shell(`
+    <p style="margin:0 0 16px 0; font-size:18px; font-weight:700;">${greeting}</p>
+    <p style="margin:0 0 12px 0;">Spendly wchodzi w pełną wersję z płatnymi planami. Zanim cokolwiek zapłacisz — dostajesz <strong>30 dni pełnego dostępu do planu Pro, całkowicie za darmo</strong>. Bez podawania karty, bez zobowiązań.</p>
+    <p style="margin:0 0 12px 0;">Przez ten czas masz wszystko: automatyczną analizę faktur, historię i trendy cen, wykrywanie podwyżek, ranking dostawców oraz asystenta AI do kontroli kosztów.</p>
+    <p style="margin:0 0 12px 0;">Twój okres próbny kończy się <strong>${trialEndsAtLabel}</strong>. Do tego czasu przetestuj spokojnie platformę — jeśli zdecydujesz się zostać, napiszemy osobno o płatnych planach. Jeśli nie, nic nie tracisz — konto wróci do wersji darmowej.</p>
+    ${ctaButton("Przejdź do Spendly", APP_URL)}
+  `);
+}

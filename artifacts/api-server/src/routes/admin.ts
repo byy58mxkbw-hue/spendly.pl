@@ -2,7 +2,8 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../lib/ai-plan.js";
-import { sendFeedbackRequestToAllUsers } from "../services/admin-broadcast.js";
+import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers } from "../services/admin-broadcast.js";
+import { backfillTrialForAllUsers } from "../services/subscriptions.js";
 
 const router: IRouter = Router();
 
@@ -30,7 +31,7 @@ export interface ClerkUserRaw {
   public_metadata: Record<string, unknown>;
 }
 
-async function clerkApiFetch(path: string): Promise<globalThis.Response> {
+export async function clerkApiFetch(path: string): Promise<globalThis.Response> {
   const secretKey = process.env.CLERK_SECRET_KEY ?? "";
   return fetch(`https://api.clerk.com/v1${path}`, {
     headers: {
@@ -38,6 +39,26 @@ async function clerkApiFetch(path: string): Promise<globalThis.Response> {
       "Cache-Control": "no-cache, no-store",
     },
   });
+}
+
+// Scala `patch` do istniejącego public_metadata usera i zapisuje w Clerk — współdzielone
+// przez akcje admina (block, plan) i lib/subscriptions.ts (sync planu po starcie/wygaśnięciu
+// triala). Jedno miejsce do zamockowania w testach zamiast kopiowania fetch+PATCH.
+export async function patchClerkPublicMetadata(userId: string, patch: Record<string, unknown>): Promise<boolean> {
+  const r = await clerkApiFetch(`/users/${userId}`);
+  if (!r.ok) return false;
+  const user = (await r.json()) as ClerkUserRaw;
+  const currentMeta = user.public_metadata ?? {};
+
+  const patchRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${process.env.CLERK_SECRET_KEY ?? ""}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ public_metadata: { ...currentMeta, ...patch } }),
+  });
+  return patchRes.ok;
 }
 
 export async function fetchAllClerkUsers(): Promise<{ data: ClerkUserRaw[]; totalCount: number }> {
@@ -222,20 +243,8 @@ router.patch("/admin/users/:userId/block", async (req, res): Promise<void> => {
   }
   const blocked = rawBlocked;
 
-  const r = await clerkApiFetch(`/users/${userId}`);
-  if (!r.ok) { res.status(502).json({ error: "Błąd Clerk API" }); return; }
-  const user = (await r.json()) as ClerkUserRaw;
-  const currentMeta = user.public_metadata ?? {};
-
-  const patchRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-    method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${process.env.CLERK_SECRET_KEY ?? ""}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ public_metadata: { ...currentMeta, blocked } }),
-  });
-  if (!patchRes.ok) { res.status(502).json({ error: "Błąd aktualizacji Clerk" }); return; }
+  const ok = await patchClerkPublicMetadata(userId, { blocked });
+  if (!ok) { res.status(502).json({ error: "Błąd aktualizacji Clerk" }); return; }
 
   res.json({ ok: true, blocked });
 });
@@ -254,20 +263,8 @@ router.patch("/admin/users/:userId/plan", async (req, res): Promise<void> => {
   }
   const plan = raw as Plan;
 
-  const r = await clerkApiFetch(`/users/${userId}`);
-  if (!r.ok) { res.status(502).json({ error: "Błąd Clerk API" }); return; }
-  const user = (await r.json()) as ClerkUserRaw;
-  const currentMeta = user.public_metadata ?? {};
-
-  const patchRes = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
-    method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${process.env.CLERK_SECRET_KEY ?? ""}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ public_metadata: { ...currentMeta, plan } }),
-  });
-  if (!patchRes.ok) { res.status(502).json({ error: "Błąd aktualizacji Clerk" }); return; }
+  const ok = await patchClerkPublicMetadata(userId, { plan });
+  if (!ok) { res.status(502).json({ error: "Błąd aktualizacji Clerk" }); return; }
 
   res.json({ ok: true, plan });
 });
@@ -336,6 +333,35 @@ router.post("/admin/send-feedback-email", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err: String(err) }, "send-feedback-email failed");
     res.status(500).json({ error: "Nie udało się wysłać maili z prośbą o opinię." });
+  }
+});
+
+// Nadaje 30-dniowy trial pro WSZYSTKIM zarejestrowanym userom (poza adminami), którzy
+// jeszcze nie mają subskrypcji. Kliknąć PRZED /admin/announce-trial (kolejność ważna —
+// mail ma odnosić się do już realnie nadanego triala).
+router.post("/admin/backfill-trial", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+
+  try {
+    const result = await backfillTrialForAllUsers(req.log);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err: String(err) }, "backfill-trial failed");
+    res.status(500).json({ error: "Nie udało się nadać triala." });
+  }
+});
+
+// Jednorazowy broadcast ogłaszający start triala. Dedup przez email_log
+// (type=trial_start_announcement).
+router.post("/admin/announce-trial", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+
+  try {
+    const result = await sendTrialAnnouncementToAllUsers(req.log);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err: String(err) }, "announce-trial failed");
+    res.status(500).json({ error: "Nie udało się wysłać ogłoszenia o trialu." });
   }
 });
 

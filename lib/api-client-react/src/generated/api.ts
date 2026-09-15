@@ -74,6 +74,7 @@ import type {
   GetRecentPurchasesParams,
   GetReportsCostCentersParams,
   GetSpendBridgeParams,
+  GetSubscriptionStatus200,
   GetSupplierMonthlySpendParams,
   GetSupplierTopProductsParams,
   GetTopPriceChangesParams,
@@ -105,6 +106,8 @@ import type {
   PatchAdminUserBlock200,
   PatchAdminUserBlockBody,
   PaymentsDashboard,
+  PostAdminAnnounceTrial200,
+  PostAdminBackfillTrial200,
   PostAdminSendFeedbackEmail200,
   PredictiveReport,
   PriceAlert,
@@ -1557,6 +1560,223 @@ export const usePostAdminSendFeedbackEmail = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getPostAdminSendFeedbackEmailMutationOptions(options));
     }
+
+export const getPostAdminBackfillTrialUrl = () => {
+
+
+
+
+  return `/api/admin/backfill-trial`
+}
+
+/**
+ * @summary Grant a 30-day pro trial to every registered (non-admin) user who doesn't have a subscription yet
+ */
+export const postAdminBackfillTrial = async ( options?: RequestInit): Promise<PostAdminBackfillTrial200> => {
+
+  return customFetch<PostAdminBackfillTrial200>(getPostAdminBackfillTrialUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostAdminBackfillTrialMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminBackfillTrial>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postAdminBackfillTrial>>, TError,void, TContext> => {
+
+const mutationKey = ['postAdminBackfillTrial'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postAdminBackfillTrial>>, void> = () => {
+
+
+          return  postAdminBackfillTrial(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostAdminBackfillTrialMutationResult = NonNullable<Awaited<ReturnType<typeof postAdminBackfillTrial>>>
+
+    export type PostAdminBackfillTrialMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Grant a 30-day pro trial to every registered (non-admin) user who doesn't have a subscription yet
+ */
+export const usePostAdminBackfillTrial = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminBackfillTrial>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postAdminBackfillTrial>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPostAdminBackfillTrialMutationOptions(options));
+    }
+
+export const getPostAdminAnnounceTrialUrl = () => {
+
+
+
+
+  return `/api/admin/announce-trial`
+}
+
+/**
+ * @summary Broadcast a one-off trial-announcement email to all registered (non-admin) users
+ */
+export const postAdminAnnounceTrial = async ( options?: RequestInit): Promise<PostAdminAnnounceTrial200> => {
+
+  return customFetch<PostAdminAnnounceTrial200>(getPostAdminAnnounceTrialUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostAdminAnnounceTrialMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminAnnounceTrial>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postAdminAnnounceTrial>>, TError,void, TContext> => {
+
+const mutationKey = ['postAdminAnnounceTrial'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postAdminAnnounceTrial>>, void> = () => {
+
+
+          return  postAdminAnnounceTrial(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostAdminAnnounceTrialMutationResult = NonNullable<Awaited<ReturnType<typeof postAdminAnnounceTrial>>>
+
+    export type PostAdminAnnounceTrialMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Broadcast a one-off trial-announcement email to all registered (non-admin) users
+ */
+export const usePostAdminAnnounceTrial = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postAdminAnnounceTrial>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postAdminAnnounceTrial>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPostAdminAnnounceTrialMutationOptions(options));
+    }
+
+export const getGetSubscriptionStatusUrl = () => {
+
+
+
+
+  return `/api/subscription/status`
+}
+
+/**
+ * @summary Effective plan/subscription status for the current user (trial countdown banner)
+ */
+export const getSubscriptionStatus = async ( options?: RequestInit): Promise<GetSubscriptionStatus200> => {
+
+  return customFetch<GetSubscriptionStatus200>(getGetSubscriptionStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSubscriptionStatusQueryKey = () => {
+    return [
+    `/api/subscription/status`
+    ] as const;
+    }
+
+
+export const getGetSubscriptionStatusQueryOptions = <TData = Awaited<ReturnType<typeof getSubscriptionStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubscriptionStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSubscriptionStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSubscriptionStatus>>> = ({ signal }) => getSubscriptionStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSubscriptionStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSubscriptionStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getSubscriptionStatus>>>
+export type GetSubscriptionStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Effective plan/subscription status for the current user (trial countdown banner)
+ */
+
+export function useGetSubscriptionStatus<TData = Awaited<ReturnType<typeof getSubscriptionStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSubscriptionStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSubscriptionStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getPostAiCfoChatUrl = () => {
 

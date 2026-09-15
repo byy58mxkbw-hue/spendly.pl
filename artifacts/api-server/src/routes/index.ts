@@ -59,4 +59,7 @@ router.use(salesRouter);
 import goposRouter from "./gopos";
 router.use(goposRouter);
 
+import subscriptionRouter from "./subscription";
+router.use(subscriptionRouter);
+
 export default router;
