@@ -59,3 +59,9 @@ __server.log
 
 # Edytor / lokalne ustawienia
 .vscode/
+
+# Jednorazowe skrypty SQL do odpalenia ręcznie na produkcyjnej bazie —
+# zawierają realne dane produktów wielu tenantów (repo jest publiczne, rule 36).
+# Wygeneruj lokalnie, odpal na prodzie, usuń — nigdy nie commituj.
+lib/db/prod_*.sql
+Claude outputs/

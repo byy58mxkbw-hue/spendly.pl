@@ -234,6 +234,26 @@ describe("categorizeProduct: regresje z audytu produkcyjnego (marki vs pospolite
   });
 });
 
+// Regresje znalezione przy weryfikacji prod_category_updates.sql (2026-09-21,
+// przed odpaleniem na produkcji): napoje (sok/syrop smakowy) łapały się na
+// nazwę owocu w warzywa, bo warzywa były wcześniej w tablicy CATEGORY_DEFS.
+describe("categorizeProduct: napoje PRZED warzywa (sok, syropy smakowe)", () => {
+  it('"sok pomarańczowy" trafia do napoje, nie warzywa (przez nazwę owocu)', () => {
+    expect(categorizeProduct("pet 1/12 toma sok pomaranczowy drs")).toBe("napoje");
+  });
+  it('"sok jabłkowy" trafia do napoje, nie warzywa', () => {
+    expect(categorizeProduct("pet 1/12 toma sok jablkowy drs")).toBe("napoje");
+  });
+  it('syrop smakowy marki Monin trafia do napoje, nie warzywa (przez "marakuj")', () => {
+    expect(categorizeProduct("monin syrop marakuja - passion fruit")).toBe("napoje");
+  });
+  it('prawdziwe owoce nadal trafiają do warzyw', () => {
+    expect(categorizeProduct("pomarańcze kraj pochodzenia hiszpania")).toBe("warzywa");
+    expect(categorizeProduct("jabłka polskie")).toBe("warzywa");
+    expect(categorizeProduct("marakuja świeża")).toBe("warzywa");
+  });
+});
+
 describe("categorizeProduct: sprzęt (deski, akcesoria drewniane)", () => {
   it('"deska serwisowa bukowa 40cm" → sprzet', () => {
     expect(categorizeProduct("deska serwisowa bukowa 40cm")).toBe("sprzet");

@@ -13,6 +13,8 @@
  *            slodycze PRZED pieczywo (czekolada, ciastka)
  *            srodki_czystosci i opakowania PRZED napoje (papier, folie)
  *            sery PRZED nabiał (serek trafia do sery, nie nabiał)
+ *            napoje PRZED warzywa (sok pomarańczowy/jabłkowy, syrop smakowy
+ *              typu Monin marakuja — łapały się na nazwę owocu zamiast "sok "/marki)
  *            orzechy OSTATNIA (bare "orzech" łapie też kremy/syropy orzechowe)
  */
 export type CategoryDef = { id: string; label: string; emoji: string; keywords: string[] };
@@ -417,7 +419,38 @@ export const CATEGORY_DEFS: CategoryDef[] = [
     ],
   },
 
-  // ── 9. Warzywa, owoce i grzyby ──────────────────────────────────────────────
+  // ── 9. Napoje ──────────────────────────────────────────────────────────────
+  // PRZED warzywa (audyt danych produkcyjnych 2026-09): "sok pomarańczowy"/
+  // "sok jabłkowy" łapały się na nazwę owocu w warzywa ("pomarańcz"/"jabłk")
+  // zanim dotarły do "sok " tutaj; "Monin syrop marakuja" łapał się na
+  // "marakuj" (owoc marakuja) zamiast na markę napojową Monin.
+  {
+    id: "napoje",
+    label: "Napoje",
+    emoji: "🥤",
+    keywords: [
+      "woda ", "wody ", "sok ", "soku ", "sokow", "napój", "napoje",
+      "nektar ", "nektaru",
+      // "kawą" USUNIĘTE — bez granicy z prawej po foldzie ("ą"→"a") staje się
+      // prefiksem "kawałki" (kawałki czegokolwiek, nie tylko kawy). "kawa " (ze
+      // spacją) już łapie każde wystąpienie "kawą" po foldzie — bez straty.
+      "kawa ", "kawy", "kawow", "espresso", "cappuccino", "latte",
+      "herbata", "herbat", "herbatk",
+      "matcha", "yerba mate", "rooibos",
+      "lemoniada", "shake", "syrop napojowy", "syrop do kawy",
+      "energetyk", "isotonic",
+      "mineraln", "gazowany", "niegazowany",
+      "coca-cola", "coca cola", "fanta", "sprite", "sprit", "cappy",
+      "kinley", "tymbark", "schweppes", "pepsi", "7up", "mirinda",
+      "lipton", "nestea", "red bull", "monster ",
+      "powerade", "gatorade", "tiger ", "burn ", "monin",
+      "milk shake", "mleko smakowe",
+      "rgb x24", "0,25 rgb", "butelka szk", "but szk", "drs ",
+      "tonic", "kinletonic",
+    ],
+  },
+
+  // ── 10. Warzywa, owoce i grzyby ─────────────────────────────────────────────
   {
     id: "warzywa",
     label: "Warzywa / Owoce / Grzyby",
@@ -472,33 +505,6 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "salsefia", "botwina", "kwiat jadaln",
       "warzywa", "owoce", "owoc", "warzywo",
       "ogórek", "ogórk",
-    ],
-  },
-
-  // ── 10. Napoje ──────────────────────────────────────────────────────────────
-  {
-    id: "napoje",
-    label: "Napoje",
-    emoji: "🥤",
-    keywords: [
-      "woda ", "wody ", "sok ", "soku ", "sokow", "napój", "napoje",
-      "nektar ", "nektaru",
-      // "kawą" USUNIĘTE — bez granicy z prawej po foldzie ("ą"→"a") staje się
-      // prefiksem "kawałki" (kawałki czegokolwiek, nie tylko kawy). "kawa " (ze
-      // spacją) już łapie każde wystąpienie "kawą" po foldzie — bez straty.
-      "kawa ", "kawy", "kawow", "espresso", "cappuccino", "latte",
-      "herbata", "herbat", "herbatk",
-      "matcha", "yerba mate", "rooibos",
-      "lemoniada", "shake", "syrop napojowy", "syrop do kawy",
-      "energetyk", "isotonic",
-      "mineraln", "gazowany", "niegazowany",
-      "coca-cola", "coca cola", "fanta", "sprite", "sprit", "cappy",
-      "kinley", "tymbark", "schweppes", "pepsi", "7up", "mirinda",
-      "lipton", "nestea", "red bull", "monster ",
-      "powerade", "gatorade", "tiger ", "burn ",
-      "milk shake", "mleko smakowe",
-      "rgb x24", "0,25 rgb", "butelka szk", "but szk", "drs ",
-      "tonic", "kinletonic",
     ],
   },
 
