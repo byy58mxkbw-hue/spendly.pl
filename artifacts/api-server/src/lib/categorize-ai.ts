@@ -162,8 +162,18 @@ export async function categorizeProductWithAI(
   // ręcznie skurowany brand-map (0.92), bo pochodzi z AI, nie z człowieka.
   const learnedBrand = await matchLearnedBrand(canonicalName) ?? await matchLearnedBrand(productName.toLowerCase());
   if (learnedBrand) {
-    logger?.info({ productName, category: learnedBrand.category, subcategory: learnedBrand.subcategory }, "categorize: learned brand match");
-    return { category: learnedBrand.category, subcategory: learnedBrand.subcategory, confidence: 0.85, canonicalName };
+    // Regresja znaleziona w audycie danych produkcyjnych 2026-09: subcategory NIE jest
+    // przypisywana tutaj. Jedna marka (np. "Trinnity", "Monin", "mpro") sprzedaje wiele
+    // różnych typów produktów pod tą samą kategorią (zawory/siłowniki/regulatory;
+    // syropy/puree; łyżki barowe/tłuczki/szklanki) — subcategory zapisana z JEDNEJ
+    // detekcji AI i tak nadpisywana blindly przy każdej kolejnej (recordBrandDetection)
+    // trafiała na setki NIEZWIĄZANYCH produktów tej marki (np. "korek do prób
+    // szczelności" na regulatorze, "puree owocowe" na syropie marakuja). Kategoria ma
+    // guard konfliktu (recordBrandDetection nie nadpisuje przy innej kategorii) —
+    // subcategory nie ma i nie może mieć analogicznego, bo różni się per-produkt, nie
+    // per-marka. Ufamy tu tylko kategorii.
+    logger?.info({ productName, category: learnedBrand.category }, "categorize: learned brand match");
+    return { category: learnedBrand.category, subcategory: null, confidence: 0.85, canonicalName };
   }
 
   // Step 2: Fast keyword matching on normalized + original.
@@ -209,8 +219,11 @@ export async function categorizeProductWithAI(
   const learnedTerm =
     (await matchLearnedCategoryTerm(canonicalName)) ?? (await matchLearnedCategoryTerm(productName.toLowerCase()));
   if (learnedTerm) {
+    // Ten sam powód co przy learnedBrand wyżej: term jest wspólny dla wielu różnych
+    // produktów w tej samej kategorii, ale subcategory jest per-produkt — nie ufamy
+    // zapamiętanej subcategory, tylko kategorii (ma guard konfliktu, subcategory nie ma).
     logger?.info({ productName, category: learnedTerm.category }, "categorize: learned category term match");
-    return { category: learnedTerm.category, subcategory: learnedTerm.subcategory, confidence: 0.8, canonicalName };
+    return { category: learnedTerm.category, subcategory: null, confidence: 0.8, canonicalName };
   }
 
   // Step 3: Supplier default category — keyword missed, so fall back to the

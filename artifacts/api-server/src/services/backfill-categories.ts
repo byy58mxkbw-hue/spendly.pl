@@ -387,7 +387,17 @@ async function reclassifyAllByDeterministicEngine(): Promise<void> {
       const learnedTerm = brand || learnedBrand || keywordCat !== "inne" || userTerm ? null : (await matchLearnedCategoryTerm(canonicalName)) ?? (await matchLearnedCategoryTerm(row.name.toLowerCase()));
 
       const newCategory = brand?.category ?? learnedBrand?.category ?? (keywordCat !== "inne" ? keywordCat : null) ?? userTerm?.category ?? learnedTerm?.category ?? "inne";
-      const newSubcategory = brand?.subcategory ?? learnedBrand?.subcategory ?? userTerm?.subcategory ?? learnedTerm?.subcategory ?? null;
+      // UWAGA (regresja znaleziona 2026-09, audyt danych produkcyjnych): learnedBrand i
+      // learnedTerm NIE dają subcategory. Jedna marka/term (np. "Trinnity", "Monin",
+      // "mpro") pokrywa wiele różnych typów produktów w tej samej kategorii — subcategory
+      // zapamiętana z JEDNEGO produktu i tak nadpisywana blindly przy każdej kolejnej
+      // detekcji (recordBrandDetection/recordCategoryTermDetection) trafiała, po ponownym
+      // uruchomieniu tego joba na starcie serwera, na WSZYSTKIE produkty tej marki/termu w
+      // CAŁEJ (wielotenantowej) tabeli products — np. "korek do prób szczelności" na
+      // regulatorze grzewczym, "puree owocowe" na syropie. brand (statyczny, ręcznie
+      // kurowany brand-map.ts) i userTerm (per-user, z jego własnej korekty) zostają —
+      // tam subcategory jest zaufana z dobrego powodu (patrz komentarze w categorize-ai.ts).
+      const newSubcategory = brand?.subcategory ?? userTerm?.subcategory ?? null;
       const newConfidence = brand ? 0.92 : learnedBrand ? 0.85 : keywordCat !== "inne" ? 0.9 : userTerm ? 0.95 : learnedTerm ? 0.8 : 0;
 
       if (newCategory === "inne" || newCategory === row.category) continue;

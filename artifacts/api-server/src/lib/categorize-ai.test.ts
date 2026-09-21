@@ -39,8 +39,8 @@ vi.mock("@workspace/db", () => ({
 }));
 
 import { categorizeProductWithAI } from "./categorize-ai";
-import { recordBrandDetection } from "./learned-brands.js";
-import { recordCategoryTermDetection } from "./learned-category-terms.js";
+import { recordBrandDetection, matchLearnedBrand } from "./learned-brands.js";
+import { recordCategoryTermDetection, matchLearnedCategoryTerm } from "./learned-category-terms.js";
 
 const USER = "test_categorize_ai_user";
 const CATS = [
@@ -92,6 +92,30 @@ describe("categorizeProductWithAI: keyword/brand wygrywa bez wołania AI", () =>
     const result = await categorizeProductWithAI("Wkręt podkładka ocynk 4.2x19 drewno", USER, undefined, undefined, CATS);
     expect(result.category).toBe("techniczne");
     expect(matchLearnedUserTermMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("categorizeProductWithAI: learned brand/term nie przejmują zapamiętanej subcategory (regresja audytu prod 2026-09)", () => {
+  // Znalezione przy audycie danych produkcyjnych: jedna marka/term (np. "Trinnity",
+  // "Monin", "mpro") pokrywa wiele różnych typów produktów w tej samej kategorii, ale
+  // recordBrandDetection/recordCategoryTermDetection zapamiętuje TYLKO jedną subcategory
+  // (z ostatniej detekcji) i nadpisuje ją na WSZYSTKIE przyszłe produkty tej marki/termu —
+  // np. "korek do prób szczelności" (z jednego zaworu) wylądował na regulatorze grzewczym
+  // tej samej marki. Kategoria ma guard konfliktu (nie nadpisuje przy innej kategorii),
+  // subcategory nie ma i nie może mieć analogicznego (różni się per-produkt, nie per-marka).
+  it('dopasowanie nauczonej marki zwraca category, ale NIGDY zapamiętaną subcategory', async () => {
+    vi.mocked(matchLearnedBrand).mockResolvedValueOnce({ category: "techniczne", subcategory: "korek do prób szczelności" });
+    const result = await categorizeProductWithAI("Regulator TRE25-230W Trinnity Zigbee", USER, undefined, undefined, CATS);
+    expect(result.category).toBe("techniczne");
+    expect(result.subcategory).toBeNull();
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('dopasowanie nauczonego termu kategorii zwraca category, ale NIGDY zapamiętaną subcategory', async () => {
+    vi.mocked(matchLearnedCategoryTerm).mockResolvedValueOnce({ category: "napoje", subcategory: "puree owocowe" });
+    const result = await categorizeProductWithAI("Zzz Xqplok Novum Bez Marki", USER, undefined, undefined, CATS);
+    expect(result.category).toBe("napoje");
+    expect(result.subcategory).toBeNull();
   });
 });
 
