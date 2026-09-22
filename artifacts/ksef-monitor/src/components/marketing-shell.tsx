@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Sun, Moon } from "@/lib/icons";
 import type { MarketingPalette, MarketingTheme } from "@/lib/marketing-theme";
+import { Logo } from "@/components/logo";
 
 /**
  * Nagłówek + stopka współdzielone przez statyczne strony marketingowo-SEO
@@ -20,8 +21,8 @@ export function MarketingNavBar({
     <header style={{ position: "sticky", top: 0, zIndex: 50, background: c.navBg, borderBottom: `1px solid ${c.border}` }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60 }}>
         <Link href="/">
-          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.04em", color: c.accent, cursor: "pointer" }}>
-            SPENDLY<span style={{ color: c.text }}>.</span>
+          <span style={{ cursor: "pointer" }}>
+            <Logo size={18} accentColor={c.accent} textColor={c.text} />
           </span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -53,9 +54,7 @@ export function MarketingFooter({ c }: { c: MarketingPalette }) {
     <footer style={{ borderTop: `1px solid ${c.border}`, padding: "40px 24px" }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 32, marginBottom: 32 }}>
         <div>
-          <span style={{ fontSize: 16, fontWeight: 900, letterSpacing: "-0.04em", color: c.accent }}>
-            SPENDLY<span style={{ color: c.text }}>.</span>
-          </span>
+          <Logo size={16} accentColor={c.accent} textColor={c.text} />
           <p style={{ fontSize: 12, color: c.muted, marginTop: 8, lineHeight: 1.6 }}>Kontrola kosztów restauracji z integracją KSeF i OCR faktur.</p>
         </div>
         <div>
@@ -87,8 +86,10 @@ export function MarketingFooter({ c }: { c: MarketingPalette }) {
           </div>
         </div>
       </div>
-      <div style={{ maxWidth: 1200, margin: "0 auto", paddingTop: 20, borderTop: `1px solid ${c.border}`, textAlign: "center" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", paddingTop: 20, borderTop: `1px solid ${c.border}`, display: "flex", flexWrap: "wrap", gap: "8px 20px", alignItems: "center", justifyContent: "center" }}>
         <span style={{ fontSize: 12, color: c.muted }}>&copy; {new Date().getFullYear()} SPENDLY. Wszelkie prawa zastrzeżone.</span>
+        <Link href="/polityka-prywatnosci"><span style={{ fontSize: 12, color: c.muted, cursor: "pointer" }}>Polityka prywatności</span></Link>
+        <Link href="/regulamin"><span style={{ fontSize: 12, color: c.muted, cursor: "pointer" }}>Regulamin</span></Link>
       </div>
     </footer>
   );

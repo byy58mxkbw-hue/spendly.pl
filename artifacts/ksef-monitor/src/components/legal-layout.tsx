@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { ArrowLeft, Sun, Moon } from "@/lib/icons";
 import { type MarketingPalette, useMarketingTheme } from "@/lib/marketing-theme";
+import { Logo } from "@/components/logo";
 
 /**
  * Wspólny szkielet stron prawnych (regulamin, polityka prywatności):
@@ -19,7 +20,7 @@ export function LegalLayout({
   const { theme, toggle, c } = useMarketingTheme();
 
   return (
-    <div style={{ background: c.bg, color: c.text, fontFamily: "'Space Grotesk Variable', system-ui, sans-serif", minHeight: "100vh" }}>
+    <div style={{ background: c.bg, color: c.text, fontFamily: "'Inter Variable', system-ui, sans-serif", minHeight: "100vh" }}>
       {/* Nagłówek */}
       <header style={{
         position: "sticky", top: 0, zIndex: 50,
@@ -27,8 +28,8 @@ export function LegalLayout({
       }}>
         <div style={{ maxWidth: 820, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60 }}>
           <Link href="/">
-            <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.04em", color: c.accent, cursor: "pointer" }}>
-              SPENDLY<span style={{ color: c.text }}>.</span>
+            <span style={{ cursor: "pointer" }}>
+              <Logo size={18} accentColor={c.accent} textColor={c.text} />
             </span>
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -59,7 +60,7 @@ export function LegalLayout({
 
       {/* Treść */}
       <main style={{ maxWidth: 820, margin: "0 auto", padding: "48px 24px 80px" }}>
-        <h1 style={{ fontSize: "clamp(1.8rem, 4vw, 2.4rem)", fontWeight: 700, letterSpacing: "-0.025em", marginBottom: 8 }}>
+        <h1 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.8rem, 4vw, 2.4rem)", fontWeight: 700, letterSpacing: 0, marginBottom: 8 }}>
           {title}
         </h1>
         <p style={{ fontSize: 13, color: c.muted, marginBottom: 40 }}>Ostatnia aktualizacja: {updated}</p>

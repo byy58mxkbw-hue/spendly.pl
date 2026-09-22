@@ -1,8 +1,16 @@
 /* Landing „Spendly — strona" w języku „edytorski gastro": papierowe tła,
-   sygnaturowa terakota, jeden krój (Space Grotesk) z cyframi tabelarycznymi, ostre krawędzie,
-   hairline'y zamiast glassmorphismu. Zero aurory, gradientów i blura.
+   sygnaturowa terakota, ostre krawędzie, hairline'y zamiast glassmorphismu.
+   Zero aurory, gradientów i blura.
    WSZYSTKIE selektory scope'owane pod .spendly-site, bo źródło ma gołe selektory
-   (nav, h1, h2, footer, *, body, a) które inaczej rozwaliłyby zalogowaną aplikację. */
+   (nav, h1, h2, footer, *, body, a) które inaczej rozwaliłyby zalogowaną aplikację.
+
+   Fonty (audyt brandingowy 2026-09, zgodność z Instagramem @spendly.pl):
+   - Body/UI: Inter — ten sam font co na postach Instagram.
+   - Nagłówki h1/h2: Baloo 2 (patrz reguła niżej) — bąbelkowy, zgodny z marką.
+   - Wordmark „spendly.": docelowo SVG z Bagel Fat One (marketing-shell.tsx /
+     components/logo.tsx), NIE font — zero Polish diacritics w tym kroju.
+   Panel po zalogowaniu (dashboard, tabele liczb) zostaje przy Space Grotesk
+   (index.css) — świadomie inny wybór pod czytelność `tabular-nums`. */
 
 html { scroll-behavior: smooth; }
 
@@ -14,7 +22,7 @@ html { scroll-behavior: smooth; }
      Komorki siatek hairline nie maja promienia w ogole — to nie karty. */
   --r:4px; --r-xs:2px;
   box-sizing:border-box;
-  font-family:'Space Grotesk Variable',system-ui,sans-serif;
+  font-family:'Inter Variable','Inter',system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;
   letter-spacing:-0.006em;
   overflow-x:hidden;
@@ -47,10 +55,6 @@ html { scroll-behavior: smooth; }
 
 /* Karta redakcyjna (nazwa .glass zostaje — używa jej home.tsx) */
 .spendly-site .glass{background:var(--panel);border:1px solid var(--brd);}
-
-/* wordmark */
-.spendly-site .wm{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-weight:700;letter-spacing:-0.04em;line-height:1;color:var(--acc-text);}
-.spendly-site .wm .dot{color:var(--text);}
 
 /* ── NAV ── */
 .spendly-site nav{position:fixed;top:0;left:0;right:0;z-index:50;transition:all .16s;}
@@ -88,7 +92,7 @@ html { scroll-behavior: smooth; }
 .spendly-site .hero .mock{text-align:left;}
 .spendly-site .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--acc-text);padding:6px 10px;border-radius:var(--r-xs);border:1px solid var(--brd);background:var(--acc-soft);margin-bottom:26px;}
 .spendly-site .eyebrow svg{width:14px;height:14px;}
-.spendly-site h1{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:clamp(2rem,5.2vw,3.6rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:22px;max-width:18ch;}
+.spendly-site h1{font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(2rem,5.2vw,3.6rem);font-weight:600;letter-spacing:0;line-height:1.1;margin-bottom:22px;max-width:18ch;}
 /* Bez gradientu na tekście — akcent niesie sam kolor. */
 .spendly-site h1 .g{color:var(--acc-text);}
 .spendly-site .lead{font-size:clamp(16px,2.2vw,20px);color:var(--muted);line-height:1.6;max-width:620px;margin:0 auto 34px;font-weight:400;}
@@ -126,13 +130,13 @@ html { scroll-behavior: smooth; }
 .spendly-site .trust{padding:44px 0;text-align:center;}
 .spendly-site .trust p{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:22px;}
 .spendly-site .trust-row{display:flex;gap:44px;justify-content:center;align-items:center;flex-wrap:wrap;opacity:.72;}
-.spendly-site .trust-row .b{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:19px;font-weight:600;letter-spacing:-0.01em;color:var(--muted);}
+.spendly-site .trust-row .b{font-size:19px;font-weight:600;letter-spacing:-0.01em;color:var(--muted);}
 
 /* section */
 .spendly-site section.blk{padding:80px 0;}
 .spendly-site .sec-head{max-width:640px;margin:0 auto 52px;text-align:center;}
 .spendly-site .sec-eye{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--acc-text);margin-bottom:14px;}
-.spendly-site h2{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:clamp(1.6rem,3.6vw,2.6rem);font-weight:600;letter-spacing:-0.028em;line-height:1.15;margin-bottom:16px;}
+.spendly-site h2{font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(1.6rem,3.6vw,2.6rem);font-weight:600;letter-spacing:0;line-height:1.15;margin-bottom:16px;}
 .spendly-site .sec-head p{font-size:17px;color:var(--muted);line-height:1.6;}
 
 /* Siatka kart z ciągłym hairline'em zamiast morza zaokrąglonych kafli. */
@@ -141,7 +145,7 @@ html { scroll-behavior: smooth; }
 .spendly-site .feat:hover{background:var(--panel-solid);}
 .spendly-site .feat .fic{width:38px;height:38px;border-radius:var(--r-xs);display:grid;place-items:center;margin-bottom:16px;background:var(--acc-soft);border:1px solid var(--brd);}
 .spendly-site .feat .fic svg{width:20px;height:20px;color:var(--acc-text);}
-.spendly-site .feat h3{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:8px;}
+.spendly-site .feat h3{font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:8px;}
 .spendly-site .feat p{font-size:14px;color:var(--muted);line-height:1.6;}
 
 /* compare: OCR vs KSeF */
@@ -162,7 +166,7 @@ html { scroll-behavior: smooth; }
 .spendly-site .step{display:flex;gap:16px;align-items:flex-start;padding:18px 0;border-top:1px solid var(--brd);}
 .spendly-site .step:first-child{border-top:none;padding-top:0;}
 .spendly-site .step .num{width:34px;height:34px;border-radius:var(--r-xs);display:grid;place-items:center;flex-shrink:0;font-family:'Space Grotesk Variable',system-ui,sans-serif;font-weight:600;font-size:16px;background:var(--acc-soft);color:var(--acc-text);border:1px solid var(--brd);}
-.spendly-site .step h3{font-family:'Space Grotesk Variable',system-ui,sans-serif;font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:5px;}
+.spendly-site .step h3{font-size:17px;font-weight:600;letter-spacing:-0.01em;margin-bottom:5px;}
 .spendly-site .step p{font-size:14px;color:var(--muted);line-height:1.55;}
 .spendly-site .ksef-card{padding:28px;border-radius:var(--r);}
 .spendly-site .ksef-card .badge{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--acc-text);padding:5px 10px;border-radius:var(--r-xs);background:var(--acc-soft);border:1px solid var(--brd);margin-bottom:18px;}

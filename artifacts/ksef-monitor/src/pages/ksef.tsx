@@ -7,7 +7,7 @@ export default function KsefPage() {
   const { theme, c: C, toggle } = useMarketingTheme();
 
   return (
-    <div style={{ background: C.bg, color: C.text, fontFamily: "'Space Grotesk Variable', system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
+    <div style={{ background: C.bg, color: C.text, fontFamily: "'Inter Variable', system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
       <MarketingNavBar c={C} theme={theme} onToggle={toggle} />
 
       <main>
@@ -18,7 +18,7 @@ export default function KsefPage() {
             <RefreshCw size={12} style={{ color: C.accent }} />
             Integracja KSeF dla restauracji
           </div>
-          <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 20, color: C.text }}>
+          <h1 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: 0, lineHeight: 1.1, marginBottom: 20, color: C.text }}>
             Automatyczny import faktur<br />
             <span style={{ color: C.accentText }}>z KSeF dla gastronomii</span>
           </h1>
@@ -45,7 +45,7 @@ export default function KsefPage() {
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accentText, textTransform: "uppercase", marginBottom: 12 }}>Jak działa integracja</p>
-            <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, margin: 0 }}>
+            <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: C.text, margin: 0 }}>
               Trzy kroki do pełnej automatyzacji
             </h2>
           </div>
@@ -69,7 +69,7 @@ export default function KsefPage() {
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accentText, textTransform: "uppercase", marginBottom: 12 }}>Korzyści</p>
-          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, margin: 0 }}>
+          <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: C.text, margin: 0 }}>
             Co zyskujesz dzięki integracji KSeF
           </h2>
         </div>
@@ -96,15 +96,15 @@ export default function KsefPage() {
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 48 }}>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>KSeF dla restauracji — co to jest?</h2>
+              <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>KSeF dla restauracji — co to jest?</h2>
               <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.75, margin: 0 }}>Krajowy System e-Faktur (KSeF) to rządowa platforma do wystawiania i odbierania faktur elektronicznych w Polsce. Od 2026 roku KSeF jest obowiązkowy dla firm powyżej określonego progu przychodów. Restauracje i firmy gastronomiczne mogą już teraz korzystać z KSeF, by automatycznie pobierać faktury zakupowe od swoich dostawców.</p>
             </div>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>Jak Spendly integruje się z KSeF?</h2>
+              <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>Jak Spendly integruje się z KSeF?</h2>
               <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.75, margin: 0 }}>Spendly używa oficjalnego API KSeF do pobierania faktur zakupowych. Po jednorazowym podaniu NIP-u i tokenu autoryzacyjnego, system samodzielnie synchronizuje faktury w tle. Każda faktura jest automatycznie parsowana — produkty, ceny, dostawcy — i trafia do Twojej bazy danych bez żadnego ręcznego działania.</p>
             </div>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>KSeF a kontrola kosztów restauracji</h2>
+              <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>KSeF a kontrola kosztów restauracji</h2>
               <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.75, margin: 0 }}>Automatyczny import faktur z KSeF to fundament kontroli kosztów. Gdy wszystkie zakupy trafiają do systemu bez ręcznego przepisywania, można w czasie rzeczywistym śledzić food cost, wykrywać podwyżki dostawców i analizować trendy cenowe. Spendly łączy integrację KSeF z analityką kosztów gastronomicznych w jednym narzędziu.</p>
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function KsefPage() {
       <section style={{ maxWidth: 760, margin: "0 auto", padding: "80px 24px" }}>
         <div style={{ textAlign: "center", marginBottom: 48 }}>
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accentText, textTransform: "uppercase", marginBottom: 12 }}>FAQ</p>
-          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, margin: 0 }}>KSeF dla restauracji — najczęstsze pytania</h2>
+          <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 600, letterSpacing: 0, color: C.text, margin: 0 }}>KSeF dla restauracji — najczęstsze pytania</h2>
         </div>
         <div style={{ borderTop: `1px solid ${C.border}` }}>
           {[
@@ -136,7 +136,7 @@ export default function KsefPage() {
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 80px", paddingTop: 80 }}>
         <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, padding: "60px 40px", textAlign: "center" }}>
-          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, marginBottom: 16 }}>
+          <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: C.text, marginBottom: 16 }}>
             Zacznij pobierać faktury z KSeF automatycznie
           </h2>
           <p style={{ fontSize: 15, color: C.muted, maxWidth: 480, margin: "0 auto 32px", lineHeight: 1.65 }}>

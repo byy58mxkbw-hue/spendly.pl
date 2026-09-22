@@ -7,7 +7,7 @@ export default function OcrFakturPage() {
   const { theme, c, toggle } = useMarketingTheme();
 
   return (
-    <div style={{ background: c.bg, color: c.text, fontFamily: "'Space Grotesk Variable', system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
+    <div style={{ background: c.bg, color: c.text, fontFamily: "'Inter Variable', system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
       <MarketingNavBar c={c} theme={theme} onToggle={toggle} />
 
       <main>
@@ -18,7 +18,7 @@ export default function OcrFakturPage() {
             <ScanLine size={12} style={{ color: c.accent }} />
             OCR faktur dla gastronomii
           </div>
-          <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 20, color: c.text }}>
+          <h1 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: 0, lineHeight: 1.1, marginBottom: 20, color: c.text }}>
             Automatyczny odczyt faktur<br />
             <span style={{ color: c.accentText }}>ze zdjęcia lub PDF w 15 sekund</span>
           </h1>
@@ -45,7 +45,7 @@ export default function OcrFakturPage() {
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accentText, textTransform: "uppercase", marginBottom: 12 }}>Jak działa OCR faktur</p>
-            <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, margin: 0 }}>
+            <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: c.text, margin: 0 }}>
               Od faktury papierowej do danych w systemie
             </h2>
           </div>
@@ -69,7 +69,7 @@ export default function OcrFakturPage() {
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accentText, textTransform: "uppercase", marginBottom: 12 }}>Możliwości</p>
-          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, margin: 0 }}>
+          <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: c.text, margin: 0 }}>
             Co Spendly odczytuje z faktury
           </h2>
         </div>
@@ -96,15 +96,15 @@ export default function OcrFakturPage() {
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 48 }}>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 600, color: c.text, marginBottom: 12, lineHeight: 1.35 }}>OCR faktur dla restauracji — dlaczego to ważne?</h2>
+              <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: 17, fontWeight: 600, color: c.text, marginBottom: 12, lineHeight: 1.35 }}>OCR faktur dla restauracji — dlaczego to ważne?</h2>
               <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.75, margin: 0 }}>Restauracje przetwarzają dziesiątki faktur miesięcznie od różnych dostawców. Ręczne przepisywanie danych jest kosztowne, podatne na błędy i nie zostawia czasu na analizę. OCR (Optical Character Recognition) eliminuje ten problem — fakturę wystarczy sfotografować, a system odczytuje i kategoryzuje wszystkie dane automatycznie.</p>
             </div>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 600, color: c.text, marginBottom: 12, lineHeight: 1.35 }}>OCR a integracja z KSeF — dwie ścieżki importu</h2>
+              <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: 17, fontWeight: 600, color: c.text, marginBottom: 12, lineHeight: 1.35 }}>OCR a integracja z KSeF — dwie ścieżki importu</h2>
               <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.75, margin: 0 }}>Spendly obsługuje dwa sposoby pobierania faktur: automatyczny import przez API KSeF (dla dostawców wystawiających e-faktury) oraz OCR (dla faktur papierowych lub spoza KSeF). Oba kanały trafiają do tej samej bazy produktów i generują jednolitą historię cen — niezależnie od źródła faktury.</p>
             </div>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 600, color: c.text, marginBottom: 12, lineHeight: 1.35 }}>Analiza faktur gastronomicznych — od danych do decyzji</h2>
+              <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: 17, fontWeight: 600, color: c.text, marginBottom: 12, lineHeight: 1.35 }}>Analiza faktur gastronomicznych — od danych do decyzji</h2>
               <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.75, margin: 0 }}>Sam odczyt faktury to pierwszy krok. Spendly idzie dalej — każda zaimportowana pozycja zasila historię cen, alerty i raporty food cost. Gdy AI wykryje, że cena łososia wzrosła o 15% w stosunku do poprzedniej faktury, system automatycznie generuje alert i aktualizuje wskaźnik food cost dla danego okresu.</p>
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function OcrFakturPage() {
       <section style={{ maxWidth: 760, margin: "0 auto", padding: "80px 24px" }}>
         <div style={{ textAlign: "center", marginBottom: 48 }}>
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accentText, textTransform: "uppercase", marginBottom: 12 }}>FAQ</p>
-          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, margin: 0 }}>OCR faktur — najczęstsze pytania</h2>
+          <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 600, letterSpacing: 0, color: c.text, margin: 0 }}>OCR faktur — najczęstsze pytania</h2>
         </div>
         <div style={{ borderTop: `1px solid ${c.border}` }}>
           {[
@@ -136,7 +136,7 @@ export default function OcrFakturPage() {
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
         <div style={{ background: c.panel, border: `1px solid ${c.accentDim}`, borderRadius: 4, padding: "60px 40px", textAlign: "center" }}>
-          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, marginBottom: 16 }}>
+          <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: c.text, marginBottom: 16 }}>
             Koniec z ręcznym przepisywaniem faktur
           </h2>
           <p style={{ fontSize: 15, color: c.muted, maxWidth: 480, margin: "0 auto 32px", lineHeight: 1.65 }}>

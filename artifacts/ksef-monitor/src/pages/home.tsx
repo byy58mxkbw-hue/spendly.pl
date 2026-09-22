@@ -8,15 +8,14 @@ import {
 import "@/styles/landing.css";
 import { track } from "@/lib/posthog";
 import { PLANS, PRICING_NOTE } from "@/lib/pricing";
+import { Logo } from "@/components/logo";
 
 type Theme = "dark" | "light";
 
+// Wrapper zachowuje dawny prop `size` i klasy CSS motywu (`var(--acc-text)`/
+// `var(--text)` reagują na [data-theme] bez re-rendera) — patrz components/logo.tsx.
 function Wordmark({ size }: { size: number }) {
-  return (
-    <span className="wm" style={{ fontSize: size }}>
-      SPENDLY<span className="dot">.</span>
-    </span>
-  );
+  return <Logo size={size} accentColor="var(--acc-text)" textColor="var(--text)" />;
 }
 
 const FEATURES = [

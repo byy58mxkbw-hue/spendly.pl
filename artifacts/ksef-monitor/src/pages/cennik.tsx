@@ -27,7 +27,7 @@ export default function CennikPage() {
   const { theme, c, toggle } = useMarketingTheme();
 
   return (
-    <div style={{ background: c.bg, color: c.text, fontFamily: "'Space Grotesk Variable', system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
+    <div style={{ background: c.bg, color: c.text, fontFamily: "'Inter Variable', system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
       <MarketingNavBar c={c} theme={theme} onToggle={toggle} />
 
       <main>
@@ -36,7 +36,7 @@ export default function CennikPage() {
         <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 12px", borderRadius: 2, border: `1px solid ${c.accentDim}`, background: c.accentDim, color: c.accentText, fontSize: 12, fontWeight: 600, marginBottom: 20 }}>
           Bez ukrytych opłat
         </div>
-        <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 16, color: c.text }}>
+        <h1 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: 0, lineHeight: 1.1, marginBottom: 16, color: c.text }}>
           Prosty cennik.<br />
           <span style={{ color: c.accentText }}>Pełna kontrola kosztów.</span>
         </h1>
@@ -109,7 +109,7 @@ export default function CennikPage() {
         <div style={{ maxWidth: 760, margin: "0 auto", padding: "80px 24px" }}>
           <div style={{ textAlign: "center", marginBottom: 48 }}>
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: c.accentText, textTransform: "uppercase", marginBottom: 12 }}>FAQ</p>
-            <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, margin: 0 }}>
+            <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: c.text, margin: 0 }}>
               Pytania o cennik i warunki
             </h2>
           </div>
@@ -134,7 +134,7 @@ export default function CennikPage() {
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
         <div style={{ background: c.panel, border: `1px solid ${c.accentDim}`, borderRadius: 4, padding: "60px 40px", textAlign: "center" }}>
-          <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: c.text, marginBottom: 16 }}>
+          <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: c.text, marginBottom: 16 }}>
             Zacznij korzystać za darmo już teraz
           </h2>
           <p style={{ fontSize: 15, color: c.muted, maxWidth: 440, margin: "0 auto 32px", lineHeight: 1.65 }}>

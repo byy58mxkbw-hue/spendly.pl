@@ -30,7 +30,7 @@ export default function FoodCostMarketingPage() {
   const { theme, c: C, toggle } = useMarketingTheme();
 
   return (
-    <div style={{ background: C.bg, color: C.text, fontFamily: "'Space Grotesk Variable', system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
+    <div style={{ background: C.bg, color: C.text, fontFamily: "'Inter Variable', system-ui, sans-serif", minHeight: "100vh", transition: "background 0.3s, color 0.3s" }}>
       <MarketingNavBar c={C} theme={theme} onToggle={toggle} />
 
       <main>
@@ -41,7 +41,7 @@ export default function FoodCostMarketingPage() {
               <Percent size={12} style={{ color: C.accent }} />
               Kontrola food cost dla gastronomii
             </div>
-            <h1 style={{ fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 20, color: C.text }}>
+            <h1 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 600, letterSpacing: 0, lineHeight: 1.1, marginBottom: 20, color: C.text }}>
               Kontrola food cost restauracji<br />
               <span style={{ color: C.accentText }}>w czasie rzeczywistym</span>
             </h1>
@@ -68,7 +68,7 @@ export default function FoodCostMarketingPage() {
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
             <div style={{ textAlign: "center", marginBottom: 56 }}>
               <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accentText, textTransform: "uppercase", marginBottom: 12 }}>Jak liczymy food cost</p>
-              <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, margin: 0 }}>
+              <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: C.text, margin: 0 }}>
                 Food cost liczony automatycznie z faktur
               </h2>
             </div>
@@ -92,7 +92,7 @@ export default function FoodCostMarketingPage() {
         <section style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accentText, textTransform: "uppercase", marginBottom: 12 }}>Oszczędności w gastronomii</p>
-            <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, margin: 0 }}>
+            <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: C.text, margin: 0 }}>
               Co zyskujesz na kontroli food cost
             </h2>
           </div>
@@ -119,15 +119,15 @@ export default function FoodCostMarketingPage() {
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "80px 24px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 48 }}>
               <div>
-                <h2 style={{ fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>Food cost — dlaczego jest kluczowy dla restauracji</h2>
+                <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>Food cost — dlaczego jest kluczowy dla restauracji</h2>
                 <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.75, margin: 0 }}>Food cost to jeden z najważniejszych wskaźników rentowności w gastronomii. Pokazuje, jaka część przychodu ze sprzedaży dania wraca do kosztów surowców. Nawet kilkuprocentowy wzrost food cost — np. przez podwyżki cen mięsa, nabiału czy warzyw — potrafi wyzerować zysk lokalu. Dlatego stała kontrola food cost jest podstawą zdrowej marży w restauracji.</p>
               </div>
               <div>
-                <h2 style={{ fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>Jak liczyć food cost automatycznie</h2>
+                <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>Jak liczyć food cost automatycznie</h2>
                 <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.75, margin: 0 }}>Ręczne liczenie food cost w arkuszu jest czasochłonne i szybko się dezaktualizuje. Spendly automatyzuje ten proces: pobiera faktury zakupowe z KSeF, rozpoznaje ceny surowców i zestawia je z recepturami. Wynik to realny, aktualny food cost per danie i per restauracja — bez godzin spędzonych w Excelu i bez błędów przepisywania.</p>
               </div>
               <div>
-                <h2 style={{ fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>Kontrola kosztów a oszczędności w gastronomii</h2>
+                <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: 17, fontWeight: 600, color: C.text, marginBottom: 12, lineHeight: 1.35 }}>Kontrola kosztów a oszczędności w gastronomii</h2>
                 <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.75, margin: 0 }}>Analiza kosztowa to nie tylko liczenie — to podejmowanie decyzji. Gdy wiesz, który dostawca podniósł ceny i gdzie te same surowce są tańsze, realnie obniżasz koszty. Spendly łączy monitoring food cost z alertami cenowymi i porównaniem dostawców, dając restauracji konkretne oszczędności bez obniżania jakości.</p>
               </div>
             </div>
@@ -138,7 +138,7 @@ export default function FoodCostMarketingPage() {
         <section style={{ maxWidth: 760, margin: "0 auto", padding: "80px 24px" }}>
           <div style={{ textAlign: "center", marginBottom: 48 }}>
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accentText, textTransform: "uppercase", marginBottom: 12 }}>FAQ</p>
-            <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, margin: 0 }}>Food cost — najczęstsze pytania</h2>
+            <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 600, letterSpacing: 0, color: C.text, margin: 0 }}>Food cost — najczęstsze pytania</h2>
           </div>
           <div style={{ borderTop: `1px solid ${C.border}` }}>
             {FAQ.map(({ q, a }) => (
@@ -153,7 +153,7 @@ export default function FoodCostMarketingPage() {
         {/* CTA */}
         <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 80px", paddingTop: 40 }}>
           <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, padding: "60px 40px", textAlign: "center" }}>
-            <h2 style={{ fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: "-0.025em", color: C.text, marginBottom: 16 }}>
+            <h2 style={{ fontFamily: "'Baloo 2 Variable', system-ui, sans-serif", fontSize: "clamp(1.6rem, 3vw, 2.4rem)", fontWeight: 600, letterSpacing: 0, color: C.text, marginBottom: 16 }}>
               Zacznij kontrolować food cost już dziś
             </h2>
             <p style={{ fontSize: 15, color: C.muted, maxWidth: 480, margin: "0 auto 32px", lineHeight: 1.65 }}>
