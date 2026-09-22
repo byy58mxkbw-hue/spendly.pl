@@ -15,9 +15,8 @@ export default function PolitykaPrywatnosci() {
             </p>
 
             <LegalSection n="1" title="Administrator danych" c={c}>
-              <p>Administratorem danych jest <B>[PEŁNA NAZWA FIRMY]</B>, z siedzibą w [ADRES], NIP [NIP],
-              kontakt: kontakt@spendly.pl. We wszelkich sprawach dotyczących danych osobowych można
-              kontaktować się pod tym adresem.</p>
+              <p>Administratorem danych jest <B>Spendly</B>, kontakt: kontakt@spendly.pl. We wszelkich
+              sprawach dotyczących danych osobowych można kontaktować się pod tym adresem.</p>
             </LegalSection>
 
             <LegalSection n="2" title="Jakie dane przetwarzamy" c={c}>

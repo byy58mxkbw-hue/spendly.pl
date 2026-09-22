@@ -7,7 +7,7 @@
       // Motyw przed montowaniem Reacta (brak mignięcia). Domyślnie ciemny.
       (function () {
         try {
-          var t = localStorage.getItem("spendly_theme");
+          var t = localStorage.getItem("spendly_site_theme");
           var mode = t === "light" || t === "dark" ? t : "dark";
           var el = document.documentElement;
           el.classList.toggle("light", mode === "light");
@@ -120,7 +120,7 @@
           "name": "Czy jest okres próbny?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Tak. Obecnie Spendly jest bezpłatny dla wszystkich w ramach okresu testowego. Nie wymagamy karty kredytowej na etapie rejestracji."
+            "text": "Tak. Nowi Użytkownicy dostają 30 dni darmowego dostępu do planu Pro, bez podawania karty. Po tym czasie wybierają: zostają na bezpłatnym planie Start albo przechodzą na Pro."
           }
         },
         {
@@ -396,7 +396,7 @@
             <div style="text-align:center;margin-bottom:48px;">
               <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#E06A3C;text-transform:uppercase;margin-bottom:12px;">Cennik</p>
               <h2 style="font-size:clamp(1.6rem,3.6vw,2.6rem);font-weight:600;letter-spacing:-0.028em;color:#F0E9DB;margin-bottom:12px;">Prosty cennik, który się zwraca</h2>
-              <p style="font-size:15px;color:#9C8F79;margin:0 auto;max-width:620px;">Obecnie pełny dostęp bezpłatnie w okresie testowym — ceny poniżej wejdą po jego zakończeniu. Bez ukrytych opłat, anulujesz kiedy chcesz.</p>
+              <p style="font-size:15px;color:#9C8F79;margin:0 auto;max-width:620px;">Nowi Użytkownicy dostają 30 dni darmowego dostępu do planu Pro, bez podawania karty. Po tym czasie wybierasz: zostajesz na bezpłatnym planie Start albo przechodzisz na Pro. Bez ukrytych opłat, anulujesz kiedy chcesz.</p>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;align-items:stretch;max-width:1100px;margin:0 auto;">
               <div style="position:relative;background:#201A13;border:1px solid #392F22;border-radius:4px;padding:32px 28px;display:flex;flex-direction:column;text-align:center;">
@@ -419,7 +419,7 @@
                 <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;padding:5px 13px;border-radius:2px;background:#E06A3C;color:#17130E;white-space:nowrap;">Najpopularniejszy</div>
                 <p style="font-size:15px;font-weight:700;color:#F0E9DB;margin:0;">Pro</p>
                 <div style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin:14px 0 4px;">
-                  <span style="font-size:44px;font-weight:800;color:#E06A3C;letter-spacing:-0.03em;line-height:1;font-variant-numeric:tabular-nums;">199</span>
+                  <span style="font-size:44px;font-weight:800;color:#E06A3C;letter-spacing:-0.03em;line-height:1;font-variant-numeric:tabular-nums;">150</span>
                   <span style="font-size:15px;color:#9C8F79;">zł/mies.</span>
                 </div>
                 <p style="font-size:13px;color:#9C8F79;margin:0 0 20px;min-height:38px;">Dla restauracji, które chcą realnie kontrolować food cost.</p>
@@ -447,7 +447,7 @@
                   <li style="font-size:14px;color:#F0E9DB;">Raporty konsolidowane</li>
                   <li style="font-size:14px;color:#F0E9DB;">Dedykowany opiekun</li>
                 </ul>
-                <a href="mailto:kontakt@spendly.pl" style="display:block;width:100%;padding:13px;border-radius:4px;font-size:14px;font-weight:700;text-align:center;text-decoration:none;border:1px solid #392F22;color:#F0E9DB;">Umów rozmowę</a>
+                <a href="mailto:kontakt@spendly.pl" style="display:block;width:100%;padding:13px;border-radius:4px;font-size:14px;font-weight:700;text-align:center;text-decoration:none;border:1px solid #392F22;color:#F0E9DB;">Kontakt mailowy</a>
               </div>
             </div>
             <p style="text-align:center;font-size:13px;color:#9C8F79;margin-top:28px;">
@@ -470,7 +470,7 @@
             </div>
             <div style="border-bottom:1px solid #392F22;padding:20px 0;">
               <h3 style="font-size:15px;font-weight:500;color:#F0E9DB;margin:0 0 8px;">Czy jest okres próbny?</h3>
-              <p style="font-size:14px;color:#9C8F79;line-height:1.7;margin:0;">Tak. Obecnie Spendly jest bezpłatny dla wszystkich w ramach okresu testowego. Nie wymagamy karty kredytowej na etapie rejestracji.</p>
+              <p style="font-size:14px;color:#9C8F79;line-height:1.7;margin:0;">Tak. Nowi Użytkownicy dostają 30 dni darmowego dostępu do planu Pro, bez podawania karty. Po tym czasie wybierają: zostają na bezpłatnym planie Start albo przechodzą na Pro.</p>
             </div>
             <div style="border-bottom:1px solid #392F22;padding:20px 0;">
               <h3 style="font-size:15px;font-weight:500;color:#F0E9DB;margin:0 0 8px;">Jak chronione są moje dane?</h3>

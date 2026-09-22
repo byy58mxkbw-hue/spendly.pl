@@ -3,15 +3,27 @@
   <head>
     <!-- Cookiebot: zgoda na cookies (RODO) -->
     <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="e40f250c-7bc6-4347-8e61-e312f6f4fca5" data-blockingmode="manual" type="text/javascript" async></script>
+    <script>
+      // Motyw przed montowaniem Reacta (brak mignięcia). Domyślnie ciemny.
+      (function () {
+        try {
+          var t = localStorage.getItem("spendly_site_theme");
+          var mode = t === "light" || t === "dark" ? t : "dark";
+          var el = document.documentElement;
+          el.classList.toggle("light", mode === "light");
+          el.classList.toggle("dark", mode === "dark");
+        } catch (e) {}
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#3DDC97" />
+    <meta name="theme-color" content="#E06A3C" />
 
     <title>Cennik Spendly — kontrola kosztów restauracji</title>
-    <meta name="description" content="Spendly jest bezpłatny w okresie testowym: integracja KSeF, OCR faktur, food cost i alerty cenowe — bez karty i bez umowy." />
+    <meta name="description" content="Nowi Użytkownicy dostają 30 dni darmowego dostępu do planu Pro. Potem Start bezpłatnie albo Pro za 150 zł/mies. Integracja KSeF, OCR faktur i kontrola food cost." />
     <meta name="keywords" content="cennik Spendly, koszt systemu restauracja, food cost program cena, ile kosztuje Spendly, system faktur restauracja cena" />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://www.spendly.pl/cennik" />
@@ -20,7 +32,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.spendly.pl/cennik" />
     <meta property="og:title" content="Cennik Spendly — kontrola kosztów restauracji" />
-    <meta property="og:description" content="Spendly jest bezpłatny w całym okresie testowym. Integracja KSeF, OCR faktur, food cost i alerty cenowe — wszystko bez karty kredytowej." />
+    <meta property="og:description" content="30 dni darmowego dostępu do planu Pro dla każdego nowego Użytkownika. Potem Start bezpłatnie albo Pro za 150 zł/mies. Integracja KSeF, OCR faktur i food cost." />
     <meta property="og:site_name" content="Spendly" />
     <meta property="og:locale" content="pl_PL" />
     <meta property="og:image" content="https://www.spendly.pl/og/cennik.png" />
@@ -30,7 +42,7 @@
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Cennik Spendly — kontrola kosztów restauracji" />
-    <meta name="twitter:description" content="Spendly jest bezpłatny w całym okresie testowym — bez karty kredytowej, bez umowy." />
+    <meta name="twitter:description" content="30 dni darmowego dostępu do planu Pro. Potem Start bezpłatnie albo Pro za 150 zł/mies. Bez karty kredytowej." />
     <meta name="twitter:image" content="https://www.spendly.pl/og/cennik.png" />
 
     <!-- Schema.org: WebPage + PriceSpecification -->
@@ -40,7 +52,7 @@
       "@type": "WebPage",
       "name": "Cennik Spendly",
       "url": "https://www.spendly.pl/cennik",
-      "description": "Spendly jest bezpłatny w całym okresie testowym. Regularna cena to 200 zł miesięcznie za pełny dostęp do integracji KSeF, OCR faktur i kontroli food cost.",
+      "description": "Nowi Użytkownicy dostają 30 dni darmowego dostępu do planu Pro. Po tym czasie: plan Start bezpłatnie albo Pro za 150 zł miesięcznie za pełny dostęp do integracji KSeF, OCR faktur i kontroli food cost.",
       "inLanguage": "pl-PL",
       "isPartOf": {
         "@type": "WebSite",
@@ -57,10 +69,10 @@
       "mainEntity": [
         {
           "@type": "Question",
-          "name": "Ile kosztuje Spendly po okresie testowym?",
+          "name": "Ile kosztuje Spendly?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Regularna cena to 200 zł / miesiąc za nielimitowany dostęp do wszystkich funkcji. W trakcie okresu testowego korzystasz ze wszystkiego bezpłatnie — bez podawania karty kredytowej."
+            "text": "Nowi Użytkownicy mają 30 dni darmowego dostępu do planu Pro. Po zakończeniu okresu próbnego wybierasz: zostajesz na bezpłatnym planie Start albo przechodzisz na Pro (150 zł/mies.). Dla sieci lokali przygotowujemy wycenę indywidualną."
           }
         },
         {
@@ -76,7 +88,15 @@
           "name": "Jak długo trwa okres testowy?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Obecnie Spendly jest bezpłatny dla wszystkich nowych użytkowników w ramach otwartego okresu testowego. Poinformujemy Cię z wyprzedzeniem, gdy zmienią się warunki."
+            "text": "30 dni od rejestracji, z pełnym dostępem do planu Pro i bez podawania karty. Dokładną datę zakończenia zobaczysz w panelu."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy jest możliwość dostosowania planu dla sieci restauracji?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tak. Skontaktuj się z nami pod adresem kontakt@spendly.pl — przygotujemy ofertę dedykowaną dla sieci lokali gastronomicznych."
           }
         }
       ]
@@ -97,132 +117,172 @@
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="/fonts/inter-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
+    <!-- Font aplikacji (Space Grotesk) idzie przez @fontsource w bundlu CSS — mają
+         hashowane nazwy, więc nie da się ich preloadować ze statycznej ścieżki
+         (patrz index.html). font-display:swap trzyma tekst widoczny od pierwszej klatki. -->
   </head>
   <body>
     <div id="root">
-      <!-- Static prerender for crawlers and AI bots — replaced by React on hydration -->
-      <div style="background:#0B0F14;min-height:100vh;font-family:'Inter',system-ui,sans-serif;color:#F5F7FA;">
+      <!-- Static prerender for crawlers and AI bots — replaced by React on hydration.
+           Paleta i struktura zsynchronizowane z index.html (redesign „edytorski
+           gastro" — papier/terakota, Space Grotesk); wcześniej ten plik był z
+           poprzedniej wersji (miętowy #3DDC97, Inter, ceny 200 zł). -->
+      <div style="background:radial-gradient(ellipse 90% 55% at 50% -8%, #33251A, transparent 60%), #17130E;min-height:100vh;font-family:'Space Grotesk Variable',system-ui,sans-serif;color:#F0E9DB;">
 
         <!-- NAV -->
-        <header style="position:sticky;top:0;z-index:50;background:rgba(11,15,20,0.9);border-bottom:1px solid rgba(255,255,255,0.08);">
+        <header style="position:sticky;top:0;z-index:50;background:#17130E;border-bottom:1px solid #392F22;">
           <div style="max-width:1200px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;">
-            <a href="/" style="font-size:18px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;text-decoration:none;">SPENDLY<span style="color:#F5F7FA;">.</span></a>
+            <a href="/" style="font-size:20px;font-weight:700;letter-spacing:-0.04em;color:#E06A3C;text-decoration:none;">SPENDLY<span style="color:#F0E9DB;">.</span></a>
             <div style="display:flex;gap:8px;">
-              <a href="/sign-in" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid rgba(255,255,255,0.08);color:#9BA6B2;text-decoration:none;">Zaloguj</a>
-              <a href="/sign-up" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;background:#3DDC97;color:#0B0F14;text-decoration:none;">Rozpocznij za darmo</a>
+              <a href="/sign-in" style="padding:7px 16px;border-radius:3px;font-size:13px;font-weight:500;border:1px solid #392F22;color:#9C8F79;text-decoration:none;">Zaloguj się</a>
+              <a href="/sign-up" style="padding:7px 16px;border-radius:3px;font-size:13px;font-weight:600;background:#E06A3C;color:#17130E;text-decoration:none;">Wypróbuj za darmo</a>
             </div>
           </div>
         </header>
 
+        <main>
         <!-- HERO -->
         <section style="max-width:1200px;margin:0 auto;padding:72px 24px 64px;text-align:center;">
-          <div style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;border:1px solid rgba(61,220,151,0.12);background:rgba(61,220,151,0.12);color:#3DDC97;font-size:12px;font-weight:600;margin-bottom:20px;">
-            Okres testowy — bezpłatnie
+          <div style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:2px;border:1px solid #392F22;background:#33251A;color:#E06A3C;font-size:12px;font-weight:600;margin-bottom:20px;">
+            Bez ukrytych opłat
           </div>
-          <h1 style="font-size:clamp(2rem,5vw,3.2rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:16px;color:#F5F7FA;">
-            Prosta cena.<br />
-            <span style="color:#3DDC97;">Pełna kontrola kosztów.</span>
+          <h1 style="font-size:clamp(2rem,5vw,3.2rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:16px;color:#F0E9DB;">
+            Prosty cennik.<br />
+            <span style="color:#E06A3C;">Pełna kontrola kosztów.</span>
           </h1>
-          <p style="font-size:17px;color:#9BA6B2;line-height:1.7;max-width:480px;margin:0 auto;">
-            Okres testowy bezpłatny dla każdego. Bez karty kredytowej. Anuluj w dowolnym momencie.
+          <p style="font-size:17px;color:#9C8F79;line-height:1.7;max-width:480px;margin:0 auto;">
+            Nowi Użytkownicy dostają 30 dni darmowego dostępu do planu Pro, bez podawania karty.
+            <br /><strong style="color:#F0E9DB;">Faktury z KSeF bez limitu stron na każdym planie</strong> — nie płacisz za skanowane strony.
           </p>
         </section>
 
-        <!-- PRICING CARD -->
-        <section style="max-width:1200px;margin:0 auto;padding:0 24px 80px;">
-          <div style="max-width:480px;margin:0 auto;">
-            <div style="background:#131A22;border:1px solid rgba(61,220,151,0.25);border-radius:24px;padding:40px 36px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;">
-                <p style="font-size:15px;font-weight:700;color:#F5F7FA;margin:0;">Spendly Pro</p>
-                <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:rgba(61,220,151,0.12);color:#3DDC97;padding:4px 10px;border-radius:999px;">Okres testowy</span>
+        <!-- PRICING -->
+        <section style="max-width:1100px;margin:0 auto;padding:0 24px 80px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;align-items:stretch;">
+            <div style="position:relative;background:#201A13;border:1px solid #392F22;border-radius:4px;padding:32px 28px;display:flex;flex-direction:column;text-align:center;">
+              <p style="font-size:15px;font-weight:700;color:#F0E9DB;margin:0;">Start</p>
+              <div style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin:14px 0 4px;">
+                <span style="font-size:44px;font-weight:800;color:#E06A3C;letter-spacing:-0.03em;line-height:1;font-variant-numeric:tabular-nums;">0</span>
+                <span style="font-size:15px;color:#9C8F79;">zł/mies.</span>
               </div>
-              <div style="margin-bottom:8px;">
-                <div style="display:flex;align-items:baseline;gap:8px;">
-                  <span style="font-size:56px;font-weight:800;color:#3DDC97;letter-spacing:-0.03em;line-height:1;">0</span>
-                  <span style="font-size:16px;color:#9BA6B2;">zł / mies.</span>
-                  <span style="font-size:14px;color:#9BA6B2;text-decoration:line-through;align-self:center;margin-left:4px;opacity:0.6;">200 zł</span>
-                </div>
-                <p style="font-size:13px;color:#9BA6B2;margin-top:8px;">Bezpłatnie w całym okresie testowym — dla każdego.</p>
-              </div>
-              <div style="height:1px;background:rgba(255,255,255,0.08);margin:24px 0;"></div>
-              <p style="font-size:11px;font-weight:700;color:#9BA6B2;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px;">Co zawiera plan</p>
-              <ul style="list-style:none;padding:0;margin:0 0 32px;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;">
-                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Integracja z KSeF</li>
-                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">OCR faktur (zdjęcie lub PDF)</li>
-                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Kontrola food cost w czasie rzeczywistym</li>
-                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Analiza kosztów per-dostawca</li>
-                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Alerty o zmianach cen surowców</li>
-                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Dashboard wydatków</li>
-                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Raporty miesięczne (eksport CSV)</li>
-                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Obsługa wielu lokali</li>
-                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">AI CFO — analiza zakupowa</li>
-                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:#F5F7FA;">Bezpieczeństwo AES-256</li>
+              <p style="font-size:13px;color:#9C8F79;margin:0 0 20px;min-height:38px;">Dla jednego lokalu, który dopiero zaczyna porządkować faktury.</p>
+              <ul style="list-style:none;padding:0;margin:0 auto 24px;display:flex;flex-direction:column;gap:11px;width:fit-content;text-align:left;">
+                <li style="font-size:14px;color:#F0E9DB;">1 lokal</li>
+                <li style="font-size:14px;color:#F0E9DB;">Faktury z KSeF bez limitu</li>
+                <li style="font-size:14px;color:#F0E9DB;">OCR paragonów do 50 / mies.</li>
+                <li style="font-size:14px;color:#F0E9DB;">Podstawowe alerty cenowe</li>
               </ul>
-              <a href="/sign-up" style="width:100%;padding:15px;border-radius:12px;font-size:15px;font-weight:700;background:#3DDC97;color:#0B0F14;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;">Rozpocznij za darmo</a>
-              <p style="text-align:center;font-size:12px;color:#9BA6B2;margin:12px 0 0;">Bez umowy. Bez wdrożenia. Bez ukrytych kosztów.</p>
+              <a href="/sign-up" style="display:block;width:100%;padding:13px;border-radius:4px;font-size:14px;font-weight:700;text-align:center;text-decoration:none;border:1px solid #392F22;color:#F0E9DB;">Zacznij za darmo</a>
+            </div>
+            <div style="position:relative;background:#201A13;border:1.5px solid #E06A3C;border-radius:4px;padding:32px 28px;display:flex;flex-direction:column;text-align:center;box-shadow:0 24px 48px rgba(0,0,0,0.18);">
+              <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;padding:5px 13px;border-radius:2px;background:#E06A3C;color:#17130E;white-space:nowrap;">Najpopularniejszy</div>
+              <p style="font-size:15px;font-weight:700;color:#F0E9DB;margin:0;">Pro</p>
+              <div style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin:14px 0 4px;">
+                <span style="font-size:44px;font-weight:800;color:#E06A3C;letter-spacing:-0.03em;line-height:1;font-variant-numeric:tabular-nums;">150</span>
+                <span style="font-size:15px;color:#9C8F79;">zł/mies.</span>
+              </div>
+              <p style="font-size:13px;color:#9C8F79;margin:0 0 20px;min-height:38px;">Dla restauracji, które chcą realnie kontrolować food cost.</p>
+              <ul style="list-style:none;padding:0;margin:0 auto 24px;display:flex;flex-direction:column;gap:11px;width:fit-content;text-align:left;">
+                <li style="font-size:14px;color:#F0E9DB;">Do 3 lokali</li>
+                <li style="font-size:14px;color:#F0E9DB;">Faktury z KSeF bez limitu</li>
+                <li style="font-size:14px;color:#F0E9DB;">Nielimitowany OCR paragonów</li>
+                <li style="font-size:14px;color:#F0E9DB;">Porównanie dostawców</li>
+                <li style="font-size:14px;color:#F0E9DB;">Food cost i receptury</li>
+                <li style="font-size:14px;color:#F0E9DB;">Asystent AI</li>
+              </ul>
+              <a href="/sign-up" style="display:block;width:100%;padding:13px;border-radius:4px;font-size:14px;font-weight:700;text-align:center;text-decoration:none;background:#E06A3C;color:#17130E;">Wybierz Pro</a>
+            </div>
+            <div style="position:relative;background:#201A13;border:1px solid #392F22;border-radius:4px;padding:32px 28px;display:flex;flex-direction:column;text-align:center;">
+              <p style="font-size:15px;font-weight:700;color:#F0E9DB;margin:0;">Sieć</p>
+              <div style="display:flex;align-items:baseline;justify-content:center;gap:6px;margin:14px 0 4px;">
+                <span style="font-size:44px;font-weight:800;color:#E06A3C;letter-spacing:-0.03em;line-height:1;font-variant-numeric:tabular-nums;">Wycena</span>
+              </div>
+              <p style="font-size:13px;color:#9C8F79;margin:0 0 20px;min-height:38px;">Dla grup gastronomicznych i hoteli z wieloma lokalami.</p>
+              <ul style="list-style:none;padding:0;margin:0 auto 24px;display:flex;flex-direction:column;gap:11px;width:fit-content;text-align:left;">
+                <li style="font-size:14px;color:#F0E9DB;">Nielimitowane lokale</li>
+                <li style="font-size:14px;color:#F0E9DB;">Centra kosztów i role</li>
+                <li style="font-size:14px;color:#F0E9DB;">Raporty konsolidowane</li>
+                <li style="font-size:14px;color:#F0E9DB;">Dedykowany opiekun</li>
+              </ul>
+              <a href="mailto:kontakt@spendly.pl" style="display:block;width:100%;padding:13px;border-radius:4px;font-size:14px;font-weight:700;text-align:center;text-decoration:none;border:1px solid #392F22;color:#F0E9DB;">Kontakt mailowy</a>
             </div>
           </div>
+          <p style="text-align:center;font-size:13px;color:#9C8F79;margin-top:28px;">
+            Potrzebujesz dedykowanej integracji lub wsparcia dla sieci lokali?
+            <a href="mailto:kontakt@spendly.pl" style="color:#E06A3C;text-decoration:none;">Napisz do nas</a>
+          </p>
         </section>
 
         <!-- FAQ -->
-        <section style="border-top:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.015);">
+        <section style="border-top:1px solid #392F22;">
           <div style="max-width:760px;margin:0 auto;padding:80px 24px;">
             <div style="text-align:center;margin-bottom:48px;">
-              <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#3DDC97;text-transform:uppercase;margin-bottom:12px;">FAQ</p>
-              <h2 style="font-size:clamp(1.6rem,3vw,2.4rem);font-weight:600;letter-spacing:-0.025em;color:#F5F7FA;margin:0;">Pytania o cennik i warunki</h2>
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#E06A3C;text-transform:uppercase;margin-bottom:12px;">FAQ</p>
+              <h2 style="font-size:clamp(1.6rem,3vw,2.4rem);font-weight:600;letter-spacing:-0.025em;color:#F0E9DB;margin:0;">Pytania o cennik i warunki</h2>
             </div>
-            <div style="border-top:1px solid rgba(255,255,255,0.08);">
-              <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
-                <p style="font-size:15px;font-weight:500;color:#F5F7FA;margin-bottom:10px;">Ile kosztuje Spendly po okresie testowym?</p>
-                <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Regularna cena to 200 zł / miesiąc za nielimitowany dostęp do wszystkich funkcji. W trakcie okresu testowego korzystasz ze wszystkiego bezpłatnie — bez podawania karty kredytowej.</p>
+            <div style="border-top:1px solid #392F22;">
+              <div style="border-bottom:1px solid #392F22;padding:20px 0;">
+                <h3 style="font-size:15px;font-weight:500;color:#F0E9DB;margin:0 0 8px;">Ile kosztuje Spendly?</h3>
+                <p style="font-size:14px;color:#9C8F79;line-height:1.7;margin:0;">Nowi Użytkownicy mają 30 dni darmowego dostępu do planu Pro. Po zakończeniu okresu próbnego wybierasz: zostajesz na bezpłatnym planie Start albo przechodzisz na Pro (150 zł/mies.). Dla sieci lokali przygotowujemy wycenę indywidualną — napisz do nas.</p>
               </div>
-              <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
-                <p style="font-size:15px;font-weight:500;color:#F5F7FA;margin-bottom:10px;">Czy mogę anulować w dowolnym momencie?</p>
-                <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Tak. Brak długoterminowych umów ani opłat za rezygnację. Anulujesz kiedy chcesz, bez żadnych konsekwencji.</p>
+              <div style="border-bottom:1px solid #392F22;padding:20px 0;">
+                <h3 style="font-size:15px;font-weight:500;color:#F0E9DB;margin:0 0 8px;">Czy mogę anulować w dowolnym momencie?</h3>
+                <p style="font-size:14px;color:#9C8F79;line-height:1.7;margin:0;">Tak. Brak długoterminowych umów ani opłat za rezygnację. Anulujesz kiedy chcesz, bez żadnych konsekwencji.</p>
               </div>
-              <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
-                <p style="font-size:15px;font-weight:500;color:#F5F7FA;margin-bottom:10px;">Jak długo trwa okres testowy?</p>
-                <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Obecnie Spendly jest bezpłatny dla wszystkich nowych użytkowników w ramach otwartego okresu testowego. Poinformujemy Cię z wyprzedzeniem, gdy zmienią się warunki.</p>
+              <div style="border-bottom:1px solid #392F22;padding:20px 0;">
+                <h3 style="font-size:15px;font-weight:500;color:#F0E9DB;margin:0 0 8px;">Jak długo trwa okres testowy?</h3>
+                <p style="font-size:14px;color:#9C8F79;line-height:1.7;margin:0;">30 dni od rejestracji, z pełnym dostępem do planu Pro i bez podawania karty. Dokładną datę zakończenia zobaczysz w panelu — przypomnimy Ci o niej z wyprzedzeniem.</p>
               </div>
-              <div style="border-bottom:1px solid rgba(255,255,255,0.08);padding:20px 0;">
-                <p style="font-size:15px;font-weight:500;color:#F5F7FA;margin-bottom:10px;">Czy jest możliwość dostosowania planu dla sieci restauracji?</p>
-                <p style="font-size:14px;color:#9BA6B2;line-height:1.7;margin:0;">Tak. Skontaktuj się z nami pod adresem <a href="mailto:kontakt@spendly.pl" style="color:#3DDC97;text-decoration:none;">kontakt@spendly.pl</a> — przygotujemy ofertę dedykowaną dla sieci lokali gastronomicznych.</p>
+              <div style="border-bottom:1px solid #392F22;padding:20px 0;">
+                <h3 style="font-size:15px;font-weight:500;color:#F0E9DB;margin:0 0 8px;">Czy jest możliwość dostosowania planu dla sieci restauracji?</h3>
+                <p style="font-size:14px;color:#9C8F79;line-height:1.7;margin:0;">Tak. Skontaktuj się z nami pod adresem <a href="mailto:kontakt@spendly.pl" style="color:#E06A3C;text-decoration:none;">kontakt@spendly.pl</a> — przygotujemy ofertę dedykowaną dla sieci lokali gastronomicznych.</p>
               </div>
             </div>
           </div>
         </section>
 
+        <!-- CTA -->
+        <section style="max-width:1200px;margin:0 auto;padding:80px 24px;">
+          <div style="background:#201A13;border:1px solid #33251A;border-radius:4px;padding:60px 40px;text-align:center;">
+            <h2 style="font-size:clamp(1.6rem,3vw,2.4rem);font-weight:600;letter-spacing:-0.025em;color:#F0E9DB;margin-bottom:16px;">Zacznij korzystać za darmo już teraz</h2>
+            <p style="font-size:15px;color:#9C8F79;max-width:440px;margin:0 auto 32px;line-height:1.65;">Rejestracja trwa mniej niż 2 minuty. Nie wymagamy karty kredytowej.</p>
+            <a href="/sign-up" style="display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:3px;font-size:14px;font-weight:700;background:#E06A3C;color:#17130E;text-decoration:none;">Utwórz darmowe konto</a>
+          </div>
+        </section>
+        </main>
+
         <!-- FOOTER -->
-        <footer style="border-top:1px solid rgba(255,255,255,0.08);padding:40px 24px;">
+        <footer style="border-top:1px solid #392F22;padding:40px 24px;">
           <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:32px;margin-bottom:32px;">
             <div>
-              <span style="font-size:16px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;">SPENDLY<span style="color:#F5F7FA;">.</span></span>
-              <p style="font-size:12px;color:#9BA6B2;margin-top:8px;line-height:1.6;">Kontrola kosztów restauracji z integracją KSeF i OCR faktur.</p>
+              <span style="font-size:16px;font-weight:900;letter-spacing:-0.04em;color:#E06A3C;">SPENDLY<span style="color:#F0E9DB;">.</span></span>
+              <p style="font-size:12px;color:#9C8F79;margin:8px 0 0;line-height:1.6;">Kontrola kosztów restauracji z integracją KSeF i OCR faktur.</p>
             </div>
-            <div>
-              <p style="font-size:11px;font-weight:700;color:#9BA6B2;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Rozwiązania</p>
+            <nav aria-label="Rozwiązania">
+              <p style="font-size:11px;font-weight:700;color:#9C8F79;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Rozwiązania</p>
               <div style="display:flex;flex-direction:column;gap:8px;">
-                <a href="/ksef" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Integracja KSeF</a>
-                <a href="/food-cost" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Kontrola food cost</a>
-                <a href="/ocr-faktur" style="font-size:13px;color:#9BA6B2;text-decoration:none;">OCR faktur</a>
+                <a href="/ksef" style="font-size:13px;color:#9C8F79;text-decoration:none;">Integracja KSeF</a>
+                <a href="/food-cost" style="font-size:13px;color:#9C8F79;text-decoration:none;">Kontrola food cost</a>
+                <a href="/ocr-faktur" style="font-size:13px;color:#9C8F79;text-decoration:none;">OCR faktur</a>
               </div>
-            </div>
-            <div>
-              <p style="font-size:11px;font-weight:700;color:#9BA6B2;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Firma</p>
+            </nav>
+            <nav aria-label="Produkt">
+              <p style="font-size:11px;font-weight:700;color:#9C8F79;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Produkt</p>
               <div style="display:flex;flex-direction:column;gap:8px;">
-                <a href="/cennik" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Cennik</a>
-                <a href="/sign-up" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Rejestracja</a>
-                <a href="mailto:kontakt@spendly.pl" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Kontakt</a>
+                <a href="/cennik" style="font-size:13px;color:#9C8F79;text-decoration:none;">Cennik</a>
+                <a href="/blog" style="font-size:13px;color:#9C8F79;text-decoration:none;">Blog</a>
+                <a href="/sign-up" style="font-size:13px;color:#9C8F79;text-decoration:none;">Rejestracja</a>
+                <a href="/sign-in" style="font-size:13px;color:#9C8F79;text-decoration:none;">Logowanie</a>
+                <a href="mailto:kontakt@spendly.pl" style="font-size:13px;color:#9C8F79;text-decoration:none;">Kontakt</a>
               </div>
-            </div>
+            </nav>
           </div>
-          <div style="max-width:1200px;margin:0 auto;padding-top:20px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
-            <span style="font-size:12px;color:#9BA6B2;">&copy; 2025 SPENDLY. Wszelkie prawa zastrzeżone.</span>
+          <div style="max-width:1200px;margin:0 auto;padding-top:20px;border-top:1px solid #392F22;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:center;">
+            <span style="font-size:12px;color:#9C8F79;">&copy; 2026 SPENDLY. Wszelkie prawa zastrzeżone.</span>
+            <a href="/polityka-prywatnosci" style="font-size:12px;color:#9C8F79;text-decoration:none;">Polityka prywatności</a>
+            <a href="/regulamin" style="font-size:12px;color:#9C8F79;text-decoration:none;">Regulamin</a>
           </div>
         </footer>
-
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

@@ -16,9 +16,9 @@ const PRO_PRICE = `${PRO.price} ${PRO.unit ?? ""}`.trim();
 // bezterminowo" + „14 dni próbnych") — dwie różne oferty w jednym produkcie.
 const FAQS = [
   // Cena brana z PLANS, nie wpisana w tekst — inaczej rozjedzie sie z tabela wyzej.
-  { q: "Ile kosztuje Spendly?", a: `Obecnie pełny dostęp jest bezpłatny w okresie testowym — nie płacisz za nic. Ceny z tabeli powyżej (Pro ${PRO_PRICE}) wejdą w życie po zakończeniu okresu testowego; uprzedzimy o tym z wyprzedzeniem. Dla sieci lokali przygotowujemy wycenę indywidualną.` },
+  { q: "Ile kosztuje Spendly?", a: `Nowi Użytkownicy mają 30 dni darmowego dostępu do planu Pro. Po zakończeniu okresu próbnego wybierasz: zostajesz na bezpłatnym planie Start albo przechodzisz na Pro (${PRO_PRICE}). Dla sieci lokali przygotowujemy wycenę indywidualną — napisz do nas.` },
   { q: "Czy mogę anulować w dowolnym momencie?", a: "Tak. Brak długoterminowych umów ani opłat za rezygnację. Anulujesz kiedy chcesz, bez żadnych konsekwencji." },
-  { q: "Jak długo trwa okres testowy?", a: "Nie podaliśmy jeszcze daty zakończenia — dopóki trwa, korzystasz z pełnej funkcjonalności za darmo i bez podawania karty. O nadchodzącej zmianie poinformujemy z wyprzedzeniem." },
+  { q: "Jak długo trwa okres testowy?", a: "30 dni od rejestracji, z pełnym dostępem do planu Pro i bez podawania karty. Dokładną datę zakończenia zobaczysz w panelu — przypomnimy Ci o niej z wyprzedzeniem." },
   { q: "Czy jest możliwość dostosowania planu dla sieci restauracji?", a: "Tak. Skontaktuj się z nami pod adresem kontakt@spendly.pl — przygotujemy ofertę dedykowaną dla sieci lokali gastronomicznych." },
 ];
 

@@ -50,7 +50,7 @@ export const PLANS: readonly Plan[] = [
     id: "pro",
     tier: "pro",
     name: "Pro",
-    price: "199",
+    price: "150",
     unit: "zł/mies.",
     highlight: true,
     desc: "Dla restauracji, które chcą realnie kontrolować food cost.",
@@ -79,11 +79,14 @@ export const PLANS: readonly Plan[] = [
       "Raporty konsolidowane",
       "Dedykowany opiekun",
     ],
-    cta: "Umów rozmowę",
+    cta: "Kontakt mailowy",
     href: "mailto:kontakt@spendly.pl",
   },
 ] as const;
 
-/** Zdanie pod nagłówkiem cennika — wspólne dla obu stron. */
+/** Zdanie pod nagłówkiem cennika — wspólne dla obu stron.
+ *  Faza A (2026-09): każdy nowy Użytkownik dostaje realny 30-dniowy okres próbny
+ *  z dostępem do planu Pro (patrz services/subscriptions.ts, startTrialForUser) —
+ *  to NIE jest już otwarty "cały serwis bezpłatny, data nieznana" jak wcześniej. */
 export const PRICING_NOTE =
-  "Obecnie pełny dostęp bezpłatnie w okresie testowym — ceny poniżej wejdą po jego zakończeniu. Bez ukrytych opłat, anulujesz kiedy chcesz.";
+  "Nowi Użytkownicy dostają 30 dni darmowego dostępu do planu Pro, bez podawania karty. Po tym czasie wybierasz: zostajesz na bezpłatnym planie Start albo przechodzisz na Pro. Bez ukrytych opłat, anulujesz kiedy chcesz.";

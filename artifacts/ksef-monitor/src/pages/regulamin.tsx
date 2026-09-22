@@ -17,7 +17,7 @@ export default function Regulamin() {
 
             <LegalSection n="1" title="Definicje" c={c}>
               <ul style={{ paddingLeft: 20, display: "flex", flexDirection: "column", gap: 8 }}>
-                <li><B>Usługodawca</B> — [PEŁNA NAZWA FIRMY], z siedzibą w [ADRES], NIP [NIP], REGON [REGON], e-mail: kontakt@spendly.pl.</li>
+                <li><B>Usługodawca</B> — Spendly, e-mail: kontakt@spendly.pl.</li>
                 <li><B>Serwis / Aplikacja</B> — oprogramowanie Spendly dostępne przez przeglądarkę oraz jako aplikacja mobilna.</li>
                 <li><B>Użytkownik</B> — przedsiębiorca korzystający z Serwisu w związku z prowadzoną działalnością gastronomiczną.</li>
                 <li><B>Konto</B> — indywidualny profil Użytkownika zakładany w procesie rejestracji.</li>
@@ -39,7 +39,7 @@ export default function Regulamin() {
             </LegalSection>
 
             <LegalSection n="5" title="Płatności i okres testowy" c={c}>
-              <p>W okresie testowym korzystanie z Serwisu jest bezpłatne i nie wymaga podania danych karty płatniczej. Docelowa cena abonamentu wynosi <B>200 zł miesięcznie</B> za pełny dostęp. O zmianie warunków oraz rozpoczęciu odpłatności Użytkownik zostanie poinformowany z wyprzedzeniem. Subskrypcję można anulować w dowolnym momencie, bez opłat za rezygnację.</p>
+              <p>Nowo zarejestrowani Użytkownicy otrzymują <B>30-dniowy okres testowy</B> z pełnym dostępem do planu Pro, bez konieczności podawania danych karty płatniczej. Po jego zakończeniu Użytkownik może kontynuować korzystanie z bezpłatnego planu Start albo wybrać płatny plan Pro w cenie <B>150 zł miesięcznie</B>. Plan Sieć (dla grup lokali) wyceniany jest indywidualnie po kontakcie mailowym (kontakt@spendly.pl). O zmianie warunków oraz rozpoczęciu odpłatności Użytkownik zostanie poinformowany z wyprzedzeniem. Subskrypcję można anulować w dowolnym momencie, bez opłat za rezygnację.</p>
             </LegalSection>
 
             <LegalSection n="6" title="Sztuczna inteligencja" c={c}>
