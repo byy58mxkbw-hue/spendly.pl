@@ -38,13 +38,13 @@ W praktyce większość restauracji i firm gastronomicznych będących czynnymi 
 <circle cx="110" cy="64" r="9" fill="#E06A3C"/>
 <circle cx="300" cy="64" r="9" fill="#E06A3C"/>
 <circle cx="490" cy="64" r="9" fill="#4f9cff"/>
-<text x="110" y="40" text-anchor="middle" fill="#F0E9DB" font-family="sans-serif" font-size="13" font-weight="700">1 lut 2026</text>
-<text x="110" y="94" text-anchor="middle" fill="#9C8F79" font-family="sans-serif" font-size="11">Duzi podatnicy</text>
-<text x="300" y="40" text-anchor="middle" fill="#F0E9DB" font-family="sans-serif" font-size="13" font-weight="700">1 kwi 2026</text>
-<text x="300" y="94" text-anchor="middle" fill="#9C8F79" font-family="sans-serif" font-size="11">Pozostali podatnicy VAT</text>
-<text x="490" y="40" text-anchor="middle" fill="#F0E9DB" font-family="sans-serif" font-size="13" font-weight="700">1 sty 2027</text>
-<text x="490" y="94" text-anchor="middle" fill="#9C8F79" font-family="sans-serif" font-size="11">Najmniejsi (zwoln. z VAT)</text>
-<text x="205" y="118" text-anchor="middle" fill="#E06A3C" font-family="sans-serif" font-size="11" font-weight="700">Większość restauracji: kwiecień 2026</text>
+<text x="110" y="40" text-anchor="middle" fill="#211B12" font-family="sans-serif" font-size="13" font-weight="700">1 lut 2026</text>
+<text x="110" y="94" text-anchor="middle" fill="#8A7C63" font-family="sans-serif" font-size="11">Duzi podatnicy</text>
+<text x="300" y="40" text-anchor="middle" fill="#211B12" font-family="sans-serif" font-size="13" font-weight="700">1 kwi 2026</text>
+<text x="300" y="94" text-anchor="middle" fill="#8A7C63" font-family="sans-serif" font-size="11">Pozostali podatnicy VAT</text>
+<text x="490" y="40" text-anchor="middle" fill="#211B12" font-family="sans-serif" font-size="13" font-weight="700">1 sty 2027</text>
+<text x="490" y="94" text-anchor="middle" fill="#8A7C63" font-family="sans-serif" font-size="11">Najmniejsi (zwoln. z VAT)</text>
+<text x="205" y="118" text-anchor="middle" fill="#A8431F" font-family="sans-serif" font-size="11" font-weight="700">Większość restauracji: kwiecień 2026</text>
 </svg>
 <figcaption>Harmonogram wejścia obowiązkowego KSeF. Aktualne terminy weryfikuj na podatki.gov.pl.</figcaption>
 </figure>

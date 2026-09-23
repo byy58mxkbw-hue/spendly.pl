@@ -28,7 +28,7 @@ Prime cost % = (koszt surowców + koszt pracy) / przychód × 100
 <svg role="img" aria-labelledby="pcT pcD" viewBox="0 0 560 132">
 <title id="pcT">Struktura przychodu restauracji — prime cost i pozostałe koszty</title>
 <desc id="pcD">Przychód to 100 procent. Około 30 procent to koszt surowców (food cost), 28 procent to koszt pracy — razem tworzą prime cost, około 58 procent. Pozostałe 42 procent pokrywa czynsz, media, marketing i zysk.</desc>
-<text x="0" y="18" fill="#9C8F79" font-family="sans-serif" font-size="13">Przychód = 100%</text>
+<text x="0" y="18" fill="#8A7C63" font-family="sans-serif" font-size="13">Przychód = 100%</text>
 <rect x="0" y="30" width="168" height="40" rx="6" fill="#E06A3C"/>
 <rect x="172" y="30" width="157" height="40" rx="6" fill="#4f9cff"/>
 <rect x="333" y="30" width="227" height="40" rx="6" fill="#2a3542"/>
@@ -36,8 +36,8 @@ Prime cost % = (koszt surowców + koszt pracy) / przychód × 100
 <text x="182" y="55" fill="#04121f" font-family="sans-serif" font-size="12" font-weight="700">Praca 28%</text>
 <text x="343" y="55" fill="#F0E9DB" font-family="sans-serif" font-size="12" font-weight="700">Reszta + zysk 42%</text>
 <rect x="0" y="84" width="329" height="6" rx="3" fill="#E06A3C" opacity="0.55"/>
-<text x="0" y="112" fill="#E06A3C" font-family="sans-serif" font-size="14" font-weight="800">Prime cost ≈ 58%</text>
-<text x="150" y="112" fill="#6b7683" font-family="sans-serif" font-size="12">surowce + praca · zdrowy cel: 55–65%</text>
+<text x="0" y="112" fill="#A8431F" font-family="sans-serif" font-size="14" font-weight="800">Prime cost ≈ 58%</text>
+<text x="150" y="112" fill="#8A7C63" font-family="sans-serif" font-size="12">surowce + praca · zdrowy cel: 55–65%</text>
 </svg>
 <figcaption>Prime cost to suma kosztu surowców i pracy — dwa największe koszty, które decydują o rentowności lokalu.</figcaption>
 </figure>

@@ -3,12 +3,24 @@
   <head>
     <!-- Cookiebot: zgoda na cookies (RODO) -->
     <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="e40f250c-7bc6-4347-8e61-e312f6f4fca5" data-blockingmode="manual" type="text/javascript" async></script>
+    <script>
+      // Motyw przed montowaniem Reacta (brak mignięcia). Domyślnie jasny.
+      (function () {
+        try {
+          var t = localStorage.getItem("spendly_site_theme");
+          var mode = t === "light" || t === "dark" ? t : "light";
+          var el = document.documentElement;
+          el.classList.toggle("light", mode === "light");
+          el.classList.toggle("dark", mode === "dark");
+        } catch (e) {}
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#3DDC97" />
+    <meta name="theme-color" content="#A8431F" />
 
     <title>OCR faktur dla restauracji — zdjęcie i PDF | Spendly</title>
     <meta name="description" content="Spendly odczytuje faktury kosztowe ze zdjęcia lub PDF w 15 sekund — dostawca, produkty, ceny i daty trafiają do systemu automatycznie." />
@@ -99,121 +111,199 @@
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="/fonts/inter-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
+    <!-- Font aplikacji (Space Grotesk/Baloo 2/Inter) idzie przez @fontsource w bundlu CSS —
+         mają hashowane nazwy, więc nie da się ich preloadować ze statycznej ścieżki (patrz index.html). -->
   </head>
   <body>
     <div id="root">
-      <!-- Static prerender for crawlers and AI bots — replaced by React on hydration -->
-      <div style="background:#0B0F14;min-height:100vh;font-family:'Inter',system-ui,sans-serif;color:#F5F7FA;">
+      <!-- Static prerender for crawlers and AI bots — replaced by React on hydration.
+           Paleta, fonty i struktura zsynchronizowane z index.html/cennik.html/ksef.html
+           (redesign „edytorski gastro" + audyt brandingowy 2026-09). Treść zsynchronizowana
+           z pages/ocr-faktur.tsx (dołożone brakujące sekcje BENEFITS/FAQ/CTA). -->
+      <div style="background:#F4EDE0;min-height:100vh;font-family:'Inter Variable',system-ui,sans-serif;color:#211B12;">
 
         <!-- NAV -->
-        <header style="position:sticky;top:0;z-index:50;background:rgba(11,15,20,0.9);border-bottom:1px solid rgba(255,255,255,0.08);">
+        <header style="position:sticky;top:0;z-index:50;background:#F4EDE0;border-bottom:1px solid #E2D8C6;">
           <div style="max-width:1200px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;">
-            <a href="/" style="font-size:18px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;text-decoration:none;">SPENDLY<span style="color:#F5F7FA;">.</span></a>
+            <a href="/" aria-label="Spendly" style="display:block;line-height:0;"><svg viewBox="0 0 1267.4 360.0" width="81.0" height="23" role="img" aria-label="spendly." style="display:block"><g fill="#211B12" transform="translate(40.00,266.75) scale(0.30706,-0.30706)"><path d="M279 -13Q210 -13 151.5 0.5Q93 14 58.0 43.5Q23 73 23 122Q23 165 49.0 193.0Q75 221 118 221Q145 221 172.5 212.5Q200 204 231.0 196.0Q262 188 298 188Q330 188 341.0 191.5Q352 195 352 205Q352 217 338.5 221.0Q325 225 293 231L221 245Q176 254 133.5 268.5Q91 283 63.5 312.0Q36 341 36 391Q36 459 96.5 497.0Q157 535 272 535Q338 535 390.5 522.0Q443 509 474.0 483.5Q505 458 505 420Q506 379 483.0 354.0Q460 329 425 329Q400 329 374.5 335.5Q349 342 319.5 349.5Q290 357 252 358Q225 360 208.0 355.0Q191 350 191 339Q191 327 211.0 322.5Q231 318 271 311L342 298Q407 287 445.5 270.5Q484 254 501.0 225.0Q518 196 518 145Q518 92 487.5 56.5Q457 21 403.0 4.0Q349 -13 279 -13Z" transform="translate(0,0)"/><path d="M381 0Q326 0 289.5 34.0Q253 68 243 122H225V-108Q225 -149 202.0 -177.5Q179 -206 132 -206Q87 -206 62.5 -177.5Q38 -149 38 -106V268Q38 318 34.5 352.5Q31 387 28 415Q24 457 45.0 486.5Q66 516 113 522Q174 530 199.5 500.5Q225 471 225 409V361L229 360Q234 399 252.5 436.5Q271 474 305.0 498.5Q339 523 391 523Q478 523 520.5 453.5Q563 384 563 268Q563 0 381 0ZM221 270Q221 254 225 245Q231 226 250.5 217.5Q270 209 309 209Q359 209 377.5 224.0Q396 239 396 270Q396 302 378.0 316.5Q360 331 310 331Q270 331 250.5 322.5Q231 314 225 295Q221 286 221 270Z" transform="translate(540,0)"/><path d="M23 260Q23 339 54.5 399.0Q86 459 144.5 493.0Q203 527 284 527Q347 527 397.5 504.0Q448 481 477.0 442.5Q506 404 506 358Q506 310 478.0 290.0Q450 270 395 270H185Q185 244 205.5 227.0Q226 210 275 210Q300 210 321.5 215.0Q343 220 365.5 224.5Q388 229 416 229Q456 229 482.0 200.5Q508 172 508 122Q508 63 447.5 30.0Q387 -3 289 -3Q220 -3 159.5 24.0Q99 51 61.0 109.5Q23 168 23 260ZM347 303Q362 303 357 317Q353 331 333.0 346.0Q313 361 275 361Q231 361 209.5 342.0Q188 323 188 303Z" transform="translate(1126,0)"/><path d="M124 0Q80 0 53.5 26.5Q27 53 27 92V423Q27 465 52.0 494.0Q77 523 124 523Q170 523 194.0 494.0Q218 465 218 421V371H236Q236 428 256.5 461.0Q277 494 309.0 508.5Q341 523 373 523Q450 523 486.0 467.5Q522 412 522 310V92Q522 53 496.0 26.5Q470 0 426 0Q381 0 354.5 26.5Q328 53 328 92V269Q328 305 314.5 325.0Q301 345 275 345Q245 345 231.5 323.0Q218 301 218 267V92Q218 53 193.0 26.5Q168 0 124 0Z" transform="translate(1652,0)"/><path d="M205 0Q23 0 23 268Q23 384 68.0 453.5Q113 523 203 523Q252 523 282.5 503.0Q313 483 330.5 448.5Q348 414 356 369L359 370V673Q359 714 383.5 742.5Q408 771 455 771Q501 771 523.5 742.5Q546 714 546 671V221Q546 187 551.5 158.5Q557 130 560 102Q563 64 544.5 36.5Q526 9 479 1Q418 -9 388.5 22.0Q359 53 359 114V151H340Q340 78 303.5 39.0Q267 0 205 0ZM190 277Q190 246 209.0 231.0Q228 216 277 216Q327 216 346.0 231.0Q365 246 365 277Q365 309 346.5 323.5Q328 338 278 338Q228 338 209.0 323.5Q190 309 190 277Z" transform="translate(2199,0)"/></g><g fill="#A8431F" transform="translate(40.00,266.75) scale(0.30706,-0.30706)"><path d="M121 0Q72 0 47.5 26.0Q23 52 23 91V671Q23 714 47.5 742.5Q72 771 121 771Q165 771 189.0 742.5Q213 714 213 673V91Q213 52 189.0 26.0Q165 0 121 0Z" transform="translate(2780,0)"/><path d="M221 -206Q154 -206 111.5 -184.0Q69 -162 45 -126Q25 -95 22.5 -61.0Q20 -27 35.0 2.5Q50 32 80 48Q111 65 142.0 61.5Q173 58 199.0 38.5Q225 19 239 -12Q254 -45 269.5 -60.5Q285 -76 310 -67Q334 -59 327.5 -23.0Q321 13 301 62H264Q221 62 178.0 93.0Q135 124 106 191L24 381Q5 426 20.5 464.0Q36 502 77 519Q115 536 152.0 521.0Q189 506 210 457L286 280Q305 237 327.5 218.0Q350 199 375 212Q397 224 399.0 245.5Q401 267 378 298Q368 312 354.5 329.0Q341 346 330.5 368.5Q320 391 320 419Q320 466 352.0 496.5Q384 527 436 527Q483 527 511.5 497.0Q540 467 540 419Q540 385 532.0 344.0Q524 303 514 268L442 5Q426 -54 400.0 -102.0Q374 -150 331.0 -178.0Q288 -206 221 -206Z" transform="translate(3016,0)"/><path d="M150 -19Q91 -19 58.0 12.5Q25 44 25 96Q25 149 59.0 182.0Q93 215 150 215Q206 215 239.5 182.5Q273 150 273 97Q273 45 241.0 13.0Q209 -19 150 -19Z" transform="translate(3570,0)"/></g></svg></a>
             <div style="display:flex;gap:8px;">
-              <a href="/sign-in" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:500;border:1px solid rgba(255,255,255,0.08);color:#9BA6B2;text-decoration:none;">Zaloguj</a>
-              <a href="/sign-up" style="padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;background:#3DDC97;color:#0B0F14;text-decoration:none;">Rozpocznij za darmo</a>
+              <a href="/sign-in" style="padding:7px 16px;border-radius:3px;font-size:13px;font-weight:500;border:1px solid #E2D8C6;color:#8A7C63;text-decoration:none;">Zaloguj się</a>
+              <a href="/sign-up" style="padding:7px 16px;border-radius:3px;font-size:13px;font-weight:600;background:#A8431F;color:#FFFFFF;text-decoration:none;">Wypróbuj za darmo</a>
             </div>
           </div>
         </header>
 
+        <main>
         <!-- HERO -->
         <section style="max-width:1200px;margin:0 auto;padding:72px 24px 80px;">
           <div style="max-width:680px;">
-            <div style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#9BA6B2;font-size:12px;font-weight:500;margin-bottom:20px;">
+            <div style="display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:2px;border:1px solid #E2D8C6;background:#FBF7EF;color:#8A7C63;font-size:12px;font-weight:500;margin-bottom:20px;">
               OCR faktur dla gastronomii
             </div>
-            <h1 style="font-size:clamp(2rem,5vw,3.2rem);font-weight:600;letter-spacing:-0.03em;line-height:1.1;margin-bottom:20px;color:#F5F7FA;">
+            <h1 style="font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(2rem,5vw,3.2rem);font-weight:600;letter-spacing:0;line-height:1.1;margin-bottom:20px;color:#211B12;">
               Automatyczny odczyt faktur<br />
-              <span style="color:#3DDC97;">ze zdjęcia lub PDF w 15 sekund</span>
+              <span style="color:#A8431F;">ze zdjęcia lub PDF w 15 sekund</span>
             </h1>
-            <p style="font-size:17px;color:#9BA6B2;line-height:1.7;max-width:560px;margin-bottom:36px;">
+            <p style="font-size:17px;color:#8A7C63;line-height:1.7;max-width:560px;margin-bottom:36px;">
               Spendly czyta faktury kosztowe bezpośrednio ze zdjęcia zrobionego telefonem lub pliku PDF. Dostawca, produkty, ceny, daty — wszystko trafia do systemu automatycznie, bez ręcznego przepisywania.
             </p>
             <div style="display:flex;gap:12px;flex-wrap:wrap;">
-              <a href="/sign-up" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;background:#3DDC97;color:#0B0F14;text-decoration:none;">Wypróbuj za darmo</a>
-              <a href="/ksef" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:500;border:1px solid rgba(255,255,255,0.08);color:#F5F7FA;text-decoration:none;">Integracja KSeF</a>
+              <a href="/sign-up" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:3px;font-size:14px;font-weight:600;background:#A8431F;color:#FFFFFF;text-decoration:none;">Wypróbuj za darmo</a>
+              <a href="/ksef" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:3px;font-size:14px;font-weight:500;border:1px solid #E2D8C6;color:#211B12;text-decoration:none;">Integracja KSeF</a>
             </div>
           </div>
         </section>
 
         <!-- HOW IT WORKS -->
-        <section style="border-top:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);">
+        <section style="border-top:1px solid #E2D8C6;border-bottom:1px solid #E2D8C6;background:#FBF7EF;">
           <div style="max-width:1200px;margin:0 auto;padding:80px 24px;">
             <div style="text-align:center;margin-bottom:56px;">
-              <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#3DDC97;text-transform:uppercase;margin-bottom:12px;">Jak działa OCR faktur</p>
-              <h2 style="font-size:clamp(1.6rem,3vw,2.4rem);font-weight:600;letter-spacing:-0.025em;color:#F5F7FA;margin:0;">Od faktury papierowej do danych w systemie</h2>
+              <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#A8431F;text-transform:uppercase;margin-bottom:12px;">Jak działa OCR faktur</p>
+              <h2 style="font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:600;letter-spacing:0;color:#211B12;margin:0;">Od faktury papierowej do danych w systemie</h2>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;">
-              <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:28px 24px;">
-                <span style="font-size:12px;font-weight:700;color:#9BA6B2;letter-spacing:0.05em;display:block;margin-bottom:12px;">01</span>
-                <h3 style="font-size:15px;font-weight:600;color:#F5F7FA;margin-bottom:8px;">Zrób zdjęcie lub wgraj PDF</h3>
-                <p style="font-size:13px;color:#9BA6B2;line-height:1.65;margin:0;">Wystarczy zdjęcie faktury telefonem lub plik PDF. Spendly akceptuje faktury od dowolnego dostawcy — papierowe, elektroniczne, wydruki.</p>
+              <div style="background:#FFFFFF;border:1px solid #E2D8C6;border-radius:4px;padding:28px 24px;">
+                <span style="font-size:12px;font-weight:700;color:#8A7C63;letter-spacing:0.05em;display:block;margin-bottom:12px;">01</span>
+                <h3 style="font-size:15px;font-weight:600;color:#211B12;margin-bottom:8px;">Zrób zdjęcie lub wgraj PDF</h3>
+                <p style="font-size:13px;color:#8A7C63;line-height:1.65;margin:0;">Wystarczy zdjęcie faktury telefonem lub plik PDF. Spendly akceptuje faktury od dowolnego dostawcy — papierowe, elektroniczne, wydruki.</p>
               </div>
-              <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:28px 24px;">
-                <span style="font-size:12px;font-weight:700;color:#9BA6B2;letter-spacing:0.05em;display:block;margin-bottom:12px;">02</span>
-                <h3 style="font-size:15px;font-weight:600;color:#F5F7FA;margin-bottom:8px;">AI rozpoznaje dane automatycznie</h3>
-                <p style="font-size:13px;color:#9BA6B2;line-height:1.65;margin:0;">System AI odczytuje: nazwę dostawcy, pozycje produktów, ceny jednostkowe, ilości, stawki VAT i datę faktury. Proces trwa ok. 15 sekund.</p>
+              <div style="background:#FFFFFF;border:1px solid #E2D8C6;border-radius:4px;padding:28px 24px;">
+                <span style="font-size:12px;font-weight:700;color:#8A7C63;letter-spacing:0.05em;display:block;margin-bottom:12px;">02</span>
+                <h3 style="font-size:15px;font-weight:600;color:#211B12;margin-bottom:8px;">AI rozpoznaje dane automatycznie</h3>
+                <p style="font-size:13px;color:#8A7C63;line-height:1.65;margin:0;">System AI odczytuje: nazwę dostawcy, pozycje produktów, ceny jednostkowe, ilości, stawki VAT i datę faktury. Proces trwa ok. 15 sekund.</p>
               </div>
-              <div style="background:#131A22;border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:28px 24px;">
-                <span style="font-size:12px;font-weight:700;color:#9BA6B2;letter-spacing:0.05em;display:block;margin-bottom:12px;">03</span>
-                <h3 style="font-size:15px;font-weight:600;color:#F5F7FA;margin-bottom:8px;">Dane trafiają do Twojej bazy</h3>
-                <p style="font-size:13px;color:#9BA6B2;line-height:1.65;margin:0;">Rozpoznane produkty są dopasowywane do istniejących pozycji lub dodawane jako nowe. Ceny i daty trafiają do historii — gotowe do analizy.</p>
+              <div style="background:#FFFFFF;border:1px solid #E2D8C6;border-radius:4px;padding:28px 24px;">
+                <span style="font-size:12px;font-weight:700;color:#8A7C63;letter-spacing:0.05em;display:block;margin-bottom:12px;">03</span>
+                <h3 style="font-size:15px;font-weight:600;color:#211B12;margin-bottom:8px;">Dane trafiają do Twojej bazy</h3>
+                <p style="font-size:13px;color:#8A7C63;line-height:1.65;margin:0;">Rozpoznane produkty są dopasowywane do istniejących pozycji lub dodawane jako nowe. Ceny i daty trafiają do historii — gotowe do analizy.</p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- FEATURES / BENEFITS -->
+        <section style="max-width:1200px;margin:0 auto;padding:80px 24px;">
+          <div style="text-align:center;margin-bottom:56px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#A8431F;text-transform:uppercase;margin-bottom:12px;">Możliwości</p>
+            <h2 style="font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:600;letter-spacing:0;color:#211B12;margin:0;">Co Spendly odczytuje z faktury</h2>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+            <div style="background:#FFFFFF;border:1px solid #E2D8C6;border-radius:4px;padding:24px;">
+              <div style="width:40px;height:40px;border-radius:3px;background:#EFE0C6;display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:#A8431F;font-weight:700;">✓</div>
+              <h3 style="font-size:14px;font-weight:600;color:#211B12;margin-bottom:6px;">Dane dostawcy</h3>
+              <p style="font-size:13px;color:#8A7C63;line-height:1.6;margin:0;">Nazwa firmy, NIP, adres — system rozpoznaje dostawcę i dopasowuje go do Twojej bazy kontrahentów.</p>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E2D8C6;border-radius:4px;padding:24px;">
+              <div style="width:40px;height:40px;border-radius:3px;background:#EFE0C6;display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:#A8431F;font-weight:700;">✓</div>
+              <h3 style="font-size:14px;font-weight:600;color:#211B12;margin-bottom:6px;">Pozycje i ceny</h3>
+              <p style="font-size:13px;color:#8A7C63;line-height:1.6;margin:0;">Każda linia faktury: nazwa produktu, jednostka miary, ilość, cena netto i brutto, stawka VAT.</p>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E2D8C6;border-radius:4px;padding:24px;">
+              <div style="width:40px;height:40px;border-radius:3px;background:#EFE0C6;display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:#A8431F;font-weight:700;">✓</div>
+              <h3 style="font-size:14px;font-weight:600;color:#211B12;margin-bottom:6px;">Data i numer faktury</h3>
+              <p style="font-size:13px;color:#8A7C63;line-height:1.6;margin:0;">Data wystawienia i numer faktury — automatycznie przypisywane do historii zakupów.</p>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E2D8C6;border-radius:4px;padding:24px;">
+              <div style="width:40px;height:40px;border-radius:3px;background:#EFE0C6;display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:#A8431F;font-weight:700;">✓</div>
+              <h3 style="font-size:14px;font-weight:600;color:#211B12;margin-bottom:6px;">Faktury niestandardowe</h3>
+              <p style="font-size:13px;color:#8A7C63;line-height:1.6;margin:0;">OCR radzi sobie z różnymi formatami faktur — wydruki termiczne, ręcznie wypełnione, skany PDF.</p>
             </div>
           </div>
         </section>
 
         <!-- SEO CONTENT -->
-        <section style="border-top:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.015);">
+        <section style="border-top:1px solid #E2D8C6;background:#FBF7EF;">
           <div style="max-width:1200px;margin:0 auto;padding:80px 24px;">
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:48px;">
               <div>
-                <h2 style="font-size:17px;font-weight:600;color:#F5F7FA;margin-bottom:12px;line-height:1.35;">OCR faktur dla restauracji — dlaczego to ważne?</h2>
-                <p style="font-size:14px;color:#9BA6B2;line-height:1.75;margin:0;">Restauracje przetwarzają dziesiątki faktur miesięcznie od różnych dostawców. Ręczne przepisywanie danych jest kosztowne, podatne na błędy i nie zostawia czasu na analizę. OCR (Optical Character Recognition) eliminuje ten problem — fakturę wystarczy sfotografować, a system odczytuje i kategoryzuje wszystkie dane automatycznie.</p>
+                <h2 style="font-size:17px;font-weight:600;color:#211B12;margin-bottom:12px;line-height:1.35;">OCR faktur dla restauracji — dlaczego to ważne?</h2>
+                <p style="font-size:14px;color:#8A7C63;line-height:1.75;margin:0;">Restauracje przetwarzają dziesiątki faktur miesięcznie od różnych dostawców. Ręczne przepisywanie danych jest kosztowne, podatne na błędy i nie zostawia czasu na analizę. OCR (Optical Character Recognition) eliminuje ten problem — fakturę wystarczy sfotografować, a system odczytuje i kategoryzuje wszystkie dane automatycznie.</p>
               </div>
               <div>
-                <h2 style="font-size:17px;font-weight:600;color:#F5F7FA;margin-bottom:12px;line-height:1.35;">OCR a integracja z KSeF — dwie ścieżki importu</h2>
-                <p style="font-size:14px;color:#9BA6B2;line-height:1.75;margin:0;">Spendly obsługuje dwa sposoby pobierania faktur: automatyczny import przez API KSeF (dla dostawców wystawiających e-faktury) oraz OCR (dla faktur papierowych lub spoza KSeF). Oba kanały trafiają do tej samej bazy produktów i generują jednolitą historię cen — niezależnie od źródła faktury.</p>
+                <h2 style="font-size:17px;font-weight:600;color:#211B12;margin-bottom:12px;line-height:1.35;">OCR a integracja z KSeF — dwie ścieżki importu</h2>
+                <p style="font-size:14px;color:#8A7C63;line-height:1.75;margin:0;">Spendly obsługuje dwa sposoby pobierania faktur: automatyczny import przez API KSeF (dla dostawców wystawiających e-faktury) oraz OCR (dla faktur papierowych lub spoza KSeF). Oba kanały trafiają do tej samej bazy produktów i generują jednolitą historię cen — niezależnie od źródła faktury.</p>
               </div>
               <div>
-                <h2 style="font-size:17px;font-weight:600;color:#F5F7FA;margin-bottom:12px;line-height:1.35;">Analiza faktur gastronomicznych — od danych do decyzji</h2>
-                <p style="font-size:14px;color:#9BA6B2;line-height:1.75;margin:0;">Sam odczyt faktury to pierwszy krok. Spendly idzie dalej — każda zaimportowana pozycja zasila historię cen, alerty i raporty food cost. Gdy AI wykryje, że cena łososia wzrosła o 15% w stosunku do poprzedniej faktury, system automatycznie generuje alert i aktualizuje wskaźnik food cost dla danego okresu.</p>
+                <h2 style="font-size:17px;font-weight:600;color:#211B12;margin-bottom:12px;line-height:1.35;">Analiza faktur gastronomicznych — od danych do decyzji</h2>
+                <p style="font-size:14px;color:#8A7C63;line-height:1.75;margin:0;">Sam odczyt faktury to pierwszy krok. Spendly idzie dalej — każda zaimportowana pozycja zasila historię cen, alerty i raporty food cost. Gdy AI wykryje, że cena łososia wzrosła o 15% w stosunku do poprzedniej faktury, system automatycznie generuje alert i aktualizuje wskaźnik food cost dla danego okresu.</p>
               </div>
             </div>
           </div>
         </section>
 
+        <!-- FAQ -->
+        <section style="max-width:760px;margin:0 auto;padding:80px 24px;">
+          <div style="text-align:center;margin-bottom:48px;">
+            <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;color:#A8431F;text-transform:uppercase;margin-bottom:12px;">FAQ</p>
+            <h2 style="font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(1.6rem,3vw,2.2rem);font-weight:600;letter-spacing:0;color:#211B12;margin:0;">OCR faktur — najczęstsze pytania</h2>
+          </div>
+          <div style="border-top:1px solid #E2D8C6;">
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Jak działa OCR faktur w Spendly?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">OCR odczytuje dane z faktury lub paragonu bezpośrednio ze zdjęcia albo pliku PDF — zwykle w około 15 sekund. Nie musisz nic przepisywać ręcznie.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Jakie dane rozpoznaje OCR z faktury?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Spendly odczytuje dostawcę, poszczególne pozycje (produkty), ceny jednostkowe, ilości, stawki VAT oraz daty. Dane trafiają wprost do bazy kosztów restauracji.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy OCR działa ze zdjęcia zrobionego telefonem?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Tak. Wystarczy zdjęcie faktury lub paragonu z telefonu — system poradzi sobie także ze zdjęciem zrobionym pod kątem czy przy słabszym świetle.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy muszę sprawdzać odczytane dane?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Rozpoznane pozycje możesz zweryfikować i poprawić przed zapisaniem, więc koszty i food cost liczą się na poprawnych danych.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy OCR obsługuje też paragony, nie tylko faktury?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Tak. OCR działa zarówno dla faktur kosztowych, jak i paragonów — przydatne przy drobnych zakupach, które nie trafiają do KSeF.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- CTA -->
+        <section style="max-width:1200px;margin:0 auto;padding:80px 24px;">
+          <div style="background:#FBF7EF;border:1px solid #E2D8C6;border-radius:4px;padding:60px 40px;text-align:center;">
+            <h2 style="font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:600;letter-spacing:0;color:#211B12;margin-bottom:16px;">Koniec z ręcznym przepisywaniem faktur</h2>
+            <p style="font-size:15px;color:#8A7C63;max-width:480px;margin:0 auto 32px;line-height:1.65;">Zacznij importować faktury automatycznie — przez KSeF lub OCR — i zyskaj pełną kontrolę nad kosztami restauracji.</p>
+            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+              <a href="/sign-up" style="display:inline-flex;align-items:center;gap:8px;padding:13px 28px;border-radius:3px;font-size:14px;font-weight:700;background:#A8431F;color:#FFFFFF;text-decoration:none;">Utwórz darmowe konto</a>
+            </div>
+          </div>
+        </section>
+        </main>
+
         <!-- FOOTER -->
-        <footer style="border-top:1px solid rgba(255,255,255,0.08);padding:40px 24px;">
+        <footer style="border-top:1px solid #E2D8C6;padding:40px 24px;">
           <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:32px;margin-bottom:32px;">
             <div>
-              <span style="font-size:16px;font-weight:900;letter-spacing:-0.04em;color:#3DDC97;">SPENDLY<span style="color:#F5F7FA;">.</span></span>
-              <p style="font-size:12px;color:#9BA6B2;margin-top:8px;line-height:1.6;">Kontrola kosztów restauracji z integracją KSeF i OCR faktur.</p>
+              <svg viewBox="0 0 1267.4 360.0" width="64.8" height="18.4" role="img" aria-label="spendly." style="display:block"><g fill="#211B12" transform="translate(40.00,266.75) scale(0.30706,-0.30706)"><path d="M279 -13Q210 -13 151.5 0.5Q93 14 58.0 43.5Q23 73 23 122Q23 165 49.0 193.0Q75 221 118 221Q145 221 172.5 212.5Q200 204 231.0 196.0Q262 188 298 188Q330 188 341.0 191.5Q352 195 352 205Q352 217 338.5 221.0Q325 225 293 231L221 245Q176 254 133.5 268.5Q91 283 63.5 312.0Q36 341 36 391Q36 459 96.5 497.0Q157 535 272 535Q338 535 390.5 522.0Q443 509 474.0 483.5Q505 458 505 420Q506 379 483.0 354.0Q460 329 425 329Q400 329 374.5 335.5Q349 342 319.5 349.5Q290 357 252 358Q225 360 208.0 355.0Q191 350 191 339Q191 327 211.0 322.5Q231 318 271 311L342 298Q407 287 445.5 270.5Q484 254 501.0 225.0Q518 196 518 145Q518 92 487.5 56.5Q457 21 403.0 4.0Q349 -13 279 -13Z" transform="translate(0,0)"/><path d="M381 0Q326 0 289.5 34.0Q253 68 243 122H225V-108Q225 -149 202.0 -177.5Q179 -206 132 -206Q87 -206 62.5 -177.5Q38 -149 38 -106V268Q38 318 34.5 352.5Q31 387 28 415Q24 457 45.0 486.5Q66 516 113 522Q174 530 199.5 500.5Q225 471 225 409V361L229 360Q234 399 252.5 436.5Q271 474 305.0 498.5Q339 523 391 523Q478 523 520.5 453.5Q563 384 563 268Q563 0 381 0ZM221 270Q221 254 225 245Q231 226 250.5 217.5Q270 209 309 209Q359 209 377.5 224.0Q396 239 396 270Q396 302 378.0 316.5Q360 331 310 331Q270 331 250.5 322.5Q231 314 225 295Q221 286 221 270Z" transform="translate(540,0)"/><path d="M23 260Q23 339 54.5 399.0Q86 459 144.5 493.0Q203 527 284 527Q347 527 397.5 504.0Q448 481 477.0 442.5Q506 404 506 358Q506 310 478.0 290.0Q450 270 395 270H185Q185 244 205.5 227.0Q226 210 275 210Q300 210 321.5 215.0Q343 220 365.5 224.5Q388 229 416 229Q456 229 482.0 200.5Q508 172 508 122Q508 63 447.5 30.0Q387 -3 289 -3Q220 -3 159.5 24.0Q99 51 61.0 109.5Q23 168 23 260ZM347 303Q362 303 357 317Q353 331 333.0 346.0Q313 361 275 361Q231 361 209.5 342.0Q188 323 188 303Z" transform="translate(1126,0)"/><path d="M124 0Q80 0 53.5 26.5Q27 53 27 92V423Q27 465 52.0 494.0Q77 523 124 523Q170 523 194.0 494.0Q218 465 218 421V371H236Q236 428 256.5 461.0Q277 494 309.0 508.5Q341 523 373 523Q450 523 486.0 467.5Q522 412 522 310V92Q522 53 496.0 26.5Q470 0 426 0Q381 0 354.5 26.5Q328 53 328 92V269Q328 305 314.5 325.0Q301 345 275 345Q245 345 231.5 323.0Q218 301 218 267V92Q218 53 193.0 26.5Q168 0 124 0Z" transform="translate(1652,0)"/><path d="M205 0Q23 0 23 268Q23 384 68.0 453.5Q113 523 203 523Q252 523 282.5 503.0Q313 483 330.5 448.5Q348 414 356 369L359 370V673Q359 714 383.5 742.5Q408 771 455 771Q501 771 523.5 742.5Q546 714 546 671V221Q546 187 551.5 158.5Q557 130 560 102Q563 64 544.5 36.5Q526 9 479 1Q418 -9 388.5 22.0Q359 53 359 114V151H340Q340 78 303.5 39.0Q267 0 205 0ZM190 277Q190 246 209.0 231.0Q228 216 277 216Q327 216 346.0 231.0Q365 246 365 277Q365 309 346.5 323.5Q328 338 278 338Q228 338 209.0 323.5Q190 309 190 277Z" transform="translate(2199,0)"/></g><g fill="#A8431F" transform="translate(40.00,266.75) scale(0.30706,-0.30706)"><path d="M121 0Q72 0 47.5 26.0Q23 52 23 91V671Q23 714 47.5 742.5Q72 771 121 771Q165 771 189.0 742.5Q213 714 213 673V91Q213 52 189.0 26.0Q165 0 121 0Z" transform="translate(2780,0)"/><path d="M221 -206Q154 -206 111.5 -184.0Q69 -162 45 -126Q25 -95 22.5 -61.0Q20 -27 35.0 2.5Q50 32 80 48Q111 65 142.0 61.5Q173 58 199.0 38.5Q225 19 239 -12Q254 -45 269.5 -60.5Q285 -76 310 -67Q334 -59 327.5 -23.0Q321 13 301 62H264Q221 62 178.0 93.0Q135 124 106 191L24 381Q5 426 20.5 464.0Q36 502 77 519Q115 536 152.0 521.0Q189 506 210 457L286 280Q305 237 327.5 218.0Q350 199 375 212Q397 224 399.0 245.5Q401 267 378 298Q368 312 354.5 329.0Q341 346 330.5 368.5Q320 391 320 419Q320 466 352.0 496.5Q384 527 436 527Q483 527 511.5 497.0Q540 467 540 419Q540 385 532.0 344.0Q524 303 514 268L442 5Q426 -54 400.0 -102.0Q374 -150 331.0 -178.0Q288 -206 221 -206Z" transform="translate(3016,0)"/><path d="M150 -19Q91 -19 58.0 12.5Q25 44 25 96Q25 149 59.0 182.0Q93 215 150 215Q206 215 239.5 182.5Q273 150 273 97Q273 45 241.0 13.0Q209 -19 150 -19Z" transform="translate(3570,0)"/></g></svg>
+              <p style="font-size:12px;color:#8A7C63;margin-top:8px;line-height:1.6;">Kontrola kosztów restauracji z integracją KSeF i OCR faktur.</p>
             </div>
             <div>
-              <p style="font-size:11px;font-weight:700;color:#9BA6B2;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Rozwiązania</p>
+              <p style="font-size:11px;font-weight:700;color:#8A7C63;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Rozwiązania</p>
               <div style="display:flex;flex-direction:column;gap:8px;">
-                <a href="/ksef" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Integracja KSeF</a>
-                <a href="/food-cost" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Kontrola food cost</a>
-                <a href="/ocr-faktur" style="font-size:13px;color:#9BA6B2;text-decoration:none;">OCR faktur</a>
+                <a href="/ksef" style="font-size:13px;color:#8A7C63;text-decoration:none;">Integracja KSeF</a>
+                <a href="/food-cost" style="font-size:13px;color:#8A7C63;text-decoration:none;">Kontrola food cost</a>
+                <a href="/ocr-faktur" style="font-size:13px;color:#8A7C63;text-decoration:none;">OCR faktur</a>
               </div>
             </div>
             <div>
-              <p style="font-size:11px;font-weight:700;color:#9BA6B2;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Firma</p>
+              <p style="font-size:11px;font-weight:700;color:#8A7C63;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Firma</p>
               <div style="display:flex;flex-direction:column;gap:8px;">
-                <a href="/cennik" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Cennik</a>
-                <a href="/sign-up" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Rejestracja</a>
-                <a href="mailto:kontakt@spendly.pl" style="font-size:13px;color:#9BA6B2;text-decoration:none;">Kontakt</a>
+                <a href="/cennik" style="font-size:13px;color:#8A7C63;text-decoration:none;">Cennik</a>
+                <a href="/blog" style="font-size:13px;color:#8A7C63;text-decoration:none;">Blog</a>
+                <a href="/sign-up" style="font-size:13px;color:#8A7C63;text-decoration:none;">Rejestracja</a>
+                <a href="mailto:kontakt@spendly.pl" style="font-size:13px;color:#8A7C63;text-decoration:none;">Kontakt</a>
               </div>
             </div>
           </div>
-          <div style="max-width:1200px;margin:0 auto;padding-top:20px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
-            <span style="font-size:12px;color:#9BA6B2;">&copy; 2025 SPENDLY. Wszelkie prawa zastrzeżone.</span>
+          <div style="max-width:1200px;margin:0 auto;padding-top:20px;border-top:1px solid #E2D8C6;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:center;">
+            <span style="font-size:12px;color:#8A7C63;">&copy; 2026 SPENDLY. Wszelkie prawa zastrzeżone.</span>
+            <a href="/polityka-prywatnosci" style="font-size:12px;color:#8A7C63;text-decoration:none;">Polityka prywatności</a>
+            <a href="/regulamin" style="font-size:12px;color:#8A7C63;text-decoration:none;">Regulamin</a>
           </div>
         </footer>
-
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

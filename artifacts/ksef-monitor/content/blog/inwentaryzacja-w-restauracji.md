@@ -41,9 +41,9 @@ Stan początkowy i końcowy pochodzą z inwentaryzacji, zakupy z faktur. To zuż
 <text x="336" y="64" text-anchor="middle" fill="#F0E9DB" font-family="sans-serif" font-size="13" font-weight="700">6 000 zł</text>
 <text x="487" y="46" text-anchor="middle" fill="#06231a" font-family="sans-serif" font-size="10.5">Zużycie</text>
 <text x="487" y="64" text-anchor="middle" fill="#06231a" font-family="sans-serif" font-size="13" font-weight="800">24 000 zł</text>
-<text x="129" y="58" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="20">+</text>
-<text x="267" y="58" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="20">−</text>
-<text x="405" y="58" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="20">=</text>
+<text x="129" y="58" text-anchor="middle" fill="#8A7C63" font-family="sans-serif" font-size="20">+</text>
+<text x="267" y="58" text-anchor="middle" fill="#8A7C63" font-family="sans-serif" font-size="20">−</text>
+<text x="405" y="58" text-anchor="middle" fill="#8A7C63" font-family="sans-serif" font-size="20">=</text>
 </svg>
 <figcaption>Zużycie = stan początkowy + zakupy − stan końcowy. To podstawa liczenia realnego food cost.</figcaption>
 </figure>

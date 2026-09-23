@@ -66,8 +66,8 @@ Prawdziwa siła metody to zestawienie **rentowności** (marża) z **popularnośc
 <text x="144" y="210" text-anchor="middle" fill="#9C8F79" font-family="sans-serif" font-size="11">przeprojektuj lub usuń</text>
 <text x="304" y="190" text-anchor="middle" fill="#F0E9DB" font-family="sans-serif" font-size="14" font-weight="800">Konie robocze</text>
 <text x="304" y="210" text-anchor="middle" fill="#cbd5e1" font-family="sans-serif" font-size="11">podnieś cenę lub tnij koszt</text>
-<text transform="translate(26,136) rotate(-90)" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="12">Marża →</text>
-<text x="224" y="272" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="12">Popularność →</text>
+<text transform="translate(26,136) rotate(-90)" text-anchor="middle" fill="#8A7C63" font-family="sans-serif" font-size="12">Marża →</text>
+<text x="224" y="272" text-anchor="middle" fill="#8A7C63" font-family="sans-serif" font-size="12">Popularność →</text>
 </svg>
 <figcaption>Eksponuj Gwiazdy, popraw Konie robocze i Zagadki, a Psy przeprojektuj lub usuń z karty.</figcaption>
 </figure>

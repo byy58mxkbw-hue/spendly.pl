@@ -28,8 +28,8 @@ Kupując towary i usługi do firmy, płacisz cenę z VAT. Ten VAT (tzw. **podate
 <text x="294" y="68" text-anchor="middle" fill="#06231a" font-family="sans-serif" font-size="12" font-weight="800">← KSeF pilnuje kompletu</text>
 <text x="490" y="50" text-anchor="middle" fill="#9C8F79" font-family="sans-serif" font-size="10.5">Do zapłaty</text>
 <text x="490" y="68" text-anchor="middle" fill="#F0E9DB" font-family="sans-serif" font-size="12" font-weight="700">do urzędu</text>
-<text x="182" y="61" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="20">−</text>
-<text x="406" y="61" text-anchor="middle" fill="#6b7683" font-family="sans-serif" font-size="20">=</text>
+<text x="182" y="61" text-anchor="middle" fill="#8A7C63" font-family="sans-serif" font-size="20">−</text>
+<text x="406" y="61" text-anchor="middle" fill="#8A7C63" font-family="sans-serif" font-size="20">=</text>
 </svg>
 <figcaption>Im więcej udokumentowanych faktur zakupowych, tym większy VAT naliczony do odliczenia — a KSeF zapewnia ich komplet.</figcaption>
 </figure>
