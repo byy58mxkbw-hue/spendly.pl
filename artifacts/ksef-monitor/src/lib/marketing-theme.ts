@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 /**
  * Wspólny motyw statycznych stron marketingowo-SEO (cennik, ksef, ocr-faktur).
  * Ten sam localStorage co landing (home.tsx), żeby wybór motywu przenosił się
- * między stronami. Domyślnie ciemny — zgodnie z landingiem.
+ * między stronami. Domyślnie JASNY (2026-09, decyzja usera) — zgodnie z landingiem.
  */
 // Paleta „edytorski gastro" — ciemny papier / papier kremowy, akcent terakota.
 // Te same wartości co tokeny w index.css i zmienne w landing.css.
@@ -49,7 +49,7 @@ export function useMarketingTheme() {
       const s = localStorage.getItem(STORAGE_KEY);
       if (s === "light" || s === "dark") return s;
     } catch { /* ignore */ }
-    return "dark";
+    return "light";
   });
 
   useEffect(() => {

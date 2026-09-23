@@ -1,9 +1,10 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { type ThemeMode, readSavedTheme, saveTheme } from "@/lib/landing-theme";
 
-// Motyw aplikacji (po zalogowaniu). Domyślnie CIEMNY. Preferencja współdzielona
-// z landingiem przez ten sam klucz localStorage. Zmiana nakłada klasę `light`/`dark`
-// na <html>, co przełącza tokeny CSS (index.css: :root = ciemny, .light = jasny).
+// Motyw aplikacji (po zalogowaniu). Domyślnie JASNY (2026-09, decyzja usera).
+// Preferencja współdzielona z landingiem przez ten sam klucz localStorage. Zmiana
+// nakłada klasę `light`/`dark` na <html>, co przełącza tokeny CSS (index.css:
+// :root = ciemny, .light = jasny).
 
 function applyThemeClass(mode: ThemeMode): void {
   const el = document.documentElement;
@@ -16,7 +17,7 @@ type ThemeContextValue = { theme: ThemeMode; toggle: () => void; setTheme: (m: T
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>(() => readSavedTheme() ?? "dark");
+  const [theme, setThemeState] = useState<ThemeMode>(() => readSavedTheme() ?? "light");
 
   useEffect(() => {
     applyThemeClass(theme);

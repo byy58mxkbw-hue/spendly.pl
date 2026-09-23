@@ -1,7 +1,7 @@
 // Motyw stron publicznych i zalogowanego panelu — jeden wspólny klucz localStorage,
 // żeby wybór (jasny/ciemny) przenosił się między landingiem, stronami marketingowymi
 // (marketing-theme.ts), stronami prawnymi i panelem po zalogowaniu (hooks/use-theme.ts).
-// Domyślnie ciemny.
+// Domyślnie JASNY (2026-09, decyzja usera) — patrz `?? "light"` u konsumentów.
 
 export type ThemeMode = "light" | "dark";
 

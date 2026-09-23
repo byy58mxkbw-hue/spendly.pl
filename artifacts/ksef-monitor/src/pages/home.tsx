@@ -76,7 +76,7 @@ export default function Home() {
       const s = localStorage.getItem("spendly_site_theme");
       if (s === "light" || s === "dark") return s;
     } catch { /* ignore */ }
-    return "dark";
+    return "light";
   });
   const [scrolled, setScrolled] = useState(false);
   const [openFaq, setOpenFaq] = useState<Set<number>>(new Set());

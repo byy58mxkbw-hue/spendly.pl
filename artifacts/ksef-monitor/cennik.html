@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="pl" class="dark">
+<html lang="pl" class="light">
   <head>
     <!-- Cookiebot: zgoda na cookies (RODO) -->
     <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="e40f250c-7bc6-4347-8e61-e312f6f4fca5" data-blockingmode="manual" type="text/javascript" async></script>
     <script>
-      // Motyw przed montowaniem Reacta (brak mignięcia). Domyślnie ciemny.
+      // Motyw przed montowaniem Reacta (brak mignięcia). Domyślnie jasny.
       (function () {
         try {
           var t = localStorage.getItem("spendly_site_theme");
-          var mode = t === "light" || t === "dark" ? t : "dark";
+          var mode = t === "light" || t === "dark" ? t : "light";
           var el = document.documentElement;
           el.classList.toggle("light", mode === "light");
           el.classList.toggle("dark", mode === "dark");
