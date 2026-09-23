@@ -399,7 +399,7 @@ function renderPost(post, related) {
     <meta property="og:url" content="${url}" />
     <meta property="og:title" content="${escAttr(post.meta.title)}" />
     <meta property="og:description" content="${escAttr(post.meta.description)}" />
-    <meta property="og:site_name" content="Spendly" />
+    <meta property="og:site_name" content="Spendly.pl | kontrola kosztów w gastronomii" />
     <meta property="og:locale" content="pl_PL" />
     <meta property="og:image" content="${SITE}/blog/og/${post.slug}.png" />
     <meta property="og:image:width" content="1200" />
@@ -492,7 +492,7 @@ function renderIndex(posts) {
     <meta property="og:url" content="${SITE}/blog" />
     <meta property="og:title" content="Blog Spendly — food cost, KSeF i kontrola kosztów w gastronomii" />
     <meta property="og:description" content="Praktyczne poradniki dla restauracji: food cost, KSeF, automatyzacja faktur." />
-    <meta property="og:site_name" content="Spendly" />
+    <meta property="og:site_name" content="Spendly.pl | kontrola kosztów w gastronomii" />
     <meta property="og:locale" content="pl_PL" />
     <meta property="og:image" content="${SITE}/blog/og/_index.png" />
     <meta property="og:image:width" content="1200" />
