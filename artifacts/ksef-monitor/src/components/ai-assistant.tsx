@@ -60,6 +60,24 @@ function saveMessages(userId: string, msgs: Msg[]) {
   }
 }
 
+// Historia dla modelu musi nieść więcej niż samo `summary` — inaczej pytanie
+// nawiązujące do poprzedniej tabeli ("z tych produktów pokaż tylko X") trafia
+// do modelu bez konkretnych wierszy/cen, które właśnie policzył, i model
+// zaczyna zgadywać/odmawia (realny raport użytkownika 2026-09-25). Limit 1800
+// znaków mieści się w zod max 2000 (lib/api-spec) z zapasem.
+function summarizeForHistory(data: AiCfoChatResponse): string {
+  const parts: string[] = [];
+  if (data.summary) parts.push(data.summary);
+  const table = data.table;
+  if (table?.headers?.length && table.rows?.length) {
+    const headerLine = table.headers.join(" | ");
+    const rowLines = table.rows.slice(0, 8).map((r) => r.join(" | "));
+    parts.push(`Tabela: ${headerLine}\n${rowLines.join("\n")}`);
+  }
+  if (data.recommendation) parts.push(`Rekomendacja: ${data.recommendation}`);
+  return parts.join("\n").slice(0, 1800);
+}
+
 // ─── Bąbelek odpowiedzi asystenta ────────────────────────────────────────────
 
 function AssistantBubble({ data, onNavigate }: { data: AiCfoChatResponse; onNavigate: () => void }) {
@@ -194,7 +212,7 @@ export function AiAssistant() {
         .slice(-8)
         .map((m) => ({
           role: m.role as "user" | "assistant",
-          content: m.role === "user" ? m.text : (m.data.summary ?? "").slice(0, 1000),
+          content: m.role === "user" ? m.text : summarizeForHistory(m.data),
         })),
     [messages],
   );

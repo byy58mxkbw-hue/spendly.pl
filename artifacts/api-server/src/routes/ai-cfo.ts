@@ -221,9 +221,12 @@ router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
 
   const messages: ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
+    // 1800, nie 1000 — historia asystenta teraz niesie tabelę z poprzedniej
+    // odpowiedzi (frontend: summarizeForHistory), nie tylko summary. Zod
+    // (lib/api-spec) i tak twardo ogranicza pojedynczy wpis do 2000.
     ...history.slice(-6).map((h) => ({
       role: h.role as "user" | "assistant",
-      content: String(h.content).slice(0, 1000),
+      content: String(h.content).slice(0, 1800),
     })),
     { role: "user", content: question.trim().slice(0, 500) },
   ];
