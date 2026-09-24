@@ -5,8 +5,17 @@ import { Layout, PageHeader } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, RefreshCw, Save, Plug } from "@/lib/icons";
+
+const SYNC_MONTHS_OPTIONS = [1, 2, 3, 6, 12] as const;
 
 type GoposConfig = {
   clientId: string;
@@ -39,6 +48,7 @@ export default function SettingsGopos() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncMonths, setSyncMonths] = useState(3);
 
   useEffect(() => {
     void (async () => {
@@ -90,7 +100,7 @@ export default function SettingsGopos() {
   async function sync() {
     setSyncing(true);
     try {
-      const res = await authFetch(session, "/api/gopos/sync", { method: "POST", body: JSON.stringify({ months: 3 }) });
+      const res = await authFetch(session, "/api/gopos/sync", { method: "POST", body: JSON.stringify({ months: syncMonths }) });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; months?: number; revenueUpserts?: number; itemUpserts?: number; error?: string };
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       toast({ title: "Synchronizacja GoPOS zakończona", description: `${data.months} mies. · przychód: ${data.revenueUpserts} · pozycji: ${data.itemUpserts}` });
@@ -132,8 +142,18 @@ export default function SettingsGopos() {
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Zapisz
               </Button>
               <Button onClick={sync} disabled={syncing || !cfg} variant="outline" className="gap-1.5" title={!cfg ? "Najpierw zapisz konfigurację" : "Pobierz sprzedaż z GoPOS"}>
-                {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Synchronizuj (3 mies.)
+                {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Synchronizuj
               </Button>
+              <Select value={String(syncMonths)} onValueChange={(v) => setSyncMonths(Number(v))}>
+                <SelectTrigger className="h-9 w-[130px] text-xs" aria-label="Okres synchronizacji">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SYNC_MONTHS_OPTIONS.map((m) => (
+                    <SelectItem key={m} value={String(m)}>{m} {m === 1 ? "miesiąc" : "mies."}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {cfg?.lastSyncedAt && (
                 <span className="text-xs text-muted-foreground ml-1">Ostatni sync: {new Date(cfg.lastSyncedAt).toLocaleString("pl-PL")}</span>
               )}
