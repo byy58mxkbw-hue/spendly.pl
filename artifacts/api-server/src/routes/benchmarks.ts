@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { sql } from "drizzle-orm";
 import { db, userSettingsTable } from "@workspace/db";
 import { DEFAULT_MIN_USERS, DEFAULT_MIN_ROWS } from "../services/market-benchmark-job.js";
+import { normalizedUnitSql } from "../lib/units.js";
 import { UpdateBenchmarkOptInBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -66,12 +67,13 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     return;
   }
 
-  // Twoja cena: średnia z Twoich ostatnich 3 miesięcy zakupu per (canonical_name, unit),
+  // Twoja cena: średnia z Twoich ostatnich 3 miesięcy zakupu per (canonical_name, unit
+  // znormalizowany — musi się zgadzać z tym, co matcher zapisał w market_product_aliases),
   // plus miesięczna ilość (do liczenia potencjału oszczędności).
   const yourPricesResult = await db.execute<YourPriceRow>(sql`
     SELECT
       p.canonical_name,
-      p.unit,
+      ${normalizedUnitSql(sql`p.unit`)} AS unit,
       MAX(p.name) AS product_name,
       AVG(ii.unit_price::numeric)::float AS your_price,
       (SUM(ii.quantity::numeric) / 3.0)::float AS monthly_quantity
@@ -82,7 +84,7 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
       AND i.excluded = false
       AND p.canonical_name IS NOT NULL
       AND i.invoice_date >= to_char(current_date - interval '3 months', 'YYYY-MM-DD')
-    GROUP BY p.canonical_name, p.unit
+    GROUP BY p.canonical_name, ${normalizedUnitSql(sql`p.unit`)}
   `);
   const yourPrices = yourPricesResult.rows;
 

@@ -2,12 +2,20 @@ import type { Logger } from "pino";
 import { sql } from "drizzle-orm";
 import { db, marketPriceBenchmarksTable } from "@workspace/db";
 import { runMarketProductMatcher } from "../lib/market-product-matcher.js";
+import { normalizedUnitSql } from "../lib/units.js";
 
 // Batch dzienny — NIE live query. Wzorowany na ksef-scheduler.ts (setInterval).
 // Liczy jedną cenę na usera na okres (żeby duży klient z wieloma fakturami tego
 // samego produktu w miesiącu nie ważył mediany nieproporcjonalnie).
-export const DEFAULT_MIN_USERS = 5;
-export const DEFAULT_MIN_ROWS = 8;
+//
+// Progi TYMCZASOWO obniżone (2026-09-24, na wyraźną prośbę) — na produkcji jest
+// dziś tylko 7 userów z fakturami w ogóle, więc rekomendowane z brief 5/8 nigdy
+// by się nie opublikowało (max zaobserwowany distinct_user_count = 3). 3/3 to
+// wciąż realny próg k-anonimowości (nigdy 1-2 osoby), ale WYRAŹNIE słabszy niż
+// zalecane 5 — podnieś z powrotem do 5/8, gdy baza userów wystarczająco urośnie.
+// Konfigurowalne przez BENCHMARK_MIN_USERS/BENCHMARK_MIN_ROWS bez zmiany kodu.
+export const DEFAULT_MIN_USERS = 3;
+export const DEFAULT_MIN_ROWS = 3;
 
 function minUsers(): number {
   const v = Number(process.env.BENCHMARK_MIN_USERS);
@@ -54,7 +62,7 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
     WITH per_user_price AS (
       SELECT
         mpa.market_group_key,
-        p.unit,
+        mpa.unit,
         mpa.category,
         SUBSTRING(i.invoice_date, 1, 7) AS period_month,
         i.user_id,
@@ -63,12 +71,13 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
       FROM invoice_items ii
       JOIN invoices i ON i.id = ii.invoice_id
       JOIN products p ON p.id = ii.product_id
-      JOIN market_product_aliases mpa ON mpa.canonical_name = p.canonical_name AND mpa.unit = p.unit
+      JOIN market_product_aliases mpa
+        ON mpa.canonical_name = p.canonical_name AND mpa.unit = ${normalizedUnitSql(sql`p.unit`)}
       LEFT JOIN user_settings us ON us.user_id = i.user_id
       WHERE p.canonical_name IS NOT NULL
         AND i.excluded = false
         AND COALESCE(us.benchmark_opt_in, true) = true
-      GROUP BY mpa.market_group_key, p.unit, mpa.category, period_month, i.user_id, i.supplier_id
+      GROUP BY mpa.market_group_key, mpa.unit, mpa.category, period_month, i.user_id, i.supplier_id
     )
     SELECT
       market_group_key, unit, category, period_month,

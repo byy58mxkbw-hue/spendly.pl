@@ -1,6 +1,7 @@
 import type { Logger } from "pino";
 import { sql } from "drizzle-orm";
 import { db, marketProductAliasesTable } from "@workspace/db";
+import { normalizedUnitSql } from "./units.js";
 
 // Dopasowanie rozmyte nazw produktów TYLKO dla benchmarku rynkowego (market-benchmark-job.ts).
 // Nie ruszamy istniejącej normalizeProductName() (categorize-ai.ts) — to inny, dodatkowy
@@ -119,22 +120,25 @@ const uid = (name: string, unit: string) => `${name}::${unit}`;
  * Wywoływane z market-benchmark-job.ts przed liczeniem agregatów cenowych.
  */
 export async function runMarketProductMatcher(log: Logger): Promise<{ groups: number; namesProcessed: number }> {
-  // Krok 1: zdystyluj (canonical_name, unit) -> liczba różnych userów.
+  // Krok 1: zdystyluj (canonical_name, unit) -> liczba różnych userów. Jednostka
+  // znormalizowana (normalizedUnitSql, jak w reports.ts) — inaczej "kg"/"Kg"/"KG"
+  // dzielą jeden produkt na osobne, sztucznie rozdrobnione grupy (realny bug
+  // znaleziony po pierwszym uruchomieniu joba na produkcji: unit_count=1 wszędzie).
   const aggResult = await db.execute<AggregatedRow>(sql`
-    SELECT canonical_name, unit, COUNT(DISTINCT user_id)::int AS user_count
+    SELECT canonical_name, ${normalizedUnitSql(sql`unit`)} AS unit, COUNT(DISTINCT user_id)::int AS user_count
     FROM products
     WHERE canonical_name IS NOT NULL AND canonical_name <> ''
-    GROUP BY canonical_name, unit
+    GROUP BY canonical_name, ${normalizedUnitSql(sql`unit`)}
   `);
   const aggRows = aggResult.rows;
 
-  // Kategoria per (canonical_name, unit) — modalna (nazwa bywa zapisana z inną kategorią
-  // u różnych userów, grupowanie nie może na tym pękać).
+  // Kategoria per (canonical_name, unit znormalizowany) — modalna (nazwa bywa zapisana
+  // z inną kategorią u różnych userów, grupowanie nie może na tym pękać).
   const catResult = await db.execute<CategoryVoteRow>(sql`
-    SELECT canonical_name, unit, category, COUNT(*)::int AS cnt
+    SELECT canonical_name, ${normalizedUnitSql(sql`unit`)} AS unit, category, COUNT(*)::int AS cnt
     FROM products
     WHERE canonical_name IS NOT NULL AND canonical_name <> ''
-    GROUP BY canonical_name, unit, category
+    GROUP BY canonical_name, ${normalizedUnitSql(sql`unit`)}, category
   `);
   const categoryVotes = new Map<string, { category: string | null; cnt: number }>();
   for (const r of catResult.rows) {
@@ -191,10 +195,17 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
 
       // Realny trigram similarity liczony przez Postgres (pg_trgm) — nie reimplementujemy
       // algorytmu w JS, żeby wynik był identyczny z tym, na czym stoi indeks GIN.
+      //
+      // UWAGA: interpolacja JS-owej tablicy (${names}) w sql`` drizzle-orm nie tworzy
+      // jednego bindowania text[] — rozwija się do tuple ($1, $2, ...), co Postgres
+      // odczytuje jako RECORD i wywala "cannot cast type record to text[]" (złapane
+      // na produkcji przy pierwszym uruchomieniu joba — zob. run-benchmark-once.ts).
+      // ARRAY[$1, $2, ...]::text[] budowany przez sql.join to jedyny poprawny sposób.
+      const namesArray = sql`ARRAY[${sql.join(names.map((n) => sql`${n}`), sql`, `)}]::text[]`;
       const pairs = await db.execute<SimilarityPair>(sql`
         SELECT a.name AS name_a, b.name AS name_b, similarity(a.name, b.name) AS sim
-        FROM unnest(${names}::text[]) a(name)
-        CROSS JOIN unnest(${names}::text[]) b(name)
+        FROM unnest(${namesArray}) a(name)
+        CROSS JOIN unnest(${namesArray}) b(name)
         WHERE a.name < b.name AND similarity(a.name, b.name) >= ${FUZZY_SIMILARITY_THRESHOLD}
       `);
 

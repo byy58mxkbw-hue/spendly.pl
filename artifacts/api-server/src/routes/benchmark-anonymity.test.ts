@@ -82,6 +82,12 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
   let baseUrl: string;
 
   beforeAll(async () => {
+    // Ustalone na sztywno, niezależnie od DEFAULT_MIN_USERS/DEFAULT_MIN_ROWS w kodzie
+    // (te bywają tymczasowo obniżone przy małej bazie userów — patrz market-benchmark-job.ts) —
+    // test sprawdza próg 5/8 z brief'u, nie to, co akurat jest fallbackiem na dany dzień.
+    process.env.BENCHMARK_MIN_USERS = "5";
+    process.env.BENCHMARK_MIN_ROWS = "8";
+
     const { ensureMarketBenchmarkExtensions } = await import("../services/ensure-market-benchmark");
     await ensureMarketBenchmarkExtensions(log);
 
