@@ -14,6 +14,7 @@ import { ensureSubscriptionsTables } from "./services/ensure-subscriptions.js";
 import { startQueue } from "./services/queue.js";
 import { ensureMarketBenchmarkExtensions } from "./services/ensure-market-benchmark.js";
 import { startMarketBenchmarkScheduler } from "./services/market-benchmark-job.js";
+import { startGoposAutoSyncScheduler } from "./services/gopos-scheduler.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
 // Lepiej zawieść głośno od razu niż w trakcie żądania użytkownika.
@@ -81,7 +82,12 @@ app.listen(port, (err) => {
   ensureRevenueTable(logger).catch((err) => logger.error({ err }, "restaurant_revenue: migracja nieudana"));
 
   // Tabele integracji GoPOS (config + sprzedaż per pozycja) — idempotentne DDL, zawsze.
-  ensureGoposTables(logger).catch((err) => logger.error({ err }, "gopos: migracja nieudana"));
+  // Harmonogram auto-sync (co 5h, samoistny) startuje dopiero po nich, poza dev.
+  ensureGoposTables(logger)
+    .then(() => {
+      if (process.env.NODE_ENV !== "development") startGoposAutoSyncScheduler(logger);
+    })
+    .catch((err) => logger.error({ err }, "gopos: migracja nieudana"));
 
   // Log wysłanych maili (dedup webhooków Clerk) — idempotentne DDL, zawsze.
   ensureEmailLogTable(logger).catch((err) => logger.error({ err }, "email_log: migracja nieudana"));
