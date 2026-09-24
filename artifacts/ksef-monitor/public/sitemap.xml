@@ -32,7 +32,7 @@
   </url>
   <url>
     <loc>https://www.spendly.pl/blog</loc>
-    <lastmod>2026-09-04</lastmod>
+    <lastmod>2026-09-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -47,6 +47,24 @@
     <lastmod>2026-08-28</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://www.spendly.pl/blog/amortyzacja-sprzetu-gastronomicznego</loc>
+    <lastmod>2026-09-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.spendly.pl/blog/benchmark-cen-w-gastronomii</loc>
+    <lastmod>2026-09-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.spendly.pl/blog/koszty-energii-w-restauracji</loc>
+    <lastmod>2026-09-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>https://www.spendly.pl/blog/beverage-cost-restauracja</loc>
