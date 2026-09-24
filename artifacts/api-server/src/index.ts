@@ -12,6 +12,8 @@ import { ensureGrossInvoiceTotals } from "./services/ensure-gross-invoice-totals
 import { ensureEmailLogTable } from "./services/ensure-email.js";
 import { ensureSubscriptionsTables } from "./services/ensure-subscriptions.js";
 import { startQueue } from "./services/queue.js";
+import { ensureMarketBenchmarkExtensions } from "./services/ensure-market-benchmark.js";
+import { startMarketBenchmarkScheduler } from "./services/market-benchmark-job.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
 // Lepiej zawieść głośno od razu niż w trakcie żądania użytkownika.
@@ -97,6 +99,14 @@ app.listen(port, (err) => {
   // Kolejka zadań (pg-boss) — startuje TYLKO gdy PGBOSS_ENABLED=true (PoC).
   // Samo-gated i samo-obsługujące błędy; przy fladze OFF to no-op.
   void startQueue(logger);
+
+  // Benchmark rynkowy: pg_trgm + indeks GIN (idempotentne DDL, zawsze), potem
+  // harmonogram batcha (raz dziennie) — poza dev, jak reszta harmonogramów.
+  ensureMarketBenchmarkExtensions(logger)
+    .then(() => {
+      if (process.env.NODE_ENV !== "development") startMarketBenchmarkScheduler(logger);
+    })
+    .catch((err) => logger.error({ err }, "benchmark rynkowy: nie wystartował (pg_trgm)"));
 
   if (process.env.NODE_ENV !== "development") {
     logger.info("Starting category backfill on startup");

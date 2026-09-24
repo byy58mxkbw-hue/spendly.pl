@@ -1888,6 +1888,47 @@ paths:
               schema:
                 $ref: "#/components/schemas/DismissedAlert"
 
+  /benchmarks:
+    get:
+      operationId: getBenchmarks
+      tags: [benchmarks]
+      summary: Get market price benchmark for your own recently purchased products
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Benchmark rynkowy — Twoje ceny na tle anonimowej mediany
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BenchmarksResponse"
+
+  /benchmarks/opt-in:
+    patch:
+      operationId: updateBenchmarkOptIn
+      tags: [benchmarks]
+      summary: Toggle whether your (anonymized) prices contribute to and are shown the market benchmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBenchmarkOptInBody"
+      responses:
+        "200":
+          description: Updated preference
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  optedIn:
+                    type: boolean
+
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -3479,6 +3520,106 @@ components:
         - changePercent
         - thresholdPercent
         - dismissedAt
+
+    BenchmarkHistoryPoint:
+      type: object
+      properties:
+        month:
+          type: string
+        median:
+          type: number
+      required: [month, median]
+
+    BenchmarkItem:
+      type: object
+      properties:
+        productName:
+          type: string
+        unit:
+          type: string
+        category:
+          type: ["string", "null"]
+        yourPrice:
+          type: number
+        monthlyQuantity:
+          type: number
+        insufficientData:
+          type: boolean
+        distinctUserCount:
+          type: integer
+        minUsers:
+          type: integer
+        minRows:
+          type: integer
+        medianPrice:
+          type: number
+        p25Price:
+          type: ["number", "null"]
+        p75Price:
+          type: ["number", "null"]
+        deltaPercent:
+          type: number
+        sampleRowCount:
+          type: integer
+        savingsPerMonth:
+          type: number
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/BenchmarkHistoryPoint"
+      required:
+        - productName
+        - unit
+        - category
+        - yourPrice
+        - monthlyQuantity
+        - insufficientData
+
+    BenchmarkSummary:
+      type: object
+      properties:
+        savingsPotentialTotal:
+          type: number
+        avgDeltaPercent:
+          type: number
+        benchmarkedCount:
+          type: integer
+        totalCount:
+          type: integer
+        contributionCount:
+          type: integer
+      required:
+        - savingsPotentialTotal
+        - avgDeltaPercent
+        - benchmarkedCount
+        - totalCount
+        - contributionCount
+
+    BenchmarksResponse:
+      type: object
+      properties:
+        optedIn:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BenchmarkItem"
+        summary:
+          allOf:
+            - $ref: "#/components/schemas/BenchmarkSummary"
+          nullable: true
+      required:
+        - optedIn
+        - items
+        - summary
+
+    UpdateBenchmarkOptInBody:
+      type: object
+      properties:
+        optedIn:
+          type: boolean
+      required:
+        - optedIn
 
     PaginatedProducts:
       type: object

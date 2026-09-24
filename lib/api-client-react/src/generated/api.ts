@@ -27,6 +27,7 @@ import type {
   AiCfoChatBody,
   AiCfoChatResponse,
   ApplyCostCenterSuggestions200,
+  BenchmarksResponse,
   BulkAssignCostCenter200,
   BulkVerifyProducts200,
   BulkVerifyProductsBody,
@@ -57,6 +58,7 @@ import type {
   DishesSales,
   DismissPriceAlertBody,
   DismissedAlert,
+  GetBenchmarksParams,
   GetCategorySpendParams,
   GetCategorySpendTrendParams,
   GetDashboardSummaryParams,
@@ -141,6 +143,8 @@ import type {
   ToggleInvoiceExcluded200,
   ToggleInvoiceExcludedBody,
   TriggeredAlert,
+  UpdateBenchmarkOptIn200,
+  UpdateBenchmarkOptInBody,
   UpdateCategoryBody,
   UpdateCostCenterBody,
   UpdateDishBody,
@@ -5902,6 +5906,160 @@ export const useDismissPriceAlert = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDismissPriceAlertMutationOptions(options));
+    }
+
+export const getGetBenchmarksUrl = (params?: GetBenchmarksParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/benchmarks?${stringifiedParams}` : `/api/benchmarks`
+}
+
+/**
+ * @summary Get market price benchmark for your own recently purchased products
+ */
+export const getBenchmarks = async (params?: GetBenchmarksParams, options?: RequestInit): Promise<BenchmarksResponse> => {
+
+  return customFetch<BenchmarksResponse>(getGetBenchmarksUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBenchmarksQueryKey = (params?: GetBenchmarksParams,) => {
+    return [
+    `/api/benchmarks`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBenchmarksQueryOptions = <TData = Awaited<ReturnType<typeof getBenchmarks>>, TError = ErrorType<unknown>>(params?: GetBenchmarksParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBenchmarks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBenchmarksQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBenchmarks>>> = ({ signal }) => getBenchmarks(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBenchmarks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBenchmarksQueryResult = NonNullable<Awaited<ReturnType<typeof getBenchmarks>>>
+export type GetBenchmarksQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get market price benchmark for your own recently purchased products
+ */
+
+export function useGetBenchmarks<TData = Awaited<ReturnType<typeof getBenchmarks>>, TError = ErrorType<unknown>>(
+ params?: GetBenchmarksParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBenchmarks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBenchmarksQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateBenchmarkOptInUrl = () => {
+
+
+
+
+  return `/api/benchmarks/opt-in`
+}
+
+/**
+ * @summary Toggle whether your (anonymized) prices contribute to and are shown the market benchmark
+ */
+export const updateBenchmarkOptIn = async (updateBenchmarkOptInBody: UpdateBenchmarkOptInBody, options?: RequestInit): Promise<UpdateBenchmarkOptIn200> => {
+
+  return customFetch<UpdateBenchmarkOptIn200>(getUpdateBenchmarkOptInUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateBenchmarkOptInBody)
+  }
+);}
+
+
+
+
+export const getUpdateBenchmarkOptInMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBenchmarkOptIn>>, TError,{data: BodyType<UpdateBenchmarkOptInBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBenchmarkOptIn>>, TError,{data: BodyType<UpdateBenchmarkOptInBody>}, TContext> => {
+
+const mutationKey = ['updateBenchmarkOptIn'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBenchmarkOptIn>>, {data: BodyType<UpdateBenchmarkOptInBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateBenchmarkOptIn(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBenchmarkOptInMutationResult = NonNullable<Awaited<ReturnType<typeof updateBenchmarkOptIn>>>
+    export type UpdateBenchmarkOptInMutationBody = BodyType<UpdateBenchmarkOptInBody>
+    export type UpdateBenchmarkOptInMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Toggle whether your (anonymized) prices contribute to and are shown the market benchmark
+ */
+export const useUpdateBenchmarkOptIn = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBenchmarkOptIn>>, TError,{data: BodyType<UpdateBenchmarkOptInBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBenchmarkOptIn>>,
+        TError,
+        {data: BodyType<UpdateBenchmarkOptInBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateBenchmarkOptInMutationOptions(options));
     }
 
 export const getGetDashboardSummaryUrl = (params?: GetDashboardSummaryParams,) => {

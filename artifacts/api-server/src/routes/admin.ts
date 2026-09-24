@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../lib/ai-plan.js";
 import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers } from "../services/admin-broadcast.js";
 import { backfillTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "../services/subscriptions.js";
+import { runMarketBenchmarkJob } from "../services/market-benchmark-job.js";
 
 const router: IRouter = Router();
 
@@ -386,6 +387,20 @@ router.post("/admin/resync-clerk-plan", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err: String(err) }, "resync-clerk-plan failed");
     res.status(500).json({ error: "Nie udało się zsynchronizować planów." });
+  }
+});
+
+// Ręczne uruchomienie batcha benchmarku rynkowego (poza harmonogramem 24h) —
+// do testów/weryfikacji po deployu, bez czekania na kolejny tik.
+router.post("/admin/benchmarks/run", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+
+  try {
+    const result = await runMarketBenchmarkJob(req.log);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err: String(err) }, "benchmarks/run failed");
+    res.status(500).json({ error: "Nie udało się przeliczyć benchmarku." });
   }
 });
 

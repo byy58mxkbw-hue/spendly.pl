@@ -63,6 +63,7 @@ export {
   ArrowsClockwise as RefreshCw,
   ArrowCounterClockwise as RotateCcw,
   FloppyDisk as Save,
+  Scales,
   Scan as ScanLine,
   MagnifyingGlass as Search,
   ShieldWarning as ShieldAlert,

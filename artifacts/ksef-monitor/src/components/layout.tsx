@@ -24,6 +24,7 @@ import {
   Search,
   Sun,
   Moon,
+  Scales,
 } from "@/lib/icons";
 import { useUser, useClerk, useAuth } from "@clerk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -60,6 +61,7 @@ const analyticsNavItems: NavItem[] = [
   { path: "/koszty-dania", label: "Food Cost", icon: UtensilsCrossed },
   { path: "/reports", label: "Raporty", icon: BarChart2 },
   { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
+  { path: "/benchmark", label: "Benchmark rynkowy", icon: Scales },
 ];
 
 const navItems: NavItem[] = [...coreNavItems, ...analyticsNavItems];

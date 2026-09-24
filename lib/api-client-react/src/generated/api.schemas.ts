@@ -518,6 +518,51 @@ export interface DismissedAlert {
   dismissedAt: string;
 }
 
+export interface BenchmarkHistoryPoint {
+  month: string;
+  median: number;
+}
+
+export interface BenchmarkItem {
+  productName: string;
+  unit: string;
+  /** @nullable */
+  category: string | null;
+  yourPrice: number;
+  monthlyQuantity: number;
+  insufficientData: boolean;
+  distinctUserCount?: number;
+  minUsers?: number;
+  minRows?: number;
+  medianPrice?: number;
+  /** @nullable */
+  p25Price?: number | null;
+  /** @nullable */
+  p75Price?: number | null;
+  deltaPercent?: number;
+  sampleRowCount?: number;
+  savingsPerMonth?: number;
+  history?: BenchmarkHistoryPoint[];
+}
+
+export interface BenchmarkSummary {
+  savingsPotentialTotal: number;
+  avgDeltaPercent: number;
+  benchmarkedCount: number;
+  totalCount: number;
+  contributionCount: number;
+}
+
+export interface BenchmarksResponse {
+  optedIn: boolean;
+  items: BenchmarkItem[];
+  summary: BenchmarkSummary | null;
+}
+
+export interface UpdateBenchmarkOptInBody {
+  optedIn: boolean;
+}
+
 export type PaginatedProductsCategoryCountsItem = {
   category: string;
   count: number;
@@ -1635,6 +1680,14 @@ export type ToggleInvoiceExcludedBody = {
 export type ToggleInvoiceExcluded200 = {
   id: number;
   excluded: boolean;
+};
+
+export type GetBenchmarksParams = {
+category?: string;
+};
+
+export type UpdateBenchmarkOptIn200 = {
+  optedIn?: boolean;
 };
 
 export type GetDashboardSummaryParams = {

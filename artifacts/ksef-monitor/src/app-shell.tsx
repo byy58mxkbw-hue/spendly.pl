@@ -22,6 +22,7 @@ const SupplierDetail = lazy(() => import("@/pages/supplier-detail"));
 const Products = lazy(() => import("@/pages/products"));
 const Invoices = lazy(() => import("@/pages/invoices"));
 const PriceAlerts = lazy(() => import("@/pages/price-alerts"));
+const Benchmark = lazy(() => import("@/pages/benchmark"));
 const Reports = lazy(() => import("@/pages/reports"));
 const Predictive = lazy(() => import("@/pages/predictive"));
 const PendingInvoices = lazy(() => import("@/pages/pending-invoices"));
@@ -290,6 +291,9 @@ export default function AppShell() {
               </Route>
               <Route path="/price-alerts">
                 <ProtectedRoute><PriceAlerts /></ProtectedRoute>
+              </Route>
+              <Route path="/benchmark">
+                <ProtectedRoute><Benchmark /></ProtectedRoute>
               </Route>
               <Route path="/reports">
                 <ProtectedRoute><Reports /></ProtectedRoute>

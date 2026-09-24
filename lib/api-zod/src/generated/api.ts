@@ -1719,6 +1719,58 @@ export const DismissPriceAlertResponse = zod.object({
 
 
 /**
+ * @summary Get market price benchmark for your own recently purchased products
+ */
+export const GetBenchmarksQueryParams = zod.object({
+  "category": zod.coerce.string().optional()
+})
+
+export const GetBenchmarksResponse = zod.object({
+  "optedIn": zod.boolean(),
+  "items": zod.array(zod.object({
+  "productName": zod.string(),
+  "unit": zod.string(),
+  "category": zod.string().nullable(),
+  "yourPrice": zod.number(),
+  "monthlyQuantity": zod.number(),
+  "insufficientData": zod.boolean(),
+  "distinctUserCount": zod.number().optional(),
+  "minUsers": zod.number().optional(),
+  "minRows": zod.number().optional(),
+  "medianPrice": zod.number().optional(),
+  "p25Price": zod.number().nullish(),
+  "p75Price": zod.number().nullish(),
+  "deltaPercent": zod.number().optional(),
+  "sampleRowCount": zod.number().optional(),
+  "savingsPerMonth": zod.number().optional(),
+  "history": zod.array(zod.object({
+  "month": zod.string(),
+  "median": zod.number()
+})).optional()
+})),
+  "summary": zod.object({
+  "savingsPotentialTotal": zod.number(),
+  "avgDeltaPercent": zod.number(),
+  "benchmarkedCount": zod.number(),
+  "totalCount": zod.number(),
+  "contributionCount": zod.number()
+}).nullable()
+})
+
+
+/**
+ * @summary Toggle whether your (anonymized) prices contribute to and are shown the market benchmark
+ */
+export const UpdateBenchmarkOptInBody = zod.object({
+  "optedIn": zod.boolean()
+})
+
+export const UpdateBenchmarkOptInResponse = zod.object({
+  "optedIn": zod.boolean().optional()
+})
+
+
+/**
  * @summary Get dashboard summary stats
  */
 export const GetDashboardSummaryQueryParams = zod.object({

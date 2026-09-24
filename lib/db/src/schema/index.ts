@@ -20,3 +20,6 @@ export * from "./gopos-config";
 export * from "./pos-sales";
 export * from "./email-log";
 export * from "./subscriptions";
+export * from "./market-product-aliases";
+export * from "./market-price-benchmarks";
+export * from "./user-settings";
