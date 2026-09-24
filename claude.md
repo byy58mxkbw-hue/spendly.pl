@@ -190,7 +190,7 @@ linie działowe zamiast morza zaokrąglonych kart. Jedna sygnaturowa barwa — t
 - Centra kosztów — CRUD, przypisanie do faktur i dostawców
 - KSeF — konfiguracja (NIP + token AES-256-GCM), sync z API v2, cache sesji, rate-limit guard, sync_from_date
 - Kolejka "Do przeglądu" — pending invoices (accept/reject/retry/delete)
-- AI CFO — chat, analiza food cost, ekstrakcja menu, sesje z TTL
+- AI CFO — chat, analiza food cost, ekstrakcja menu, sesje z TTL. Czat przebudowany na function calling (2026-09-25) — model SAM wybiera narzędzia i argumenty BIZNESOWE (nazwa/ID/zakres dat), `userId` zawsze wstrzykiwany z `req.userId` po stronie serwera (`lib/ai-cfo-tools.ts`, `AI_CFO_TOOL_SCHEMAS`/`executeToolCall`), żadne narzędzie nie przyjmuje user_id jako argument — jedyna gwarancja izolacji tenantów przy tej architekturze. Zastąpiło stary routing po słowach-kluczach (`lib/ai-cfo-intent.ts` — zostaje jako martwy kod z osobnym evalem w `scripts/`, do usunięcia po potwierdzeniu stabilności). Pętla ma twardy limit 4 rund (`MAX_TOOL_ROUNDS` w `routes/ai-cfo.ts`), ostatnia runda idzie bez `tools`, żeby model musiał odpowiedzieć. Kontrakt JSON odpowiedzi (type/summary/kpiCards/table/recommendation/actions) bez zmian — front nie wymagał modyfikacji. Testy bezpieczeństwa per-narzędzie w `lib/ai-cfo-tools.test.ts` + test limitu rund w `routes/ai-cfo.test.ts` (obie DB-gated, `TEST_DATABASE_URL`).
 - AI Insights — generowanie, odczyt, dismiss
 - Food cost — dania z przepisami (dish_ingredients), kalkulacja kosztu
 - Admin panel — lista użytkowników, statystyki, blokowanie, usuwanie
