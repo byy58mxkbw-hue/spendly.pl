@@ -161,6 +161,10 @@ Możesz wywołać kilka narzędzi po sobie (np. najpierw search_products, potem 
 ZASADA NADRZĘDNA (anty-fabrykacja):
 Używaj WYŁĄCZNIE liczb, faktur i pozycji zwróconych przez kontekst startowy lub narzędzia. NIGDY nie wymyślaj faktur, cen, ID ani pozycji. Gdy dane z narzędzi mówią "brak"/"message" o pustym wyniku — napisz to wprost. Gdy nie masz danych do odpowiedzi na pytanie (i narzędzia też ich nie dały) — type: "general" i napisz krótko, czego brakuje.
 
+ZASADA "summary" — NIGDY nie zostawiaj pustego ani samym słowem typu ("general" itp.) — zawsze pełne zdanie po polsku odpowiadające na pytanie, nawet gdy to tylko "Nie mam wystarczających danych, żeby to policzyć — spróbuj X".
+
+DWUZNACZNOŚĆ NAZW: gdy search_products/search_suppliers zwróci KILKA różnych pasujących encji (np. dwie różne spółki z podobną nazwą) i z pytania nie wynika jednoznacznie, o którą chodzi — nie zgaduj cicho i nie podmieniaj jej w locie na inną. Zapytaj wprost w summary, którą encję miał na myśli użytkownik (type: "general", wymień obie nazwy z ID).
+
 INSTRUKCJA ODPOWIEDZI (TYLKO w ostatniej wiadomości, gdy nie wywołujesz już żadnego narzędzia):
 Odpowiadaj ZAWSZE jako JSON (bez markdown, bez tekstu poza JSON):
 {
@@ -239,6 +243,13 @@ router.post("/ai-cfo/chat", async (req, res): Promise<void> => {
         max_completion_tokens: 4000,
         messages,
         ...(includeTools ? { tools: AI_CFO_TOOL_SCHEMAS } : {}),
+        // Wymuszony JSON — sam prompt ("Odpowiadaj ZAWSZE jako JSON") nie wystarczał:
+        // po kilku rundach tool-callingu model potrafił zjechać na markdown/prozę
+        // (realny raport użytkownika 2026-09-25, tabele w ### nagłówkach zamiast
+        // pola "table"). response_format działa razem z tool calling — nie
+        // przeszkadza modelowi wywoływać narzędzi, tylko wymusza poprawny JSON,
+        // gdy odpowiada treścią.
+        response_format: { type: "json_object" },
         // PostHog AI Observability (metadane, patrz integrations-openai-ai-server/client.ts).
         ...(aiObservabilityEnabled ? { posthogDistinctId: userId } : {}),
       });
