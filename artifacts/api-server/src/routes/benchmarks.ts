@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { db, userSettingsTable } from "@workspace/db";
 import { DEFAULT_MIN_USERS, DEFAULT_MIN_ROWS } from "../services/market-benchmark-job.js";
 import { normalizedUnitSql } from "../lib/units.js";
+import { EXCLUDED_BENCHMARK_CATEGORIES } from "../lib/market-product-matcher.js";
 import { UpdateBenchmarkOptInBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -83,6 +84,7 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     WHERE i.user_id = ${userId}
       AND i.excluded = false
       AND p.canonical_name IS NOT NULL
+      AND (p.category IS NULL OR p.category NOT IN (${sql.join(EXCLUDED_BENCHMARK_CATEGORIES.map((c) => sql`${c}`), sql`, `)}))
       AND i.invoice_date >= to_char(current_date - interval '3 months', 'YYYY-MM-DD')
     GROUP BY p.canonical_name, ${normalizedUnitSql(sql`p.unit`)}
   `);

@@ -31,6 +31,17 @@ export function bucketKey(canonicalName: string): string {
 export const MIN_FUZZY_LENGTH = 4;
 export const FUZZY_SIMILARITY_THRESHOLD = 0.6;
 
+// Kategorie wykluczone z benchmarku rynkowego — nie są cenami produktów, które
+// da się "kupić gdzie indziej taniej": koszty stałe (czynsz, media, prowizje
+// bankowe, ubezpieczenia) zależą od lokalizacji/umowy/metrażu każdej restauracji,
+// nie od dostawcy, więc porównanie ich do "mediany rynkowej" jest myślące, nie
+// pomocne (na prośbę: "koszty stałe wyłączmy... prąd gaz każda restauracja ma
+// inne zużycie"). Współdzielone z routes/benchmarks.ts, żeby wykluczenie było
+// symetryczne (matcher nigdy nie tworzy dla nich aliasu -> job nigdy nie liczy
+// agregatu -> endpoint i tak nie znalazłby benchmarku, ale wyklucz też po stronie
+// "Twojej ceny", żeby nawet nie pokazywały się jako "brak danych").
+export const EXCLUDED_BENCHMARK_CATEGORIES = ["koszty_stale"] as const;
+
 export interface NameVariant {
   canonicalName: string;
   unit: string;
@@ -120,6 +131,8 @@ const uid = (name: string, unit: string) => `${name}::${unit}`;
  * Wywoływane z market-benchmark-job.ts przed liczeniem agregatów cenowych.
  */
 export async function runMarketProductMatcher(log: Logger): Promise<{ groups: number; namesProcessed: number }> {
+  const notExcludedCategory = sql`(category IS NULL OR category NOT IN (${sql.join(EXCLUDED_BENCHMARK_CATEGORIES.map((c) => sql`${c}`), sql`, `)}))`;
+
   // Krok 1: zdystyluj (canonical_name, unit) -> liczba różnych userów. Jednostka
   // znormalizowana (normalizedUnitSql, jak w reports.ts) — inaczej "kg"/"Kg"/"KG"
   // dzielą jeden produkt na osobne, sztucznie rozdrobnione grupy (realny bug
@@ -127,7 +140,7 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
   const aggResult = await db.execute<AggregatedRow>(sql`
     SELECT canonical_name, ${normalizedUnitSql(sql`unit`)} AS unit, COUNT(DISTINCT user_id)::int AS user_count
     FROM products
-    WHERE canonical_name IS NOT NULL AND canonical_name <> ''
+    WHERE canonical_name IS NOT NULL AND canonical_name <> '' AND ${notExcludedCategory}
     GROUP BY canonical_name, ${normalizedUnitSql(sql`unit`)}
   `);
   const aggRows = aggResult.rows;
@@ -137,7 +150,7 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
   const catResult = await db.execute<CategoryVoteRow>(sql`
     SELECT canonical_name, ${normalizedUnitSql(sql`unit`)} AS unit, category, COUNT(*)::int AS cnt
     FROM products
-    WHERE canonical_name IS NOT NULL AND canonical_name <> ''
+    WHERE canonical_name IS NOT NULL AND canonical_name <> '' AND ${notExcludedCategory}
     GROUP BY canonical_name, ${normalizedUnitSql(sql`unit`)}, category
   `);
   const categoryVotes = new Map<string, { category: string | null; cnt: number }>();

@@ -24,9 +24,44 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { CATEGORIES } from "@/lib/categories";
 import type { BenchmarkItem } from "@workspace/api-client-react";
 
 type SortMode = "delta_desc" | "delta_asc" | "az";
+
+// Ładna etykieta pod nazwą produktu w wierszu (np. "miesa" -> "Mięsa") —
+// kategorie kanoniczne z lib/category-rules; własne kategorie usera nie mają
+// wpisu, wtedy zostaje surowe id.
+const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.label]));
+
+// Kilka grubych koszyków do filtrowania — dużo mniej chipów niż 17 kategorii
+// systemowych, z których większość i tak ma "za mało danych" przy małej bazie
+// userów. Nie zmienia kategorii zapisanej w bazie, tylko grupuje ją na potrzeby
+// tego jednego filtra. Nieznana/własna kategoria user'a -> "Inne".
+const COARSE_CATEGORY_GROUPS: Record<string, string> = {
+  warzywa: "Warzywa i owoce",
+  miesa: "Mięso i ryby",
+  ryby: "Mięso i ryby",
+  nabiał: "Nabiał",
+  sery: "Nabiał",
+  pieczywo: "Pieczywo i słodycze",
+  slodycze: "Pieczywo i słodycze",
+  napoje: "Napoje",
+  alkohole: "Napoje",
+  mrozonki: "Spożywcze inne",
+  konserwy: "Spożywcze inne",
+  przyprawy: "Spożywcze inne",
+  orzechy: "Spożywcze inne",
+  techniczne: "Zaopatrzenie",
+  srodki_czystosci: "Zaopatrzenie",
+  opakowania: "Zaopatrzenie",
+  sprzet: "Zaopatrzenie",
+};
+
+function coarseCategory(raw: string | null | undefined): string {
+  if (!raw) return "Inne";
+  return COARSE_CATEGORY_GROUPS[raw] ?? "Inne";
+}
 
 // ─── Mini sparkline (mediana rynkowa, 6 mies.) — lokalny, jak w dashboard.tsx ──
 function TrendSparkline({ points }: { points: Array<{ month: string; median: number }> }) {
@@ -96,7 +131,7 @@ function BenchmarkRow({ item }: { item: BenchmarkItem }) {
           <div>
             <span className="font-medium text-sm text-foreground">{item.productName}</span>{" "}
             <span className="text-muted-foreground text-xs">/ {item.unit}</span>
-            {item.category && <span className="label-caps block mt-0.5">{item.category}</span>}
+            {item.category && <span className="label-caps block mt-0.5">{CATEGORY_LABEL[item.category] ?? item.category}</span>}
           </div>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-secondary text-muted-foreground whitespace-nowrap">
             brak benchmarku
@@ -121,7 +156,7 @@ function BenchmarkRow({ item }: { item: BenchmarkItem }) {
         <div>
           <span className="font-medium text-sm text-foreground">{item.productName}</span>{" "}
           <span className="text-muted-foreground text-xs">/ {item.unit}</span>
-          {item.category && <span className="label-caps block mt-0.5">{item.category}</span>}
+          {item.category && <span className="label-caps block mt-0.5">{CATEGORY_LABEL[item.category] ?? item.category}</span>}
         </div>
         <span
           className={cn(
@@ -185,10 +220,18 @@ export default function Benchmark() {
 
   const items = data?.items ?? [];
 
+  // Respektuje przełącznik "pokaż też bez wystarczających danych" — inaczej chip
+  // "Wszystkie (N)" liczył WSZYSTKIE Twoje produkty z ostatnich 3 mies. (setki),
+  // podczas gdy lista pod spodem domyślnie pokazywała tylko te z benchmarkiem.
+  const visibleItems = useMemo(
+    () => (showInsufficient ? items : items.filter((i) => !i.insufficientData)),
+    [items, showInsufficient],
+  );
+
   const categories = useMemo(() => {
     const byCat = new Map<string, { total: number; deltaSum: number; deltaCount: number }>();
-    for (const i of items) {
-      const cat = i.category ?? "Inne";
+    for (const i of visibleItems) {
+      const cat = coarseCategory(i.category);
       const entry = byCat.get(cat) ?? { total: 0, deltaSum: 0, deltaCount: 0 };
       entry.total++;
       if (!i.insufficientData && i.deltaPercent != null) {
@@ -197,16 +240,17 @@ export default function Benchmark() {
       }
       byCat.set(cat, entry);
     }
-    return [...byCat.entries()].map(([category, v]) => ({
-      category,
-      total: v.total,
-      avgDelta: v.deltaCount > 0 ? v.deltaSum / v.deltaCount : null,
-    }));
-  }, [items]);
+    return [...byCat.entries()]
+      .map(([category, v]) => ({
+        category,
+        total: v.total,
+        avgDelta: v.deltaCount > 0 ? v.deltaSum / v.deltaCount : null,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [visibleItems]);
 
   const filtered = useMemo(() => {
-    let rows = categoryFilter === "all" ? items : items.filter((i) => (i.category ?? "Inne") === categoryFilter);
-    if (!showInsufficient) rows = rows.filter((i) => !i.insufficientData);
+    const rows = categoryFilter === "all" ? visibleItems : visibleItems.filter((i) => coarseCategory(i.category) === categoryFilter);
     const sorted = [...rows].sort((a, b) => {
       if (sort === "az") return a.productName.localeCompare(b.productName, "pl");
       const da = a.insufficientData ? -Infinity : a.deltaPercent ?? 0;
@@ -214,7 +258,7 @@ export default function Benchmark() {
       return sort === "delta_desc" ? db - da : da - db;
     });
     return sorted;
-  }, [items, categoryFilter, showInsufficient, sort]);
+  }, [visibleItems, categoryFilter, sort]);
 
   const summary = data?.summary ?? null;
   const optedIn = data?.optedIn ?? true;
@@ -324,7 +368,7 @@ export default function Benchmark() {
                     categoryFilter === "all" ? "bg-foreground text-background" : "bg-secondary text-muted-foreground hover:bg-secondary/70",
                   )}
                 >
-                  Wszystkie <span className="opacity-70">({items.length})</span>
+                  Wszystkie <span className="opacity-70">({visibleItems.length})</span>
                 </button>
                 {categories.map((c) => (
                   <button
