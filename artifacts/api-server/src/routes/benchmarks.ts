@@ -95,9 +95,13 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     return;
   }
 
-  // market_group_key dla każdego (canonical_name, unit) usera + najnowszy wiersz benchmarku
-  // dla tej grupy (opublikowany lub nie — nieopublikowany daje tylko liczby do komunikatu
-  // "za mało danych", nigdy medianę).
+  // market_group_key dla każdego (canonical_name, unit) usera + NAJNOWSZY OPUBLIKOWANY
+  // wiersz benchmarku dla tej grupy (is_published DESC przed period_month DESC — bieżący
+  // miesiąc regularnie ma jeszcze mniej niż próg userów, więc branie zwyczajnie najnowszego
+  // wiersza co miesiąc "gasiło" właśnie opublikowany poprzedni miesiąc, mimo że wciąż jest
+  // aktualny i ważny; realny bug znaleziony po deployu — 15 dopasowań usera, 0 widocznych).
+  // Tylko gdy DANA grupa nigdy się nie opublikowała, bierzemy najnowszy nieopublikowany
+  // wiersz wyłącznie do komunikatu "za mało danych" (nigdy do mediany).
   const benchResult = await db.execute<BenchmarkRow>(sql`
     SELECT DISTINCT ON (mpa.canonical_name, mpa.unit)
       mpa.canonical_name,
@@ -109,7 +113,7 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     WHERE (mpa.canonical_name, mpa.unit) IN (
       ${sql.join(yourPrices.map((r) => sql`(${r.canonical_name}, ${r.unit})`), sql`, `)}
     )
-    ORDER BY mpa.canonical_name, mpa.unit, mpb.period_month DESC
+    ORDER BY mpa.canonical_name, mpa.unit, mpb.is_published DESC, mpb.period_month DESC
   `);
   const benchRows = benchResult.rows;
   const benchByKey = new Map<string, BenchmarkRow>();
