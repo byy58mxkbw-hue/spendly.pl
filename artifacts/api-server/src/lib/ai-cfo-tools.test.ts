@@ -31,6 +31,7 @@ let invoiceBId: number;
 let invoiceA2Id: number;
 let carrotAId: number;
 let chickenAId: number;
+let rozSupplierId: number;
 
 async function cleanup(): Promise<void> {
   await db.delete(suppliersTable).where(inArray(suppliersTable.userId, [USER_A, USER_B]));
@@ -109,6 +110,21 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
       { invoiceId: chickenInvoices[2].id, productId: chickenAId, productName: "Kurczak-A-tools", quantity: "10", unit: "kg", unitPrice: "5", totalPrice: "50" },
       { invoiceId: chickenInvoices[3].id, productId: chickenAId, productName: "Kurczak-A-tools", quantity: "10", unit: "kg", unitPrice: "20", totalPrice: "200" },
       { invoiceId: chickenInvoices[4].id, productId: chickenAId, productName: "Kurczak-A-tools", quantity: "1", unit: "szt", unitPrice: "50", totalPrice: "50" },
+    ]);
+
+    // Osobny dostawca + faktura ROZLICZENIOWA (ROZ) — dowód na fix "100 tysięcy za
+    // drzewo": dodatnie wiersze drewna (500) w pełni zbilansowane ujemną "Zaliczka"
+    // (-500), Razem faktury = 0. get_spend_summary MUSI wykluczyć tę fakturę z sumy
+    // wydatków (realny raport użytkownika 2026-09-26 — inaczej zawyża kategorię).
+    const [rozSupplier] = await db.insert(suppliersTable).values({ userId: USER_A, name: "Nadlesnictwo-A-tools", taxId: "3333333333" }).returning({ id: suppliersTable.id });
+    rozSupplierId = rozSupplier.id;
+    const [rozInvoice] = await db.insert(invoicesTable).values({
+      userId: USER_A, supplierId: rozSupplierId, invoiceNumber: "FV/A-TOOLS/ROZ-1",
+      invoiceDate: "2026-09-12", totalAmount: "0", invoiceType: "ROZ",
+    }).returning({ id: invoicesTable.id });
+    await db.insert(invoiceItemsTable).values([
+      { invoiceId: rozInvoice.id, productId: null, productName: "drewno sosnowe WC0-A-tools", quantity: "10", unit: "M3", unitPrice: "50", totalPrice: "500" },
+      { invoiceId: rozInvoice.id, productId: null, productName: "Zaliczka 23% VAT", quantity: "-1", unit: "szt", unitPrice: "500", totalPrice: "-500" },
     ]);
   });
 
@@ -278,6 +294,19 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
     const names = parsed.suppliers.map((s) => s.supplier_name);
     expect(names).toContain("Dostawca-A-tools");
     expect(names).not.toContain("Dostawca-B-tools");
+  });
+
+  it("get_spend_summary: faktura ROZ nie zawyża wydatków dostawcy ani kategorii (fix 'zawyżone wydatki za drzewo')", async () => {
+    const raw = await executeToolCall("get_spend_summary", { date_from: "2026-01-01" }, USER_A);
+    const parsed = JSON.parse(raw) as {
+      suppliers: Array<{ supplier_name: string; total_spend: string }>;
+      categories: Array<{ category: string; total_spend: string }>;
+    };
+    // Dostawca ROZ ma TYLKO tę jedną fakturę (500 - 500 = 0) — po wykluczeniu ROZ
+    // z sumy wydatków nie powinien w ogóle pojawić się w top-8 dostawcach (total_spend
+    // by był 0/pominięty), na pewno NIE z wartością 500 (co pokazywałby bug sprzed fixu).
+    const rozRow = parsed.suppliers.find((s) => s.supplier_name === "Nadlesnictwo-A-tools");
+    expect(rozRow).toBeUndefined();
   });
 
   it("nieznane narzędzie -> błąd, nie wywala procesu", async () => {

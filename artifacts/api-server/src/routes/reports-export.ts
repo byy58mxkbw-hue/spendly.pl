@@ -5,6 +5,9 @@ import ExcelJS from "exceljs";
 import { periodFromQuery, previousPeriod, periodLabel, type Period } from "../lib/period";
 import { buildWorkbook, type AggRow, type Group, type Compare } from "../lib/reports-workbook";
 import { captureServer } from "../lib/telemetry";
+import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
+
+const notSpendDistorting = excludeNonSpendInvoiceTypes("i");
 
 const router: IRouter = Router();
 
@@ -23,6 +26,7 @@ async function fetchByCostCenter(userId: string, p: Period): Promise<AggRow[]> {
     LEFT JOIN cost_centers cc ON cc.id = i.cost_center_id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
+      ${notSpendDistorting}
       AND i.invoice_date >= ${p.from} AND i.invoice_date <= ${p.to}
     GROUP BY 1, 2, 3, 4, 5
   `);
@@ -45,6 +49,7 @@ async function fetchBySupplier(userId: string, p: Period, costCenterId: number):
     INNER JOIN suppliers s ON s.id = i.supplier_id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
+      ${notSpendDistorting}
       AND i.invoice_date >= ${p.from} AND i.invoice_date <= ${p.to}
       AND i.cost_center_id = ${costCenterId}
     GROUP BY 1, 2, 4, 5

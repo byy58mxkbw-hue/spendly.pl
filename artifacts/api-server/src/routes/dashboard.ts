@@ -12,6 +12,7 @@ import { GetFoodCostMonthlyQueryParams, GetRecentPurchasesQueryParams, GetDashbo
 import { toNum } from "../lib/parse";
 import { computeTriggeredAlerts } from "../services/alert-checker";
 import { normalizedUnitSql } from "../lib/units";
+import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
 
 const router: IRouter = Router();
 
@@ -88,6 +89,11 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .from(invoicesTable)
     .where(and(eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false), ccFilter));
 
+  // Faktura rozliczeniowa (ROZ) rozdziela WCZEŚNIEJ zapłaconą zaliczkę na
+  // konkretne pozycje — jej dodatnie wiersze nie są nowym wydatkiem (patrz
+  // lib/invoice-line-classify.ts). Korekty (KOR) z tego samego powodu.
+  const notSpendDistortingType = sql`${invoicesTable.invoiceType} IS DISTINCT FROM 'KOR' AND ${invoicesTable.invoiceType} IS DISTINCT FROM 'ROZ'`;
+
   const [thisPeriodSpend] = await db
     .select({ total: sql<number>`coalesce(sum(${invoiceItemsTable.totalPrice}::numeric * (1 + coalesce(${invoiceItemsTable.vatRate}::numeric, 0) / 100)), 0)` })
     .from(invoiceItemsTable)
@@ -98,6 +104,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
         eq(invoicesTable.excluded, false),
         gte(invoicesTable.invoiceDate, periodStart),
         periodEnd ? sql`${invoicesTable.invoiceDate} < ${periodEnd}` : undefined,
+        notSpendDistortingType,
         ccFilter,
       ),
     );
@@ -112,6 +119,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
         eq(invoicesTable.excluded, false),
         gte(invoicesTable.invoiceDate, prevPeriodStart),
         sql`${invoicesTable.invoiceDate} < ${prevPeriodEnd}`,
+        notSpendDistortingType,
         ccFilter,
       ),
     );
@@ -222,6 +230,7 @@ router.get("/dashboard/food-cost-monthly", async (req, res): Promise<void> => {
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
+      ${excludeNonSpendInvoiceTypes("i")}
       ${ccSql}
     GROUP BY 1, 2, 3, 4
     ORDER BY 1 DESC

@@ -6,6 +6,7 @@ import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../li
 import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers, sendAiUpdateAnnouncementToAllUsers } from "../services/admin-broadcast.js";
 import { backfillTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "../services/subscriptions.js";
 import { runMarketBenchmarkJob } from "../services/market-benchmark-job.js";
+import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
 
 const router: IRouter = Router();
 
@@ -221,6 +222,7 @@ router.get("/admin/users/:userId/details", async (req, res): Promise<void> => {
       FROM invoice_items ii
       JOIN invoices i ON i.id = ii.invoice_id
       WHERE i.user_id = ${userId}
+        ${excludeNonSpendInvoiceTypes("i")}
       GROUP BY ii.product_name
       ORDER BY "totalSpend" DESC
       LIMIT 5

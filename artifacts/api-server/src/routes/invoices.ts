@@ -19,7 +19,7 @@ import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-o
 import { encryptSecret } from "../lib/encryption";
 import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
 import { parseKSeFXml } from "../lib/invoice-xml-parse";
-import { isAdvanceSettlementLine } from "../lib/invoice-line-classify.js";
+import { isAdvanceSettlementLine, excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
 
 const router: IRouter = Router();
 
@@ -286,6 +286,7 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
       AND i.invoice_date >= ${firstDay}
       AND i.invoice_date <= ${lastDay}
       AND i.excluded = false
+      ${excludeNonSpendInvoiceTypes("i")}
       ${ccSqlFilter}
     GROUP BY 1, 2
   `);

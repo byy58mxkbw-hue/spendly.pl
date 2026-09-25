@@ -3,6 +3,9 @@ import { db, restaurantRevenueTable } from "@workspace/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { toNum } from "../lib/parse";
 import { periodFromQuery, previousPeriod, monthsInRange, type Period } from "../lib/period";
+import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
+
+const notSpendDistorting = excludeNonSpendInvoiceTypes("i");
 
 const router: IRouter = Router();
 
@@ -60,6 +63,7 @@ router.get("/reports/food-cost-ratio", async (req, res): Promise<void> => {
       FROM invoices i
       INNER JOIN invoice_items ii ON ii.invoice_id = i.id
       WHERE i.user_id = ${userId} AND i.excluded = false
+        ${notSpendDistorting}
         AND i.invoice_date >= ${p.from} AND i.invoice_date <= ${p.to}
       GROUP BY 1
     `);

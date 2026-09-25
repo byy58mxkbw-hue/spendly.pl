@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, eq, sql, isNull } from "drizzle-orm";
 import { db, suppliersTable, invoicesTable, invoiceItemsTable, costCentersTable } from "@workspace/db";
+import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
 import {
   CreateSupplierBody,
   UpdateSupplierBody,
@@ -68,7 +69,7 @@ router.get("/suppliers", async (req, res): Promise<void> => {
         SELECT sum((ii2.total_price::numeric * (1 + COALESCE(ii2.vat_rate, 0) / 100)))
         FROM invoice_items ii2
         INNER JOIN invoices i2 ON i2.id = ii2.invoice_id
-        WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId}${ccSpendSql}
+        WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId} ${excludeNonSpendInvoiceTypes("i2")}${ccSpendSql}
       )`,
     })
     .from(suppliersTable)
@@ -271,6 +272,7 @@ router.get("/suppliers/:id/monthly-spend", async (req, res): Promise<void> => {
     WHERE i.user_id = ${userId}
       AND i.supplier_id = ${supplierId}
       AND i.excluded = false
+      ${excludeNonSpendInvoiceTypes("i")}
     GROUP BY 1, 2, 3, 4
     ORDER BY 1 DESC
     LIMIT ${sql.raw(String(months))}
@@ -343,6 +345,7 @@ router.get("/suppliers/:id/top-products", async (req, res): Promise<void> => {
     WHERE i.supplier_id = ${supplierId}
       AND i.user_id = ${userId}
       AND i.excluded = false
+      ${excludeNonSpendInvoiceTypes("i")}
     GROUP BY ii.product_id, ii.product_name, ii.unit
     ORDER BY sum((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))) DESC
     LIMIT ${sql.raw(String(limit))}

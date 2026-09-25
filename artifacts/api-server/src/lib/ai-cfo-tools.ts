@@ -4,6 +4,13 @@ import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { computeTriggeredAlerts } from "../services/alert-checker.js";
 import { computeAllDishMargins } from "../routes/food-cost.js";
 import { normalizedUnitSql } from "./units.js";
+import { excludeNonSpendInvoiceTypes } from "./invoice-line-classify.js";
+
+// Wykluczenie KOR/ROZ ze zsumowanych WYDATKÓW w get_spend_summary — NIE stosowane
+// w narzędziach o CENIE/ILOŚCI JEDNOSTKOWEJ (get_product_price_history,
+// get_price_increases, get_quantity/price_anomalies), gdzie dane z faktur
+// rozliczeniowych są realne i wartościowe. Patrz lib/invoice-line-classify.ts.
+const notSpendDistorting = excludeNonSpendInvoiceTypes("i");
 
 // Narzędzia function-calling dla AI CFO (routes/ai-cfo.ts). Model SAM decyduje,
 // którego narzędzia użyć i z jakimi argumentami BIZNESOWYMI (nazwa produktu, ID,
@@ -521,6 +528,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
       JOIN invoices i ON ii.invoice_id = i.id
       JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond} AND s.is_active = true
+        ${notSpendDistorting}
       GROUP BY s.id, s.name ORDER BY total_spend DESC LIMIT 8
     `),
     db.execute(sql`
@@ -538,6 +546,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
       JOIN products p ON ii.product_id = p.id
       JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond}
+        ${notSpendDistorting}
       GROUP BY p.id, p.name, p.category, p.subcategory, s.id, s.name, ii.unit
       ORDER BY total_spend DESC LIMIT 25
     `),
@@ -545,6 +554,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
       SELECT SUBSTRING(i.invoice_date, 1, 7) AS month, ROUND(SUM(ii.total_price::numeric), 0) AS total
       FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
       WHERE i.user_id = ${userId}
+        ${notSpendDistorting}
       GROUP BY 1 ORDER BY 1 DESC LIMIT 6
     `),
     db.execute(sql`
@@ -556,6 +566,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
       JOIN invoices i ON ii.invoice_id = i.id
       JOIN products p ON ii.product_id = p.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond} AND i.excluded = false
+        ${notSpendDistorting}
       GROUP BY 1 ORDER BY total_spend DESC LIMIT 15
     `),
     db.execute(sql`
@@ -566,6 +577,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
       JOIN invoice_items ii ON ii.invoice_id = i.id
       LEFT JOIN cost_centers cc ON cc.id = i.cost_center_id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond} AND i.excluded = false
+        ${notSpendDistorting}
       GROUP BY 1 ORDER BY total_spend DESC LIMIT 10
     `),
     db.execute(sql`
@@ -581,6 +593,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
       JOIN products p ON ii.product_id = p.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond}
         AND s.is_active = true AND i.excluded = false
+        ${notSpendDistorting}
       GROUP BY s.id, s.name
       ORDER BY total_spend DESC LIMIT 10
     `),

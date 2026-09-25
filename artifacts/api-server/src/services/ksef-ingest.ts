@@ -339,6 +339,7 @@ export async function importMatchedInvoice(
           xmlContent: encryptXml(rawXml),
           totalAmount: totalAmount.toFixed(2),
           invoiceDate: invDate,
+          invoiceType: parsed.header.invoiceType,
           ...(payMethod != null ? { paymentMethod: payMethod, paymentDueDate: payDue } : {}),
         })
         .where(eq(invoicesTable.id, existing.id));
@@ -354,6 +355,7 @@ export async function importMatchedInvoice(
         totalAmount: totalAmount.toFixed(2),
         xmlContent: encryptXml(rawXml),
         ksefNumber,
+        invoiceType: parsed.header.invoiceType,
         paymentMethod: payMethod,
         paymentDueDate: payDue,
         isPaid: payMethod === "gotowka" || payMethod === "karta",

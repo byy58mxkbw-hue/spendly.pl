@@ -742,6 +742,7 @@ async function runSync(
               xmlContent: encryptXml(row.rawXml),
               totalAmount: totalAmount.toFixed(2),
               invoiceDate: invDate,
+              invoiceType: parsed.header.invoiceType,
               ...(rowPayMethod != null ? { paymentMethod: rowPayMethod, paymentDueDate: rowPayDue } : {}),
             })
             .where(eq(invoicesTable.id, existing.id));
@@ -756,6 +757,7 @@ async function runSync(
               totalAmount: totalAmount.toFixed(2),
               xmlContent: encryptXml(row.rawXml),
               ksefNumber: row.ksefNumber,
+              invoiceType: parsed.header.invoiceType,
               paymentMethod: rowPayMethod,
               paymentDueDate: rowPayDue,
               isPaid: rowPayMethod === "gotowka" || rowPayMethod === "karta",
@@ -938,6 +940,7 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
               xmlContent: encryptXml(row.rawXml),
               totalAmount: totalAmount.toFixed(2),
               invoiceDate: invDate,
+              invoiceType: parsed.header.invoiceType,
               ...(rowPayMethod != null ? { paymentMethod: rowPayMethod, paymentDueDate: rowPayDue } : {}),
             })
             .where(eq(invoicesTable.id, existing.id));
@@ -952,6 +955,7 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
               totalAmount: totalAmount.toFixed(2),
               xmlContent: encryptXml(row.rawXml),
               ksefNumber: row.ksefNumber,
+              invoiceType: parsed.header.invoiceType,
               paymentMethod: rowPayMethod,
               paymentDueDate: rowPayDue,
               isPaid: rowPayMethod === "gotowka" || rowPayMethod === "karta",
@@ -1215,6 +1219,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
         totalAmount: totalAmount.toFixed(2),
         xmlContent: encryptXml(row.rawXml),
         ksefNumber: row.ksefNumber,
+        invoiceType: parsed.header.invoiceType,
         paymentMethod: acceptPayMethod,
         paymentDueDate: acceptPayDue,
         isPaid: acceptPayMethod === "gotowka" || acceptPayMethod === "karta",

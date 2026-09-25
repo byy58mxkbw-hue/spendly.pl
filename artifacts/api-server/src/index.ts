@@ -9,6 +9,7 @@ import { ensureGoposTables } from "./services/ensure-gopos.js";
 import { ensureDishIngredientColumns } from "./services/ensure-dish-columns.js";
 import { ensureDecodedNames } from "./services/ensure-decoded-names.js";
 import { ensureNoAdvanceLineProducts } from "./services/ensure-no-advance-line-products.js";
+import { ensureInvoiceTypeBackfill } from "./services/ensure-invoice-type-backfill.js";
 import { ensureGrossInvoiceTotals } from "./services/ensure-gross-invoice-totals.js";
 import { ensureEmailLogTable } from "./services/ensure-email.js";
 import { ensureSubscriptionsTables } from "./services/ensure-subscriptions.js";
@@ -101,6 +102,11 @@ app.listen(port, (err) => {
 
   // Odkodowanie encji HTML w nazwach zapisanych przed poprawką parsera — idempotentne.
   ensureDecodedNames(logger).catch((err) => logger.error({ err }, "decode-names: migracja nieudana"));
+
+  // Odtworzenie invoice_type dla faktur zaimportowanych przed poprawką w
+  // ksef-ingest.ts/routes/ksef.ts (auto-sync nigdy nie zapisywał go do bazy) —
+  // idempotentne, dekoduje i re-parsuje zapisany XML.
+  ensureInvoiceTypeBackfill(logger).catch((err) => logger.error({ err }, "invoice-type-backfill: migracja nieudana"));
 
   // Czyszczenie pozycji rozliczenia zaliczki błędnie zaimportowanych jako produkty
   // (przed poprawką w lib/invoice-line-classify.ts) — idempotentne.

@@ -4,6 +4,13 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { periodFromQuery, previousPeriod, type Period } from "../lib/period";
 import { normalizeUnit, normalizedUnitSql } from "../lib/units";
+import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
+
+// Wykluczenie KOR/ROZ ze zsumowanych WYDATKÓW (patrz lib/invoice-line-classify.ts) —
+// NIE stosowane w /reports/product-quantity-trend (celowo śledzi realne ilości
+// dostaw, w tym z faktur rozliczeniowych) ani /reports/cost-centers (sumuje
+// invoices.total_amount, które dla ROZ już poprawnie netuje do ~0).
+const notSpendDistorting = excludeNonSpendInvoiceTypes("i");
 
 const router: IRouter = Router();
 
@@ -44,6 +51,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
+      ${notSpendDistorting}
       ${dateFilter}
       ${ccSql}
   `);
@@ -71,6 +79,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       INNER JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId}
         AND i.excluded = false
+        ${notSpendDistorting}
         ${prevDateFilter}
         ${ccSql}
       GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
@@ -95,6 +104,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
+      ${notSpendDistorting}
       ${dateFilter}
       ${ccSql}
     GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
@@ -187,6 +197,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
+      ${notSpendDistorting}
       ${dateFilter}
       ${ccSql}
     GROUP BY s.id, s.name
@@ -218,6 +229,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
+      ${notSpendDistorting}
       ${dateFilter}
       ${ccSql}
     GROUP BY i.supplier_id, COALESCE(p.name, ii.product_name), ii.unit
@@ -297,6 +309,7 @@ router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
     JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products pr ON ii.product_id = pr.id
     WHERE i.user_id = ${userId} AND i.excluded = false
+      ${notSpendDistorting}
       AND i.invoice_date >= ${p.from} AND i.invoice_date <= ${p.to} ${ccSql}
     GROUP BY COALESCE(pr.name, ii.product_name), ii.unit
   `);
@@ -326,6 +339,7 @@ router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       WHERE i.user_id = ${userId} AND i.excluded = false
+        ${notSpendDistorting}
         AND i.invoice_date >= ${`${monthMinus(month, 6)}-01`} AND i.invoice_date < ${`${month}-01`} ${ccSql}
       GROUP BY SUBSTRING(i.invoice_date, 1, 7)
     `),
@@ -665,6 +679,7 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
     LEFT JOIN suppliers s ON i.supplier_id = s.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
+      ${notSpendDistorting}
       ${dateCondition}
       ${ccCondition}
     GROUP BY COALESCE(p.name, ii.product_name), p.category, s.name
@@ -729,6 +744,7 @@ router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
+      ${notSpendDistorting}
       AND i.invoice_date >= ${rangeStart}
       AND i.invoice_date < ${rangeEnd}
       ${ccTrendSql}
