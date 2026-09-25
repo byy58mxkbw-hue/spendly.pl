@@ -296,7 +296,7 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
     expect(names).not.toContain("Dostawca-B-tools");
   });
 
-  it("get_spend_summary: faktura ROZ nie zawyża WYDATKÓW dostawcy, ale ILOŚĆ zostaje realna (fix 'a ilość?')", async () => {
+  it("get_spend_summary: faktura ROZ nie zawyża WYDATKÓW, a ILOŚĆ nie miesza się z fikcyjną 'ilością' zaliczki", async () => {
     const raw = await executeToolCall("get_spend_summary", { date_from: "2026-01-01" }, USER_A);
     const parsed = JSON.parse(raw) as {
       suppliers: Array<{ supplier_name: string; total_spend: string; total_qty: string }>;
@@ -307,11 +307,12 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
     // liczy oba jako 0, więc suma wydatków dla tego dostawcy = 0 (fix "zawyżone
     // wydatki za drzewo" — NIE 500, co pokazywałby bug sprzed fixu).
     expect(Number(rozRow?.total_spend)).toBe(0);
-    // Ilość: 10 (drewno) + (-1) (ujemna "Zaliczka", jednostka szt nie m3, ale to
-    // realny wiersz z faktury) = 9 — REALNA, niewycięta przez filtr wydatków
-    // (fix "a ilość?" — spendOnly() owija TYLKO SUM(total_price), SUM(quantity)
-    // zostaje bez zmian, patrz lib/invoice-line-classify.ts).
-    expect(Number(rozRow?.total_qty)).toBe(9);
+    // Ilość: TYLKO drewno (10) — realQuantityOnly() wyklucza WŁASNĄ fikcyjną
+    // "ilość" linii Zaliczka (-1, jednostka szt, nie m3) z sumy, żeby nie
+    // zniekształcała realnej ilości towaru (dobre pytanie użytkownika 2026-09-26:
+    // "nie dublują się ilości towaru?" — nie dublują, ale bez tego fixu by się
+    // MIESZAŁY z jednostką zaliczki, dając 9 zamiast realnych 10).
+    expect(Number(rozRow?.total_qty)).toBe(10);
   });
 
   it("nieznane narzędzie -> błąd, nie wywala procesu", async () => {

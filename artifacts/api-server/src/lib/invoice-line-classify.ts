@@ -61,3 +61,20 @@ export function excludeNonSpendInvoiceTypes(invoicesAlias: string): SQL {
 export function spendOnly(invoicesAlias: string, moneyExpr: SQL): SQL {
   return sql`(CASE WHEN ${sql.raw(invoicesAlias)}.invoice_type IS DISTINCT FROM 'KOR' AND ${sql.raw(invoicesAlias)}.invoice_type IS DISTINCT FROM 'ROZ' THEN ${moneyExpr} ELSE 0 END)`;
 }
+
+// Ten sam wzorzec co ADVANCE_SETTLEMENT_LINE_RE (JS), ale jako Postgresowy regex —
+// dla kwerend, które sumują ILOŚĆ BEZ JOIN-a do products (więc nie mogą polegać na
+// product_id IS NULL). Granica słowa po polskim alfabecie (reguła 27).
+const ADVANCE_SETTLEMENT_LINE_SQL_PATTERN = "(^|[^a-ząćęłńóśźż])zaliczk";
+
+// Dobre pytanie użytkownika (2026-09-26): "nie dublują się ilości towaru?" — NIE
+// (faktura zaliczkowa w ogóle nie ma rozbicia na pozycje, więc nie ma czego
+// dublować), ALE w kwerendach BEZ JOIN-a do products (np. suma ilości per
+// dostawca) sama linia "Zaliczka" ma swoją WŁASNĄ, fikcyjną "ilość" (np. -1 szt) —
+// ta miesza się z realnymi m3 drewna w tej samej sumie, jeśli jej nie wykluczysz.
+// Użycie: owiń SUM(quantity) tym helperem w kwerendach BEZ INNER JOIN products
+// (te z INNER JOIN już wykluczają linię Zaliczka automatycznie, bo ma
+// product_id = NULL — patrz lib/invoice-line-classify.ts / ksef-ingest.ts).
+export function realQuantityOnly(itemsAlias: string, qtyExpr: SQL): SQL {
+  return sql`(CASE WHEN lower(${sql.raw(itemsAlias)}.product_name) ~ ${ADVANCE_SETTLEMENT_LINE_SQL_PATTERN} THEN 0 ELSE ${qtyExpr} END)`;
+}

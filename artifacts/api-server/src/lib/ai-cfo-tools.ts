@@ -4,7 +4,7 @@ import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { computeTriggeredAlerts } from "../services/alert-checker.js";
 import { computeAllDishMargins } from "../routes/food-cost.js";
 import { normalizedUnitSql } from "./units.js";
-import { excludeNonSpendInvoiceTypes, spendOnly } from "./invoice-line-classify.js";
+import { excludeNonSpendInvoiceTypes, spendOnly, realQuantityOnly } from "./invoice-line-classify.js";
 
 // Wykluczenie KOR/ROZ ze zsumowanych WYDATKÓW w get_spend_summary — NIE stosowane
 // w narzędziach o CENIE/ILOŚCI JEDNOSTKOWEJ (get_product_price_history,
@@ -527,7 +527,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
     db.execute(sql`
       SELECT s.id AS supplier_id, s.name AS supplier_name,
         ROUND(SUM(${spendOnly("i", moneyExpr)}), 0) AS total_spend,
-        ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
+        ROUND(SUM(${realQuantityOnly("ii", sql`ii.quantity::numeric`)}), 2) AS total_qty,
         COUNT(DISTINCT i.id) AS invoice_count
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
