@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { computeTriggeredAlerts } from "../services/alert-checker.js";
 import { computeAllDishMargins } from "../routes/food-cost.js";
+import { normalizedUnitSql } from "./units.js";
 
 // Narzędzia function-calling dla AI CFO (routes/ai-cfo.ts). Model SAM decyduje,
 // którego narzędzia użyć i z jakimi argumentami BIZNESOWYMI (nazwa produktu, ID,
@@ -351,6 +352,57 @@ async function toolQuantityAnomalies(userId: string, args: Record<string, unknow
   return { anomalies: res.rows };
 }
 
+// ─── get_price_anomalies ───────────────────────────────────────────────────────
+// Ta sama logika baseline co get_quantity_anomalies, ale dla ceny jednostkowej —
+// na wyraźną prośbę: "tak samo price za szt/kg anomalię". Partycja PO (product_id,
+// znormalizowana jednostka) — normalizedUnitSql (lib/units.ts) jest tu KRYTYCZNE,
+// inaczej "kg"/"Kg"/"KG" tego samego produktu liczyłyby się jako różne baseline'y
+// (patrz reguła 34 / lekcja z benchmarku rynkowego) i cena za szt nigdy nie
+// wymieszałaby się z ceną za kg, bo to fizycznie różne wielkości.
+async function toolPriceAnomalies(userId: string, args: Record<string, unknown>) {
+  const thresholdPct = clampInt(asInt(args.threshold_pct), 10, 200, 30);
+  const threshold = thresholdPct / 100;
+
+  const res = await db.execute(sql`
+    WITH ranked AS (
+      SELECT ii.product_id, p.name, ii.unit_price::numeric AS price,
+             ${normalizedUnitSql(sql`ii.unit`)} AS unit,
+             inv.invoice_date, inv.invoice_number, s.name AS supplier_name,
+             ROW_NUMBER() OVER (
+               PARTITION BY ii.product_id, ${normalizedUnitSql(sql`ii.unit`)}
+               ORDER BY inv.invoice_date DESC, inv.id DESC
+             ) AS rn
+      FROM invoice_items ii
+      JOIN invoices inv ON ii.invoice_id = inv.id
+      JOIN products p ON ii.product_id = p.id
+      JOIN suppliers s ON inv.supplier_id = s.id
+      WHERE inv.user_id = ${userId} AND inv.excluded = false AND inv.parent_invoice_id IS NULL
+        AND (inv.invoice_type IS DISTINCT FROM 'KOR')
+        AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+    ),
+    baseline AS (
+      SELECT product_id, unit, AVG(price) AS avg_price, COUNT(*)::int AS history_count
+      FROM ranked WHERE rn > 1
+      GROUP BY 1, 2
+      HAVING COUNT(*) >= 3
+    )
+    SELECT r.name AS product_name, r.unit, r.price::text AS latest_price,
+           ROUND(b.avg_price, 2)::text AS avg_price,
+           ROUND((r.price - b.avg_price) / NULLIF(b.avg_price, 0) * 100, 1)::text AS deviation_pct,
+           r.invoice_date, r.invoice_number, r.supplier_name, b.history_count
+    FROM ranked r
+    JOIN baseline b ON b.product_id = r.product_id AND b.unit = r.unit
+    WHERE r.rn = 1
+      AND ABS((r.price - b.avg_price) / NULLIF(b.avg_price, 0)) >= ${threshold}
+    ORDER BY ABS((r.price - b.avg_price) / NULLIF(b.avg_price, 0)) DESC
+    LIMIT 15
+  `);
+  if (res.rows.length === 0) {
+    return { anomalies: [], message: `Brak produktów, których ostatnia cena jednostkowa odbiega od własnej historii (w tej samej jednostce) o ${thresholdPct}% lub więcej.` };
+  }
+  return { anomalies: res.rows };
+}
+
 // ─── get_price_alerts ──────────────────────────────────────────────────────────
 
 async function toolPriceAlerts(userId: string) {
@@ -561,6 +613,7 @@ export async function executeToolCall(name: string, rawArgs: unknown, userId: st
       case "get_supplier_price_changes": return JSON.stringify(await toolSupplierPriceChanges(userId, args));
       case "get_price_increases": return JSON.stringify(await toolPriceIncreases(userId, args));
       case "get_quantity_anomalies": return JSON.stringify(await toolQuantityAnomalies(userId, args));
+      case "get_price_anomalies": return JSON.stringify(await toolPriceAnomalies(userId, args));
       case "get_price_alerts": return JSON.stringify(await toolPriceAlerts(userId));
       case "get_dish_margins": return JSON.stringify(await toolDishMargins(userId));
       case "search_invoices": return JSON.stringify(await toolSearchInvoices(userId, args));
@@ -671,6 +724,17 @@ export const AI_CFO_TOOL_SCHEMAS: ChatCompletionTool[] = [
       parameters: {
         type: "object",
         properties: { threshold_pct: { type: "integer", description: "Próg odchylenia w % od średniej historycznej (20-200, domyślnie 50)." } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_price_anomalies",
+      description: "Produkty, których OSTATNIA cena jednostkowa mocno odbiega od własnej historii — porównanie ZAWSZE w tej samej jednostce (kg z kg, szt z szt, nigdy między nimi). Do pytań 'anomalie cenowe', 'czy jakaś cena wygląda podejrzanie'. Wymaga min. 3 wcześniejszych zakupów w tej samej jednostce.",
+      parameters: {
+        type: "object",
+        properties: { threshold_pct: { type: "integer", description: "Próg odchylenia w % od średniej historycznej (10-200, domyślnie 30)." } },
       },
     },
   },

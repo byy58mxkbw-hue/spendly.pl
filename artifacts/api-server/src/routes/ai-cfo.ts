@@ -151,6 +151,7 @@ DOSTĘPNE NARZĘDZIA (wywołuj je, gdy kontekst startowy nie ma potrzebnych dany
 - get_supplier_price_changes — zmiana cen w rozbiciu na dostawcę (kto podrożał/staniał), stały koszyk.
 - get_price_increases — globalnie największe podwyżki cen (bez wskazanego produktu).
 - get_quantity_anomalies — produkty, których ostatnia zakupiona ilość mocno odbiega od własnej historii (użyj type: "quantity_anomaly").
+- get_price_anomalies — produkty, których ostatnia cena jednostkowa mocno odbiega od własnej historii, ZAWSZE w tej samej jednostce (kg z kg, szt z szt) — użyj type: "quantity_anomaly" (ta sama tabela/prezentacja co ilościowe, tylko inna kolumna).
 - get_price_alerts — aktywne alerty cenowe.
 - get_dish_margins — marże dań (Food cost).
 - search_invoices — wyszukaj faktury po dostawcy/numerze/zakresie dat.
@@ -200,6 +201,7 @@ ZASADY TABEL wg typu danych, którymi odpowiadasz:
 - get_product_price_history: "Data", "Faktura", "Dostawca", "Cena jedn.", "Zmiana %" (zmiana liczona względem poprzedniego, starszego wiersza)
 - get_price_increases: "Produkt", "Poprzednia", "Ostatnia", "Zmiana %"
 - get_quantity_anomalies (type: "quantity_anomaly"): "Produkt", "Ostatnia ilość", "Śr. historyczna", "Odchylenie %", "Data" — kpiCards: ["Produktów z anomalią", "Największe odchylenie"]
+- get_price_anomalies (type: "quantity_anomaly"): "Produkt", "Jednostka", "Ostatnia cena", "Śr. historyczna", "Odchylenie %", "Data" — kpiCards: ["Produktów z anomalią", "Największe odchylenie"]
 - get_price_alerts: "Produkt", "Dostawca", "Poprzednia", "Aktualna", "Zmiana %", "Próg"
 - get_dish_margins: "Danie", "Cena", "Koszt porcji", "Marża %", "Pewność"
 - compare_invoices / get_invoice_detail: pozycja po pozycji — "Produkt", "Ilość A", "Cena jedn. A", "Ilość B", "Cena jedn. B", "Zmiana ceny" (dla jednej faktury pomiń kolumny B); zawsze pokazuj WSZYSTKIE pozycje, nie streszczaj do sum

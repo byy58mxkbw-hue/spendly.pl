@@ -30,6 +30,7 @@ let invoiceAId: number;
 let invoiceBId: number;
 let invoiceA2Id: number;
 let carrotAId: number;
+let chickenAId: number;
 
 async function cleanup(): Promise<void> {
   await db.delete(suppliersTable).where(inArray(suppliersTable.userId, [USER_A, USER_B]));
@@ -88,6 +89,27 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
         quantity: String(qty), unit: "kg", unitPrice: "5", totalPrice: String(qty * 5),
       })),
     );
+
+    // Osobny produkt dla get_price_anomalies: 3 zakupy kg po 5 zł (baseline) + 1
+    // anomalia kg po 20 zł jako najnowszy, PLUS jeden zakup w SZT po 50 zł — ten
+    // ostatni musi zostać zignorowany (za mało historii w swojej jednostce), a
+    // NIE porównany z baseline z kg — dowód, że szt i kg nigdy się nie mieszają.
+    const [chickenA] = await db.insert(productsTable).values({ userId: USER_A, name: "Kurczak-A-tools", unit: "kg" }).returning({ id: productsTable.id });
+    chickenAId = chickenA.id;
+    const chickenInvoices = await db.insert(invoicesTable).values([
+      { userId: USER_A, supplierId: supplierAId, invoiceNumber: "FV/A-TOOLS/7", invoiceDate: "2026-09-01", totalAmount: "50" },
+      { userId: USER_A, supplierId: supplierAId, invoiceNumber: "FV/A-TOOLS/8", invoiceDate: "2026-09-05", totalAmount: "50" },
+      { userId: USER_A, supplierId: supplierAId, invoiceNumber: "FV/A-TOOLS/9", invoiceDate: "2026-09-10", totalAmount: "50" },
+      { userId: USER_A, supplierId: supplierAId, invoiceNumber: "FV/A-TOOLS/10", invoiceDate: "2026-09-15", totalAmount: "200" },
+      { userId: USER_A, supplierId: supplierAId, invoiceNumber: "FV/A-TOOLS/11", invoiceDate: "2026-09-20", totalAmount: "50" },
+    ]).returning({ id: invoicesTable.id });
+    await db.insert(invoiceItemsTable).values([
+      { invoiceId: chickenInvoices[0].id, productId: chickenAId, productName: "Kurczak-A-tools", quantity: "10", unit: "kg", unitPrice: "5", totalPrice: "50" },
+      { invoiceId: chickenInvoices[1].id, productId: chickenAId, productName: "Kurczak-A-tools", quantity: "10", unit: "kg", unitPrice: "5", totalPrice: "50" },
+      { invoiceId: chickenInvoices[2].id, productId: chickenAId, productName: "Kurczak-A-tools", quantity: "10", unit: "kg", unitPrice: "5", totalPrice: "50" },
+      { invoiceId: chickenInvoices[3].id, productId: chickenAId, productName: "Kurczak-A-tools", quantity: "10", unit: "kg", unitPrice: "20", totalPrice: "200" },
+      { invoiceId: chickenInvoices[4].id, productId: chickenAId, productName: "Kurczak-A-tools", quantity: "1", unit: "szt", unitPrice: "50", totalPrice: "50" },
+    ]);
   });
 
   afterAll(cleanup);
@@ -212,7 +234,9 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
     const parsed = JSON.parse(raw) as { anomalies: Array<{ product_name: string; latest_qty: string; avg_qty: string }> };
     const row = parsed.anomalies.find((a) => a.product_name === "Marchew-A-tools");
     expect(row).toBeTruthy();
-    expect(row?.latest_qty).toBe("50");
+    // latest_qty nie jest ROUND-owane w SQL, więc numeric(12,4) może wrócić jako
+    // "50.0000" — parsujemy liczbę, nie porównujemy dokładnego stringa.
+    expect(Number(row?.latest_qty)).toBe(50);
     expect(row?.avg_qty).toBe("10.00");
   });
 
@@ -220,6 +244,32 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
     const raw = await executeToolCall("get_quantity_anomalies", {}, USER_B);
     const parsed = JSON.parse(raw) as { anomalies: Array<{ product_name: string }> };
     expect(parsed.anomalies.map((a) => a.product_name)).not.toContain("Marchew-A-tools");
+  });
+
+  it("get_price_anomalies: wykrywa skok ceny jednostkowej vs własna historia w TEJ SAMEJ jednostce", async () => {
+    const raw = await executeToolCall("get_price_anomalies", {}, USER_A);
+    const parsed = JSON.parse(raw) as { anomalies: Array<{ product_name: string; unit: string; latest_price: string; avg_price: string }> };
+    const row = parsed.anomalies.find((a) => a.product_name === "Kurczak-A-tools");
+    expect(row).toBeTruthy();
+    expect(row?.unit).toBe("kg");
+    expect(Number(row?.latest_price)).toBe(20);
+    expect(row?.avg_price).toBe("5.00");
+  });
+
+  it("get_price_anomalies: zakup w innej jednostce (szt) NIGDY nie jest porównywany z historią w kg", async () => {
+    const raw = await executeToolCall("get_price_anomalies", {}, USER_A);
+    const parsed = JSON.parse(raw) as { anomalies: Array<{ product_name: string; unit: string }> };
+    // Tylko JEDEN wiersz dla Kurczak-A-tools (kg) — szt nie ma własnej historii (1 zakup < 3),
+    // więc nie może zostać porównany z baseline z kg, mimo że to "ten sam" produkt.
+    const chickenRows = parsed.anomalies.filter((a) => a.product_name === "Kurczak-A-tools");
+    expect(chickenRows).toHaveLength(1);
+    expect(chickenRows[0].unit).toBe("kg");
+  });
+
+  it("get_price_anomalies: user B nie widzi anomalii produktu usera A", async () => {
+    const raw = await executeToolCall("get_price_anomalies", {}, USER_B);
+    const parsed = JSON.parse(raw) as { anomalies: Array<{ product_name: string }> };
+    expect(parsed.anomalies.map((a) => a.product_name)).not.toContain("Kurczak-A-tools");
   });
 
   it("get_spend_summary: user A nie widzi wydatków/dostawców usera B w podsumowaniu", async () => {
