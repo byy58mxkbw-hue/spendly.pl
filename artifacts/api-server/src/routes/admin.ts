@@ -3,7 +3,7 @@ import type { Logger } from "pino";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../lib/ai-plan.js";
-import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers } from "../services/admin-broadcast.js";
+import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers, sendAiUpdateAnnouncementToAllUsers } from "../services/admin-broadcast.js";
 import { backfillTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "../services/subscriptions.js";
 import { runMarketBenchmarkJob } from "../services/market-benchmark-job.js";
 
@@ -342,6 +342,21 @@ router.post("/admin/send-feedback-email", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err: String(err) }, "send-feedback-email failed");
     res.status(500).json({ error: "Nie udało się wysłać maili z prośbą o opinię." });
+  }
+});
+
+// Jednorazowy broadcast ogłaszający ulepszenia AI Asystenta. Dedup przez
+// email_log (type=ai_update_announcement) — ponowne kliknięcie nie wysyła
+// drugi raz do tych, którzy już dostali.
+router.post("/admin/announce-ai-update", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+
+  try {
+    const result = await sendAiUpdateAnnouncementToAllUsers(req.log);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err: String(err) }, "announce-ai-update failed");
+    res.status(500).json({ error: "Nie udało się wysłać ogłoszenia o ulepszeniach AI." });
   }
 });
 

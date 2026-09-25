@@ -3,7 +3,7 @@ import { sql, eq } from "drizzle-orm";
 import { db, subscriptionsTable } from "@workspace/db";
 import { fetchAllClerkUsers, ADMIN_IDS, type ClerkUserRaw } from "../routes/admin.js";
 import { sendEmail } from "./resend-client.js";
-import { feedbackRequestEmailHtml, trialAnnouncementEmailHtml } from "../lib/email-templates.js";
+import { feedbackRequestEmailHtml, trialAnnouncementEmailHtml, aiUpdateAnnouncementEmailHtml } from "../lib/email-templates.js";
 
 const DEFAULT_FROM = "Spendly <onboarding@resend.dev>";
 const DEFAULT_REPLY_TO = "spendlykontakt@gmail.com";
@@ -77,6 +77,18 @@ export async function sendFeedbackRequestToAllUsers(log: Logger): Promise<Broadc
     emailType: "feedback_request",
     subject: "Twoja opinia o Spendly",
     buildHtml: (u) => feedbackRequestEmailHtml({ firstName: u.first_name }),
+  });
+}
+
+// Jednorazowe ogłoszenie ulepszeń AI Asystenta (function calling, wyszukiwanie
+// po NIP, anomalie cen/ilości, propozycja alertu z czatu). Ten sam komunikat co
+// in-app notka (components/ai-update-notice.tsx), inny kanał — dedup niezależny
+// (email_log type=ai_update_announcement, osobny od localStorage per-user we froncie).
+export async function sendAiUpdateAnnouncementToAllUsers(log: Logger): Promise<BroadcastResult> {
+  return broadcastEmailToAllUsers(log, {
+    emailType: "ai_update_announcement",
+    subject: "Ulepszyliśmy AI Asystenta w Spendly",
+    buildHtml: (u) => aiUpdateAnnouncementEmailHtml({ firstName: u.first_name }),
   });
 }
 

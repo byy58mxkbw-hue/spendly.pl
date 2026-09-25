@@ -223,6 +223,17 @@ function useAnnounceTrial() {
   });
 }
 
+function useAnnounceAiUpdate() {
+  const { session } = useClerk();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await authFetch(session, "/api/admin/announce-ai-update", { method: "POST" });
+      if (!res.ok) throw new Error("Błąd wysyłki ogłoszenia o AI");
+      return res.json() as Promise<FeedbackBroadcastResult>;
+    },
+  });
+}
+
 type ClerkResyncResult = { totalSubscriptions: number; synced: number; failed: number };
 
 function useResyncClerkPlan() {
@@ -452,6 +463,7 @@ export default function AdminUsers() {
   const sendFeedbackBroadcast = useSendFeedbackBroadcast();
   const backfillTrial = useBackfillTrial();
   const announceTrial = useAnnounceTrial();
+  const announceAiUpdate = useAnnounceAiUpdate();
   const resyncClerkPlan = useResyncClerkPlan();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -462,6 +474,7 @@ export default function AdminUsers() {
   const [feedbackConfirmOpen, setFeedbackConfirmOpen] = useState(false);
   const [backfillTrialConfirmOpen, setBackfillTrialConfirmOpen] = useState(false);
   const [announceTrialConfirmOpen, setAnnounceTrialConfirmOpen] = useState(false);
+  const [announceAiUpdateConfirmOpen, setAnnounceAiUpdateConfirmOpen] = useState(false);
   const [sortCol, setSortCol] = useState<SortColumn>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -559,6 +572,19 @@ export default function AdminUsers() {
     }
   }
 
+  async function handleAnnounceAiUpdate() {
+    setAnnounceAiUpdateConfirmOpen(false);
+    try {
+      const result = await announceAiUpdate.mutateAsync();
+      toast({
+        title: "Wysłano ogłoszenie o AI",
+        description: `Wysłano: ${result.sent}, pominięto (już otrzymali): ${result.skipped}, błędów: ${result.failed}.`,
+      });
+    } catch {
+      toast({ title: "Błąd", description: "Nie udało się wysłać ogłoszenia o ulepszeniach AI.", variant: "destructive" });
+    }
+  }
+
   // Naprawcze — bez potwierdzenia, bo to bezpieczna, idempotentna synchronizacja
   // (tylko ustawia Clerk.publicMetadata.plan zgodnie z tym, co już jest w bazie).
   async function handleResyncClerkPlan() {
@@ -606,6 +632,16 @@ export default function AdminUsers() {
               >
                 <Mail className="w-3.5 h-3.5" />
                 Wyślij ogłoszenie o trialu
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAnnounceAiUpdateConfirmOpen(true)}
+                disabled={announceAiUpdate.isPending}
+                className="gap-2"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                Wyślij ogłoszenie o AI
               </Button>
               <Button
                 variant="outline"
@@ -953,6 +989,25 @@ export default function AdminUsers() {
           <AlertDialogFooter>
             <AlertDialogCancel>Anuluj</AlertDialogCancel>
             <AlertDialogAction onClick={handleAnnounceTrial}>
+              Wyślij
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={announceAiUpdateConfirmOpen} onOpenChange={setAnnounceAiUpdateConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Wysłać ogłoszenie o ulepszeniach AI?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Mail o ulepszeniach AI Asystenta (wyszukiwanie po NIP, anomalie cen/ilości, propozycja alertu z
+              rozmowy) trafi do wszystkich zarejestrowanych użytkowników (poza kontami administratorów), którzy
+              jeszcze go nie dostali. Tej operacji nie można cofnąć.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAnnounceAiUpdate}>
               Wyślij
             </AlertDialogAction>
           </AlertDialogFooter>

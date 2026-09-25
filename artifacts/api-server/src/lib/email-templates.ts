@@ -81,6 +81,20 @@ export function feedbackRequestEmailHtml({ firstName }: { firstName: string | nu
   `);
 }
 
+// Jednorazowe ogłoszenie ulepszeń AI Asystenta (routes/admin.ts:
+// /admin/announce-ai-update — patrz admin-broadcast.ts). Odpowiednik in-app
+// notki (components/ai-update-notice.tsx) — ta sama treść, inny kanał.
+export function aiUpdateAnnouncementEmailHtml({ firstName }: { firstName: string | null }): string {
+  const greeting = firstName ? `Cześć, ${firstName}!` : "Cześć!";
+  return shell(`
+    <p style="margin:0 0 16px 0; font-size:18px; font-weight:700;">${greeting}</p>
+    <p style="margin:0 0 12px 0;">Ulepszyliśmy AI Asystenta w Spendly — rozumie teraz więcej o Twoich fakturach i sam sięga po dane, które są mu potrzebne do odpowiedzi.</p>
+    <p style="margin:0 0 12px 0;">Nowości: wyszukiwanie dostawcy po NIP, wykrywanie nietypowych cen i ilości zakupów, a przy podwyżce — propozycja alertu cenowego prosto z rozmowy.</p>
+    <p style="margin:0 0 12px 0;">Wypróbuj, zadając mu pytanie o konkretnego dostawcę, produkt albo fakturę.</p>
+    ${ctaButton("Otwórz Spendly", APP_URL)}
+  `);
+}
+
 // Jednorazowe ogłoszenie startu 30-dniowego triala pro (routes/admin.ts:
 // /admin/announce-trial, wołane PO nadaniu triala — patrz admin-broadcast.ts).
 export function trialAnnouncementEmailHtml({ firstName, trialEndsAtLabel }: { firstName: string | null; trialEndsAtLabel: string }): string {
