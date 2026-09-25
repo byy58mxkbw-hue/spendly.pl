@@ -4647,6 +4647,21 @@ components:
         - label
         - href
 
+    AiCfoSuggestedAlert:
+      type: object
+      properties:
+        productName:
+          type: string
+        supplierId:
+          type: ["integer", "null"]
+        supplierName:
+          type: ["string", "null"]
+        thresholdPercent:
+          type: number
+      required:
+        - productName
+        - thresholdPercent
+
     AiCfoChatBody:
       type: object
       properties:
@@ -4693,6 +4708,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AiCfoAction"
+        suggestedAlert:
+          oneOf:
+            - $ref: "#/components/schemas/AiCfoSuggestedAlert"
+            - type: "null"
       required:
         - type
         - summary

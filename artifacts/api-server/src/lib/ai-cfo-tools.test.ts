@@ -29,6 +29,7 @@ let productBId: number;
 let invoiceAId: number;
 let invoiceBId: number;
 let invoiceA2Id: number;
+let carrotAId: number;
 
 async function cleanup(): Promise<void> {
   await db.delete(suppliersTable).where(inArray(suppliersTable.userId, [USER_A, USER_B]));
@@ -69,6 +70,24 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
       { invoiceId: invoiceA2Id, productId: productAId, productName: "Cytryna-A-tools", quantity: "10", unit: "kg", unitPrice: "6", totalPrice: "60" },
       { invoiceId: invoiceBId, productId: productBId, productName: "Cytryna-B-tools", quantity: "10", unit: "kg", unitPrice: "77", totalPrice: "770" },
     ]);
+
+    // Osobny produkt + 4 faktury tylko dla testu get_quantity_anomalies (3 "normalne"
+    // zakupy po 10 kg + 1 anomalia 50 kg jako najnowszy) — nie mieszamy z productAId,
+    // żeby nie rozjechać asercji get_product_price_history (oczekuje dokładnie 2 wierszy).
+    const [carrotA] = await db.insert(productsTable).values({ userId: USER_A, name: "Marchew-A-tools", unit: "kg" }).returning({ id: productsTable.id });
+    carrotAId = carrotA.id;
+    const carrotInvoices = await db.insert(invoicesTable).values([
+      { userId: USER_A, supplierId: supplierAId, invoiceNumber: "FV/A-TOOLS/3", invoiceDate: "2026-09-01", totalAmount: "50" },
+      { userId: USER_A, supplierId: supplierAId, invoiceNumber: "FV/A-TOOLS/4", invoiceDate: "2026-09-05", totalAmount: "50" },
+      { userId: USER_A, supplierId: supplierAId, invoiceNumber: "FV/A-TOOLS/5", invoiceDate: "2026-09-10", totalAmount: "50" },
+      { userId: USER_A, supplierId: supplierAId, invoiceNumber: "FV/A-TOOLS/6", invoiceDate: "2026-09-20", totalAmount: "250" },
+    ]).returning({ id: invoicesTable.id });
+    await db.insert(invoiceItemsTable).values(
+      [10, 10, 10, 50].map((qty, i) => ({
+        invoiceId: carrotInvoices[i].id, productId: carrotAId, productName: "Marchew-A-tools",
+        quantity: String(qty), unit: "kg", unitPrice: "5", totalPrice: String(qty * 5),
+      })),
+    );
   });
 
   afterAll(cleanup);
@@ -186,6 +205,21 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
     const parsed = JSON.parse(raw) as { invoiceA: { invoice_number: string }; invoiceB: { invoice_number: string } };
     expect(parsed.invoiceA.invoice_number).toBe("FV/A-TOOLS/1");
     expect(parsed.invoiceB.invoice_number).toBe("FV/A-TOOLS/2");
+  });
+
+  it("get_quantity_anomalies: wykrywa skok ilości vs własna historia produktu", async () => {
+    const raw = await executeToolCall("get_quantity_anomalies", {}, USER_A);
+    const parsed = JSON.parse(raw) as { anomalies: Array<{ product_name: string; latest_qty: string; avg_qty: string }> };
+    const row = parsed.anomalies.find((a) => a.product_name === "Marchew-A-tools");
+    expect(row).toBeTruthy();
+    expect(row?.latest_qty).toBe("50");
+    expect(row?.avg_qty).toBe("10.00");
+  });
+
+  it("get_quantity_anomalies: user B nie widzi anomalii produktu usera A", async () => {
+    const raw = await executeToolCall("get_quantity_anomalies", {}, USER_B);
+    const parsed = JSON.parse(raw) as { anomalies: Array<{ product_name: string }> };
+    expect(parsed.anomalies.map((a) => a.product_name)).not.toContain("Marchew-A-tools");
   });
 
   it("get_spend_summary: user A nie widzi wydatków/dostawców usera B w podsumowaniu", async () => {

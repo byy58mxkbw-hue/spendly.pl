@@ -150,6 +150,7 @@ DOSTĘPNE NARZĘDZIA (wywołuj je, gdy kontekst startowy nie ma potrzebnych dany
 - get_products_by_supplier — lista produktów kupowanych od jednego/kilku dostawców z zakresem cen. Użyj tego, NIE search_products, gdy pytanie dotyczy produktów KONKRETNEGO DOSTAWCY (search_products szuka po nazwie produktu, nie dostawcy). Gdy search_suppliers zwróci kilka pasujących firm, podaj wszystkie ich ID naraz w supplier_ids.
 - get_supplier_price_changes — zmiana cen w rozbiciu na dostawcę (kto podrożał/staniał), stały koszyk.
 - get_price_increases — globalnie największe podwyżki cen (bez wskazanego produktu).
+- get_quantity_anomalies — produkty, których ostatnia zakupiona ilość mocno odbiega od własnej historii (użyj type: "quantity_anomaly").
 - get_price_alerts — aktywne alerty cenowe.
 - get_dish_margins — marże dań (Food cost).
 - search_invoices — wyszukaj faktury po dostawcy/numerze/zakresie dat.
@@ -184,8 +185,13 @@ Odpowiadaj ZAWSZE jako JSON (bez markdown, bez tekstu poza JSON):
   "recommendation": "Konkretna rekomendacja działania z szacowanym efektem PLN.",
   "actions": [
     {"label": "Etykieta przycisku", "href": "/products"}
-  ]
+  ],
+  "suggestedAlert": null
 }
+
+AKCJA "suggestedAlert" — TYLKO gdy ma to sens (rozmowa dotyczy KONKRETNEGO produktu z realnym sygnałem cenowym: podwyżka z get_price_increases/get_product_price_history, wysoka rozpiętość cen z get_cheapest_supplier_for_product) i user o to nie prosił wprost o coś innego — możesz ZAPROPONOWAĆ alert cenowy zamiast null:
+{"productName": "dokładna nazwa produktu z narzędzia", "supplierId": <ID dostawcy z narzędzia LUB null, jeśli chodzi o produkt niezależnie od dostawcy>, "supplierName": "nazwa dostawcy LUB null", "thresholdPercent": <rozsądny próg, zwykle 10-15>}
+To TYLKO propozycja — nic się nie zapisuje automatycznie, user musi kliknąć potwierdzenie w interfejsie. Nie proponuj alertu przy każdej odpowiedzi — tylko gdy to naturalny, wartościowy next step (świeżo wykryta podwyżka/duża rozbieżność cen). Gdy nieistotne — zawsze null, nie pomijaj pola.
 
 ZASADY TABEL wg typu danych, którymi odpowiadasz:
 - Porównanie dostawców (get_supplier_price_changes / spend_summary.supplierComparison): "Dostawca", "Wydatki (PLN)"/"Wolumen", "Faktury"/"Produkty", ...
@@ -193,6 +199,7 @@ ZASADY TABEL wg typu danych, którymi odpowiadasz:
 - get_products_by_supplier: "Produkt", "Dostawca", "Min cena", "Max cena", "Śr. cena", "Zakupy"
 - get_product_price_history: "Data", "Faktura", "Dostawca", "Cena jedn.", "Zmiana %" (zmiana liczona względem poprzedniego, starszego wiersza)
 - get_price_increases: "Produkt", "Poprzednia", "Ostatnia", "Zmiana %"
+- get_quantity_anomalies (type: "quantity_anomaly"): "Produkt", "Ostatnia ilość", "Śr. historyczna", "Odchylenie %", "Data" — kpiCards: ["Produktów z anomalią", "Największe odchylenie"]
 - get_price_alerts: "Produkt", "Dostawca", "Poprzednia", "Aktualna", "Zmiana %", "Próg"
 - get_dish_margins: "Danie", "Cena", "Koszt porcji", "Marża %", "Pewność"
 - compare_invoices / get_invoice_detail: pozycja po pozycji — "Produkt", "Ilość A", "Cena jedn. A", "Ilość B", "Cena jedn. B", "Zmiana ceny" (dla jednej faktury pomiń kolumny B); zawsze pokazuj WSZYSTKIE pozycje, nie streszczaj do sum

@@ -1109,6 +1109,15 @@ export interface AiCfoAction {
   href: string;
 }
 
+export interface AiCfoSuggestedAlert {
+  productName: string;
+  /** @nullable */
+  supplierId?: number | null;
+  /** @nullable */
+  supplierName?: string | null;
+  thresholdPercent: number;
+}
+
 export type AiCfoChatBodyHistoryItemRole = typeof AiCfoChatBodyHistoryItemRole[keyof typeof AiCfoChatBodyHistoryItemRole];
 
 
@@ -1140,6 +1149,7 @@ export interface AiCfoChatResponse {
   table?: AiCfoTableData | null;
   recommendation?: string;
   actions: AiCfoAction[];
+  suggestedAlert?: AiCfoSuggestedAlert | null;
 }
 
 export interface SupplierMonthlySpend {

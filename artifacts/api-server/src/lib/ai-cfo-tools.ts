@@ -305,6 +305,52 @@ async function toolPriceIncreases(userId: string, args: Record<string, unknown>)
   return { increases: res.rows };
 }
 
+// ─── get_quantity_anomalies ────────────────────────────────────────────────────
+// Wypełnia typ "quantity_anomaly" z kontraktu JSON (był zdefiniowany w odpowiedzi
+// od początku, ale żadne narzędzie go dotąd nie zasilało). Baseline = średnia
+// ilość z HISTORII BEZ najnowszego zakupu (rn > 1), żeby anomalia nie ciągnęła
+// sama siebie w dół — porównywana z ostatnim zakupem (rn = 1). Minimum 3 wcześniejsze
+// zakupy, żeby średnia miała sens (inaczej 2 zakupy = zawsze "anomalia" przy zmianie).
+async function toolQuantityAnomalies(userId: string, args: Record<string, unknown>) {
+  const thresholdPct = clampInt(asInt(args.threshold_pct), 20, 200, 50);
+  const threshold = thresholdPct / 100;
+
+  const res = await db.execute(sql`
+    WITH ranked AS (
+      SELECT ii.product_id, p.name, ii.quantity::numeric AS qty, ii.unit,
+             inv.invoice_date, inv.invoice_number, s.name AS supplier_name,
+             ROW_NUMBER() OVER (PARTITION BY ii.product_id ORDER BY inv.invoice_date DESC, inv.id DESC) AS rn
+      FROM invoice_items ii
+      JOIN invoices inv ON ii.invoice_id = inv.id
+      JOIN products p ON ii.product_id = p.id
+      JOIN suppliers s ON inv.supplier_id = s.id
+      WHERE inv.user_id = ${userId} AND inv.excluded = false AND inv.parent_invoice_id IS NULL
+        AND (inv.invoice_type IS DISTINCT FROM 'KOR')
+        AND ii.quantity::numeric > 0
+    ),
+    baseline AS (
+      SELECT product_id, AVG(qty) AS avg_qty, COUNT(*)::int AS history_count
+      FROM ranked WHERE rn > 1
+      GROUP BY product_id
+      HAVING COUNT(*) >= 3
+    )
+    SELECT r.name AS product_name, r.qty::text AS latest_qty, r.unit,
+           ROUND(b.avg_qty, 2)::text AS avg_qty,
+           ROUND((r.qty - b.avg_qty) / NULLIF(b.avg_qty, 0) * 100, 1)::text AS deviation_pct,
+           r.invoice_date, r.invoice_number, r.supplier_name, b.history_count
+    FROM ranked r
+    JOIN baseline b ON b.product_id = r.product_id
+    WHERE r.rn = 1
+      AND ABS((r.qty - b.avg_qty) / NULLIF(b.avg_qty, 0)) >= ${threshold}
+    ORDER BY ABS((r.qty - b.avg_qty) / NULLIF(b.avg_qty, 0)) DESC
+    LIMIT 15
+  `);
+  if (res.rows.length === 0) {
+    return { anomalies: [], message: `Brak produktów, których ostatnia zakupiona ilość odbiega od własnej historii o ${thresholdPct}% lub więcej.` };
+  }
+  return { anomalies: res.rows };
+}
+
 // ─── get_price_alerts ──────────────────────────────────────────────────────────
 
 async function toolPriceAlerts(userId: string) {
@@ -514,6 +560,7 @@ export async function executeToolCall(name: string, rawArgs: unknown, userId: st
       case "get_products_by_supplier": return JSON.stringify(await toolProductsBySupplier(userId, args));
       case "get_supplier_price_changes": return JSON.stringify(await toolSupplierPriceChanges(userId, args));
       case "get_price_increases": return JSON.stringify(await toolPriceIncreases(userId, args));
+      case "get_quantity_anomalies": return JSON.stringify(await toolQuantityAnomalies(userId, args));
       case "get_price_alerts": return JSON.stringify(await toolPriceAlerts(userId));
       case "get_dish_margins": return JSON.stringify(await toolDishMargins(userId));
       case "search_invoices": return JSON.stringify(await toolSearchInvoices(userId, args));
@@ -613,6 +660,17 @@ export const AI_CFO_TOOL_SCHEMAS: ChatCompletionTool[] = [
       parameters: {
         type: "object",
         properties: { limit: { type: "integer", description: "Liczba wyników (1-30, domyślnie 10)." } },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_quantity_anomalies",
+      description: "Produkty, których OSTATNIA zakupiona ilość mocno odbiega od własnej historii (np. nagle dużo więcej/mniej niż zwykle) — do pytań 'czy jakieś zamówienie wygląda dziwnie', 'anomalie ilościowe', 'czy nie kupiliśmy przypadkiem za dużo/za mało'. Wymaga min. 3 wcześniejszych zakupów danego produktu, żeby było z czym porównać.",
+      parameters: {
+        type: "object",
+        properties: { threshold_pct: { type: "integer", description: "Próg odchylenia w % od średniej historycznej (20-200, domyślnie 50)." } },
       },
     },
   },

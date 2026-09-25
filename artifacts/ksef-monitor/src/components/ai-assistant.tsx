@@ -3,13 +3,16 @@ import { Link } from "wouter";
 import { useAuth, useUser } from "@clerk/react";
 import {
   usePostAiCfoChat,
+  useCreatePriceAlert,
   type AiCfoChatResponse,
+  type AiCfoSuggestedAlert,
 } from "@workspace/api-client-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { apiUrl } from "@/lib/api-base";
+import { useToast } from "@/hooks/use-toast";
 import {
   Bot,
   Send,
@@ -19,6 +22,9 @@ import {
   Trash2,
   TrendingUp,
   TrendingDown,
+  Bell,
+  BellRing,
+  Loader2,
 } from "@/lib/icons";
 
 // ─── Typy wiadomości ──────────────────────────────────────────────────────────
@@ -76,6 +82,58 @@ function summarizeForHistory(data: AiCfoChatResponse): string {
   }
   if (data.recommendation) parts.push(`Rekomendacja: ${data.recommendation}`);
   return parts.join("\n").slice(0, 1800);
+}
+
+// ─── Akcja: propozycja alertu cenowego z odpowiedzi czatu ────────────────────
+// Model TYLKO proponuje (patrz prompt w ai-cfo.ts) — nic nie zapisuje samo z
+// siebie. Klik uderza w ten sam endpoint co ręczne dodanie alertu na stronie
+// /price-alerts (useCreatePriceAlert), więc walidacja i limity są identyczne.
+
+function SuggestedAlertButton({ alert }: { alert: AiCfoSuggestedAlert }) {
+  const { toast } = useToast();
+  const createAlert = useCreatePriceAlert();
+  const [done, setDone] = useState(false);
+
+  if (done) {
+    return (
+      <div className="inline-flex items-center gap-1.5 h-7 px-2.5 text-xs text-positive">
+        <BellRing className="w-3.5 h-3.5" /> Alert ustawiony
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-7 text-xs gap-1.5"
+      disabled={createAlert.isPending}
+      onClick={() => {
+        createAlert.mutate(
+          {
+            data: {
+              productName: alert.productName,
+              supplierId: alert.supplierId ?? undefined,
+              thresholdPercent: alert.thresholdPercent,
+            },
+          },
+          {
+            onSuccess: () => {
+              setDone(true);
+              toast({ title: "Alert cenowy ustawiony", description: `${alert.productName} — próg ${alert.thresholdPercent}%` });
+            },
+            onError: (err: unknown) => {
+              const serverMsg = (err as { data?: { error?: string } })?.data?.error;
+              toast({ variant: "destructive", title: "Nie udało się ustawić alertu", description: serverMsg });
+            },
+          },
+        );
+      }}
+    >
+      {createAlert.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+      Ustaw alert: {alert.productName} (±{alert.thresholdPercent}%)
+    </Button>
+  );
 }
 
 // ─── Bąbelek odpowiedzi asystenta ────────────────────────────────────────────
@@ -150,9 +208,10 @@ function AssistantBubble({ data, onNavigate }: { data: AiCfoChatResponse; onNavi
         </div>
       )}
 
-      {(data.actions ?? []).length > 0 && (
+      {((data.actions ?? []).length > 0 || data.suggestedAlert) && (
         <div className="flex flex-wrap gap-1.5 pt-0.5">
-          {data.actions.slice(0, 3).map((a, i) => (
+          {data.suggestedAlert && <SuggestedAlertButton alert={data.suggestedAlert} />}
+          {(data.actions ?? []).slice(0, 3).map((a, i) => (
             <Link key={i} href={a.href} onClick={onNavigate}>
               <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
                 {a.label}

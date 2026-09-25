@@ -453,7 +453,13 @@ export const PostAiCfoChatResponse = zod.object({
   "actions": zod.array(zod.object({
   "label": zod.string(),
   "href": zod.string()
-}))
+})),
+  "suggestedAlert": zod.union([zod.object({
+  "productName": zod.string(),
+  "supplierId": zod.number().nullish(),
+  "supplierName": zod.string().nullish(),
+  "thresholdPercent": zod.number()
+}),zod.null()]).optional()
 })
 
 
