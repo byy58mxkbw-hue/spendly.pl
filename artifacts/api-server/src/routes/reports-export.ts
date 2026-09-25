@@ -5,9 +5,9 @@ import ExcelJS from "exceljs";
 import { periodFromQuery, previousPeriod, periodLabel, type Period } from "../lib/period";
 import { buildWorkbook, type AggRow, type Group, type Compare } from "../lib/reports-workbook";
 import { captureServer } from "../lib/telemetry";
-import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
+import { spendOnly } from "../lib/invoice-line-classify.js";
 
-const notSpendDistorting = excludeNonSpendInvoiceTypes("i");
+const moneyExpr = sql`ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)`;
 
 const router: IRouter = Router();
 
@@ -20,13 +20,12 @@ async function fetchByCostCenter(userId: string, p: Period): Promise<AggRow[]> {
            ii.product_name,
            ii.unit,
            SUM(ii.quantity::numeric)::float AS qty,
-           SUM(ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))::float AS gross_total
+           SUM(${spendOnly("i", moneyExpr)})::float AS gross_total
     FROM invoices i
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     LEFT JOIN cost_centers cc ON cc.id = i.cost_center_id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      ${notSpendDistorting}
       AND i.invoice_date >= ${p.from} AND i.invoice_date <= ${p.to}
     GROUP BY 1, 2, 3, 4, 5
   `);
@@ -43,13 +42,12 @@ async function fetchBySupplier(userId: string, p: Period, costCenterId: number):
            ii.product_name,
            ii.unit,
            SUM(ii.quantity::numeric)::float AS qty,
-           SUM(ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))::float AS gross_total
+           SUM(${spendOnly("i", moneyExpr)})::float AS gross_total
     FROM invoices i
     INNER JOIN invoice_items ii ON ii.invoice_id = i.id
     INNER JOIN suppliers s ON s.id = i.supplier_id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      ${notSpendDistorting}
       AND i.invoice_date >= ${p.from} AND i.invoice_date <= ${p.to}
       AND i.cost_center_id = ${costCenterId}
     GROUP BY 1, 2, 4, 5

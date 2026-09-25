@@ -296,17 +296,22 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
     expect(names).not.toContain("Dostawca-B-tools");
   });
 
-  it("get_spend_summary: faktura ROZ nie zawyża wydatków dostawcy ani kategorii (fix 'zawyżone wydatki za drzewo')", async () => {
+  it("get_spend_summary: faktura ROZ nie zawyża WYDATKÓW dostawcy, ale ILOŚĆ zostaje realna (fix 'a ilość?')", async () => {
     const raw = await executeToolCall("get_spend_summary", { date_from: "2026-01-01" }, USER_A);
     const parsed = JSON.parse(raw) as {
-      suppliers: Array<{ supplier_name: string; total_spend: string }>;
-      categories: Array<{ category: string; total_spend: string }>;
+      suppliers: Array<{ supplier_name: string; total_spend: string; total_qty: string }>;
     };
-    // Dostawca ROZ ma TYLKO tę jedną fakturę (500 - 500 = 0) — po wykluczeniu ROZ
-    // z sumy wydatków nie powinien w ogóle pojawić się w top-8 dostawcach (total_spend
-    // by był 0/pominięty), na pewno NIE z wartością 500 (co pokazywałby bug sprzed fixu).
     const rozRow = parsed.suppliers.find((s) => s.supplier_name === "Nadlesnictwo-A-tools");
-    expect(rozRow).toBeUndefined();
+    expect(rozRow).toBeTruthy();
+    // Pieniądze: drewno (500) w pełni zbilansowane "Zaliczka" (-500) — spendOnly()
+    // liczy oba jako 0, więc suma wydatków dla tego dostawcy = 0 (fix "zawyżone
+    // wydatki za drzewo" — NIE 500, co pokazywałby bug sprzed fixu).
+    expect(Number(rozRow?.total_spend)).toBe(0);
+    // Ilość: 10 (drewno) + (-1) (ujemna "Zaliczka", jednostka szt nie m3, ale to
+    // realny wiersz z faktury) = 9 — REALNA, niewycięta przez filtr wydatków
+    // (fix "a ilość?" — spendOnly() owija TYLKO SUM(total_price), SUM(quantity)
+    // zostaje bez zmian, patrz lib/invoice-line-classify.ts).
+    expect(Number(rozRow?.total_qty)).toBe(9);
   });
 
   it("nieznane narzędzie -> błąd, nie wywala procesu", async () => {

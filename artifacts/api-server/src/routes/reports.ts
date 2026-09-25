@@ -4,13 +4,19 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { periodFromQuery, previousPeriod, type Period } from "../lib/period";
 import { normalizeUnit, normalizedUnitSql } from "../lib/units";
-import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
+import { excludeNonSpendInvoiceTypes, spendOnly } from "../lib/invoice-line-classify.js";
 
 // Wykluczenie KOR/ROZ ze zsumowanych WYDATKÓW (patrz lib/invoice-line-classify.ts) —
 // NIE stosowane w /reports/product-quantity-trend (celowo śledzi realne ilości
 // dostaw, w tym z faktur rozliczeniowych) ani /reports/cost-centers (sumuje
 // invoices.total_amount, które dla ROZ już poprawnie netuje do ~0).
+//
+// UWAGA: w kwerendach, które w TYM SAMYM wierszu liczą też ILOŚĆ/CENĘ (np.
+// total_quantity, avg_price obok total_spend) — NIE używaj tego w WHERE, bo
+// wytnie cały wiersz razem z realną ilością dostawy. Użyj spendOnly() TYLKO
+// wewnątrz SUM() dla kolumny pieniężnej (patrz lib/invoice-line-classify.ts).
 const notSpendDistorting = excludeNonSpendInvoiceTypes("i");
+const moneyExpr = sql`ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)`;
 
 const router: IRouter = Router();
 
@@ -79,7 +85,6 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       INNER JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId}
         AND i.excluded = false
-        ${notSpendDistorting}
         ${prevDateFilter}
         ${ccSql}
       GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
@@ -96,7 +101,7 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       ii.unit,
       SUM(ii.quantity::numeric)::float AS total_quantity,
       AVG((ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS avg_price,
-      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS total_cost,
+      SUM(${spendOnly("i", moneyExpr)})::float AS total_cost,
       s.name AS supplier_name
     FROM invoice_items ii
     INNER JOIN invoices i ON ii.invoice_id = i.id
@@ -104,7 +109,6 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      ${notSpendDistorting}
       ${dateFilter}
       ${ccSql}
     GROUP BY COALESCE(p.name, ii.product_name), ii.unit, s.name
@@ -219,17 +223,16 @@ router.get("/reports/monthly", async (req, res): Promise<void> => {
       ii.unit,
       SUM(ii.quantity::numeric)::float AS total_quantity,
       AVG((ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS avg_price,
-      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS total_cost,
+      SUM(${spendOnly("i", moneyExpr)})::float AS total_cost,
       ROW_NUMBER() OVER (
         PARTITION BY i.supplier_id
-        ORDER BY SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))) DESC
+        ORDER BY SUM(${spendOnly("i", moneyExpr)}) DESC
       ) AS rn
     FROM invoice_items ii
     INNER JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products p ON ii.product_id = p.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      ${notSpendDistorting}
       ${dateFilter}
       ${ccSql}
     GROUP BY i.supplier_id, COALESCE(p.name, ii.product_name), ii.unit
@@ -304,12 +307,11 @@ router.get("/reports/spend-bridge", async (req, res): Promise<void> => {
     SELECT COALESCE(pr.name, ii.product_name) AS name, ii.unit AS unit,
       SUM(ii.quantity::numeric)::float AS qty,
       AVG((ii.unit_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS price,
-      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS cost
+      SUM(${spendOnly("i", moneyExpr)})::float AS cost
     FROM invoice_items ii
     JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products pr ON ii.product_id = pr.id
     WHERE i.user_id = ${userId} AND i.excluded = false
-      ${notSpendDistorting}
       AND i.invoice_date >= ${p.from} AND i.invoice_date <= ${p.to} ${ccSql}
     GROUP BY COALESCE(pr.name, ii.product_name), ii.unit
   `);
@@ -672,14 +674,13 @@ router.get("/reports/category-spend", async (req, res): Promise<void> => {
       SUM(ii.quantity::numeric)::float AS total_quantity,
       MAX(ii.unit) AS unit,
       (SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100))) / NULLIF(SUM(ii.quantity::numeric), 0))::float AS avg_unit_price,
-      SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS total_spend
+      SUM(${spendOnly("i", moneyExpr)})::float AS total_spend
     FROM invoice_items ii
     INNER JOIN invoices i ON ii.invoice_id = i.id
     LEFT JOIN products p ON ii.product_id = p.id
     LEFT JOIN suppliers s ON i.supplier_id = s.id
     WHERE i.user_id = ${userId}
       AND i.excluded = false
-      ${notSpendDistorting}
       ${dateCondition}
       ${ccCondition}
     GROUP BY COALESCE(p.name, ii.product_name), p.category, s.name

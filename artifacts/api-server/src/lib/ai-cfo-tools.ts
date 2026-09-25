@@ -4,13 +4,18 @@ import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { computeTriggeredAlerts } from "../services/alert-checker.js";
 import { computeAllDishMargins } from "../routes/food-cost.js";
 import { normalizedUnitSql } from "./units.js";
-import { excludeNonSpendInvoiceTypes } from "./invoice-line-classify.js";
+import { excludeNonSpendInvoiceTypes, spendOnly } from "./invoice-line-classify.js";
 
 // Wykluczenie KOR/ROZ ze zsumowanych WYDATKÓW w get_spend_summary — NIE stosowane
 // w narzędziach o CENIE/ILOŚCI JEDNOSTKOWEJ (get_product_price_history,
 // get_price_increases, get_quantity/price_anomalies), gdzie dane z faktur
 // rozliczeniowych są realne i wartościowe. Patrz lib/invoice-line-classify.ts.
+//
+// UWAGA: gdy kwerenda w TYM SAMYM wierszu liczy też total_qty — NIE dawaj tego
+// filtra w WHERE (wytnie realną ilość dostawy), tylko owiń spendOnly() samo
+// SUM(total_price) dla total_spend.
 const notSpendDistorting = excludeNonSpendInvoiceTypes("i");
+const moneyExpr = sql`ii.total_price::numeric`;
 
 // Narzędzia function-calling dla AI CFO (routes/ai-cfo.ts). Model SAM decyduje,
 // którego narzędzia użyć i z jakimi argumentami BIZNESOWYMI (nazwa produktu, ID,
@@ -521,14 +526,13 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
   const [spendRes, topProductsRes, monthlyRes, categoryRes, costCenterRes, supplierDetailRes] = await Promise.allSettled([
     db.execute(sql`
       SELECT s.id AS supplier_id, s.name AS supplier_name,
-        ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
+        ROUND(SUM(${spendOnly("i", moneyExpr)}), 0) AS total_spend,
         ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
         COUNT(DISTINCT i.id) AS invoice_count
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond} AND s.is_active = true
-        ${notSpendDistorting}
       GROUP BY s.id, s.name ORDER BY total_spend DESC LIMIT 8
     `),
     db.execute(sql`
@@ -537,7 +541,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
         s.id AS supplier_id, s.name AS supplier_name,
         ROUND(MIN(ii.unit_price::numeric), 2) AS min_price,
         ROUND(MAX(ii.unit_price::numeric), 2) AS max_price,
-        ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
+        ROUND(SUM(${spendOnly("i", moneyExpr)}), 0) AS total_spend,
         ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
         ii.unit,
         COUNT(DISTINCT i.id) AS purchase_count
@@ -546,7 +550,6 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
       JOIN products p ON ii.product_id = p.id
       JOIN suppliers s ON i.supplier_id = s.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond}
-        ${notSpendDistorting}
       GROUP BY p.id, p.name, p.category, p.subcategory, s.id, s.name, ii.unit
       ORDER BY total_spend DESC LIMIT 25
     `),
@@ -559,14 +562,13 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
     `),
     db.execute(sql`
       SELECT COALESCE(p.category, 'Bez kategorii') AS category,
-        ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
+        ROUND(SUM(${spendOnly("i", moneyExpr)}), 0) AS total_spend,
         ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
         COUNT(DISTINCT p.id) AS product_count
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       JOIN products p ON ii.product_id = p.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond} AND i.excluded = false
-        ${notSpendDistorting}
       GROUP BY 1 ORDER BY total_spend DESC LIMIT 15
     `),
     db.execute(sql`
@@ -582,7 +584,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
     `),
     db.execute(sql`
       SELECT s.id AS supplier_id, s.name AS supplier_name,
-        ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
+        ROUND(SUM(${spendOnly("i", moneyExpr)}), 0) AS total_spend,
         ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
         COUNT(DISTINCT p.id) AS unique_products,
         COUNT(DISTINCT i.id) AS invoice_count,
@@ -593,7 +595,6 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
       JOIN products p ON ii.product_id = p.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond}
         AND s.is_active = true AND i.excluded = false
-        ${notSpendDistorting}
       GROUP BY s.id, s.name
       ORDER BY total_spend DESC LIMIT 10
     `),

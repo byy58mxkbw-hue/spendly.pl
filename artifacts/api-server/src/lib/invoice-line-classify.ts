@@ -46,3 +46,18 @@ export function excludeNonSpendInvoiceTypes(invoicesAlias: string): SQL {
     `AND ${invoicesAlias}.invoice_type IS DISTINCT FROM 'KOR' AND ${invoicesAlias}.invoice_type IS DISTINCT FROM 'ROZ'`,
   );
 }
+
+// Wariant dla zapytań, które w TYM SAMYM wierszu liczą i pieniądze, i ILOŚĆ
+// (np. "SUM(quantity) AS total_quantity, SUM(total_price) AS total_spend" razem).
+// excludeNonSpendInvoiceTypes() w WHERE wycina CAŁY wiersz — czyli razem z prawdziwą,
+// fizycznie dostarczoną ilością drewna z faktury rozliczeniowej, co zaniża ilość
+// (realny raport użytkownika 2026-09-26: "a ilość?" — dobra uwaga, ROZ NIE dubluje
+// ilości tak jak dubluje pieniądze, bo faktura zaliczkowa nie ma w ogóle rozbicia
+// na pozycje/ilości — jedyne źródło realnej ilości to właśnie ROZ).
+//
+// Użycie: owiń WYŁĄCZNIE wyrażenie pieniężne w SUM(...) tym helperem, zostaw
+// SUM(quantity) bez zmian i usuń excludeNonSpendInvoiceTypes() z WHERE tej samej
+// kwerendy — inaczej filtr zadziała podwójnie (i tak samo obetnie ilość).
+export function spendOnly(invoicesAlias: string, moneyExpr: SQL): SQL {
+  return sql`(CASE WHEN ${sql.raw(invoicesAlias)}.invoice_type IS DISTINCT FROM 'KOR' AND ${sql.raw(invoicesAlias)}.invoice_type IS DISTINCT FROM 'ROZ' THEN ${moneyExpr} ELSE 0 END)`;
+}
