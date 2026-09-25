@@ -37,6 +37,7 @@ import { buildCostCenterModel, computeCostCenterSuggestion } from "../lib/cost-c
 import { AdvisoryLock } from "../lib/advisory-lock";
 import { captureServer } from "../lib/telemetry";
 import { getUserCategories } from "../lib/categorize-ai.js";
+import { isAdvanceSettlementLine } from "../lib/invoice-line-classify.js";
 import {
   encryptXml,
   describeDbErr,
@@ -697,9 +698,15 @@ async function runSync(
       const match = await tryMatch(userId, parsed);
       if (!match.supplier) continue;
 
-      const resolvedProductIds: number[] = [];
+      const resolvedProductIds: Array<number | null> = [];
       for (let i = 0; i < parsed.items.length; i++) {
         let pid = match.itemProductIds[i];
+        // Rozliczenie zaliczki — nigdy nie tworzymy dla niej produktu (patrz
+        // tryMatch/importMatchedInvoice w ksef-ingest.ts, ten sam wzorzec).
+        if (pid == null && isAdvanceSettlementLine(parsed.items[i].name)) {
+          resolvedProductIds.push(null);
+          continue;
+        }
         if (pid == null) {
           userCatsRetry ??= (await getUserCategories(userId)).map((c) => ({ id: c.id, label: c.label }));
           pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit, match.supplier.defaultCategory, userCatsRetry);
@@ -887,9 +894,15 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
       const match = await tryMatch(userId, parsed);
       if (!match.supplier) continue;
 
-      const resolvedProductIds: number[] = [];
+      const resolvedProductIds: Array<number | null> = [];
       for (let i = 0; i < parsed.items.length; i++) {
         let pid = match.itemProductIds[i];
+        // Rozliczenie zaliczki — nigdy nie tworzymy dla niej produktu (patrz
+        // tryMatch/importMatchedInvoice w ksef-ingest.ts, ten sam wzorzec).
+        if (pid == null && isAdvanceSettlementLine(parsed.items[i].name)) {
+          resolvedProductIds.push(null);
+          continue;
+        }
         if (pid == null) {
           userCatsRetry ??= (await getUserCategories(userId)).map((c) => ({ id: c.id, label: c.label }));
           pid = await findOrCreateProductByName(userId, parsed.items[i].name, parsed.items[i].unit, match.supplier.defaultCategory, userCatsRetry);

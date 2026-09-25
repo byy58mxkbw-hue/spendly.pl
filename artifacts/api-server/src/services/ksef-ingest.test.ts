@@ -107,6 +107,17 @@ describe.skipIf(!RUN_DB)("ksef-ingest: tryMatch", () => {
     const m = await tryMatch("test_ing_NOONE", parsed);
     expect(m.supplier).toBeNull();
   });
+
+  it("rozliczenie zaliczki (faktura ROZ) — nigdy nie dopasowuje ani nie zgłasza jako brakujący produkt", async () => {
+    const parsed = makeParsed({ sellerNip: "1234567890", invoiceType: "ROZ" }, [
+      item("Mleko 3.2%"),
+      item("Zaliczka 23% VAT", { unit: "szt", quantity: -1, unitPrice: 12225.78, net: -12225.78, gross: -12225.78 }),
+    ]);
+    const m = await tryMatch(ING_R, parsed);
+    expect(m.itemProductIds[0]).toBe(mlekoId);
+    expect(m.itemProductIds[1]).toBeNull();
+    expect(m.missingProducts).toEqual([]); // nie "brakujący produkt" — celowo pominięty
+  });
 });
 
 describe.skipIf(!RUN_DB)("ksef-ingest: importMatchedInvoice", () => {
@@ -158,6 +169,29 @@ describe.skipIf(!RUN_DB)("ksef-ingest: importMatchedInvoice", () => {
     const smietana = await db.select({ id: productsTable.id }).from(productsTable)
       .where(and(eq(productsTable.userId, ING_R), eq(productsTable.name, "Śmietana nowa")));
     expect(smietana).toHaveLength(1);
+  });
+
+  it("rozliczenie zaliczki: pozycja trafia do invoice_items z product_id NULL, NIE tworzy produktu", async () => {
+    const parsed = makeParsed({ invoiceNumber: "FV/IMP-ROZ/1", invoiceType: "ROZ", totalGross: 0 }, [
+      item("Masło", { name: "Masło" }),
+      item("Zaliczka 23% VAT", { name: "Zaliczka 23% VAT", unit: "szt", quantity: -1, unitPrice: 100, net: -100, gross: -100 }),
+    ]);
+    const match = await tryMatch(ING_R, parsed);
+    const created = await importMatchedInvoice(ING_R, parsed, "<xml-roz/>", "KSEF-IMP-ROZ-1", match, new Date());
+    expect(created).toBe(true);
+
+    const [inv] = await db.select().from(invoicesTable)
+      .where(and(eq(invoicesTable.userId, ING_R), eq(invoicesTable.invoiceNumber, "FV/IMP-ROZ/1")));
+    const items = await db.select().from(invoiceItemsTable).where(eq(invoiceItemsTable.invoiceId, inv.id));
+    expect(items).toHaveLength(2);
+    const zaliczkaItem = items.find((it) => it.productName === "Zaliczka 23% VAT");
+    expect(zaliczkaItem?.productId).toBeNull();
+    // Kwota pozycji zostaje nietknięta — tylko atrybucja do produktu jest wyłączona.
+    expect(zaliczkaItem?.totalPrice).toBe("-100.00");
+
+    const zaliczkaProduct = await db.select({ id: productsTable.id }).from(productsTable)
+      .where(and(eq(productsTable.userId, ING_R), eq(productsTable.name, "Zaliczka 23% VAT")));
+    expect(zaliczkaProduct).toHaveLength(0);
   });
 
   it("dedup: ponowny import tego samego numeru aktualizuje, nie tworzy duplikatu (zwraca false)", async () => {

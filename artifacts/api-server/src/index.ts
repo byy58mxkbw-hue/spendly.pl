@@ -8,6 +8,7 @@ import { ensureRevenueTable } from "./services/ensure-revenue.js";
 import { ensureGoposTables } from "./services/ensure-gopos.js";
 import { ensureDishIngredientColumns } from "./services/ensure-dish-columns.js";
 import { ensureDecodedNames } from "./services/ensure-decoded-names.js";
+import { ensureNoAdvanceLineProducts } from "./services/ensure-no-advance-line-products.js";
 import { ensureGrossInvoiceTotals } from "./services/ensure-gross-invoice-totals.js";
 import { ensureEmailLogTable } from "./services/ensure-email.js";
 import { ensureSubscriptionsTables } from "./services/ensure-subscriptions.js";
@@ -100,6 +101,10 @@ app.listen(port, (err) => {
 
   // Odkodowanie encji HTML w nazwach zapisanych przed poprawką parsera — idempotentne.
   ensureDecodedNames(logger).catch((err) => logger.error({ err }, "decode-names: migracja nieudana"));
+
+  // Czyszczenie pozycji rozliczenia zaliczki błędnie zaimportowanych jako produkty
+  // (przed poprawką w lib/invoice-line-classify.ts) — idempotentne.
+  ensureNoAdvanceLineProducts(logger).catch((err) => logger.error({ err }, "no-advance-line-products: migracja nieudana"));
   ensureGrossInvoiceTotals(logger).catch((err) => logger.error({ err }, "gross-totals: migracja nieudana"));
 
   // Kolejka zadań (pg-boss) — startuje TYLKO gdy PGBOSS_ENABLED=true (PoC).

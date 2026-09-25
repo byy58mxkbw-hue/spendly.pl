@@ -19,6 +19,7 @@ import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-o
 import { encryptSecret } from "../lib/encryption";
 import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
 import { parseKSeFXml } from "../lib/invoice-xml-parse";
+import { isAdvanceSettlementLine } from "../lib/invoice-line-classify.js";
 
 const router: IRouter = Router();
 
@@ -848,8 +849,16 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   // Z3: pobierz kategorie usera RAZ (wbudowane + własne), zamiast per pozycja na ścieżce AI.
   const userCats = (await getUserCategories(userId)).map((c) => ({ id: c.id, label: c.label }));
   for (const item of parsedItems) {
-    const classification = await categorizeProductWithAI(item.productName, userId, req.log, supplier.defaultCategory ?? undefined, userCats);
-    const productId = await findOrCreateProduct(userId, item.productName, item.unit, classification);
+    // Rozliczenie zaliczki (np. "Zaliczka 23% VAT" na fakturach ROZ) nie jest
+    // towarem — patrz lib/invoice-line-classify.ts, ten sam wzorzec co ksef-ingest.ts.
+    const productId = isAdvanceSettlementLine(item.productName)
+      ? null
+      : await findOrCreateProduct(
+          userId,
+          item.productName,
+          item.unit,
+          await categorizeProductWithAI(item.productName, userId, req.log, supplier.defaultCategory ?? undefined, userCats),
+        );
 
     const [invoiceItem] = await db
       .insert(invoiceItemsTable)

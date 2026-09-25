@@ -28,6 +28,7 @@ import {
 } from "@workspace/ksef-client";
 import { decryptSecret, encryptSecret } from "../lib/encryption";
 import { categorizeProductWithAI, getUserCategories } from "../lib/categorize-ai.js";
+import { isAdvanceSettlementLine } from "../lib/invoice-line-classify.js";
 
 // Wiersz ksef_config (tenant-safe: zawsze filtrowany po userId/NIP u wywołującego).
 type KsefConfigRow = typeof ksefConfigTable.$inferSelect;
@@ -168,6 +169,13 @@ export async function tryMatch(userId: string, parsed: ParsedFa3): Promise<Match
   const itemProductIds: Array<number | null> = [];
   const missing: string[] = [];
   for (const item of parsed.items) {
+    // Rozliczenie zaliczki (np. "Zaliczka 23% VAT" na fakturach ROZ) nie jest
+    // towarem — nigdy nie dopasowujemy ani nie tworzymy dla niej produktu, i
+    // nie zgłaszamy jako "brakujący produkt" (patrz lib/invoice-line-classify.ts).
+    if (isAdvanceSettlementLine(item.name)) {
+      itemProductIds.push(null);
+      continue;
+    }
     const [prod] = await db
       .select({ id: productsTable.id })
       .from(productsTable)
@@ -291,10 +299,18 @@ export async function importMatchedInvoice(
   now: Date,
 ): Promise<boolean> {
   const supplier = match.supplier!;
-  const resolvedProductIds: number[] = [];
+  const resolvedProductIds: Array<number | null> = [];
   let userCats: Array<{ id: string; label: string }> | undefined;
   for (let i = 0; i < parsed.items.length; i++) {
     let pid = match.itemProductIds[i];
+    // Rozliczenie zaliczki — nigdy nie tworzymy dla niej produktu (patrz tryMatch
+    // i lib/invoice-line-classify.ts); zostaje product_id NULL, pozycja i tak
+    // trafia do invoice_items z surową nazwą (productName), więc faktura/kwoty
+    // się zgadzają — po prostu nie wchodzi do raportów/historii cen per produkt.
+    if (pid == null && isAdvanceSettlementLine(parsed.items[i].name)) {
+      resolvedProductIds.push(null);
+      continue;
+    }
     if (pid == null) {
       // Z3: pobierz kategorie usera RAZ (leniwie, tylko gdy faktycznie trzeba
       // klasyfikować nowy produkt), zamiast per-pozycja — wzorzec z routes/invoices.ts.
