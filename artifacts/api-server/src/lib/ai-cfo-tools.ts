@@ -151,6 +151,59 @@ async function toolCheapestSupplierForProduct(userId: string, args: Record<strin
   return { product, suppliers: res.rows };
 }
 
+// ─── get_products_by_supplier ─────────────────────────────────────────────────
+// Odwrotność search_products: model często dostaje supplier_id (z search_suppliers)
+// i pyta "co u niego kupuję / które produkty zmieniają cenę", a nie zna nazwy
+// PRODUKTU po której działa search_products. Bez tego narzędzia model próbował
+// search_products z nazwą DOSTAWCY jako query i oczywiście nic nie znajdował
+// (realny raport użytkownika 2026-09-25 — "Stelma"/"Stelma Fresh" istnieją i mają
+// faktury, ale search_products("Stelma") zawsze zwracał pustkę). Przyjmuje LISTĘ
+// supplier_ids na raz — pokrywa też przypadek dwóch różnych firm o podobnej nazwie
+// (np. "F.H.STELMA S.C." i "STELMA FRESH SP. Z O.O." — obie z search_suppliers).
+
+async function toolProductsBySupplier(userId: string, args: Record<string, unknown>) {
+  const rawIds = Array.isArray(args.supplier_ids) ? args.supplier_ids : [args.supplier_id];
+  const supplierIds = Array.from(new Set(rawIds.map(asInt).filter((n): n is number => n != null))).slice(0, 10);
+  if (supplierIds.length === 0) {
+    return { error: "Podaj supplier_ids (lista ID dostawców z search_suppliers)." };
+  }
+  const onlyPriceChanged = args.only_price_changed === true;
+
+  const res = await db.execute(sql`
+    SELECT p.id AS product_id, p.name AS product_name, s.id AS supplier_id, s.name AS supplier_name,
+      ii.unit,
+      ROUND(MIN(ii.unit_price::numeric), 2)::text AS min_price,
+      ROUND(MAX(ii.unit_price::numeric), 2)::text AS max_price,
+      ROUND(AVG(ii.unit_price::numeric), 2)::text AS avg_price,
+      COUNT(*)::int AS purchases,
+      MAX(inv.invoice_date) AS last_date
+    FROM invoice_items ii
+    JOIN invoices inv ON ii.invoice_id = inv.id
+    JOIN suppliers s ON inv.supplier_id = s.id
+    JOIN products p ON ii.product_id = p.id
+    WHERE inv.user_id = ${userId}
+      AND inv.supplier_id IN (${sql.join(supplierIds.map((id) => sql`${id}`), sql`, `)})
+      AND inv.excluded = false AND inv.parent_invoice_id IS NULL
+      AND (inv.invoice_type IS DISTINCT FROM 'KOR')
+      AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
+    GROUP BY p.id, p.name, s.id, s.name, ii.unit
+    ORDER BY s.name, p.name
+    LIMIT 100
+  `);
+  let rows = res.rows as Array<{ min_price: string; max_price: string }>;
+  if (onlyPriceChanged) rows = rows.filter((r) => r.min_price !== r.max_price);
+
+  if (rows.length === 0) {
+    return {
+      products: [],
+      message: onlyPriceChanged
+        ? "Brak produktów od tego dostawcy/dostawców, których cena jednostkowa się zmieniała — wszystkie mają stałą cenę (albo brak zakupów w ogóle)."
+        : "Brak zakupionych produktów od tego dostawcy/dostawców.",
+    };
+  }
+  return { products: rows };
+}
+
 // ─── get_supplier_price_changes ───────────────────────────────────────────────
 // Indeks cenowy na STAŁYM KOSZYKU (Laspeyres) — patrz komentarz w git history
 // starej fetchSupplierPriceChanges. Okno domyślnie 30 dni (vs poprzednie 30).
@@ -458,6 +511,7 @@ export async function executeToolCall(name: string, rawArgs: unknown, userId: st
       case "search_suppliers": return JSON.stringify(await toolSearchSuppliers(userId, args));
       case "get_product_price_history": return JSON.stringify(await toolProductPriceHistory(userId, args));
       case "get_cheapest_supplier_for_product": return JSON.stringify(await toolCheapestSupplierForProduct(userId, args));
+      case "get_products_by_supplier": return JSON.stringify(await toolProductsBySupplier(userId, args));
       case "get_supplier_price_changes": return JSON.stringify(await toolSupplierPriceChanges(userId, args));
       case "get_price_increases": return JSON.stringify(await toolPriceIncreases(userId, args));
       case "get_price_alerts": return JSON.stringify(await toolPriceAlerts(userId));
@@ -522,6 +576,21 @@ export const AI_CFO_TOOL_SCHEMAS: ChatCompletionTool[] = [
         type: "object",
         properties: { product_id: { type: "integer", description: "ID produktu z search_products." } },
         required: ["product_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_products_by_supplier",
+      description: "Lista WSZYSTKICH produktów kupowanych od jednego lub kilku dostawców, z zakresem cen (min/max/śr.) — użyj do pytań 'co kupuję u X', 'jak zachowują się ceny u X', 'które produkty u X zmieniły cenę'. NIE używaj search_products do szukania po nazwie DOSTAWCY — najpierw search_suppliers, potem to narzędzie z jego/ich ID (gdy wynik wyszukiwania dostawcy jest dwuznaczny — kilka firm — podaj WSZYSTKIE pasujące ID naraz w supplier_ids).",
+      parameters: {
+        type: "object",
+        properties: {
+          supplier_ids: { type: "array", items: { type: "integer" }, description: "ID dostawców z search_suppliers (1-10)." },
+          only_price_changed: { type: "boolean", description: "true = pokaż tylko produkty, których cena jednostkowa różniła się między zakupami (pomiń te o stałej cenie)." },
+        },
+        required: ["supplier_ids"],
       },
     },
   },

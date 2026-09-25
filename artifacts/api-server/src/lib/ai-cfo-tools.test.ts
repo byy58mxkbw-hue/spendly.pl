@@ -111,6 +111,29 @@ describe.skipIf(!RUN_DB)("izolacja tenantów: executeToolCall (AI CFO function c
     expect(parsed.invoices.map((i) => i.invoice_number)).toContain("FV/A-TOOLS/1");
   });
 
+  it("get_products_by_supplier: supplier_ids usera B pod userId usera A -> pusto, nigdy dane usera B", async () => {
+    const raw = await executeToolCall("get_products_by_supplier", { supplier_ids: [supplierBId] }, USER_A);
+    const parsed = JSON.parse(raw) as { products: unknown[] };
+    expect(parsed.products).toEqual([]);
+  });
+
+  it("get_products_by_supplier: supplier_ids usera A -> widzi swoje produkty z zakresem cen", async () => {
+    const raw = await executeToolCall("get_products_by_supplier", { supplier_ids: [supplierAId] }, USER_A);
+    const parsed = JSON.parse(raw) as { products: Array<{ product_name: string; min_price: string; max_price: string }> };
+    const row = parsed.products.find((p) => p.product_name === "Cytryna-A-tools");
+    expect(row).toBeTruthy();
+    expect(row?.min_price).toBe("5.00");
+    expect(row?.max_price).toBe("6.00");
+  });
+
+  it("get_products_by_supplier: mieszane ID (własny + cudzy) -> tylko własne produkty", async () => {
+    const raw = await executeToolCall("get_products_by_supplier", { supplier_ids: [supplierAId, supplierBId] }, USER_A);
+    const parsed = JSON.parse(raw) as { products: Array<{ product_name: string }> };
+    const names = parsed.products.map((p) => p.product_name);
+    expect(names).toContain("Cytryna-A-tools");
+    expect(names).not.toContain("Cytryna-B-tools");
+  });
+
   it("get_product_price_history: product_id usera B pod userId usera A -> nie znaleziono, ZERO danych usera B", async () => {
     const raw = await executeToolCall("get_product_price_history", { product_id: productBId }, USER_A);
     const parsed = JSON.parse(raw) as { error?: string; history?: unknown[] };

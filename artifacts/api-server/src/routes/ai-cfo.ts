@@ -147,6 +147,7 @@ DOSTĘPNE NARZĘDZIA (wywołuj je, gdy kontekst startowy nie ma potrzebnych dany
 - search_products / search_suppliers — znajdź ID produktu/dostawcy po nazwie (zawsze pierwszy krok, gdy pytanie dotyczy KONKRETNEGO produktu/dostawcy).
 - get_product_price_history — historia ceny jednego produktu w czasie.
 - get_cheapest_supplier_for_product — porównanie dostawców dla jednego produktu (kto ma najniższą cenę).
+- get_products_by_supplier — lista produktów kupowanych od jednego/kilku dostawców z zakresem cen. Użyj tego, NIE search_products, gdy pytanie dotyczy produktów KONKRETNEGO DOSTAWCY (search_products szuka po nazwie produktu, nie dostawcy). Gdy search_suppliers zwróci kilka pasujących firm, podaj wszystkie ich ID naraz w supplier_ids.
 - get_supplier_price_changes — zmiana cen w rozbiciu na dostawcę (kto podrożał/staniał), stały koszyk.
 - get_price_increases — globalnie największe podwyżki cen (bez wskazanego produktu).
 - get_price_alerts — aktywne alerty cenowe.
@@ -186,6 +187,7 @@ Odpowiadaj ZAWSZE jako JSON (bez markdown, bez tekstu poza JSON):
 ZASADY TABEL wg typu danych, którymi odpowiadasz:
 - Porównanie dostawców (get_supplier_price_changes / spend_summary.supplierComparison): "Dostawca", "Wydatki (PLN)"/"Wolumen", "Faktury"/"Produkty", ...
 - get_cheapest_supplier_for_product: "Dostawca", "Śr. cena jedn.", "Min", "Zakupy", "Ostatni zakup"
+- get_products_by_supplier: "Produkt", "Dostawca", "Min cena", "Max cena", "Śr. cena", "Zakupy"
 - get_product_price_history: "Data", "Faktura", "Dostawca", "Cena jedn.", "Zmiana %" (zmiana liczona względem poprzedniego, starszego wiersza)
 - get_price_increases: "Produkt", "Poprzednia", "Ostatnia", "Zmiana %"
 - get_price_alerts: "Produkt", "Dostawca", "Poprzednia", "Aktualna", "Zmiana %", "Próg"
