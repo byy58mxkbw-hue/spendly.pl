@@ -1,0 +1,26 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "Spendly",
+    "documentationUrl": "https://www.spendly.pl/llms.txt",
+    "logoUrl": "https://www.spendly.pl/logo.svg"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:spendly.pl:docs:llms-txt",
+      "displayName": "Spendly — opis produktu dla agentów AI",
+      "type": "text/plain",
+      "url": "https://www.spendly.pl/llms.txt",
+      "description": "Spendly to SaaS dla restauracji do monitorowania cen surowców na podstawie faktur z polskiego systemu KSeF — automatyczne śledzenie food cost, alerty cenowe i integracja z KSeF.",
+      "tags": ["docs", "llms.txt", "restaurant", "food-cost", "ksef"]
+    },
+    {
+      "identifier": "urn:air:spendly.pl:docs:blog",
+      "displayName": "Spendly — blog",
+      "type": "text/html",
+      "url": "https://www.spendly.pl/blog",
+      "description": "Poradniki o food cost, KSeF i zarządzaniu kosztami w restauracjach.",
+      "tags": ["blog", "docs", "food-cost", "ksef"]
+    }
+  ]
+}
