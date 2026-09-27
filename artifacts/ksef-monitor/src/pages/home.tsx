@@ -126,6 +126,7 @@ export default function Home() {
           <Wordmark size={22} />
           <div className="nav-links">
             <a href="#funkcje">Funkcje</a>
+            <a href="/dla-kogo">Dla kogo</a>
             <a href="#ksef">KSeF</a>
             <a href="#cennik">Cennik</a>
             <a href="/blog">Blog</a>
@@ -151,6 +152,7 @@ export default function Home() {
         {menuOpen && (
           <div className="nav-mobile glass wrap">
             <a href="#funkcje" onClick={() => setMenuOpen(false)}>Funkcje</a>
+            <a href="/dla-kogo" onClick={() => setMenuOpen(false)}>Dla kogo</a>
             <a href="#ksef" onClick={() => setMenuOpen(false)}>KSeF</a>
             <a href="#cennik" onClick={() => setMenuOpen(false)}>Cennik</a>
             <a href="/blog">Blog</a>
@@ -425,6 +427,7 @@ export default function Home() {
           <div className="foot-col">
             <p className="foot-h">Produkt</p>
             <a href="#funkcje">Funkcje</a>
+            <a href="/dla-kogo">Dla kogo</a>
             <a href="#ksef">Integracja KSeF</a>
             <a href="#cennik">Cennik</a>
             <a href="/cennik" onClick={go("/cennik")}>Pełny cennik</a>
