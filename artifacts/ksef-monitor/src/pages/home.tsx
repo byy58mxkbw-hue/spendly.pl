@@ -4,6 +4,7 @@ import {
   Zap, ArrowRight, Play, Check, ScanLine, BellRing, GitCompare,
   UtensilsCrossed, Sparkles, FileCheck2, RefreshCw, FileText, Plus, Moon, Sun,
   Menu, X, Hotel, Truck, Building2, Lock, Server, KeyRound, ShieldCheck,
+  Coffee, Pizza, PintGlass, Fish, Cow, Users, ShoppingBag,
 } from "@/lib/icons";
 import "@/styles/landing.css";
 import { track } from "@/lib/posthog";
@@ -49,9 +50,17 @@ const STATS = [
 
 const AUDIENCE = [
   { Icon: UtensilsCrossed, h: "Restauracje i bistra", p: "Pilnuj food costu i cen surowców z faktur, zanim podwyżka zje marżę dania." },
+  { Icon: Pizza, h: "Pizzerie", p: "Mąka, mozzarella i szynka drożeją w różnym tempie — widzisz, który surowiec podnosi food cost pizzy najszybciej." },
+  { Icon: Coffee, h: "Kawiarnie i cukiernie", p: "Kawa, mleko i masło to towary o dużej zmienności cen — food cost wypieków i napojów liczy się sam, bez Excela." },
+  { Icon: PintGlass, h: "Bary i puby", p: "Alkohol, piwo i przekąski od różnych dostawców — jedna historia cen zamiast rozrzuconych faktur." },
+  { Icon: Zap, h: "Fast food i szybka obsługa", p: "Wysoki wolumen, niska marża na sztuce — nawet drobny wzrost ceny bułki czy oleju widać w food coście od razu." },
+  { Icon: Fish, h: "Sushi i restauracje rybne", p: "Ryby i owoce morza mają najbardziej zmienne ceny na rynku — alert ostrzega, zanim dostawca podniesie cenę łososia bez zapowiedzi." },
+  { Icon: Cow, h: "Steakhouse i grille", p: "Mięso to zwykle największa pozycja w karcie — food cost dania liczony z aktualnej ceny zakupu, nie z cennika sprzed miesiąca." },
   { Icon: Hotel, h: "Hotele i pensjonaty", p: "Gastronomia hotelowa, bufet i room service — koszty wielu punktów w jednym miejscu." },
-  { Icon: Truck, h: "Catering i eventy", p: "Zmienne wolumeny zakupów pod imprezy — trzymaj ceny dostawców pod kontrolą." },
-  { Icon: Building2, h: "Sieci i grupy", p: "Wiele lokali, centra kosztów i role — raporty konsolidowane dla całej grupy." },
+  { Icon: Truck, h: "Catering, eventy i food trucki", p: "Zmienne wolumeny zakupów pod imprezy i różne punkty sprzedaży — ceny dostawców pod kontrolą niezależnie od miejsca." },
+  { Icon: Users, h: "Stołówki i żywienie zbiorowe", p: "Szkoły, żłobki i zakłady pracy liczą koszt posiłku do grosza — food cost pokazany na osobę, nie tylko na danie." },
+  { Icon: ShoppingBag, h: "Ghost kitchens i dostawy online", p: "Zamówienia tylko na wynos i dowóz nie zmieniają matematyki food costu — kontrolujesz marżę tak samo, jak w lokalu ze stolikami." },
+  { Icon: Building2, h: "Sieci, franczyzy i grupy", p: "Wiele lokali, centra kosztów i role — raporty konsolidowane i porównanie food costu między lokalami całej grupy." },
 ];
 
 const SECURITY = [
@@ -239,8 +248,8 @@ export default function Home() {
       <section className="blk wrap">
         <div className="sec-head">
           <div className="sec-eye">Dla kogo</div>
-          <h2>Zbudowane dla gastronomii, która pilnuje kosztów</h2>
-          <p>Wszędzie tam, gdzie faktury i ceny surowców decydują o marży — od pojedynczego bistra po sieć lokali.</p>
+          <h2>Kontrola food costu dla każdej branży gastronomicznej</h2>
+          <p>Od pizzerii przez hotel po sieć restauracji — wszędzie tam, gdzie faktury i ceny surowców decydują o marży, Spendly liczy food cost automatycznie z realnych cen zakupu.</p>
         </div>
         <div className="feat-grid">
           {AUDIENCE.map(({ Icon, h, p }) => (

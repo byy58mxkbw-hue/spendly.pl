@@ -64,6 +64,8 @@ export {
   ArrowCounterClockwise as RotateCcw,
   FloppyDisk as Save,
   Scales,
+  Coffee,
+  Pizza,
   Scan as ScanLine,
   MagnifyingGlass as Search,
   ShieldWarning as ShieldAlert,
