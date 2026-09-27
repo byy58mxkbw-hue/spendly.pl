@@ -5,6 +5,7 @@ import {
 } from "@/lib/icons";
 import { useMarketingTheme } from "@/lib/marketing-theme";
 import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
+import { usePageMeta } from "@/lib/use-page-meta";
 
 const INDUSTRIES = [
   { Icon: UtensilsCrossed, h: "Restauracje i bistra", p: "Pilnuj food costu i cen surowców z faktur, zanim podwyżka zje marżę dania." },
@@ -49,6 +50,11 @@ const DEEP_DIVES = [
 ];
 
 export default function DlaKogoPage() {
+  usePageMeta({
+    title: "Dla kogo jest Spendly | Food cost dla każdej branży",
+    description: "Restauracje, pizzerie, hotele, catering, bary, stołówki, ghost kitchens i sieci — jak Spendly liczy food cost i kontroluje ceny surowców w każdej z tych branż.",
+    path: "/dla-kogo",
+  });
   const { theme, c, toggle } = useMarketingTheme();
 
   return (

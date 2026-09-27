@@ -2,8 +2,14 @@ import { Link } from "wouter";
 import { ArrowRight, ScanLine, ChevronRight, Zap, FileText, ShieldCheck } from "@/lib/icons";
 import { useMarketingTheme } from "@/lib/marketing-theme";
 import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
+import { usePageMeta } from "@/lib/use-page-meta";
 
 export default function OcrFakturPage() {
+  usePageMeta({
+    title: "OCR faktur dla gastronomii | Spendly",
+    description: "Automatyczny odczyt faktur kosztowych ze zdjęcia lub PDF w 15 sekund — dostawca, produkty, ceny i daty trafiają do systemu bez ręcznego przepisywania.",
+    path: "/ocr-faktur",
+  });
   const { theme, c, toggle } = useMarketingTheme();
 
   return (

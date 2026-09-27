@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { ArrowRight, ChevronRight, Percent, TrendingDown, Bell, Calculator, RefreshCw } from "@/lib/icons";
 import { useMarketingTheme } from "@/lib/marketing-theme";
 import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
+import { usePageMeta } from "@/lib/use-page-meta";
 
 const FAQ = [
   {
@@ -27,6 +28,11 @@ const FAQ = [
 ];
 
 export default function FoodCostMarketingPage() {
+  usePageMeta({
+    title: "Kontrola food cost restauracji | Spendly",
+    description: "Spendly automatycznie wylicza food cost na podstawie faktur zakupowych, śledzi ceny surowców i alarmuje zanim koszty uderzą w marżę.",
+    path: "/food-cost",
+  });
   const { theme, c: C, toggle } = useMarketingTheme();
 
   return (

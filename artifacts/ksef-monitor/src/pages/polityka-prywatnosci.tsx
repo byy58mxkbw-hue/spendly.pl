@@ -2,7 +2,12 @@ import { LegalLayout, LegalSection } from "@/components/legal-layout";
 
 export default function PolitykaPrywatnosci() {
   return (
-    <LegalLayout title="Polityka prywatności" updated="28 sierpnia 2026">
+    <LegalLayout
+      title="Polityka prywatności"
+      description="Jak Spendly przetwarza i chroni dane użytkowników — faktury, tokeny KSeF i dane konta, zgodnie z RODO."
+      path="/polityka-prywatnosci"
+      updated="28 sierpnia 2026"
+    >
       {(c) => {
         const B = ({ children }: { children: React.ReactNode }) => (
           <strong style={{ color: c.text, fontWeight: 600 }}>{children}</strong>

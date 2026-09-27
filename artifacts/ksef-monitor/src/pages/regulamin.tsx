@@ -2,7 +2,12 @@ import { LegalLayout, LegalSection } from "@/components/legal-layout";
 
 export default function Regulamin() {
   return (
-    <LegalLayout title="Regulamin serwisu Spendly" updated="4 lipca 2026">
+    <LegalLayout
+      title="Regulamin serwisu Spendly"
+      description="Regulamin korzystania z serwisu i aplikacji Spendly — systemu do monitorowania cen surowców i kontroli kosztów w gastronomii."
+      path="/regulamin"
+      updated="4 lipca 2026"
+    >
       {(c) => {
         const B = ({ children }: { children: React.ReactNode }) => (
           <strong style={{ color: c.text, fontWeight: 600 }}>{children}</strong>

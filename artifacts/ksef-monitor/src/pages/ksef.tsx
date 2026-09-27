@@ -2,8 +2,14 @@ import { Link } from "wouter";
 import { ArrowRight, RefreshCw, ChevronRight, FileText, ShieldCheck, Zap } from "@/lib/icons";
 import { useMarketingTheme } from "@/lib/marketing-theme";
 import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
+import { usePageMeta } from "@/lib/use-page-meta";
 
 export default function KsefPage() {
+  usePageMeta({
+    title: "Integracja KSeF dla restauracji | Spendly",
+    description: "Spendly łączy się bezpośrednio z Krajowym Systemem e-Faktur i pobiera faktury zakupowe dla Twojego NIP-u — bez ręcznego wgrywania plików, bez arkuszy Excel.",
+    path: "/ksef",
+  });
   const { theme, c: C, toggle } = useMarketingTheme();
 
   return (

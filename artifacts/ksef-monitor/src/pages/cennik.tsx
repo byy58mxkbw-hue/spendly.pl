@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Check, ArrowRight, ChevronRight } from "@/lib/icons";
 import { useMarketingTheme } from "@/lib/marketing-theme";
 import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
+import { usePageMeta } from "@/lib/use-page-meta";
 
 // Plany pochodzą z JEDNEGO źródła (lib/pricing.ts) — wcześniej ta tablica była
 // lokalną kopią i rozjechała się z landingiem.
@@ -23,6 +24,11 @@ const FAQS = [
 ];
 
 export default function CennikPage() {
+  usePageMeta({
+    title: "Cennik | Spendly",
+    description: `Prosty cennik Spendly — 30 dni darmowego dostępu do planu Pro bez karty. Potem plan Start za darmo albo Pro (${PRO_PRICE}). Wycena indywidualna dla sieci lokali.`,
+    path: "/cennik",
+  });
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const { theme, c, toggle } = useMarketingTheme();
 

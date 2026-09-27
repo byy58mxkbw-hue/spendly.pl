@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { ArrowLeft, Sun, Moon } from "@/lib/icons";
 import { type MarketingPalette, useMarketingTheme } from "@/lib/marketing-theme";
 import { Logo } from "@/components/logo";
+import { usePageMeta } from "@/lib/use-page-meta";
 
 /**
  * Wspólny szkielet stron prawnych (regulamin, polityka prywatności):
@@ -10,13 +11,18 @@ import { Logo } from "@/components/logo";
  */
 export function LegalLayout({
   title,
+  description,
+  path,
   updated,
   children,
 }: {
   title: string;
+  description: string;
+  path: string;
   updated: string;
   children: (c: MarketingPalette) => React.ReactNode;
 }) {
+  usePageMeta({ title: title.includes("Spendly") ? title : `${title} | Spendly`, description, path });
   const { theme, toggle, c } = useMarketingTheme();
 
   return (

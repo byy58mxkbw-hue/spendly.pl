@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { ArrowRight, ChevronRight, Scales, Lock, Users, ShieldCheck } from "@/lib/icons";
 import { useMarketingTheme } from "@/lib/marketing-theme";
 import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
+import { usePageMeta } from "@/lib/use-page-meta";
 
 // Przykładowe dane poglądowe do interaktywnego widgetu — NIE realne ceny
 // użytkowników. Wersja z realnymi, zanonimizowanymi danymi (k-anonimowość jak
@@ -29,6 +30,11 @@ const PRODUCTS: { name: string; unit: string; category: CategoryId; your: number
 const fmtZl = (n: number) => `${n.toFixed(2).replace(".", ",")} zł`;
 
 export default function PorownanieCenPage() {
+  usePageMeta({
+    title: "Porównanie cen dostawców | Spendly",
+    description: "Spendly anonimowo porównuje ceny z Twoich faktur do mediany cen, jakie za te same produkty płacą inne restauracje — zobacz, gdzie płacisz więcej niż rynek.",
+    path: "/porownanie-cen",
+  });
   const { theme, c, toggle } = useMarketingTheme();
   const [category, setCategory] = useState<CategoryId>("wszystkie");
 

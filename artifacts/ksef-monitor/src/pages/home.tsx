@@ -4,12 +4,13 @@ import {
   Zap, ArrowRight, Play, Check, ScanLine, BellRing, GitCompare,
   UtensilsCrossed, Sparkles, FileCheck2, RefreshCw, FileText, Plus, Moon, Sun,
   Menu, X, Hotel, Truck, Building2, Lock, Server, KeyRound, ShieldCheck,
-  Coffee, Pizza, PintGlass, Fish, Cow, Users, ShoppingBag,
+  ChevronRight,
 } from "@/lib/icons";
 import "@/styles/landing.css";
 import { track } from "@/lib/posthog";
 import { PLANS, PRICING_NOTE } from "@/lib/pricing";
 import { Logo } from "@/components/logo";
+import { usePageMeta } from "@/lib/use-page-meta";
 
 type Theme = "dark" | "light";
 
@@ -48,19 +49,14 @@ const STATS = [
   { v: "0 zł", l: "Pełny dostęp w okresie testowym" },
 ];
 
+// Krótki teaser — pełna lista 12 branż z dłuższymi opisami jest na dedykowanej
+// stronie /dla-kogo (celowo INNE sformułowania niż tam, żeby nie dublować
+// treści między dwiema stronami — patrz analiza SEO 2026-09-27).
 const AUDIENCE = [
-  { Icon: UtensilsCrossed, h: "Restauracje i bistra", p: "Pilnuj food costu i cen surowców z faktur, zanim podwyżka zje marżę dania." },
-  { Icon: Pizza, h: "Pizzerie", p: "Mąka, mozzarella i szynka drożeją w różnym tempie — widzisz, który surowiec podnosi food cost pizzy najszybciej." },
-  { Icon: Coffee, h: "Kawiarnie i cukiernie", p: "Kawa, mleko i masło to towary o dużej zmienności cen — food cost wypieków i napojów liczy się sam, bez Excela." },
-  { Icon: PintGlass, h: "Bary i puby", p: "Alkohol, piwo i przekąski od różnych dostawców — jedna historia cen zamiast rozrzuconych faktur." },
-  { Icon: Zap, h: "Fast food i szybka obsługa", p: "Wysoki wolumen, niska marża na sztuce — nawet drobny wzrost ceny bułki czy oleju widać w food coście od razu." },
-  { Icon: Fish, h: "Sushi i restauracje rybne", p: "Ryby i owoce morza mają najbardziej zmienne ceny na rynku — alert ostrzega, zanim dostawca podniesie cenę łososia bez zapowiedzi." },
-  { Icon: Cow, h: "Steakhouse i grille", p: "Mięso to zwykle największa pozycja w karcie — food cost dania liczony z aktualnej ceny zakupu, nie z cennika sprzed miesiąca." },
-  { Icon: Hotel, h: "Hotele i pensjonaty", p: "Gastronomia hotelowa, bufet i room service — koszty wielu punktów w jednym miejscu." },
-  { Icon: Truck, h: "Catering, eventy i food trucki", p: "Zmienne wolumeny zakupów pod imprezy i różne punkty sprzedaży — ceny dostawców pod kontrolą niezależnie od miejsca." },
-  { Icon: Users, h: "Stołówki i żywienie zbiorowe", p: "Szkoły, żłobki i zakłady pracy liczą koszt posiłku do grosza — food cost pokazany na osobę, nie tylko na danie." },
-  { Icon: ShoppingBag, h: "Ghost kitchens i dostawy online", p: "Zamówienia tylko na wynos i dowóz nie zmieniają matematyki food costu — kontrolujesz marżę tak samo, jak w lokalu ze stolikami." },
-  { Icon: Building2, h: "Sieci, franczyzy i grupy", p: "Wiele lokali, centra kosztów i role — raporty konsolidowane i porównanie food costu między lokalami całej grupy." },
+  { Icon: UtensilsCrossed, h: "Restauracje i bistra", p: "Marża dania liczona z realnej ceny zakupu, nie z cennika sprzed miesięcy." },
+  { Icon: Hotel, h: "Hotele i pensjonaty", p: "Bufet, bankiety i room service — jeden pulpit kosztów dla całego obiektu." },
+  { Icon: Truck, h: "Catering i food trucki", p: "Zmienne zamówienia pod eventy, jedna historia cen dostawców." },
+  { Icon: Building2, h: "Sieci i franczyzy", p: "Porównanie food costu między lokalami i konsolidowane raporty." },
 ];
 
 const SECURITY = [
@@ -79,6 +75,11 @@ const FAQS = [
 ];
 
 export default function Home() {
+  usePageMeta({
+    title: "Spendly — Kontrola kosztów restauracji i integracja KSeF",
+    description: "System do kontroli kosztów, food cost i analizy faktur dla gastronomii. Integracja z KSeF, OCR faktur i monitoring wydatków restauracji.",
+    path: "/",
+  });
   const [, navigate] = useLocation();
   const [theme, setTheme] = useState<Theme>(() => {
     try {
@@ -261,6 +262,11 @@ export default function Home() {
               <p>{p}</p>
             </div>
           ))}
+        </div>
+        <div style={{ textAlign: "center", marginTop: 32 }}>
+          <a className="btn btn-ghost" href="/dla-kogo" onClick={go("/dla-kogo")}>
+            Zobacz wszystkie 12 branż <ChevronRight />
+          </a>
         </div>
       </section>
 
