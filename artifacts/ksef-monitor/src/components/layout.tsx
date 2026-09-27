@@ -62,7 +62,7 @@ const analyticsNavItems: NavItem[] = [
   { path: "/koszty-dania", label: "Food Cost", icon: UtensilsCrossed },
   { path: "/reports", label: "Raporty", icon: BarChart2 },
   { path: "/price-alerts", label: "Alerty cenowe", icon: Bell },
-  { path: "/benchmark", label: "Benchmark rynkowy", icon: Scales },
+  { path: "/benchmark", label: "Porównanie cen", icon: Scales },
 ];
 
 const navItems: NavItem[] = [...coreNavItems, ...analyticsNavItems];

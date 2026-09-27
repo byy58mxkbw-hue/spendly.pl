@@ -134,11 +134,11 @@ function BenchmarkRow({ item }: { item: BenchmarkItem }) {
             {item.category && <span className="label-caps block mt-0.5">{CATEGORY_LABEL[item.category] ?? item.category}</span>}
           </div>
           <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-secondary text-muted-foreground whitespace-nowrap">
-            brak benchmarku
+            brak porównania
           </span>
         </div>
         <p className="text-xs text-muted-foreground mt-2 border border-dashed border-border rounded-md px-3 py-2 inline-flex items-center gap-1.5">
-          Za mało danych, by pokazać benchmark anonimowo — potrzeba min. {item.minUsers} restauracji w danych
+          Za mało danych, by pokazać porównanie anonimowo — potrzeba min. {item.minUsers} restauracji w danych
           (obecnie: {item.distinctUserCount ?? 0}).
         </p>
       </div>
@@ -267,7 +267,7 @@ export default function Benchmark() {
     <Layout>
       <div className="px-4 py-5 md:px-8 md:py-8 max-w-4xl">
         <PageHeader
-          title="Benchmark rynkowy"
+          title="Porównanie cen"
           subtitle="Twoje ceny na tle anonimowej mediany rynkowej — bez pokazywania danych innej restauracji czy dostawcy"
         />
 
@@ -280,14 +280,14 @@ export default function Benchmark() {
           </div>
         ) : isError ? (
           <div className="bg-card border border-border p-6 text-center text-sm text-destructive">
-            Nie udało się załadować benchmarku rynkowego.
+            Nie udało się załadować porównania cen.
           </div>
         ) : !optedIn ? (
           <div className="bg-card border border-border p-8 text-center">
             <ShieldOff className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-foreground font-medium mb-1">Benchmark rynkowy jest wyłączony</p>
+            <p className="text-foreground font-medium mb-1">Porównanie cen jest wyłączone</p>
             <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-              Wyłączyłeś udział w benchmarku — Twoje ceny nie zasilają statystyk innych restauracji i Ty też nie
+              Wyłączyłeś udział w porównaniu — Twoje ceny nie zasilają statystyk innych restauracji i Ty też nie
               widzisz ich mediany. Możesz to zmienić w każdej chwili.
             </p>
             <button
@@ -295,7 +295,7 @@ export default function Benchmark() {
               disabled={updateOptIn.isPending}
               className="text-sm font-medium px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
             >
-              Włącz benchmark rynkowy
+              Włącz porównanie cen
             </button>
           </div>
         ) : items.length === 0 ? (
@@ -303,7 +303,7 @@ export default function Benchmark() {
             <Trophy className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-foreground font-medium mb-1">Jeszcze brak danych</p>
             <p className="text-sm text-muted-foreground">
-              Zaimportuj więcej faktur — benchmark policzy się dla produktów kupowanych w ostatnich 3 miesiącach.
+              Zaimportuj więcej faktur — porównanie policzy się dla produktów kupowanych w ostatnich 3 miesiącach.
             </p>
           </div>
         ) : (
@@ -323,7 +323,7 @@ export default function Benchmark() {
                   foot={summary.avgDeltaPercent > 0 ? "płacisz więcej niż mediana" : "płacisz mniej niż mediana"}
                 />
                 <StatTile
-                  label="Produkty z benchmarkiem"
+                  label="Produkty z porównaniem"
                   value={`${summary.benchmarkedCount} / ${summary.totalCount}`}
                   foot="reszta: za mało danych rynkowych"
                 />
@@ -341,7 +341,7 @@ export default function Benchmark() {
                 <p className="font-semibold text-sm mb-1">Pełna anonimowość — z założenia, nie jako opcja</p>
                 <p className="text-xs text-background/70 leading-relaxed">
                   Widzisz wyłącznie medianę i zakres rynkowy (25–75 percentyl), nigdy cenę konkretnego dostawcy ani
-                  restauracji. Benchmark liczy się dopiero przy min. 5 różnych restauracjach w danych — poniżej progu
+                  restauracji. Porównanie liczy się dopiero przy min. 5 różnych restauracjach w danych — poniżej progu
                   widzisz „za mało danych", nie przybliżoną wartość.
                 </p>
               </div>
@@ -350,12 +350,12 @@ export default function Benchmark() {
             <div className="flex items-center gap-3 bg-positive/10 border border-positive/20 rounded-md px-4 py-3 mb-5 text-sm">
               <Users className="w-4 h-4 shrink-0 text-positive" />
               <span className="flex-1 text-foreground">
-                <b>Twoje ceny anonimowo zasilają benchmark dla {summary?.contributionCount ?? 0} innych restauracji</b> —
+                <b>Twoje ceny anonimowo zasilają porównanie dla {summary?.contributionCount ?? 0} innych restauracji</b> —
                 dokładnie tak, jak ich ceny zasilają Twój.
               </span>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-xs text-muted-foreground">Udział</span>
-                <Switch checked={optedIn} onCheckedChange={setOptIn} disabled={updateOptIn.isPending} aria-label="Udział w benchmarku rynkowym" />
+                <Switch checked={optedIn} onCheckedChange={setOptIn} disabled={updateOptIn.isPending} aria-label="Udział w porównaniu cen" />
               </div>
             </div>
 
