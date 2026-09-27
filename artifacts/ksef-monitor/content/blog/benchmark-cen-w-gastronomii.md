@@ -3,7 +3,7 @@ slug: benchmark-cen-w-gastronomii
 title: Benchmark cen w gastronomii — skąd wiesz, że nie przepłacasz za produkty
 description: Widzisz tylko swoje ceny — bez punktu odniesienia nie wiesz, czy 32 zł za kilogram polędwicy to rynek, czy przepłata. Sprawdź, jak anonimowy benchmark cen pozwala to ocenić bez ujawniania danych żadnej restauracji.
 date: 2026-09-24
-updated: 2026-09-24
+updated: 2026-09-27
 category: Zakupy
 keywords: benchmark cen gastronomia, porównanie cen dostawców restauracja, czy przepłacam za produkty, mediana cen rynkowych restauracja, ceny surowców na tle rynku
 lead: Twoja faktura pokazuje, ile zapłaciłeś. Nie pokazuje, ile płacą inni za ten sam towar — a bez tego liczba na fakturze jest tylko liczbą, nie diagnozą.
@@ -42,6 +42,6 @@ Informacja „jesteś 12% powyżej rynku" to punkt startowy, nie wyrok. Kolejno�
 
 Model, który ma sens, jest wzajemny: Twoje ceny anonimowo zasilają medianę dla innych restauracji, tak jak ich ceny zasilają Twoją. Nikt nie widzi więcej niż medianę i przedział — ani Ty, ani nikt inny.
 
-[Spendly](/food-cost) liczy taki benchmark automatycznie z faktur, które i tak trafiają z [KSeF](/ksef) — bez ręcznego wpisywania cen i bez ujawniania ich nikomu. Widzisz swoją pozycję na tle rynku obok historii własnych cen, w tym samym miejscu, w którym już sprawdzasz [food cost](/blog/jak-liczyc-food-cost).
+[Spendly](/food-cost) liczy takie [porównanie cen](/porownanie-cen) automatycznie z faktur, które i tak trafiają z [KSeF](/ksef) — bez ręcznego wpisywania cen i bez ujawniania ich nikomu. Widzisz swoją pozycję na tle rynku obok historii własnych cen, w tym samym miejscu, w którym już sprawdzasz [food cost](/blog/jak-liczyc-food-cost).
 
 > Cena bez punktu odniesienia to tylko liczba. Zanim uznasz podwyżkę za nieuniknioną, sprawdź, czy to rynek drożeje, czy tylko Twój dostawca.

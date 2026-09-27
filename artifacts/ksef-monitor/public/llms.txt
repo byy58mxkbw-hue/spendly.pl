@@ -19,7 +19,10 @@ Spendly helps restaurant owners track price changes across their supply chain by
 - [KSeF integration](https://www.spendly.pl/ksef): how Spendly connects to Poland's national e-invoice system (KSeF) to automatically import purchase invoices for a restaurant's NIP number without manual file uploads
 - [Food cost control](https://www.spendly.pl/food-cost): automatic food cost calculation based on imported invoices, real-time supplier price monitoring, and alerts when costs approach profitability thresholds
 - [OCR invoices](https://www.spendly.pl/ocr-faktur): AI-powered invoice reading from a phone photo or PDF in ~15 seconds; captures supplier, product lines, prices, quantities, VAT rates, and dates automatically
-- [Pricing](https://www.spendly.pl/cennik): pricing page; currently free during the open beta period, regular price 200 PLN/month after beta ends; no credit card required
+- [Price comparison](https://www.spendly.pl/porownanie-cen): anonymous benchmark comparing a restaurant's own purchase prices to the median price other restaurants pay for the same product, computed only once at least 5 restaurants buy that product (k-anonymity, no individual restaurant's price is ever exposed)
+- [Who it's for](https://www.spendly.pl/dla-kogo): overview of restaurant industry segments Spendly serves (restaurants, pizzerias, cafes, bars, hotels, catering, food trucks, canteens, ghost kitchens, chains) with food-cost specifics per segment
+- [Blog](https://www.spendly.pl/blog): 30+ Polish-language guides on food cost, KSeF, pricing, staff costs, and restaurant profitability
+- [Pricing](https://www.spendly.pl/cennik): Start plan free forever (1 location, unlimited KSeF invoices, 50 OCR receipts/month); Pro plan 150 PLN/month (up to 3 locations, unlimited OCR, supplier comparison, food cost, AI assistant), 30-day free Pro trial with no credit card required; custom quote for multi-location chains
 
 ## Out of scope
 

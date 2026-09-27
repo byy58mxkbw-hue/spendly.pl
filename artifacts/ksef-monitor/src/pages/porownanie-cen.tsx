@@ -32,7 +32,7 @@ const fmtZl = (n: number) => `${n.toFixed(2).replace(".", ",")} zł`;
 export default function PorownanieCenPage() {
   usePageMeta({
     title: "Porównanie cen dostawców | Spendly",
-    description: "Spendly anonimowo porównuje ceny z Twoich faktur do mediany cen, jakie za te same produkty płacą inne restauracje — zobacz, gdzie płacisz więcej niż rynek.",
+    description: "Spendly anonimowo porównuje ceny z Twoich faktur do mediany cen innych restauracji — zobacz, gdzie płacisz więcej niż rynek.",
     path: "/porownanie-cen",
   });
   const { theme, c, toggle } = useMarketingTheme();

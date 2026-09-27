@@ -26,7 +26,7 @@ const FAQS = [
 export default function CennikPage() {
   usePageMeta({
     title: "Cennik | Spendly",
-    description: `Prosty cennik Spendly — 30 dni darmowego dostępu do planu Pro bez karty. Potem plan Start za darmo albo Pro (${PRO_PRICE}). Wycena indywidualna dla sieci lokali.`,
+    description: `Cennik Spendly — 30 dni darmowego dostępu do planu Pro bez karty. Potem Start za darmo albo Pro (${PRO_PRICE}), dla sieci lokali wycena indywidualna.`,
     path: "/cennik",
   });
   const [openFaq, setOpenFaq] = useState<number | null>(null);

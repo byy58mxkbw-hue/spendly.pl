@@ -7,7 +7,7 @@ import { usePageMeta } from "@/lib/use-page-meta";
 export default function KsefPage() {
   usePageMeta({
     title: "Integracja KSeF dla restauracji | Spendly",
-    description: "Spendly łączy się bezpośrednio z Krajowym Systemem e-Faktur i pobiera faktury zakupowe dla Twojego NIP-u — bez ręcznego wgrywania plików, bez arkuszy Excel.",
+    description: "Spendly łączy się bezpośrednio z KSeF i pobiera faktury zakupowe dla Twojego NIP-u — bez ręcznego wgrywania plików, bez arkuszy Excel.",
     path: "/ksef",
   });
   const { theme, c: C, toggle } = useMarketingTheme();

@@ -52,7 +52,7 @@ const DEEP_DIVES = [
 export default function DlaKogoPage() {
   usePageMeta({
     title: "Dla kogo jest Spendly | Food cost dla każdej branży",
-    description: "Restauracje, pizzerie, hotele, catering, bary, stołówki, ghost kitchens i sieci — jak Spendly liczy food cost i kontroluje ceny surowców w każdej z tych branż.",
+    description: "Restauracje, pizzerie, hotele, catering, bary, stołówki, ghost kitchens i sieci — jak Spendly liczy food cost w każdej z tych branż gastronomii.",
     path: "/dla-kogo",
   });
   const { theme, c, toggle } = useMarketingTheme();
