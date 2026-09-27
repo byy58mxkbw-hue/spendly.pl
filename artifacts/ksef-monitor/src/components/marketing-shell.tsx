@@ -64,6 +64,7 @@ export function MarketingFooter({ c }: { c: MarketingPalette }) {
               { href: "/ksef", label: "Integracja KSeF" },
               { href: "/food-cost", label: "Kontrola food cost" },
               { href: "/ocr-faktur", label: "OCR faktur" },
+              { href: "/porownanie-cen", label: "Porównanie cen" },
             ].map(({ href, label }) => (
               <Link key={href} href={href}>
                 <span style={{ fontSize: 13, color: c.muted, cursor: "pointer" }}>{label}</span>

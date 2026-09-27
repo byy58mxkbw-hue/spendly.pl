@@ -28,6 +28,7 @@ const STATIC_URLS = [
   { loc: "/ksef", changefreq: "monthly", priority: "0.8", lastmod: "2026-07-16" },
   { loc: "/food-cost", changefreq: "monthly", priority: "0.8", lastmod: "2026-07-16" },
   { loc: "/ocr-faktur", changefreq: "monthly", priority: "0.8", lastmod: "2026-07-16" },
+  { loc: "/porownanie-cen", changefreq: "monthly", priority: "0.8", lastmod: "2026-09-27" },
   { loc: "/cennik", changefreq: "monthly", priority: "0.8", lastmod: "2026-09-02" },
   // Indeks bloga zmienia się realnie przy każdym nowym artykule — datę bierzemy
   // z najnowszego wpisu, więc jest prawdziwa bez ręcznego pilnowania.
