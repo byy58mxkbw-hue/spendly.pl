@@ -44,7 +44,7 @@
   </url>
   <url>
     <loc>https://www.spendly.pl/blog</loc>
-    <lastmod>2026-09-27</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -61,6 +61,12 @@
     <priority>0.3</priority>
   </url>
   <url>
+    <loc>https://www.spendly.pl/blog/najlepsze-programy-food-cost-ksef-2026</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://www.spendly.pl/blog/food-cost-w-hotelu</loc>
     <lastmod>2026-09-27</lastmod>
     <changefreq>monthly</changefreq>
@@ -74,7 +80,7 @@
   </url>
   <url>
     <loc>https://www.spendly.pl/blog/spendly-vs-gastrosupplier-gopos</loc>
-    <lastmod>2026-09-27</lastmod>
+    <lastmod>2026-09-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
