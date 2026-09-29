@@ -156,9 +156,11 @@ export function ImportInvoiceDialog({
   async function handleScanReceipt() {
     if (!receiptPreviewUrl) return;
     const { base64, mimeType } = await compressImage(receiptPreviewUrl);
+    const startedAt = Date.now();
     try {
       const data = await scanReceipt.mutateAsync({ data: { imageBase64: base64, mimeType } });
       track("ocr_scan");
+      track("invoice_ocr_completed", { items_count: data.items.length, processing_time_ms: Date.now() - startedAt });
       setScannedData(data);
       if (data.invoiceNumber && !form.getValues("invoiceNumber")) form.setValue("invoiceNumber", data.invoiceNumber);
       if (data.invoiceDate) form.setValue("invoiceDate", data.invoiceDate);
@@ -183,6 +185,7 @@ export function ImportInvoiceDialog({
     } catch (err) {
       // Komunikat serwera (m.in. 429 o wyczerpaniu miesięcznego limitu AI planu).
       const serverMsg = (err as { data?: { error?: string } })?.data?.error;
+      track("invoice_ocr_failed", { error_reason: serverMsg ?? "unknown" });
       toast({ variant: "destructive", title: "Błąd skanowania", description: serverMsg ?? "Nie udało się przetworzyć obrazu." });
     }
   }
@@ -234,6 +237,8 @@ export function ImportInvoiceDialog({
       });
       queryClient.invalidateQueries();
       track("invoice_imported", { source: importTab });
+      const savedItemsCount = importTab === "photo" ? (items?.length ?? 0) : (xmlPreview?.items.length ?? 0);
+      track("invoice_saved", { items_count: savedItemsCount, supplier_id: values.supplierId });
       toast({ title: "Dodano zakup" });
       form.reset({ supplierId: "", invoiceNumber: "", invoiceDate: new Date().toISOString().split("T")[0], xmlContent: "", paymentMethod: undefined, paymentDueDate: "" });
       setXmlPreview(null); setScannedData(null); setReceiptPreviewUrl(null);
@@ -243,6 +248,7 @@ export function ImportInvoiceDialog({
     } catch (err: unknown) {
       const body = err as { status?: number; message?: string };
       if (body?.status === 409) {
+        track("invoice_duplicate_detected");
         setDuplicateConflict({ message: body.message ?? "Faktura już istnieje.", values });
       } else {
         toast({ variant: "destructive", title: "Błąd importu", description: body?.message ?? "Spróbuj ponownie." });
@@ -434,6 +440,7 @@ export function ImportInvoiceDialog({
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
+                      track("invoice_upload_completed", { file_type: file.type, file_size_kb: Math.round(file.size / 1024) });
                       const reader = new FileReader();
                       reader.onload = (ev) => { setReceiptPreviewUrl(ev.target?.result as string); setScannedData(null); };
                       reader.readAsDataURL(file);

@@ -447,7 +447,14 @@ export default function PriceAlerts() {
                           {resolveProductId(alert.productName) != null && (
                             <button
                               className="text-xs font-medium px-2.5 py-1 rounded-md bg-foreground/8 hover:bg-primary hover:text-primary-foreground transition-colors flex items-center gap-1 border border-border hover:border-primary"
-                              onClick={() => setHistoryProduct({ id: resolveProductId(alert.productName)!, name: alert.productName })}
+                              onClick={() => {
+                                track("price_trend_alert_viewed", {
+                                  change_percent: alert.previousPrice
+                                    ? Math.round(((alert.currentPrice - alert.previousPrice) / alert.previousPrice) * 1000) / 10
+                                    : null,
+                                });
+                                setHistoryProduct({ id: resolveProductId(alert.productName)!, name: alert.productName });
+                              }}
                             >
                               <LineChart className="w-3 h-3" />
                               Wykres

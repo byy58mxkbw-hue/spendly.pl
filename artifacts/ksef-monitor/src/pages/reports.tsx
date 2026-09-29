@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { useAuth } from "@clerk/react";
 import { apiUrl } from "@/lib/api-base";
+import { track } from "@/lib/posthog";
 import { useToast } from "@/hooks/use-toast";
 import { Layout, PageHeader } from "@/components/layout";
 import {
@@ -221,6 +222,8 @@ function ReportsInner() {
   const [exportingXlsx, setExportingXlsx] = useState(false);
   useCostCenterInUrl();
 
+  useEffect(() => { track("savings_report_viewed", { period: preset }); }, [preset]);
+
   // Pobranie raportu Excel (binarny endpoint poza Orval) — z tokenem Clerk,
   // bo apka woła API na innej domenie niż front. Grupowanie per centrum kosztów
   // + porównanie do poprzedniego miesiąca liczy backend. Błędy pokazujemy toastem
@@ -254,6 +257,7 @@ function ReportsInner() {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      track("savings_report_exported", { format: "xlsx" });
       toast({ title: "Pobrano raport Excel", description: fname });
     } catch (err) {
       console.error("Eksport Excel nie powiódł się:", err);
@@ -350,7 +354,8 @@ function ReportsInner() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() =>
+              onClick={() => {
+                track("savings_report_exported", { format: "csv" });
                 exportToCsv(
                   [
                     ["Produkt", "Jednostka", "Ilość", "Śr. cena", "Łączny koszt"],
@@ -363,8 +368,8 @@ function ReportsInner() {
                     ]),
                   ],
                   `raport-${period.from}_${period.to}-${todaySlug()}`,
-                )
-              }
+                );
+              }}
               className="gap-1.5 text-xs hidden md:flex"
             >
               <Download className="w-3.5 h-3.5" />

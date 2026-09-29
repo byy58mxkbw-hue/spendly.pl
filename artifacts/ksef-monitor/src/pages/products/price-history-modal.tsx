@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useGetProductPriceHistory, getGetProductPriceHistoryQueryKey } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -5,6 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Building2 } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/posthog";
 
 export function PriceHistoryModal({
   productId,
@@ -22,6 +24,8 @@ export function PriceHistoryModal({
   /** When provided, history rows link to their source invoice. */
   onSelectInvoice?: (invoiceId: number) => void;
 }) {
+  useEffect(() => { track("price_history_viewed", { product_id: productId }); }, [productId]);
+
   const params = focusSupplierId != null ? { supplierId: focusSupplierId } : undefined;
   const { data: history, isLoading } = useGetProductPriceHistory(productId, params, {
     query: {

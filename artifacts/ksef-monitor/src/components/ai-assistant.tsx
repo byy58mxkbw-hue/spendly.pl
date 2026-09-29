@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth, useUser } from "@clerk/react";
 import {
   usePostAiCfoChat,
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { apiUrl } from "@/lib/api-base";
+import { track } from "@/lib/posthog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Bot,
@@ -229,6 +230,7 @@ function AssistantBubble({ data, onNavigate }: { data: AiCfoChatResponse; onNavi
 
 export function AiAssistant() {
   const { user } = useUser();
+  const [location] = useLocation();
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -281,16 +283,21 @@ export function AiAssistant() {
     if (!q || chat.isPending) return;
     setInput("");
     setMessages((prev) => [...prev, { role: "user", text: q }]);
+    track("ai_assistant_query_sent", { has_context: apiHistory.length > 0 });
+    const startedAt = Date.now();
     chat.mutate(
       { data: { question: q, history: apiHistory } },
       {
         onSuccess: (data) => {
           setMessages((prev) => [...prev, { role: "assistant", data }]);
+          track("ai_assistant_response_received", { response_time_ms: Date.now() - startedAt });
           void refreshUsage();
         },
         onError: (err: unknown) => {
           // ApiError z customFetch niesie sparsowane body błędu w .data (też komunikat 429 o limicie planu)
-          const serverMsg = (err as { data?: { error?: string } })?.data?.error;
+          const serverMsg = (err as { data?: { error?: string; status?: number } })?.data?.error;
+          const status = (err as { status?: number })?.status;
+          track("ai_assistant_query_failed", { error_type: status ? String(status) : (serverMsg ?? "unknown") });
           setMessages((prev) => [
             ...prev,
             { role: "error", text: serverMsg ?? "Nie udało się uzyskać odpowiedzi. Spróbuj ponownie za chwilę." },
@@ -313,7 +320,7 @@ export function AiAssistant() {
       {/* FAB — nad dolną nawigacją na mobile, w rogu na desktopie */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => { setOpen(true); track("ai_assistant_opened", { entry_point: location }); }}
           className="fixed z-40 right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:right-6 md:bottom-6 flex items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 px-4 h-12 font-semibold text-sm hover:bg-primary/90 active:scale-95 transition-all"
           aria-label="Otwórz asystenta AI"
           data-testid="ai-assistant-fab"

@@ -5,7 +5,7 @@ import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiUrl } from "@/lib/api-base";
-import { track, identifyUser } from "@/lib/posthog";
+import { track, identifyUser, setPersonProperties, setGroup } from "@/lib/posthog";
 import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -187,6 +187,7 @@ function ClerkQueryClientCacheInvalidator() {
   const { addListener } = clerk;
   const qc = useQueryClient();
   const prevUserIdRef = useRef<string | null | undefined>(undefined);
+  const prevPlanRef = useRef<string | undefined>(undefined);
 
   // Wire the API client's auth token getter to Clerk's active session.
   // Re-registers when `clerk` is ready so every API call gets a fresh bearer.
@@ -220,6 +221,19 @@ function ClerkQueryClientCacheInvalidator() {
           track("sign_up");
           try { localStorage.setItem(key, "1"); } catch { /* ignore */ }
         }
+      }
+      // Grupa "organization" (Spendly nie ma multi-user org — kluczem jest sam
+      // userId) + property `plan` na osobie i grupie. Odpala się też przy samej
+      // zmianie planu w tej samej sesji (np. admin podniósł plan), nie tylko przy
+      // logowaniu — inaczej retencja "wg planu" widziałaby tylko plan z dnia
+      // pierwszej wizyty. `industry`/`role` — pomijamy: brak dziś pola
+      // onboardingowego, które by je zbierało (patrz specyfikacja trackingu).
+      const plan = (user?.publicMetadata as { plan?: string } | undefined)?.plan ?? "free";
+      if (userId && (prevUserIdRef.current !== userId || prevPlanRef.current !== plan)) {
+        const propsOnce = user?.createdAt ? { signup_date: new Date(user.createdAt).toISOString().slice(0, 10) } : undefined;
+        setPersonProperties({ plan, organization_id: userId }, propsOnce);
+        setGroup(userId, { plan });
+        prevPlanRef.current = plan;
       }
       prevUserIdRef.current = userId;
     });

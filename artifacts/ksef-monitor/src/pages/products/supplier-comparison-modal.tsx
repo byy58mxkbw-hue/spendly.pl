@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useGetProductSupplierComparison, getGetProductSupplierComparisonQueryKey } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -5,6 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Calendar, GitCompare, ShoppingCart, TrendingDown, TrendingUp, Trophy } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/posthog";
 import { SUPPLIER_COLORS } from "./shared";
 
 export function SupplierComparisonModal({
@@ -19,6 +21,10 @@ export function SupplierComparisonModal({
   const { data, isLoading } = useGetProductSupplierComparison(productId, {
     query: { queryKey: getGetProductSupplierComparisonQueryKey(productId) },
   });
+
+  useEffect(() => {
+    if (data) track("supplier_comparison_viewed", { product_id: productId, suppliers_compared_count: data.suppliers.length });
+  }, [data, productId]);
 
   // Build merged chart data for multi-line chart
   // Each date from any supplier becomes a row; each supplier is a column

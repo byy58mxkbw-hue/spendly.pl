@@ -18,6 +18,8 @@ type PostHog = typeof import("posthog-js")["default"];
 
 let ph: PostHog | null = null;
 let pendingIdentify: string | null = null;
+let pendingPersonProps: { props: Record<string, unknown>; propsOnce?: Record<string, unknown> } | null = null;
+let pendingGroup: { groupKey: string; props?: Record<string, unknown> } | null = null;
 
 function wireConsent(posthog: PostHog) {
   const w = window as unknown as { Cookiebot?: { consent?: { statistics?: boolean } } };
@@ -49,6 +51,14 @@ export function initAnalytics(): void {
         posthog.identify(pendingIdentify);
         pendingIdentify = null;
       }
+      if (pendingPersonProps) {
+        posthog.setPersonProperties(pendingPersonProps.props, pendingPersonProps.propsOnce);
+        pendingPersonProps = null;
+      }
+      if (pendingGroup) {
+        posthog.group("organization", pendingGroup.groupKey, pendingGroup.props);
+        pendingGroup = null;
+      }
     });
   };
 
@@ -68,6 +78,26 @@ export function track(event: string, props?: Record<string, unknown>): void {
 export function identifyUser(distinctId: string): void {
   if (ph) ph.identify(distinctId);
   else pendingIdentify = distinctId; // SDK jeszcze się ładuje — zidentyfikuj po init
+}
+
+/**
+ * Właściwości osoby (plan/rola/branża — patrz specyfikacja trackingu). `propsOnce`
+ * ustawia się tylko raz (np. signup_date) — odpowiednik PostHogowego `$set_once`.
+ */
+export function setPersonProperties(props: Record<string, unknown>, propsOnce?: Record<string, unknown>): void {
+  if (ph) ph.setPersonProperties(props, propsOnce);
+  else pendingPersonProps = { props, propsOnce };
+}
+
+/**
+ * Grupa "organization" — Spendly nie ma dziś multi-user organizacji (jeden Clerk
+ * user = jeden tenant), więc kluczem grupy jest Clerk userId. Po wywołaniu KAŻDY
+ * kolejny track() automatycznie niesie $groups dla tej organizacji (zachowanie
+ * PostHog SDK), nie trzeba tego przekazywać ręcznie przy każdym zdarzeniu.
+ */
+export function setGroup(groupKey: string, props?: Record<string, unknown>): void {
+  if (ph) ph.group("organization", groupKey, props);
+  else pendingGroup = { groupKey, props };
 }
 
 initAnalytics();
