@@ -57,7 +57,6 @@ import {
   X,
   Download,
   AlertTriangle,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CheckSquare,
@@ -67,11 +66,13 @@ import { formatPrice, formatDate } from "@/lib/format";
 import { CategoryIcon } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
+import { Combobox } from "@/components/ui/combobox";
 import { PriceChangeBadge } from "./products/shared";
 import { KeywordComparisonModal } from "./products/keyword-comparison-modal";
 import { PriceHistoryModal } from "./products/price-history-modal";
 import { SupplierComparisonModal } from "./products/supplier-comparison-modal";
 import { CategoryBadge } from "./products/category-management";
+import { CategoryFilterPanel, type CategoryFilterRow } from "./products/category-filter-panel";
 
 // Re-eksport: PriceHistoryModal jest używany przez inne strony (dashboard, invoices,
 // price-alerts, supplier-detail) przez `from "./products"` — utrzymujemy ścieżkę.
@@ -309,6 +310,19 @@ export default function Products() {
       .sort((a, b) => b.spend - a.spend);
   }, [spendItems, categories]);
 
+  // Panel kategorii scala dwa dawne źródła (karty ze spend + pigułki z licznikiem)
+  // w jedną listę wierszy — patrz plan iridescent-swimming-phoenix.md.
+  const categoryRows: CategoryFilterRow[] = useMemo(() => {
+    const spendById = new Map(categorySpend.map((c) => [c.id, c]));
+    return [...availableCategories]
+      .map((c) => {
+        const s = spendById.get(c.id);
+        return { id: c.id, label: c.label, count: categoryCountMap[c.id] ?? 0, spend: s?.spend ?? 0, pct: s?.pct ?? 0 };
+      })
+      .sort((a, b) => b.spend - a.spend);
+  }, [availableCategories, categoryCountMap, categorySpend]);
+  const totalCategorySpend = categorySpend.reduce((sum, c) => sum + c.spend, 0);
+
   function openHistory(id: number, name: string) {
     setSelectedProduct({ id, name });
     setModalMode("history");
@@ -329,106 +343,6 @@ export default function Products() {
           action={<MonthNavigator month={month} onChange={setMonth} />}
         />
 
-        {/* Category spend summary */}
-        {categorySpend.length > 0 && (
-          <div className="mb-6">
-            <button
-              onClick={() => setCategorySpendOpen((v) => !v)}
-              className="flex items-center gap-2 mb-3 group"
-            >
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Wydatki według kategorii</p>
-              <ChevronDown className={cn(
-                "w-3.5 h-3.5 text-muted-foreground/50 transition-transform duration-200",
-                categorySpendOpen ? "rotate-0" : "-rotate-90"
-              )} />
-            </button>
-            {categorySpendOpen && (
-            <div>
-            {/* Mobile: horizontal scroll strip */}
-            <div className="md:hidden flex gap-3 overflow-x-auto scrollbar-none pb-1 -mx-4 px-4">
-              {categorySpend.map((cat) => (
-                <button
-                  key={cat.id}
-                  className={cn(
-                    "text-left rounded-xl border p-3 transition-colors group shrink-0 w-32",
-                    categoryFilter === cat.id
-                      ? "border-primary/50 bg-primary/5"
-                      : "border-border bg-card active:bg-secondary/40"
-                  )}
-                  onClick={() => setCategoryFilter(categoryFilter === cat.id ? "all" : cat.id)}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <CategoryIcon categoryId={cat.id} className="w-4 h-4 shrink-0" />
-                    <span className={cn(
-                      "text-[11px] font-semibold tabular-nums",
-                      categoryFilter === cat.id ? "text-primary" : "text-muted-foreground"
-                    )}>
-                      {cat.pct.toFixed(0)}%
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground leading-tight mb-1 truncate">{cat.label}</p>
-                  <p className={cn(
-                    "text-sm font-bold tabular-nums leading-tight",
-                    categoryFilter === cat.id ? "text-primary" : "text-foreground"
-                  )}>
-                    {formatPrice(cat.spend)}
-                  </p>
-                  <div className="mt-2 h-1 rounded-full bg-border overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all",
-                        categoryFilter === cat.id ? "bg-primary" : "bg-primary/40"
-                      )}
-                      style={{ width: `${Math.max(cat.pct, 2)}%` }}
-                    />
-                  </div>
-                </button>
-              ))}
-            </div>
-            {/* Desktop: grid */}
-            <div className="hidden md:grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {categorySpend.map((cat) => (
-                <button
-                  key={cat.id}
-                  className={cn(
-                    "text-left rounded-xl border p-3.5 transition-colors group",
-                    categoryFilter === cat.id
-                      ? "border-primary/50 bg-primary/5"
-                      : "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
-                  )}
-                  onClick={() => setCategoryFilter(categoryFilter === cat.id ? "all" : cat.id)}
-                  title={`Kliknij, aby filtrować po kategorii ${cat.label}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <CategoryIcon categoryId={cat.id} className="w-4 h-4 shrink-0" />
-                    <span className="text-xs font-semibold text-muted-foreground tabular-nums">
-                      {cat.pct.toFixed(1)}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-tight mb-1 truncate">{cat.label}</p>
-                  <p className={cn(
-                    "text-sm font-bold tabular-nums",
-                    categoryFilter === cat.id ? "text-primary" : "text-foreground"
-                  )}>
-                    {formatPrice(cat.spend)}
-                  </p>
-                  <div className="mt-2.5 h-1 rounded-full bg-border overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all",
-                        categoryFilter === cat.id ? "bg-primary" : "bg-primary/40 group-hover:bg-primary/60"
-                      )}
-                      style={{ width: `${Math.max(cat.pct, 2)}%` }}
-                    />
-                  </div>
-                </button>
-              ))}
-            </div>
-            </div>
-            )}
-          </div>
-        )}
-
         {/* Filter bar */}
         <div className="mb-4 space-y-2">
           {/* Row 1: search */}
@@ -444,36 +358,21 @@ export default function Products() {
             />
           </div>
 
-          {/* Row 2: supplier chips — horizontal scroll */}
+          {/* Row 2: dostawca */}
           {suppliers && suppliers.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:overflow-visible max-md:[mask-image:linear-gradient(to_right,#000_calc(100%-28px),transparent)]" data-testid="supplier-chips">
-              <button
-                onClick={() => setSupplierFilter("all")}
-                className={cn(
-                  "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors whitespace-nowrap",
-                  supplierFilter === "all"
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
-                )}
-              >
-                Wszyscy
-              </button>
-              {suppliers.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setSupplierFilter(supplierFilter === String(s.id) ? "all" : String(s.id))}
-                  className={cn(
-                    "shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors max-w-[180px]",
-                    supplierFilter === String(s.id)
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
-                  )}
-                  title={s.name}
-                >
-                  <span className="truncate">{s.name}</span>
-                </button>
-              ))}
-            </div>
+            <Combobox
+              value={supplierFilter}
+              onChange={setSupplierFilter}
+              className="w-full md:w-64"
+              placeholder="Wszyscy dostawcy"
+              searchPlaceholder="Szukaj dostawcy..."
+              emptyText="Brak dostawców."
+              data-testid="select-product-supplier"
+              options={[
+                { value: "all", label: "Wszyscy dostawcy" },
+                ...suppliers.map((s) => ({ value: String(s.id), label: s.name })),
+              ]}
+            />
           )}
 
           {/* Row 3: sort + review + compare */}
@@ -606,49 +505,15 @@ export default function Products() {
           </div>
         )}
 
-        {/* Category filter pills — only shown when at least 2 categories exist */}
-        {availableCategories.length >= 2 && (
-          <div className="mb-4 flex gap-2 overflow-x-auto scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap pb-1 md:pb-0">
-            <button
-              className={cn(
-                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors shrink-0",
-                categoryFilter === "all"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
-              )}
-              onClick={() => setCategoryFilter("all")}
-            >
-              Wszystkie
-              <span className={cn(
-                "text-xs rounded-full px-1.5 py-0.5 font-semibold",
-                categoryFilter === "all" ? "bg-primary-foreground/20 text-primary-foreground" : "bg-border text-muted-foreground"
-              )}>
-                {searchFilteredCount}
-              </span>
-            </button>
-            {availableCategories.map((cat) => (
-              <button
-                key={cat.id}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors shrink-0",
-                  categoryFilter === cat.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
-                )}
-                onClick={() => setCategoryFilter(categoryFilter === cat.id ? "all" : cat.id)}
-              >
-                <CategoryIcon categoryId={cat.id} className="w-3.5 h-3.5 shrink-0" />
-                <span>{cat.label}</span>
-                <span className={cn(
-                  "text-xs rounded-full px-1.5 py-0.5 font-semibold",
-                  categoryFilter === cat.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-border text-muted-foreground"
-                )}>
-                  {categoryCountMap[cat.id] ?? 0}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+        <CategoryFilterPanel
+          rows={categoryRows}
+          totalCount={searchFilteredCount}
+          totalSpend={totalCategorySpend}
+          value={categoryFilter}
+          onChange={setCategoryFilter}
+          open={categorySpendOpen}
+          onOpenChange={setCategorySpendOpen}
+        />
 
         {/* Mobile card list */}
         <div className="md:hidden glass overflow-hidden">
