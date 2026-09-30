@@ -24,6 +24,8 @@ type SalesLeaf = {
   prevNet: number | null;
   qtyChangePct: number | null;
   netChangePct: number | null;
+  /** Klucz do /sales/trend TEGO wariantu — bez niego trend łapał każdy wiersz o tej nazwie w całej bazie. */
+  key?: string;
 };
 // Grupa = pozycja menu. Warianty (stopnie wysmażenia, smaki) mają w POS wspólne
 // id produktu i są tu składowymi, nie osobnymi pozycjami.
@@ -410,8 +412,10 @@ export default function Sprzedaz() {
                         {isOpen &&
                           [...it.variants].sort((a, b) => compareItems(a, b, sort)).map((v) => (
                             <tr
-                              key={v.productName}
-                              onClick={() => setTrend({ label: v.productName, name: v.productName })}
+                              key={v.key ?? v.productName}
+                              onClick={() => v.key
+                                ? setTrend({ label: v.productName, key: v.key })
+                                : setTrend({ label: v.productName, name: v.productName })}
                               className="cursor-pointer bg-secondary/20 hover:bg-secondary/40 transition-colors"
                               title="Pokaż sprzedaż tego wariantu miesiąc po miesiącu"
                             >

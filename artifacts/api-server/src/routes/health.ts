@@ -15,7 +15,7 @@ router.get("/healthz", (_req, res) => {
 // na prod (healthz nie zmienia się między deployami). Bump `build` przy istotnych
 // zmianach, których wdrożenie chcesz potwierdzić bez tokenu.
 router.get("/version", (_req, res) => {
-  res.json({ status: "ok", build: "2026-09-30-umbrella-category-uses-own-label", startedAt: process.uptime() });
+  res.json({ status: "ok", build: "2026-10-01-variant-trend-key-and-category-case-merge", startedAt: process.uptime() });
 });
 
 // Readiness — sprawdza połączenie z bazą (SELECT 1). 503 gdy baza niedostępna.

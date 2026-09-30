@@ -52,6 +52,15 @@ export type SalesLeaf = {
   prevNet: number | null;
   qtyChangePct: number | null;
   netChangePct: number | null;
+  /**
+   * Klucz do /sales/trend TEGO KONKRETNEGO wariantu — bez niego front pytał
+   * trend po samej `productName`, a to dopasowuje WSZYSTKIE wiersze o tej
+   * nazwie w całej bazie, niezależnie od id produktu w POS. Realny przypadek:
+   * "Schabowy" jako pozycja á la carte i "Schabowy" jako część zestawu
+   * lunchowego to w GoPOS DWA różne produkty (różne id) o tej samej nazwie —
+   * bez klucza ich historie zlepiały się w jeden, mylący wykres.
+   */
+  key?: string;
 };
 export type SalesGroup = SalesLeaf & {
   /** Stabilny klucz grupy (id produktu z POS) — do wykresu i porównań. */
@@ -76,7 +85,7 @@ function totalsOf(members: Leaf[]): Omit<SalesLeaf, "productName"> {
   return { qty, netValue: net, prevQty, prevNet, qtyChangePct: changePct(qty, prevQty), netChangePct: changePct(net, prevNet) };
 }
 
-function makeLeaf(l: Leaf): SalesLeaf {
+function makeLeaf(l: Leaf, parentKey: string): SalesLeaf {
   return {
     productName: l.name,
     qty: l.qty,
@@ -85,6 +94,7 @@ function makeLeaf(l: Leaf): SalesLeaf {
     prevNet: l.prevNet,
     qtyChangePct: changePct(l.qty, l.prevQty),
     netChangePct: changePct(l.net, l.prevNet),
+    key: `${parentKey}#${normalizeName(l.name)}`,
   };
 }
 
@@ -170,7 +180,7 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       key: sg.key,
       ...totalsOf(sg.members),
       productName: sg.name,
-      variants: sg.members.length > 1 ? sg.members.map(makeLeaf).sort((a, b) => b.netValue - a.netValue) : [],
+      variants: sg.members.length > 1 ? sg.members.map((l) => makeLeaf(l, sg.key)).sort((a, b) => b.netValue - a.netValue) : [],
       // Kategoria z samego GoPOS (zakładka „Konfiguracja Menu") ma priorytet — to
       // prawda z POS, nie zgadywanka po nazwie. Dopasowanie do Food Cost to fallback
       // (starsze zsynchronizowane dane bez kategorii, albo źródło inne niż GoPOS).
@@ -187,7 +197,7 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
         key: sg.key,
         ...totalsOf(sg.members),
         productName: sg.name,
-        variants: sg.members.length > 1 ? sg.members.map(makeLeaf).sort((a, b) => b.netValue - a.netValue) : [],
+        variants: sg.members.length > 1 ? sg.members.map((l) => makeLeaf(l, sg.key)).sort((a, b) => b.netValue - a.netValue) : [],
         category: sg.category ?? categoryForSaleName(sg.name, dishIndex),
       });
       continue;
@@ -199,8 +209,9 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       productName: label,
       // Warianty parasola to POZYCJE MENU (Schab lunch, Pulpety lunch), a nie
       // ich własne warianty — inaczej lista miałaby trzy poziomy zagnieżdżenia.
+      // `key: sg.key` (nie sama nazwa!) — patrz komentarz przy `SalesLeaf.key`.
       variants: list
-        .map((sg) => ({ ...totalsOf(sg.members), productName: sg.name }))
+        .map((sg) => ({ ...totalsOf(sg.members), productName: sg.name, key: sg.key }))
         .sort((a, b) => b.netValue - a.netValue),
       // Kategoria parasola = jego WŁASNA etykieta ("Lunch"), NIGDY dziedziczona
       // po dzieciach. Realny przypadek zgłoszony przez użytkownika: dania
@@ -210,6 +221,22 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       // parasol z definicji reprezentuje jedną ofertę "Lunch" dla właściciela.
       category: label,
     });
+  }
+
+  // Kategorie z GoPOS bywają w RÓŻNEJ wielkości liter dla pojęciowo tej samej
+  // kategorii — np. "LUNCH" z Konfiguracji Menu GoPOS i "Lunch" z etykiety
+  // parasola dań lunchowych (linia wyżej: `category: label`). Bez ujednolicenia
+  // rozjeżdżały się na dwie osobne pozycje wykresu „Sprzedaż wg kategorii".
+  // Normalizujemy do JEDNEGO reprezentanta (pierwszy napotkany) na WSZYSTKICH
+  // grupach — nie tylko w rozkładzie, bo front dopasowuje klik w kategorię do
+  // pozycji na liście dokładnym stringiem (`i.category === categoryFilter`,
+  // sprzedaz.tsx) — gdyby zostały różne napisy, klik złapałby tylko połowę.
+  const categoryLabelByKey = new Map<string, string>();
+  for (const g of groups) {
+    if (g.category == null) continue;
+    const key = normalizeName(g.category);
+    if (!categoryLabelByKey.has(key)) categoryLabelByKey.set(key, g.category);
+    g.category = categoryLabelByKey.get(key)!;
   }
 
   // Sortowanie po WARTOŚCI, nie ilości — 300 kaw po 4 zł znaczy dla wyniku
