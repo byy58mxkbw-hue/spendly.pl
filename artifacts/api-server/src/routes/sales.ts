@@ -193,10 +193,6 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       continue;
     }
     const allMembers = list.flatMap((sg) => sg.members);
-    // Kategoria parasola: najpierw kategoria GoPOS współdzielona przez jego pozycje
-    // (zestawy lunchowe realnie bywają jedną kategorią menu w GoPOS też), inaczej
-    // dopasowanie po ETYKIECIE parasola ("Lunch") do Food Cost jako fallback.
-    const goposCategory = list.find((sg) => sg.category)?.category ?? null;
     groups.push({
       key: `um:${normalizeName(label)}`,
       ...totalsOf(allMembers),
@@ -206,7 +202,13 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       variants: list
         .map((sg) => ({ ...totalsOf(sg.members), productName: sg.name }))
         .sort((a, b) => b.netValue - a.netValue),
-      category: goposCategory ?? categoryForSaleName(label, dishIndex),
+      // Kategoria parasola = jego WŁASNA etykieta ("Lunch"), NIGDY dziedziczona
+      // po dzieciach. Realny przypadek zgłoszony przez użytkownika: dania
+      // "X lunch" mają w GoPOS kategorię „Wkładka" (nazwa sekcji menu w POS, nie
+      // "Lunch") — dziedziczenie po pierwszym dziecku z kategorią wrzucało cały
+      // obrót parasola do „Wkładka" na wykresie „Sprzedaż wg kategorii", mimo że
+      // parasol z definicji reprezentuje jedną ofertę "Lunch" dla właściciela.
+      category: label,
     });
   }
 
