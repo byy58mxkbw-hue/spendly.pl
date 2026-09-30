@@ -10,11 +10,8 @@ export function normalizeName(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-// Wspólny prefiks CAŁYCH słów — nazwa bazowa grupy wariantów.
-// „Stek z Polędwicy Wołowej Medium" + „…Well Done" → „Stek z Polędwicy Wołowej".
-export function commonWordPrefix(names: string[]): string {
-  if (names.length === 0) return "";
-  if (names.length === 1) return names[0].trim();
+function commonWordPrefixWords(names: string[]): string[] {
+  if (names.length <= 1) return [];
   const split = names.map((n) => n.trim().replace(/\s+/g, " ").split(" "));
   const first = split[0];
   const out: string[] = [];
@@ -23,7 +20,29 @@ export function commonWordPrefix(names: string[]): string {
     if (split.every((s) => (s[i] ?? "").toLowerCase() === w)) out.push(first[i]);
     else break;
   }
-  return out.length > 0 ? out.join(" ") : names[0].trim();
+  return out;
+}
+
+// Wspólny prefiks CAŁYCH słów — nazwa bazowa grupy wariantów.
+// „Stek z Polędwicy Wołowej Medium" + „…Well Done" → „Stek z Polędwicy Wołowej".
+export function commonWordPrefix(names: string[]): string {
+  if (names.length === 0) return "";
+  if (names.length === 1) return names[0].trim();
+  const words = commonWordPrefixWords(names);
+  return words.length > 0 ? words.join(" ") : names[0].trim();
+}
+
+/**
+ * Czy nazwy mają wspólny rdzeń słowny — sygnał, że to naprawdę warianty jednej
+ * pozycji menu (dzielą id produktu w POS z dobrego powodu), a nie dwa RÓŻNE
+ * dania, które przypadkiem dzielą id (np. GoPOS ponownie użył starego id po
+ * zmianie karty na zupełnie inne danie — realny przypadek: „Zrazy wołowe" i
+ * „Risotto" pod tym samym id). Jedna nazwa to zawsze `true` (nie ma z czym
+ * porównywać).
+ */
+export function sharesCommonPrefix(names: string[]): boolean {
+  if (names.length <= 1) return true;
+  return commonWordPrefixWords(names).length > 0;
 }
 
 /**

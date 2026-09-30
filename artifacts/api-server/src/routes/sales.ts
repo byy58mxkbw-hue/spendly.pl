@@ -4,7 +4,7 @@ import { db, posSalesTable } from "@workspace/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { toNum } from "../lib/parse";
 import { periodFromQuery, previousPeriod, periodLabel, monthsInRange, type Period } from "../lib/period";
-import { categoryForSaleName, commonWordPrefix, normalizeName, posGroupKey, umbrellaFor } from "../lib/pos-group";
+import { categoryForSaleName, commonWordPrefix, normalizeName, posGroupKey, sharesCommonPrefix, umbrellaFor } from "../lib/pos-group";
 import { captureServer } from "../lib/telemetry";
 import { buildDishCategoryIndex } from "./food-cost.js";
 
@@ -123,9 +123,21 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
   }
 
   // Poziom 1: pozycja POS (warianty = stopnie wysmażenia itp.).
-  const subGroups = [...buckets.entries()].map(([key, membersMap]) => {
+  // Różne nazwy pod wspólnym id POS bez wspólnego rdzenia słownego NIE są
+  // wariantami — to sygnał, że GoPOS ponownie użył id po zmianie karty na
+  // zupełnie inne danie (realny przypadek: „Zrazy wołowe" i „Risotto" pod tym
+  // samym id — zlepienie sum dwóch różnych dań w jedną pozycję). W takim razie
+  // pokazujemy je osobno, zamiast fałszywie sumować ich sprzedaż w jedną liczbę.
+  const subGroups: Array<{ key: string; name: string; members: Leaf[]; category: string | null }> = [];
+  for (const [key, membersMap] of buckets.entries()) {
     const members = [...membersMap.values()];
-    return {
+    if (members.length > 1 && !sharesCommonPrefix(members.map((m) => m.name))) {
+      for (const m of members) {
+        subGroups.push({ key: `${key}#${normalizeName(m.name)}`, name: m.name, members: [m], category: m.category });
+      }
+      continue;
+    }
+    subGroups.push({
       key,
       // Nazwa z UNII wariantów obu okresów — nie zmienia się, gdy w jednym
       // miesiącu sprzedał się tylko jeden stopień wysmażenia.
@@ -133,8 +145,8 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
       members,
       // Warianty tego samego produktu POS dzielą kategorię — wystarczy jeden nośnik.
       category: members.find((m) => m.category)?.category ?? null,
-    };
-  });
+    });
+  }
 
   // Poziom 2: parasol po nazwie (zestawy lunchowe). Osobne produkty POS, ale
   // dla właściciela to jedna oferta — chce widzieć „ile zrobił lunch".
@@ -300,14 +312,21 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
   // Klucz parasola ("um:lunch") nie występuje na żadnym wierszu — to grupa
   // wyliczana z NAZW. Bez tej gałęzi wykres dla „Lunch" byłby pusty.
   const wantUmbrella = wantKey.startsWith("um:") ? wantKey.slice(3) : null;
+  // Klucz rozdzielonej pozycji ("id:123#nazwa") — dwa różne dania pod tym samym
+  // id POS bez wspólnego rdzenia (patrz `sharesCommonPrefix`), pokazane osobno
+  // na liście. Trend musi dopasować i id, I nazwę — samo id złapałoby oba dania.
+  const hashIdx = wantKey.indexOf("#");
+  const wantSplit = hashIdx > 0 ? { groupKey: wantKey.slice(0, hashIdx), name: wantKey.slice(hashIdx + 1) } : null;
   const byPeriod = new Map<string, { qty: number; net: number }>();
   const names = new Set<string>();
   for (const r of rows) {
     const match = wantUmbrella
       ? normalizeName(umbrellaFor(r.name) ?? "") === wantUmbrella
-      : wantKey
-        ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
-        : normalizeName(r.name) === wantName;
+      : wantSplit
+        ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantSplit.groupKey && normalizeName(r.name) === wantSplit.name
+        : wantKey
+          ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
+          : normalizeName(r.name) === wantName;
     if (!match) continue;
     names.add(r.name);
     const cur = byPeriod.get(r.period) ?? { qty: 0, net: 0 };
@@ -319,9 +338,11 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
   res.json({
     productName: wantUmbrella
       ? (umbrellaFor([...names][0] ?? "") ?? wantUmbrella)
-      : wantKey
-        ? commonWordPrefix([...names])
-        : productName,
+      : wantSplit
+        ? ([...names][0] ?? productName)
+        : wantKey
+          ? commonWordPrefix([...names])
+          : productName,
     variantCount: names.size,
     months: periods.map((month) => {
       const v = byPeriod.get(month);

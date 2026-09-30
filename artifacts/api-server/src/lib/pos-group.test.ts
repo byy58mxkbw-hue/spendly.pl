@@ -5,6 +5,7 @@ import {
   commonWordPrefix,
   groupPosByProduct,
   posGroupKey,
+  sharesCommonPrefix,
   umbrellaFor,
 } from "./pos-group";
 
@@ -37,6 +38,24 @@ describe("commonWordPrefix", () => {
 
   it("ignoruje wielkość liter przy porównaniu, ale zachowuje oryginalną pisownię", () => {
     expect(commonWordPrefix(["Stek z Antrykotu Medium", "Stek z antrykotu Rare"])).toBe("Stek z Antrykotu");
+  });
+});
+
+describe("sharesCommonPrefix", () => {
+  it("prawdziwe warianty mają wspólny rdzeń", () => {
+    expect(
+      sharesCommonPrefix(["Stek z antrykotu Rare", "Stek z antrykotu Medium", "Stek z antrykotu Well done"]),
+    ).toBe(true);
+  });
+
+  it("dwa różne dania pod tym samym id POS (GoPOS ponownie użył id po zmianie karty) NIE mają wspólnego rdzenia", () => {
+    // Realny przypadek zgłoszony przez użytkownika: „Zrazy wołowe" i „Risotto"
+    // pod tym samym posProductId — to nie warianty jednej pozycji.
+    expect(sharesCommonPrefix(["Zrazy wołowe", "Risotto"])).toBe(false);
+  });
+
+  it("pojedyncza nazwa zawsze true — nie ma z czym porównywać", () => {
+    expect(sharesCommonPrefix(["Risotto"])).toBe(true);
   });
 });
 
