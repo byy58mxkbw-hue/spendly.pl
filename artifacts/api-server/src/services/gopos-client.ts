@@ -86,11 +86,13 @@ export async function fetchSales(token: string, organizationId: string, from: st
 
 // ─── Aktualne menu (pozycje sprzedawane DZIŚ, nie historia sprzedaży) ─────────
 // Kontrakt z publicznego spec GoPOS (`/v3/api-docs/Public API`):
-// - GET /{org}/menus?status=ENABLED&include=pages,pages.items → strony menu z
-//   odwołaniami (context_type CATEGORY | ITEM_GROUP | ITEM, context_id).
-// - GET /{org}/items?status=ENABLED&include=category,item_group&size=100&page=N
-//   → produkty z ceną (`price.amount`, cena z karty = BRUTTO), kategorią i grupą.
-// Grupa (item_group) to pozycja z wariantami (stopnie wysmażenia) — jedno danie.
+// GET /{org}/items?status=ENABLED&include=category,item_group,price_overrides&size=100&page=N
+// → produkty z ceną (`price.amount`, cena z karty = BRUTTO), kategorią i grupą.
+//
+// Celowo NIE filtrujemy po `/menus`: na realnym koncie (2026-10-01) filtr po
+// odwołaniach z aktywnych menu zostawił tylko 7 pozycji z menu „SALA WESELNA" —
+// główna karta restauracji nie była w nich widoczna. Aktywna (ENABLED) pozycja
+// w GoPOS = pozycja, którą dziś da się sprzedać, czyli aktualne menu.
 // Typ MODIFIER (dodatki typu „extra ser") pomijamy — to nie są dania.
 export type GoposMenuProduct = {
   id: string;
@@ -100,74 +102,56 @@ export type GoposMenuProduct = {
   groupId: string | null;
   groupName: string | null;
 };
+export type GoposMenuStats = { fetched: number; enabled: number; modifiers: number; withPrice: number };
 
 type GoposItemDto = {
   id?: number;
   name?: string;
   price?: unknown;
+  price_overrides?: Array<{ price?: unknown }>;
   status?: string;
   type?: string;
-  category_id?: number;
   category?: { name?: string };
   item_group_id?: number;
   item_group?: { name?: string };
 };
-type GoposMenuDto = { pages?: Array<{ items?: Array<{ context_type?: string; context_id?: number }> }> };
 
-async function getJson<T>(token: string, url: string, what: string): Promise<T> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: ACCEPT } });
-  if (!res.ok) throw new GoposError(res.status, `GoPOS ${what}: HTTP ${res.status}.`);
-  return (await res.json()) as T;
+// Cena bywa liczbą, {amount: number} albo {amount: "25.00"} — wszystko na liczbę.
+function priceOf(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") return Number(v.replace(",", ".")) || 0;
+  if (v && typeof v === "object" && "amount" in v) return priceOf((v as { amount: unknown }).amount);
+  return 0;
 }
 
 const MAX_PAGES = 50; // twardy bezpiecznik paginacji (50 × 100 pozycji)
 
-export async function fetchCurrentMenu(token: string, organizationId: string): Promise<GoposMenuProduct[]> {
+export async function fetchCurrentMenu(
+  token: string,
+  organizationId: string,
+): Promise<{ products: GoposMenuProduct[]; stats: GoposMenuStats }> {
   const org = encodeURIComponent(organizationId);
-
-  // 1) Co jest w aktywnych menu (kategorie / grupy / pojedyncze pozycje).
-  const refs = { CATEGORY: new Set<number>(), ITEM_GROUP: new Set<number>(), ITEM: new Set<number>() };
+  const stats: GoposMenuStats = { fetched: 0, enabled: 0, modifiers: 0, withPrice: 0 };
+  const products: GoposMenuProduct[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
-    const json = await getJson<{ data?: GoposMenuDto[] }>(
-      token,
-      `${API_BASE}/${org}/menus?status=ENABLED&include=pages,pages.items&size=50&page=${page}`,
-      "menu",
-    );
-    const menus = json.data ?? [];
-    for (const m of menus) for (const p of m.pages ?? []) for (const it of p.items ?? []) {
-      const set = refs[it.context_type as keyof typeof refs];
-      if (set && typeof it.context_id === "number") set.add(it.context_id);
-    }
-    if (menus.length < 50) break;
-  }
-  const hasMenuRefs = refs.CATEGORY.size + refs.ITEM_GROUP.size + refs.ITEM.size > 0;
-
-  // 2) Aktywne produkty z ceną.
-  const out: GoposMenuProduct[] = [];
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const json = await getJson<{ data?: GoposItemDto[] }>(
-      token,
-      `${API_BASE}/${org}/items?status=ENABLED&include=category,item_group&size=100&page=${page}`,
-      "pozycje menu",
-    );
-    const items = json.data ?? [];
+    const url = `${API_BASE}/${org}/items?status=ENABLED&include=category,item_group,price_overrides&size=100&page=${page}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: ACCEPT } });
+    if (!res.ok) throw new GoposError(res.status, `GoPOS pozycje menu: HTTP ${res.status}.`);
+    const items = ((await res.json()) as { data?: GoposItemDto[] }).data ?? [];
+    stats.fetched += items.length;
     for (const it of items) {
       if (it.id == null || !it.name?.trim()) continue;
       if (it.status && it.status !== "ENABLED") continue;
-      if (it.type === "MODIFIER") continue;
-      // Tylko pozycje faktycznie podpięte pod aktywne menu. Gdy lokal nie ma
-      // skonfigurowanych menu (brak odwołań), bierzemy wszystkie aktywne produkty.
-      const inMenu =
-        !hasMenuRefs ||
-        refs.ITEM.has(it.id) ||
-        (it.item_group_id != null && refs.ITEM_GROUP.has(it.item_group_id)) ||
-        (it.category_id != null && refs.CATEGORY.has(it.category_id));
-      if (!inMenu) continue;
-      const price = amount(it.price);
-      out.push({
+      stats.enabled++;
+      if (it.type === "MODIFIER") { stats.modifiers++; continue; }
+      // Cena bazowa, a gdy jej brak — pierwsza dodatnia cena z nadpisań.
+      let price = priceOf(it.price);
+      if (!(price > 0)) price = (it.price_overrides ?? []).map((o) => priceOf(o.price)).find((v) => v > 0) ?? 0;
+      if (price > 0) stats.withPrice++;
+      products.push({
         id: String(it.id),
         name: it.name.trim(),
-        price: price > 0 ? price : null,
+        price: price > 0 ? Math.round(price * 100) / 100 : null,
         category: it.category?.name?.trim() || null,
         groupId: it.item_group_id != null ? String(it.item_group_id) : null,
         groupName: it.item_group?.name?.trim() || null,
@@ -175,5 +159,5 @@ export async function fetchCurrentMenu(token: string, organizationId: string): P
     }
     if (items.length < 100) break;
   }
-  return out;
+  return { products, stats };
 }

@@ -7,13 +7,12 @@ import { buildGoposMenuList } from "../routes/food-cost";
 
 afterEach(() => vi.unstubAllGlobals());
 
-function stubGopos(menus: unknown[], itemPages: unknown[][]) {
+function stubItems(pages: unknown[][]) {
   const calls: string[] = [];
   vi.stubGlobal("fetch", vi.fn(async (url: string) => {
     calls.push(url);
-    if (url.includes("/menus?")) return new Response(JSON.stringify({ data: menus }), { status: 200 });
     const page = Number(new URL(url).searchParams.get("page") ?? 0);
-    return new Response(JSON.stringify({ data: itemPages[page] ?? [] }), { status: 200 });
+    return new Response(JSON.stringify({ data: pages[page] ?? [] }), { status: 200 });
   }));
   return calls;
 }
@@ -23,27 +22,36 @@ const item = (id: number, name: string, extra: Record<string, unknown> = {}) => 
 });
 
 describe("fetchCurrentMenu", () => {
-  it("bierze tylko pozycje z aktywnego menu i pomija dodatki (MODIFIER)", async () => {
-    stubGopos(
-      [{ pages: [{ items: [{ context_type: "CATEGORY", context_id: 1 }, { context_type: "ITEM", context_id: 50 }] }] }],
-      [[
-        item(10, "Żurek", { category_id: 1, category: { name: "ZUPY" } }),
-        item(11, "Extra ser", { category_id: 1, type: "MODIFIER" }),
-        item(50, "Lemoniada", { category_id: 9 }),
-        item(60, "Stare danie spoza karty", { category_id: 7 }),
-      ]],
-    );
-    const menu = await fetchCurrentMenu("t", "3130");
-    expect(menu.map((m) => m.name).sort()).toEqual(["Lemoniada", "Żurek"]);
-    expect(menu.find((m) => m.name === "Żurek")).toMatchObject({ price: 30, category: "ZUPY" });
+  it("bierze wszystkie aktywne pozycje (bez filtra po menu) i pomija dodatki", async () => {
+    const calls = stubItems([[
+      item(10, "Żurek", { category: { name: "ZUPY" } }),
+      item(11, "Extra ser", { type: "MODIFIER" }),
+      item(12, "Wyłączone", { status: "DISABLED" }),
+      item(50, "Organizacja wesela", { category: { name: "SALA WESELNA" } }),
+    ]]);
+    const { products, stats } = await fetchCurrentMenu("t", "3130");
+    expect(products.map((m) => m.name).sort()).toEqual(["Organizacja wesela", "Żurek"]);
+    expect(products.find((m) => m.name === "Żurek")).toMatchObject({ price: 30, category: "ZUPY" });
+    expect(stats).toEqual({ fetched: 4, enabled: 3, modifiers: 1, withPrice: 2 });
+    expect(calls.every((c) => c.includes("/items?") && c.includes("status=ENABLED"))).toBe(true);
   });
 
-  it("bez skonfigurowanych menu bierze wszystkie aktywne produkty i stronicuje", async () => {
+  it("czyta cenę jako tekst i z nadpisań, gdy brak ceny bazowej", async () => {
+    stubItems([[
+      item(1, "A", { price: { amount: "25,50" } }),
+      item(2, "B", { price: null, price_overrides: [{ price: { amount: 0 } }, { price: { amount: 19 } }] }),
+      item(3, "C", { price: { amount: 0 } }),
+    ]]);
+    const { products } = await fetchCurrentMenu("t", "3130");
+    expect(products.map((m) => m.price)).toEqual([25.5, 19, null]);
+  });
+
+  it("stronicuje do ostatniej niepełnej strony", async () => {
     const full = Array.from({ length: 100 }, (_, i) => item(i + 1, `Danie ${i + 1}`));
-    const calls = stubGopos([], [full, [item(500, "Ostatnie")]]);
-    const menu = await fetchCurrentMenu("t", "3130");
-    expect(menu).toHaveLength(101);
-    expect(calls.filter((c) => c.includes("/items?"))).toHaveLength(2);
+    const calls = stubItems([full, [item(500, "Ostatnie")]]);
+    const { products } = await fetchCurrentMenu("t", "3130");
+    expect(products).toHaveLength(101);
+    expect(calls).toHaveLength(2);
   });
 
   it("błąd HTTP z GoPOS przerywa pobieranie", async () => {
@@ -87,6 +95,18 @@ describe("buildGoposMenuList", () => {
     expect(list.find((i) => i.name === "Żurek")!.alreadyImported).toBe(true);
     // Nowe danie bez sprzedaży: wiązanie po własnej nazwie, sprzedaż 0.
     expect(list.find((i) => i.name === "Nowość")).toMatchObject({ posProductName: "Nowość", qty: 0 });
+  });
+
+  it("bez ceny w karcie bierze średnią cenę ze sprzedaży z VAT 8%", () => {
+    const list = buildGoposMenuList(
+      [p("1", "Zadatek", { price: null }), p("2", "Usługa bez sprzedaży", { price: null })],
+      [{ name: "Zadatek", posProductId: "5", qty: 4, net: 400 }],
+      [],
+    );
+    expect(list.find((i) => i.name === "Zadatek")).toMatchObject({ sellPrice: 108, priceSource: "sales" });
+    expect(list.find((i) => i.name === "Usługa bez sprzedaży")).toMatchObject({ sellPrice: null, priceSource: null });
+    const withMenu = buildGoposMenuList([p("1", "Żurek", { price: 27 })], [{ name: "Żurek", posProductId: "1", qty: 1, net: 10 }], []);
+    expect(withMenu[0]).toMatchObject({ sellPrice: 27, priceSource: "menu" });
   });
 
   it("ta sama pozycja w kilku menu (sala, dowóz) pojawia się raz", () => {

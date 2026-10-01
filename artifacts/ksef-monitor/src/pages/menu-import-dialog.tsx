@@ -368,7 +368,13 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                           >
                             {it.qty > 0 ? `${it.qty.toLocaleString("pl-PL")} szt.` : "bez sprzedaży"}
                           </span>
-                          <span className="text-[11px] num w-20 text-right shrink-0">{fmt(it.sellPrice)}</span>
+                          <span
+                            className={cn("text-[11px] num w-20 text-right shrink-0", it.priceSource === "sales" && "text-muted-foreground")}
+                            title={it.priceSource === "sales" ? "Brak ceny w karcie GoPOS. To średnia cena ze sprzedaży z 8% VAT." : undefined}
+                          >
+                            {it.priceSource === "sales" ? "~" : ""}
+                            {fmt(it.sellPrice)}
+                          </span>
                         </label>
                       ))}
                     </div>
@@ -378,7 +384,15 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
               {goposByCategory.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">Brak pozycji pasujących do wyszukiwania.</p>}
             </div>
             <p className="text-[11px] text-muted-foreground pt-2">
-              Ceny z karty GoPOS. Liczba sztuk to sprzedaż z ostatnich {goposMenu?.months ?? 6} miesięcy.
+              Ceny z karty GoPOS. Cena z „~” to średnia ze sprzedaży, bo karta jej nie podaje. Liczba sztuk to sprzedaż z ostatnich{" "}
+              {goposMenu?.months ?? 6} miesięcy.
+              {goposMenu?.stats && (
+                <span className="block mt-0.5">
+                  GoPOS zwrócił <span className="num">{goposMenu.stats.enabled}</span> aktywnych pozycji, w tym{" "}
+                  <span className="num">{goposMenu.stats.modifiers}</span> dodatków (pominięte) i{" "}
+                  <span className="num">{goposMenu.stats.withPrice}</span> z ceną.
+                </span>
+              )}
             </p>
             <div className="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-border">
               <Button variant="ghost" onClick={() => setStep("upload")}>Wstecz</Button>

@@ -1281,6 +1281,17 @@ export interface MenuPreviewDish {
   ingredients: MenuPreviewIngredient[];
 }
 
+/**
+ * @nullable
+ */
+export type GoposMenuItemPriceSource = typeof GoposMenuItemPriceSource[keyof typeof GoposMenuItemPriceSource] | null;
+
+
+export const GoposMenuItemPriceSource = {
+  menu: 'menu',
+  sales: 'sales',
+} as const;
+
 export interface GoposMenuItem {
   posProductName: string;
   name: string;
@@ -1289,13 +1300,23 @@ export interface GoposMenuItem {
   qty: number;
   /** @nullable */
   sellPrice?: number | null;
+  /** @nullable */
+  priceSource?: GoposMenuItemPriceSource;
   alreadyImported: boolean;
+}
+
+export interface GoposMenuStats {
+  fetched: number;
+  enabled: number;
+  modifiers: number;
+  withPrice: number;
 }
 
 export interface GoposMenu {
   configured: boolean;
   /** @nullable */
   error?: string | null;
+  stats?: null | GoposMenuStats;
   months: number;
   maxDishes: number;
   items: GoposMenuItem[];
@@ -1422,6 +1443,14 @@ export interface DishParams {
 
 export type CreateDish201 = {
   id: number;
+};
+
+export type ResetDishesBody = {
+  confirm: string;
+};
+
+export type ResetDishes200 = {
+  deleted: number;
 };
 
 export type GetPosItemsParams = {

@@ -96,6 +96,20 @@ describe.skipIf(!RUN_DB)("Food Cost: import menu z GoPOS", () => {
 
   });
 
+  it("DELETE /food-cost/dishes: bez potwierdzenia 400, z potwierdzeniem kasuje tylko dania tego usera", async () => {
+    await db.insert(dishesTable).values({ userId: OTHER, name: "Cudze danie", sellPrice: "10" });
+    const noConfirm = await call("/api/food-cost/dishes", { method: "DELETE", body: JSON.stringify({}) });
+    expect(noConfirm.status).toBe(400);
+    const before = await db.select().from(dishesTable).where(eq(dishesTable.userId, U));
+    expect(before.length).toBeGreaterThan(0);
+
+    const res = await call("/api/food-cost/dishes", { method: "DELETE", body: JSON.stringify({ confirm: "WYZERUJ" }) });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { deleted: number }).deleted).toBe(before.length);
+    expect(await db.select().from(dishesTable).where(eq(dishesTable.userId, U))).toHaveLength(0);
+    expect(await db.select().from(dishesTable).where(eq(dishesTable.userId, OTHER))).toHaveLength(1);
+  });
+
   it("POST /food-cost/import-menu/gopos: odrzuca pustą i zbyt długą listę", async () => {
     const empty = await call("/api/food-cost/import-menu/gopos", { method: "POST", body: JSON.stringify({ dishes: [] }) });
     expect(empty.status).toBe(400);

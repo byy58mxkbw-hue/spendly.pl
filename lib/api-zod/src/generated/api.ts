@@ -44,6 +44,18 @@ export const CreateDishResponse = zod.object({
 
 
 /**
+ * @summary Delete ALL dishes of the user (reset menu before re-import). Requires confirm "WYZERUJ".
+ */
+export const ResetDishesBody = zod.object({
+  "confirm": zod.string()
+})
+
+export const ResetDishesResponse = zod.object({
+  "deleted": zod.number()
+})
+
+
+/**
  * @summary Get dish detail with ingredients and cost breakdown
  */
 export const GetDishParams = zod.object({
@@ -258,6 +270,12 @@ export const ImportMenuResponse = zod.object({
 export const GetGoposMenuResponse = zod.object({
   "configured": zod.boolean(),
   "error": zod.string().nullish(),
+  "stats": zod.union([zod.null(),zod.object({
+  "fetched": zod.number(),
+  "enabled": zod.number(),
+  "modifiers": zod.number(),
+  "withPrice": zod.number()
+})]).optional(),
   "months": zod.number(),
   "maxDishes": zod.number(),
   "items": zod.array(zod.object({
@@ -266,6 +284,7 @@ export const GetGoposMenuResponse = zod.object({
   "category": zod.string().nullish(),
   "qty": zod.number(),
   "sellPrice": zod.number().nullish(),
+  "priceSource": zod.union([zod.literal('menu'),zod.literal('sales'),zod.literal(null)]).nullish(),
   "alreadyImported": zod.boolean()
 }))
 })

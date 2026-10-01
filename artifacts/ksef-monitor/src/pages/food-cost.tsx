@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { Combobox } from "@/components/ui/combobox";
 
 const MenuImportDialog = lazy(() => import("./menu-import-dialog"));
+const ResetMenuDialog = lazy(() => import("./food-cost-reset-dialog"));
 
 const MONTHS = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
 function currentMonth(): string { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`; }
@@ -988,6 +989,7 @@ export default function FoodCostPage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showReset, setShowReset] = useState(false);
   const [viewDishId, setViewDishId] = useState<number | null>(null);
   const [editDishId, setEditDishId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
@@ -1044,6 +1046,15 @@ export default function FoodCostPage() {
             <p className="text-xs text-muted-foreground mt-0.5">Receptury i analiza marż</p>
           </div>
           <div className="grid grid-cols-2 gap-2 md:flex md:shrink-0">
+            {dishes.length > 0 && (
+              <Button
+                variant="ghost"
+                onClick={() => setShowReset(true)}
+                className="h-9 text-sm w-full md:w-auto col-span-2 md:col-span-1 text-muted-foreground hover:text-negative"
+              >
+                <Trash2 className="w-4 h-4 mr-1" /> Wyzeruj menu
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setShowImport(true)} className="h-9 text-sm w-full md:w-auto">
               <Sparkles className="w-4 h-4 mr-1" /> Importuj z menu
             </Button>
@@ -1165,6 +1176,20 @@ export default function FoodCostPage() {
       </div>
 
       {/* Dialogs / Sheets */}
+      {showReset && (
+        <Suspense fallback={null}>
+          <ResetMenuDialog
+            dishCount={dishes.length}
+            onClose={() => setShowReset(false)}
+            onDone={() => {
+              setShowReset(false);
+              // Od razu do importu — po to się zeruje menu.
+              setShowImport(true);
+            }}
+          />
+        </Suspense>
+      )}
+
       {showImport && (
         <Suspense fallback={null}>
           <MenuImportDialog

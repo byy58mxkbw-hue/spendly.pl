@@ -122,6 +122,8 @@ import type {
   ProductQuantityTrendRow,
   RecentPurchase,
   RepriceDish200,
+  ResetDishes200,
+  ResetDishesBody,
   ResuggestCostCenters200,
   RetryKsefPendingResult,
   SaveMenuDishes201,
@@ -315,6 +317,76 @@ export const useCreateDish = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateDishMutationOptions(options));
+    }
+
+export const getResetDishesUrl = () => {
+
+
+
+
+  return `/api/food-cost/dishes`
+}
+
+/**
+ * @summary Delete ALL dishes of the user (reset menu before re-import). Requires confirm "WYZERUJ".
+ */
+export const resetDishes = async (resetDishesBody: ResetDishesBody, options?: RequestInit): Promise<ResetDishes200> => {
+
+  return customFetch<ResetDishes200>(getResetDishesUrl(),
+  {
+    ...options,
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(resetDishesBody)
+  }
+);}
+
+
+
+
+export const getResetDishesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetDishes>>, TError,{data: BodyType<ResetDishesBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resetDishes>>, TError,{data: BodyType<ResetDishesBody>}, TContext> => {
+
+const mutationKey = ['resetDishes'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resetDishes>>, {data: BodyType<ResetDishesBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  resetDishes(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResetDishesMutationResult = NonNullable<Awaited<ReturnType<typeof resetDishes>>>
+    export type ResetDishesMutationBody = BodyType<ResetDishesBody>
+    export type ResetDishesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete ALL dishes of the user (reset menu before re-import). Requires confirm "WYZERUJ".
+ */
+export const useResetDishes = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resetDishes>>, TError,{data: BodyType<ResetDishesBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resetDishes>>,
+        TError,
+        {data: BodyType<ResetDishesBody>},
+        TContext
+      > => {
+      return useMutation(getResetDishesMutationOptions(options));
     }
 
 export const getGetDishUrl = (id: number,) => {

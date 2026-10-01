@@ -10,7 +10,7 @@ import { periodFromQuery, monthsInRange } from "../lib/period";
 import { captureServer } from "../lib/telemetry.js";
 import { normalizeName, groupPosByProduct, bestFuzzyMatch, sharesCommonPrefix, commonWordPrefix } from "../lib/pos-group.js";
 import { decryptSecret } from "../lib/encryption";
-import { getGoposToken, fetchCurrentMenu, type GoposMenuProduct } from "../services/gopos-client";
+import { getGoposToken, fetchCurrentMenu, type GoposMenuProduct, type GoposMenuStats } from "../services/gopos-client";
 
 const router: IRouter = Router();
 
@@ -599,6 +599,21 @@ router.put("/food-cost/dishes/:id", async (req, res): Promise<void> => {
 });
 
 // ─── Delete dish ──────────────────────────────────────────────────────────────
+// Wyzerowanie menu: usuwa WSZYSTKIE dania usera (składniki kasują się kaskadowo),
+// żeby dało się wgrać menu od nowa. Produkty zostają — są współdzielone z
+// fakturami. Wymaga jawnego potwierdzenia w body, żeby przypadkowe wywołanie
+// (np. błąd w kodzie frontu) nie skasowało całej karty.
+router.delete("/food-cost/dishes", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  if ((req.body as { confirm?: unknown })?.confirm !== "WYZERUJ") {
+    res.status(400).json({ error: "Brak potwierdzenia wyzerowania menu." });
+    return;
+  }
+  const deleted = await db.delete(dishesTable).where(eq(dishesTable.userId, userId)).returning({ id: dishesTable.id });
+  captureServer(userId, "food_cost_menu_reset", { deleted: deleted.length });
+  res.json({ deleted: deleted.length });
+});
+
 router.delete("/food-cost/dishes/:id", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const params = DeleteDishParams.safeParse({ id: parseInt(req.params.id, 10) });
@@ -883,8 +898,14 @@ export type GoposMenuListItem = {
   category: string | null;
   qty: number;
   sellPrice: number | null;
+  /** Skąd cena: karta GoPOS albo (gdy w karcie brak) średnia ze sprzedaży. */
+  priceSource: "menu" | "sales" | null;
   alreadyImported: boolean;
 };
+
+// VAT gastronomii na jedzenie — tylko do zapasowej ceny ze sprzedaży (POS raportuje
+// netto, a cena dania w Food Cost jest brutto jak w karcie).
+const SALES_PRICE_VAT = 0.08;
 
 /**
  * Aktualne menu GoPOS → lista dań do importu. Czysta funkcja (bez sieci i bazy),
@@ -902,14 +923,14 @@ export function buildGoposMenuList(
   dishes: Array<{ name: string; posProductName: string | null }>,
 ): GoposMenuListItem[] {
   // Nazwy ze sprzedaży → nazwa, pod którą Food Cost szuka sprzedaży dania.
-  const salesLink = new Map<string, { link: string; qty: number }>();
+  const salesLink = new Map<string, { link: string; qty: number; net: number }>();
   for (const g of groupPosByProduct(sales)) {
     const split = g.members.length > 1 && !sharesCommonPrefix(g.members.map((m) => m.name));
     if (split) {
-      for (const m of g.members) salesLink.set(normalizeName(m.name), { link: m.name, qty: m.qty });
+      for (const m of g.members) salesLink.set(normalizeName(m.name), { link: m.name, qty: m.qty, net: m.net });
       continue;
     }
-    const entry = { link: g.name, qty: g.qty };
+    const entry = { link: g.name, qty: g.qty, net: g.net };
     salesLink.set(normalizeName(g.name), entry);
     for (const m of g.members) if (!salesLink.has(normalizeName(m.name))) salesLink.set(normalizeName(m.name), entry);
   }
@@ -944,13 +965,17 @@ export function buildGoposMenuList(
     const candidates = [name, ...members.map((m) => m.name)];
     const sale = candidates.map((c) => salesLink.get(normalizeName(c))).find(Boolean) ?? null;
     const prices = members.map((m) => m.price).filter((v): v is number => v != null);
+    const menuPrice = prices.length > 0 ? Math.min(...prices) : null;
+    const salesPrice = sale && sale.qty > 0 && sale.net > 0 ? Math.round((sale.net / sale.qty) * (1 + SALES_PRICE_VAT) * 100) / 100 : null;
     items.push({
       posProductName: sale?.link ?? name,
       name,
       category: members.map((m) => m.category).find(Boolean) ?? null,
       qty: sale ? Math.round(sale.qty * 100) / 100 : 0,
-      // Cena z karty GoPOS (brutto). Przy wariantach — najniższa.
-      sellPrice: prices.length > 0 ? Math.min(...prices) : null,
+      // Cena z karty GoPOS (brutto), przy wariantach najniższa. Gdy karta nie ma
+      // ceny — średnia cena ze sprzedaży (netto × VAT), edytowalna w podglądzie.
+      sellPrice: menuPrice ?? salesPrice,
+      priceSource: menuPrice != null ? "menu" : salesPrice != null ? "sales" : null,
       alreadyImported: candidates.some((c) => existing.has(normalizeName(c))) || (sale != null && existing.has(normalizeName(sale.link))),
     });
   }
@@ -963,15 +988,16 @@ router.get("/food-cost/gopos-menu", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const empty = { months: GOPOS_MENU_MONTHS, maxDishes: GOPOS_MENU_MAX_DISHES, items: [] as GoposMenuListItem[] };
   const [cfg] = await db.select().from(goposConfigTable).where(eq(goposConfigTable.userId, userId)).limit(1);
-  if (!cfg || !cfg.locationId) { res.json({ ...empty, configured: false, error: null }); return; }
+  if (!cfg || !cfg.locationId) { res.json({ ...empty, configured: false, stats: null, error: null }); return; }
 
   let menu: GoposMenuProduct[];
+  let stats: GoposMenuStats;
   try {
     const token = await getGoposToken(cfg.clientId, decryptSecret(cfg.encryptedClientSecret), cfg.locationId);
-    menu = await fetchCurrentMenu(token, cfg.locationId);
+    ({ products: menu, stats } = await fetchCurrentMenu(token, cfg.locationId));
   } catch (err) {
     req.log.warn({ err: err instanceof Error ? err.message : String(err) }, "gopos-menu: nie udało się pobrać menu");
-    res.json({ ...empty, configured: true, error: "Nie udało się pobrać aktualnego menu z GoPOS. Spróbuj ponownie za chwilę." });
+    res.json({ ...empty, configured: true, stats: null, error: "Nie udało się pobrać aktualnego menu z GoPOS. Spróbuj ponownie za chwilę." });
     return;
   }
 
@@ -992,7 +1018,8 @@ router.get("/food-cost/gopos-menu", async (req, res): Promise<void> => {
       .where(eq(dishesTable.userId, userId)),
   ]);
   const sales = rows.map((r) => ({ name: r.name, posProductId: r.posProductId, qty: Number(r.qty) || 0, net: Number(r.net) || 0 }));
-  res.json({ ...empty, configured: true, error: null, items: buildGoposMenuList(menu, sales, dishes) });
+  req.log.info({ stats }, "gopos-menu: pobrano menu");
+  res.json({ ...empty, configured: true, error: null, stats, items: buildGoposMenuList(menu, sales, dishes) });
 });
 
 const GOPOS_MENU_PROMPT = `Jesteś doświadczonym szefem kuchni i kalkulantem food cost. Dostajesz listę pozycji menu restauracji (z systemu kasowego), każdą z numerem "idx", nazwą i kategorią. Oszacuj skład JEDNEJ porcji każdej pozycji.
