@@ -93,7 +93,10 @@ export async function fetchSales(token: string, organizationId: string, from: st
 // odwołaniach z aktywnych menu zostawił tylko 7 pozycji z menu „SALA WESELNA" —
 // główna karta restauracji nie była w nich widoczna. Aktywna (ENABLED) pozycja
 // w GoPOS = pozycja, którą dziś da się sprzedać, czyli aktualne menu.
-// Typ MODIFIER (dodatki typu „extra ser") pomijamy — to nie są dania.
+// Typu MODIFIER NIE pomijamy: na realnym koncie (2026-10-01) 591 z 598 aktywnych
+// pozycji — w tym wszystkie dania z karty — miało type=MODIFIER, a PRODUCT tylko
+// 7 usług „SALA WESELNA". Typ nie odróżnia więc dań od dodatków; zawężenie robi
+// UI (domyślnie zaznaczone tylko pozycje ze sprzedażą).
 export type GoposMenuProduct = {
   id: string;
   name: string;
@@ -102,7 +105,19 @@ export type GoposMenuProduct = {
   groupId: string | null;
   groupName: string | null;
 };
-export type GoposMenuStats = { fetched: number; enabled: number; modifiers: number; withPrice: number };
+export type GoposMenuStats = {
+  fetched: number;
+  enabled: number;
+  /** Ile aktywnych pozycji ma type=MODIFIER (informacyjnie — nie są pomijane). */
+  modifiers: number;
+  withPrice: number;
+  /**
+   * Diagnostyka: pola pierwszej pozycji i surowa wartość jej ceny. Pozwala ustalić
+   * na realnym koncie, gdzie GoPOS trzyma cenę (spec tego nie precyzuje).
+   * Bez danych wrażliwych — to struktura karty menu, nie dane klientów.
+   */
+  sample: string | null;
+};
 
 type GoposItemDto = {
   id?: number;
@@ -131,7 +146,7 @@ export async function fetchCurrentMenu(
   organizationId: string,
 ): Promise<{ products: GoposMenuProduct[]; stats: GoposMenuStats }> {
   const org = encodeURIComponent(organizationId);
-  const stats: GoposMenuStats = { fetched: 0, enabled: 0, modifiers: 0, withPrice: 0 };
+  const stats: GoposMenuStats = { fetched: 0, enabled: 0, modifiers: 0, withPrice: 0, sample: null };
   const products: GoposMenuProduct[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
     const url = `${API_BASE}/${org}/items?status=ENABLED&include=category,item_group,price_overrides&size=100&page=${page}`;
@@ -143,7 +158,11 @@ export async function fetchCurrentMenu(
       if (it.id == null || !it.name?.trim()) continue;
       if (it.status && it.status !== "ENABLED") continue;
       stats.enabled++;
-      if (it.type === "MODIFIER") { stats.modifiers++; continue; }
+      if (it.type === "MODIFIER") stats.modifiers++;
+      if (stats.sample == null) {
+        const raw = it as Record<string, unknown>;
+        stats.sample = `pola: ${Object.keys(raw).join(", ")} | price: ${JSON.stringify(raw.price ?? null)} | price_overrides: ${JSON.stringify(raw.price_overrides ?? null)}`.slice(0, 400);
+      }
       // Cena bazowa, a gdy jej brak — pierwsza dodatnia cena z nadpisań.
       let price = priceOf(it.price);
       if (!(price > 0)) price = (it.price_overrides ?? []).map((o) => priceOf(o.price)).find((v) => v > 0) ?? 0;

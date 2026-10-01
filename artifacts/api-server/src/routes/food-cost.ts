@@ -979,7 +979,11 @@ export function buildGoposMenuList(
       alreadyImported: candidates.some((c) => existing.has(normalizeName(c))) || (sale != null && existing.has(normalizeName(sale.link))),
     });
   }
-  items.sort((a, b) => (a.category ?? "~").localeCompare(b.category ?? "~", "pl") || a.name.localeCompare(b.name, "pl"));
+  // W kategorii najpierw to, co się sprzedaje — pozycje bez sprzedaży (często
+  // dodatki: GoPOS nie odróżnia ich typem od dań) lądują na końcu.
+  items.sort(
+    (a, b) => (a.category ?? "~").localeCompare(b.category ?? "~", "pl") || b.qty - a.qty || a.name.localeCompare(b.name, "pl"),
+  );
   return items;
 }
 

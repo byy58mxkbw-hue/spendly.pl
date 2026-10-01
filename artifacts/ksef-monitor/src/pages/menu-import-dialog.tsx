@@ -125,8 +125,13 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
   const [goposQuery, setGoposQuery] = useState("");
 
   function openGopos() {
-    // Domyślnie zaznaczone wszystko, czego jeszcze nie ma w Food Cost (do limitu).
-    const fresh = goposItems.filter((i) => !i.alreadyImported).slice(0, goposMax);
+    // Domyślnie zaznaczone tylko pozycje, które się SPRZEDAJĄ i których nie ma
+    // jeszcze w Food Cost — najczęściej sprzedawane, do limitu. GoPOS oznacza dania
+    // i dodatki tym samym typem, więc sprzedaż jest najlepszym sygnałem „to danie".
+    const fresh = goposItems
+      .filter((i) => !i.alreadyImported && i.qty > 0)
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, goposMax);
     setPicked(new Set(fresh.map((i) => i.posProductName)));
     setGoposQuery("");
     setStep("gopos");
@@ -388,10 +393,13 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
               {goposMenu?.months ?? 6} miesięcy.
               {goposMenu?.stats && (
                 <span className="block mt-0.5">
-                  GoPOS zwrócił <span className="num">{goposMenu.stats.enabled}</span> aktywnych pozycji, w tym{" "}
-                  <span className="num">{goposMenu.stats.modifiers}</span> dodatków (pominięte) i{" "}
-                  <span className="num">{goposMenu.stats.withPrice}</span> z ceną.
+                  GoPOS zwrócił <span className="num">{goposMenu.stats.enabled}</span> aktywnych pozycji, z czego{" "}
+                  <span className="num">{goposMenu.stats.withPrice}</span> ma cenę w karcie. Domyślnie zaznaczone są pozycje ze
+                  sprzedażą.
                 </span>
+              )}
+              {goposMenu?.stats?.sample && goposMenu.stats.withPrice === 0 && (
+                <span className="block mt-0.5 break-all opacity-70">Diagnostyka ceny: {goposMenu.stats.sample}</span>
               )}
             </p>
             <div className="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-border">

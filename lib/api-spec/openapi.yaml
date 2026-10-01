@@ -5033,6 +5033,8 @@ components:
           type: integer
         withPrice:
           type: integer
+        sample:
+          type: ["string", "null"]
       required:
         - fetched
         - enabled

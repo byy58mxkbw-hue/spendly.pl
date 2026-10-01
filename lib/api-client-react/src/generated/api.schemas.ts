@@ -1310,6 +1310,8 @@ export interface GoposMenuStats {
   enabled: number;
   modifiers: number;
   withPrice: number;
+  /** @nullable */
+  sample?: string | null;
 }
 
 export interface GoposMenu {

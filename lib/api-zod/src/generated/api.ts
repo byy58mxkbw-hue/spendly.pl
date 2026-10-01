@@ -274,7 +274,8 @@ export const GetGoposMenuResponse = zod.object({
   "fetched": zod.number(),
   "enabled": zod.number(),
   "modifiers": zod.number(),
-  "withPrice": zod.number()
+  "withPrice": zod.number(),
+  "sample": zod.string().nullish()
 })]).optional(),
   "months": zod.number(),
   "maxDishes": zod.number(),

@@ -22,7 +22,7 @@ const item = (id: number, name: string, extra: Record<string, unknown> = {}) => 
 });
 
 describe("fetchCurrentMenu", () => {
-  it("bierze wszystkie aktywne pozycje (bez filtra po menu) i pomija dodatki", async () => {
+  it("bierze wszystkie aktywne pozycje, także typu MODIFIER (tak GoPOS oznacza dania)", async () => {
     const calls = stubItems([[
       item(10, "Żurek", { category: { name: "ZUPY" } }),
       item(11, "Extra ser", { type: "MODIFIER" }),
@@ -30,9 +30,10 @@ describe("fetchCurrentMenu", () => {
       item(50, "Organizacja wesela", { category: { name: "SALA WESELNA" } }),
     ]]);
     const { products, stats } = await fetchCurrentMenu("t", "3130");
-    expect(products.map((m) => m.name).sort()).toEqual(["Organizacja wesela", "Żurek"]);
+    expect(products.map((m) => m.name).sort()).toEqual(["Extra ser", "Organizacja wesela", "Żurek"]);
     expect(products.find((m) => m.name === "Żurek")).toMatchObject({ price: 30, category: "ZUPY" });
-    expect(stats).toEqual({ fetched: 4, enabled: 3, modifiers: 1, withPrice: 2 });
+    expect(stats).toMatchObject({ fetched: 4, enabled: 3, modifiers: 1, withPrice: 3 });
+    expect(stats.sample).toContain("price");
     expect(calls.every((c) => c.includes("/items?") && c.includes("status=ENABLED"))).toBe(true);
   });
 
