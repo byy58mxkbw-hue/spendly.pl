@@ -7,6 +7,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { dishFoodCostPct, dishMarginPct } from "@/lib/food-cost-math";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListDishes,
@@ -368,7 +369,7 @@ function DishFormDialog({
   const liveMargin = useMemo(() => {
     const sp = parseFloat(sellPrice);
     if (!liveTotal || !sp || sp <= 0) return null;
-    return ((sp - liveTotal) / sp) * 100;
+    return dishMarginPct(liveTotal, sp); // netto/netto — jak na serwerze
   }, [liveTotal, sellPrice]);
 
   async function handleSave() {
@@ -736,7 +737,7 @@ function DishDetailSheet({
   const queryClient = useQueryClient();
   const reprice = useRepriceDish();
   const isMobile = useIsMobile();
-  const costPct = dish?.portionCost != null && dish.sellPrice > 0 ? (dish.portionCost / dish.sellPrice) * 100 : null;
+  const costPct = dish ? dishFoodCostPct(dish.portionCost ?? null, dish.sellPrice) : null;
   const tone = costPct != null ? foodCostTone(costPct) : null;
   const ingredients = useMemo(
     () => [...(dish?.ingredients ?? [])].sort((a, b) => (b.ingredientCost ?? -1) - (a.ingredientCost ?? -1)),
@@ -916,8 +917,7 @@ function DishCard({
   monthLabelText?: string;
   onClick: () => void;
 }) {
-  const foodCostPct = dish.portionCost != null && dish.sellPrice > 0
-    ? (dish.portionCost / dish.sellPrice) * 100 : null;
+  const foodCostPct = dishFoodCostPct(dish.portionCost ?? null, dish.sellPrice);
   const mc = marginColor(dish.marginPct);
   const sold = sales?.soldQty ?? 0;
 
@@ -1032,7 +1032,7 @@ export default function FoodCostPage() {
   const avgMargin = withMargin.length > 0 ? withMargin.reduce((s, d) => s + d.marginPct!, 0) / withMargin.length : null;
   const withCost = dishes.filter((d) => d.portionCost != null && d.sellPrice > 0);
   const avgFoodCost = withCost.length > 0
-    ? withCost.reduce((s, d) => s + (d.portionCost! / d.sellPrice) * 100, 0) / withCost.length
+    ? withCost.reduce((s, d) => s + (dishFoodCostPct(d.portionCost!, d.sellPrice) ?? 0), 0) / withCost.length
     : null;
   const lowMarginCount = dishes.filter((d) => d.marginPct != null && d.marginPct < 40).length;
 
@@ -1099,7 +1099,7 @@ export default function FoodCostPage() {
             <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-1.5">
                 <ShoppingBag className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-sm font-semibold text-foreground">Realny food cost — GoPOS</span>
+                <span className="text-sm font-semibold text-foreground">Food cost z receptur × sprzedaż GoPOS</span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button onClick={() => setMonth(shiftMonth(month, -1))} className="p-1 rounded-lg border border-border hover:bg-secondary/50" aria-label="Poprzedni miesiąc"><ChevronLeft className="w-4 h-4" /></button>
@@ -1109,7 +1109,7 @@ export default function FoodCostPage() {
             </div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-3 md:grid-cols-4">
               <div>
-                <p className="text-[10px] text-muted-foreground mb-0.5">Prawdziwy food cost</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Food cost z receptur</p>
                 <p className="text-xl font-bold tabular-nums" style={{ color: salesData.weighted.foodCostPct != null ? foodCostColor(salesData.weighted.foodCostPct) : undefined }}>
                   {salesData.weighted.foodCostPct != null ? `${salesData.weighted.foodCostPct.toFixed(1)}%` : "—"}
                 </p>
@@ -1119,14 +1119,14 @@ export default function FoodCostPage() {
                 <p className="text-xl font-bold text-foreground tabular-nums">{salesData.weighted.dishesSold}</p>
               </div>
               <div className="col-span-2 pt-2 border-t border-border/60 md:pt-0 md:border-t-0">
-                <p className="text-[10px] text-muted-foreground mb-0.5">Koszt / przychód dań (brutto)</p>
+                <p className="text-[10px] text-muted-foreground mb-0.5">Koszt / przychód dań (netto)</p>
                 <p className="text-sm font-semibold text-foreground tabular-nums md:mt-1">
                   {fmt(salesData.weighted.costTotal)} <span className="text-muted-foreground font-normal">/</span> {fmt(salesData.weighted.revenue)}
                 </p>
               </div>
             </div>
             <p className="text-[10px] text-muted-foreground mt-2">
-              Σ(koszt porcji × ilość) / przychód brutto <b>tych dań</b> (cena z menu × ilość). „Dań ze sprzedażą" = ile pozycji menu ma dopasowaną sprzedaż (nie liczba porcji).
+              Σ(koszt porcji × ilość) / przychód netto <b>tych dań</b> (sprzedaż netto z GoPOS). Food cost i marże liczone netto do netto, cenę z karty sprowadzamy do netto przy 8% VAT. „Dań ze sprzedażą” = ile pozycji menu ma dopasowaną sprzedaż (nie liczba porcji). To inny wskaźnik niż „Zakupy / przychód” na Dashboardzie, który dzieli wszystkie zakupy przez cały obrót.
               {(salesData.weighted.totalRevenue ?? 0) > 0 && <> Cały obrót GoPOS w okresie: {fmt(salesData.weighted.totalRevenue ?? 0)}.</>}
             </p>
             <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-border">

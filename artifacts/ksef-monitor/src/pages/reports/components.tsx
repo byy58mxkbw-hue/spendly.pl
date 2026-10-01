@@ -1021,7 +1021,7 @@ export function FoodCostHeroCard({
   const delta = prevPct != null ? pct - prevPct : null;
   return (
     <div className="glass p-5 md:p-6">
-      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Realny food cost · {monthName}</p>
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Zakupy / przychód · {monthName}</p>
       <p className="text-3xl md:text-4xl font-bold text-foreground tabular-nums mt-1">{pct.toFixed(1)}%</p>
       <div className="flex flex-wrap gap-2 mt-3">
         {delta != null ? (
@@ -1037,7 +1037,7 @@ export function FoodCostHeroCard({
           </span>
         )}
         <span className="inline-flex items-center rounded-lg bg-secondary/60 px-3 py-1.5 text-sm text-muted-foreground">
-          koszt składników ÷ przychód
+          wszystkie zakupy netto ÷ sprzedaż netto
         </span>
       </div>
     </div>

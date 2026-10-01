@@ -301,10 +301,11 @@ function ReportsInner() {
   }, [trendForDefault, autoMonthDone, preset]);
   const [tab, setTab] = useState("podsumowanie");
   const [trendMonths, setTrendMonths] = useState(6);
-  // Realny food cost za ten sam okres co reszta raportu (endpoint przyjmuje from/to).
-  const { data: foodCost } = useFoodCostRatio({ from: period.from, to: period.to });
-  const foodCostPct = foodCost?.foodCostPct ?? null;
+  // Zakupy / przychód za ten sam okres co reszta raportu (endpoint przyjmuje from/to).
+  // Liczony dla całego lokalu — przy wybranym centrum kosztów go nie pokazujemy.
   const { selectedId: costCenterId } = useCostCenter();
+  const { data: foodCost } = useFoodCostRatio({ from: period.from, to: period.to });
+  const foodCostPct = costCenterId == null ? (foodCost?.foodCostPct ?? null) : null;
   const ccParam = costCenterId != null ? { costCenterId } : {};
 
   const { data, isLoading, isError: monthlyError, refetch: refetchMonthly } = useGetMonthlyReport(

@@ -518,11 +518,14 @@ function DashboardPage() {
                 change={summary.avgPriceChange}
                 icon={TrendingUp}
               />
-              {foodCost?.foodCostPct != null && (
+              {/* Wskaźnik liczony dla CAŁEGO lokalu (przychód nie dzieli się na centra
+                  kosztów) — przy wybranym centrum go chowamy, zamiast pokazywać liczbę
+                  niepasującą do reszty przefiltrowanych kafli. */}
+              {foodCost?.foodCostPct != null && costCenterId == null && (
                 <KpiCard
-                  label="Food cost %"
+                  label="Zakupy / przychód"
                   value={`${foodCost.foodCostPct.toFixed(1)}%`}
-                  subValue={foodCostDelta != null ? `${foodCostDelta >= 0 ? "+" : ""}${foodCostDelta.toFixed(1)} p.p. vs poprz.` : "koszt z KSeF ÷ sprzedaż"}
+                  subValue={foodCostDelta != null ? `${foodCostDelta >= 0 ? "+" : ""}${foodCostDelta.toFixed(1)} p.p. vs poprz.` : "wszystkie zakupy netto ÷ sprzedaż netto"}
                   change={foodCostDelta}
                   icon={Percent}
                 />

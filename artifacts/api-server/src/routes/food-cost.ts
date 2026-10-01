@@ -8,6 +8,7 @@ import { normalizeProductName } from "../lib/categorize-ai";
 import { periodFromQuery, monthsInRange } from "../lib/period";
 
 import { captureServer } from "../lib/telemetry.js";
+import { dishFoodCostPct, dishMarginPct, netSellPrice } from "../lib/food-cost-math.js";
 import { normalizeName, groupPosByProduct, bestFuzzyMatch, sharesCommonPrefix, commonWordPrefix } from "../lib/pos-group.js";
 import { decryptSecret } from "../lib/encryption";
 import { getGoposToken, fetchCurrentMenu, type GoposMenuProduct, type GoposMenuStats } from "../services/gopos-client";
@@ -236,14 +237,14 @@ export async function computeAllDishMargins(userId: string): Promise<DishMargin[
     }));
     const { portionCost, confidencePct, invoiceCostPct } = computeDishCost(ings, prices);
     const sellPrice = parseFloat(dish.sellPrice as string);
-    const marginPct = portionCost != null && sellPrice > 0 ? ((sellPrice - portionCost) / sellPrice) * 100 : null;
+    const marginPct = dishMarginPct(portionCost, sellPrice); // netto/netto
     return {
       id: dish.id,
       name: dish.name,
       sellPrice,
       category: dish.category,
       portionCost,
-      marginPct: marginPct != null ? Math.round(marginPct * 10) / 10 : null,
+      marginPct,
       confidencePct,
       invoiceCostPct,
       ingredientCount: ings.length,
@@ -376,10 +377,16 @@ router.get("/food-cost/dishes-sales", async (req, res): Promise<void> => {
     const soldQty = s?.qty ?? 0;
     const salesNet = s?.net ?? null;
     const monthlyCost = m.portionCost != null && soldQty > 0 ? Math.round(m.portionCost * soldQty * 100) / 100 : null;
-    // Przychód z dań = cena z menu (BRUTTO) × ilość sprzedana — tylko dania, które policzyliśmy.
-    if (monthlyCost != null) { costTotal += monthlyCost; costKnown = true; dishesRevenue += m.sellPrice * soldQty; }
+    // Przychód dania NETTO: realna sprzedaż netto z GoPOS (uwzględnia rabaty i zmiany
+    // cen w okresie), a gdy jej brak — cena z karty sprowadzona do netto. Koszt też jest
+    // netto, więc food cost % liczy się netto/netto (lib/food-cost-math.ts).
+    if (monthlyCost != null) {
+      costTotal += monthlyCost;
+      costKnown = true;
+      dishesRevenue += salesNet != null && salesNet > 0 ? salesNet : netSellPrice(m.sellPrice) * soldQty;
+    }
     if (soldQty > 0) dishesSold++;
-    const foodCostPct = m.portionCost != null && m.sellPrice > 0 ? Math.round((m.portionCost / m.sellPrice) * 1000) / 10 : null;
+    const foodCostPct = dishFoodCostPct(m.portionCost, m.sellPrice);
     return {
       id: m.id,
       name: m.name,
@@ -463,7 +470,7 @@ router.get("/food-cost/dishes/:id", async (req, res): Promise<void> => {
   const { portionCost, confidencePct, invoiceCostPct, ingredientCosts, ingredientSources } = computeDishCost(ingsForCalc, prices);
 
   const sellPrice = parseFloat(dish.sellPrice as string);
-  const marginPct = portionCost != null && sellPrice > 0 ? Math.round(((sellPrice - portionCost) / sellPrice) * 1000) / 10 : null;
+  const marginPct = dishMarginPct(portionCost, sellPrice); // netto/netto
 
   res.json({
     id: dish.id,
@@ -808,7 +815,7 @@ async function buildMenuPreview(userId: string, cleanDishes: CleanMenuDish[]) {
     const known = ingredients.filter((i) => i.ingredientCost != null);
     const portionCost = known.length > 0 ? known.reduce((s, i) => s + (i.ingredientCost ?? 0), 0) : null;
     const confidencePct = ingredients.length > 0 ? Math.round((known.length / ingredients.length) * 100) : 0;
-    const foodCostPct = portionCost != null && d.sellPrice ? Math.round((portionCost / d.sellPrice) * 1000) / 10 : null;
+    const foodCostPct = d.sellPrice ? dishFoodCostPct(portionCost, d.sellPrice) : null;
     return { name: d.name, sellPrice: d.sellPrice, category: d.category, posProductName: d.posProductName, portionCost, foodCostPct, confidencePct, ingredients };
   });
 

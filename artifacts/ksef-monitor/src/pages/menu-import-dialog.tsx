@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useImportMenu, useSaveMenuDishes, useGetGoposMenu, useImportMenuFromGopos } from "@workspace/api-client-react";
 import type { MenuImportPreview, GoposMenuItem } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
+import { dishFoodCostPct } from "@/lib/food-cost-math";
 import { Upload, Loader2, Trash2, Sparkles, FileText, ImageIcon, Plug, Search } from "@/lib/icons";
 
 const MAX_PDF_PAGES = 5;
@@ -441,7 +442,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                 const costs = d.ingredients.map(liveIngredientCost);
                 const known = costs.filter((c) => c != null) as number[];
                 const portionCost = known.length > 0 ? known.reduce((s, c) => s + c, 0) : null;
-                const foodCostPct = portionCost != null && d.sellPrice ? (portionCost / d.sellPrice) * 100 : null;
+                const foodCostPct = d.sellPrice ? dishFoodCostPct(portionCost, d.sellPrice) : null;
                 // Wiarygodność: jaki % kosztu z realnych faktur (reszta = prognoza AI).
                 const invoiceCost = d.ingredients.reduce((s, i) => (i.source === "invoice" ? s + (liveIngredientCost(i) ?? 0) : s), 0);
                 const invoiceShare = portionCost != null && portionCost > 0 ? Math.round((invoiceCost / portionCost) * 100) : 0;
