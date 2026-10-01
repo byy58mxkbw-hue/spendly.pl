@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { periodFromQuery, previousPeriod, type Period } from "../lib/period";
 import { normalizeUnit, normalizedUnitSql } from "../lib/units";
-import { excludeNonSpendInvoiceTypes, spendOnly } from "../lib/invoice-line-classify.js";
+import { excludeNonSpendInvoiceTypes, spendOnly, spendInvoicesFilter } from "../lib/invoice-line-classify.js";
 
 // Wykluczenie KOR/ROZ ze zsumowanych WYDATKÓW (patrz lib/invoice-line-classify.ts) —
 // NIE stosowane w /reports/product-quantity-trend (celowo śledzi realne ilości
@@ -877,7 +877,7 @@ router.get("/reports/cost-centers", async (req, res): Promise<void> => {
     FROM invoices i
     LEFT JOIN cost_centers cc ON cc.id = i.cost_center_id
     WHERE i.user_id = ${userId} AND i.invoice_date >= ${startDate} AND i.invoice_date <= ${endDate}
-      AND (i.excluded IS NULL OR i.excluded = false)
+      ${spendInvoicesFilter("i")}
     GROUP BY i.cost_center_id, cc.name, cc.color
     ORDER BY total_amount DESC
   `);
@@ -886,7 +886,7 @@ router.get("/reports/cost-centers", async (req, res): Promise<void> => {
     SELECT cost_center_id, SUM(CAST(total_amount AS numeric)) AS total_amount
     FROM invoices
     WHERE user_id = ${userId} AND invoice_date >= ${prevStart} AND invoice_date <= ${prevEnd}
-      AND (excluded IS NULL OR excluded = false)
+      ${spendInvoicesFilter("invoices")}
     GROUP BY cost_center_id
   `);
 

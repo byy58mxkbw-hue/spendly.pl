@@ -78,3 +78,29 @@ const ADVANCE_SETTLEMENT_LINE_SQL_PATTERN = "(^|[^a-ząćęłńóśźż])zaliczk
 export function realQuantityOnly(itemsAlias: string, qtyExpr: SQL): SQL {
   return sql`(CASE WHEN lower(${sql.raw(itemsAlias)}.product_name) ~ ${ADVANCE_SETTLEMENT_LINE_SQL_PATTERN} THEN 0 ELSE ${qtyExpr} END)`;
 }
+
+// ─── JEDNA definicja „wydatku" na poziomie faktury ────────────────────────────
+// Audyt spójności 2026-10-01: Faktury, centra kosztów, dostawcy i AI CFO liczyły
+// sumy z różnymi filtrami (jedne wliczały faktury wykluczone, inne korekty),
+// więc ta sama kwota różniła się między ekranami. Każde zapytanie SUMUJĄCE
+// wydatki ma filtrować faktury dokładnie tak:
+//   - bez faktur wykluczonych przez użytkownika (excluded),
+//   - bez korekt (KOR) i faktur rozliczeniowych (ROZ) — patrz wyżej.
+// Kwota: BRUTTO (reguła 29) — z pozycji `total_price * (1 + vat/100)` albo z
+// `invoices.total_amount` (też brutto); obie drogi dają tę samą sumę.
+export const NON_SPEND_INVOICE_TYPES = ["KOR", "ROZ"] as const;
+
+export function spendInvoicesFilter(invoicesAlias: string): SQL {
+  return sql.raw(`AND ${invoicesAlias}.excluded = false ${excludeNonSpendSql(invoicesAlias)}`);
+}
+
+function excludeNonSpendSql(alias: string): string {
+  return `AND ${alias}.invoice_type IS DISTINCT FROM 'KOR' AND ${alias}.invoice_type IS DISTINCT FROM 'ROZ'`;
+}
+
+/** Wersja JS tej samej reguły — gdy suma liczy się w kodzie, nie w SQL. */
+export function isSpendInvoice(inv: { excluded?: boolean | null; invoiceType?: string | null }): boolean {
+  if (inv.excluded) return false;
+  const t = inv.invoiceType?.toUpperCase() ?? null;
+  return t !== "KOR" && t !== "ROZ";
+}

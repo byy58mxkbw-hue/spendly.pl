@@ -19,7 +19,7 @@ import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-o
 import { encryptSecret } from "../lib/encryption";
 import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
 import { parseKSeFXml } from "../lib/invoice-xml-parse";
-import { isAdvanceSettlementLine, excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
+import { isAdvanceSettlementLine, excludeNonSpendInvoiceTypes, spendInvoicesFilter, isSpendInvoice } from "../lib/invoice-line-classify.js";
 
 const router: IRouter = Router();
 
@@ -253,6 +253,7 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
       paymentDueDate: invoicesTable.paymentDueDate,
       isPaid: invoicesTable.isPaid,
       paidAt: invoicesTable.paidAt,
+      invoiceType: invoicesTable.invoiceType,
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
@@ -302,7 +303,7 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
     WHERE i.user_id = ${userId}
       AND i.invoice_date >= ${prevFirstDay}
       AND i.invoice_date <= ${prevLastDay}
-      AND i.excluded = false
+      ${spendInvoicesFilter("i")}
       ${ccSqlFilter}
   `);
 
@@ -325,17 +326,21 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
     }
     const day = dayMap.get(d)!;
     day.invoices.push(inv);
-    day.totalAmount += toNum(inv.totalAmount);
+    // Suma dnia = WYDATEK (wspólna definicja, lib/invoice-line-classify.ts): korekta
+    // i faktura rozliczeniowa zostają na liście, ale nie podbijają sumy — tak samo
+    // liczą Dashboard, Raporty i Excel, więc kwota miesiąca zgadza się między ekranami.
+    const spend = isSpendInvoice(inv) ? toNum(inv.totalAmount) : 0;
+    day.totalAmount += spend;
 
     const existing = day.supplierMap.get(inv.supplierId);
     if (existing) {
-      existing.totalAmount += toNum(inv.totalAmount);
+      existing.totalAmount += spend;
       existing.invoiceCount += 1;
     } else {
       day.supplierMap.set(inv.supplierId, {
         supplierId: inv.supplierId,
         supplierName: inv.supplierName,
-        totalAmount: toNum(inv.totalAmount),
+        totalAmount: spend,
         invoiceCount: 1,
       });
     }
@@ -362,7 +367,7 @@ router.get("/invoices/timeline", async (req, res): Promise<void> => {
         }));
       const suppliers = Array.from(day.supplierMap.values())
         .sort((a, b) => b.totalAmount - a.totalAmount);
-      const invoices = day.invoices.map((inv) => ({
+      const invoices = day.invoices.map(({ invoiceType: _t, ...inv }) => ({
         ...inv,
         totalAmount: toNum(inv.totalAmount),
         itemCount: 0,
@@ -439,7 +444,7 @@ router.get("/invoices/calendar", async (req, res): Promise<void> => {
     WHERE user_id = ${userId}
       AND invoice_date >= ${firstDay}
       AND invoice_date <= ${lastDay}
-      AND excluded = false
+      ${spendInvoicesFilter("invoices")}
       ${calCcFilter}
     GROUP BY 1
     ORDER BY 1

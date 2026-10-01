@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, eq, sql, isNull } from "drizzle-orm";
 import { db, suppliersTable, invoicesTable, invoiceItemsTable, costCentersTable } from "@workspace/db";
-import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
+import { excludeNonSpendInvoiceTypes, spendInvoicesFilter } from "../lib/invoice-line-classify.js";
 import {
   CreateSupplierBody,
   UpdateSupplierBody,
@@ -38,6 +38,9 @@ router.get("/suppliers", async (req, res): Promise<void> => {
         ? and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId), isNull(invoicesTable.costCenterId))
         : and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId), eq(invoicesTable.costCenterId, costCenterId))
       : and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId));
+  // Faktury wykluczone przez użytkownika nie liczą się ani do liczby, ani do sumy
+  // (wspólna definicja wydatku, lib/invoice-line-classify.ts).
+  const ccJoinCondSpend = and(ccJoinCond, eq(invoicesTable.excluded, false));
 
   const ccSpendSql =
     costCenterId != null
@@ -69,11 +72,11 @@ router.get("/suppliers", async (req, res): Promise<void> => {
         SELECT sum((ii2.total_price::numeric * (1 + COALESCE(ii2.vat_rate, 0) / 100)))
         FROM invoice_items ii2
         INNER JOIN invoices i2 ON i2.id = ii2.invoice_id
-        WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId} ${excludeNonSpendInvoiceTypes("i2")}${ccSpendSql}
+        WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId} ${spendInvoicesFilter("i2")}${ccSpendSql}
       )`,
     })
     .from(suppliersTable)
-    .leftJoin(invoicesTable, ccJoinCond)
+    .leftJoin(invoicesTable, ccJoinCondSpend)
     .leftJoin(costCentersTable, eq(suppliersTable.defaultCostCenterId, costCentersTable.id))
     .where(whereConditions)
     .groupBy(suppliersTable.id, costCentersTable.name, costCentersTable.color)
@@ -118,13 +121,13 @@ router.get("/suppliers/:id", async (req, res): Promise<void> => {
         SELECT sum(${invoiceItemsTable.totalPrice}::numeric * (1 + coalesce(${invoiceItemsTable.vatRate}::numeric, 0) / 100))
         FROM ${invoiceItemsTable}
         INNER JOIN ${invoicesTable} AS i2 ON i2.id = ${invoiceItemsTable.invoiceId}
-        WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId}
+        WHERE i2.supplier_id = ${suppliersTable.id} AND i2.user_id = ${userId} ${spendInvoicesFilter("i2")}
       )`,
     })
     .from(suppliersTable)
     .leftJoin(
       invoicesTable,
-      and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId)),
+      and(eq(invoicesTable.supplierId, suppliersTable.id), eq(invoicesTable.userId, userId), eq(invoicesTable.excluded, false)),
     )
     .where(and(eq(suppliersTable.id, params.data.id), eq(suppliersTable.userId, userId)))
     .groupBy(suppliersTable.id);
