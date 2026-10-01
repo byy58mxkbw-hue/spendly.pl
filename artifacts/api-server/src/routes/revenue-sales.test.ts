@@ -209,4 +209,26 @@ describe.skipIf(!RUN_DB)("Sprzedaż wg kategorii dania", () => {
     const filetRow = ws.getRows(4, ws.rowCount)!.find((r) => r.getCell(1).value === "Filet z kurczaka");
     expect(filetRow?.getCell(2).value).toBe("Dania główne");
   });
+
+  it("/sales.xlsx: pozycje rozdzielone na sekcje kategorii z sumą + arkusz „Kategorie”", async () => {
+    authState.userId = UC;
+    const res = await fetch(`${baseUrl}/api/sales.xlsx?month=2026-07`);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(Buffer.from(await res.arrayBuffer()));
+    const ws = wb.worksheets[0];
+    const col1 = ws.getRows(4, ws.rowCount)!.map((r) => String(r.getCell(1).value ?? ""));
+    const headIdx = col1.findIndex((v) => v.startsWith("Dania główne ·"));
+    const sumIdx = col1.indexOf("Suma: Dania główne");
+    const filetIdx = col1.indexOf("Filet z kurczaka");
+    expect(headIdx).toBeGreaterThanOrEqual(0);
+    expect(filetIdx).toBeGreaterThan(headIdx);
+    expect(sumIdx).toBeGreaterThan(filetIdx);
+    // Niezakategoryzowane zawsze na końcu, przed sumą całości.
+    const uncIdx = col1.findIndex((v) => v.startsWith("Niezakategoryzowane ·"));
+    expect(uncIdx).toBeGreaterThan(sumIdx);
+    expect(col1.some((v) => v.startsWith("SUMA CAŁOŚCI"))).toBe(true);
+    const cats = wb.getWorksheet("Kategorie")!;
+    const dg = cats.getRows(3, cats.rowCount)!.find((r) => r.getCell(1).value === "Dania główne");
+    expect(Number(dg?.getCell(5).value)).toBeCloseTo(4000, 2);
+  });
 });

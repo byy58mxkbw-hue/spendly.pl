@@ -442,7 +442,7 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
   // podstawa niż wydatki z faktur (BRUTTO, reguła 29). Piszemy to na arkuszu,
   // żeby nikt nie zestawił tych dwóch liczb wprost ze sobą.
   const subRow = ws.addRow([
-    `Kwoty netto ze sprzedaży POS · porównanie z okresem: ${prevLabel} · warianty (np. stopnie wysmażenia) wcięte pod pozycją`,
+    `Kwoty netto ze sprzedaży POS · porównanie z okresem: ${prevLabel} · pozycje pogrupowane wg kategorii z sumą każdej · warianty (np. stopnie wysmażenia) wcięte pod pozycją · zestawienie kategorii w arkuszu „Kategorie”`,
   ]);
   ws.mergeCells(subRow.number, 1, subRow.number, nCols);
   subRow.getCell(1).font = { italic: true, size: 10, color: { argb: "FF64748B" } };
@@ -488,39 +488,123 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
     return row;
   }
 
-  for (const g of groups) {
-    addLeafRow(g, false, g.category ?? "Niezakategoryzowane");
-    for (const v of g.variants) addLeafRow(v, true);
-  }
-
-  if (groups.length > 0) {
-    const totalQty = groups.reduce((s, g) => s + g.qty, 0);
-    const prevQty = groups.reduce((s, g) => s + (g.prevQty ?? 0), 0);
-    const totalNet = groups.reduce((s, g) => s + g.netValue, 0);
-    const prevNet = groups.reduce((s, g) => s + (g.prevNet ?? 0), 0);
-    const sum = ws.addRow([
-      "SUMA (bez wierszy wciętych)",
+  // Wiersz sumy (kategorii albo całości). Zmiana % liczona z sum, nie średnia
+  // z pozycji — inaczej mała pozycja z +300% zawyżałaby wynik kategorii.
+  function addSumRow(text: string, members: SalesGroup[], strong: boolean) {
+    const qty = members.reduce((s, g) => s + g.qty, 0);
+    const net = members.reduce((s, g) => s + g.netValue, 0);
+    const hasPrev = members.some((g) => g.prevQty != null || g.prevNet != null);
+    const prevQty = members.reduce((s, g) => s + (g.prevQty ?? 0), 0);
+    const prevNet = members.reduce((s, g) => s + (g.prevNet ?? 0), 0);
+    const row = ws.addRow([
+      text,
       "",
-      round(totalQty, 2),
-      round(prevQty, 2),
-      prevQty > 0 ? round((totalQty - prevQty) / prevQty, 6) : null,
-      round(totalNet, 2),
-      round(prevNet, 2),
-      prevNet > 0 ? round((totalNet - prevNet) / prevNet, 6) : null,
+      round(qty, 2),
+      hasPrev ? round(prevQty, 2) : null,
+      prevQty > 0 ? round((qty - prevQty) / prevQty, 6) : hasPrev ? null : "nowa",
+      round(net, 2),
+      hasPrev ? round(prevNet, 2) : null,
+      prevNet > 0 ? round((net - prevNet) / prevNet, 6) : hasPrev ? null : "nowa",
     ]);
-    sum.eachCell({ includeEmpty: true }, (c) => {
-      c.font = { bold: true };
-      c.border = { top: { style: "thin", color: { argb: "FF1F2937" } } };
+    row.eachCell({ includeEmpty: true }, (c) => {
+      c.font = { bold: true, size: strong ? 12 : 11 };
+      c.border = { top: { style: strong ? "medium" : "thin", color: { argb: "FF1F2937" } } };
     });
-    sum.getCell(3).numFmt = QTY;
-    sum.getCell(4).numFmt = QTY;
-    sum.getCell(5).numFmt = PCT;
-    sum.getCell(6).numFmt = CUR;
-    sum.getCell(7).numFmt = CUR;
-    sum.getCell(8).numFmt = PCT;
+    row.getCell(3).numFmt = QTY;
+    row.getCell(4).numFmt = QTY;
+    row.getCell(5).numFmt = PCT;
+    row.getCell(6).numFmt = CUR;
+    row.getCell(7).numFmt = CUR;
+    row.getCell(8).numFmt = PCT;
+    return row;
   }
 
-  ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: nCols } };
+  // Sekcje wg kategorii — w tej samej kolejności i z tym samym kluczowaniem co
+  // wykres „Sprzedaż wg kategorii" (`buildCategoryBreakdown`), żeby plik i ekran
+  // pokazywały to samo. „Niezakategoryzowane" zawsze na końcu.
+  const breakdown = buildCategoryBreakdown(groups);
+  const sections = breakdown
+    .slice()
+    .sort((a, b) => Number(a.category === UNCATEGORIZED) - Number(b.category === UNCATEGORIZED))
+    .map((c) => ({ ...c, groups: groups.filter((g) => (g.category ?? UNCATEGORIZED) === c.category) }));
+
+  for (const s of sections) {
+    const uncategorized = s.category === UNCATEGORIZED;
+    const head = ws.addRow([`${s.label} · ${s.pct.toLocaleString("pl-PL")}% wartości sprzedaży`]);
+    ws.mergeCells(head.number, 1, head.number, nCols);
+    const hc = head.getCell(1);
+    hc.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
+    // Terakota marki dla kategorii, szarość dla „Niezakategoryzowane" — od razu
+    // widać, który blok wymaga uporządkowania kategorii w POS.
+    hc.fill = { type: "pattern", pattern: "solid", fgColor: { argb: uncategorized ? "FF8A7C63" : "FFC4562F" } };
+    head.height = 20;
+
+    for (const g of s.groups) {
+      addLeafRow(g, false, s.label);
+      for (const v of g.variants) addLeafRow(v, true);
+    }
+    addSumRow(`Suma: ${s.label}`, s.groups, false);
+    ws.addRow([]);
+  }
+
+  if (groups.length > 0) addSumRow("SUMA CAŁOŚCI (bez wierszy wciętych)", groups, true);
+
+  // ─── Arkusz 2: zestawienie kategorii (jedna linia = jedna kategoria) ─────────
+  if (sections.length > 0) {
+    const cs = wb.addWorksheet("Kategorie", { views: [{ state: "frozen", ySplit: 2 }] });
+    cs.columns = [30, 12, 18, 14, 16, 20, 16, 12].map((w) => ({ width: w }));
+    const t = cs.addRow([`Sprzedaż wg kategorii — ${label}`]);
+    cs.mergeCells(t.number, 1, t.number, 8);
+    t.getCell(1).font = { bold: true, size: 14 };
+    const h = cs.addRow([
+      "Kategoria",
+      "Sprzedano",
+      `Sprzedano (${prevLabel})`,
+      "Zmiana ilości",
+      "Wartość netto",
+      `Wartość netto (${prevLabel})`,
+      "Zmiana wartości",
+      "Udział",
+    ]);
+    h.eachCell((c) => {
+      c.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F2937" } };
+      c.alignment = { vertical: "middle", wrapText: true };
+    });
+    const totalNet = groups.reduce((s, g) => s + g.netValue, 0);
+    const addCatRow = (text: string, members: SalesGroup[], bold: boolean) => {
+      const qty = members.reduce((s, g) => s + g.qty, 0);
+      const net = members.reduce((s, g) => s + g.netValue, 0);
+      const hasPrev = members.some((g) => g.prevQty != null || g.prevNet != null);
+      const prevQty = members.reduce((s, g) => s + (g.prevQty ?? 0), 0);
+      const prevNet = members.reduce((s, g) => s + (g.prevNet ?? 0), 0);
+      const r = cs.addRow([
+        text,
+        round(qty, 2),
+        hasPrev ? round(prevQty, 2) : null,
+        prevQty > 0 ? round((qty - prevQty) / prevQty, 6) : hasPrev ? null : "nowa",
+        round(net, 2),
+        hasPrev ? round(prevNet, 2) : null,
+        prevNet > 0 ? round((net - prevNet) / prevNet, 6) : hasPrev ? null : "nowa",
+        totalNet > 0 ? round(net / totalNet, 6) : null,
+      ]);
+      r.getCell(2).numFmt = QTY;
+      r.getCell(3).numFmt = QTY;
+      r.getCell(4).numFmt = PCT;
+      r.getCell(5).numFmt = CUR;
+      r.getCell(6).numFmt = CUR;
+      r.getCell(7).numFmt = PCT;
+      r.getCell(8).numFmt = "0.0%";
+      if (bold) {
+        r.eachCell({ includeEmpty: true }, (c) => {
+          c.font = { bold: true };
+          c.border = { top: { style: "thin", color: { argb: "FF1F2937" } } };
+        });
+      }
+    };
+    for (const s of sections) addCatRow(s.label, s.groups, false);
+    addCatRow("SUMA", groups, true);
+  }
 
   const buffer = await wb.xlsx.writeBuffer();
   captureServer(userId, "report_exported", { format: "xlsx", report: "sales" });
