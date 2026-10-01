@@ -253,9 +253,11 @@ export const ImportMenuResponse = zod.object({
 
 
 /**
- * @summary Menu items from synced GoPOS sales, to import as dishes (no AI)
+ * @summary Current GoPOS menu items (live from GoPOS), to import as dishes (no AI)
  */
 export const GetGoposMenuResponse = zod.object({
+  "configured": zod.boolean(),
+  "error": zod.string().nullish(),
   "months": zod.number(),
   "maxDishes": zod.number(),
   "items": zod.array(zod.object({

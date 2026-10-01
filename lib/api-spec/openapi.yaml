@@ -318,7 +318,7 @@ paths:
     get:
       operationId: getGoposMenu
       tags: [food-cost]
-      summary: Menu items from synced GoPOS sales, to import as dishes (no AI)
+      summary: Current GoPOS menu items (live from GoPOS), to import as dishes (no AI)
       responses:
         "200":
           description: GoPOS menu items
@@ -4995,6 +4995,10 @@ components:
     GoposMenu:
       type: object
       properties:
+        configured:
+          type: boolean
+        error:
+          type: ["string", "null"]
         months:
           type: integer
         maxDishes:
@@ -5004,6 +5008,7 @@ components:
           items:
             $ref: "#/components/schemas/GoposMenuItem"
       required:
+        - configured
         - months
         - maxDishes
         - items

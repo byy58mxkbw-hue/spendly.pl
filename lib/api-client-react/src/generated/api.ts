@@ -1065,7 +1065,7 @@ export const getGetGoposMenuUrl = () => {
 }
 
 /**
- * @summary Menu items from synced GoPOS sales, to import as dishes (no AI)
+ * @summary Current GoPOS menu items (live from GoPOS), to import as dishes (no AI)
  */
 export const getGoposMenu = async ( options?: RequestInit): Promise<GoposMenu> => {
 
@@ -1112,7 +1112,7 @@ export type GetGoposMenuQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Menu items from synced GoPOS sales, to import as dishes (no AI)
+ * @summary Current GoPOS menu items (live from GoPOS), to import as dishes (no AI)
  */
 
 export function useGetGoposMenu<TData = Awaited<ReturnType<typeof getGoposMenu>>, TError = ErrorType<unknown>>(

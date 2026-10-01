@@ -69,22 +69,12 @@ describe.skipIf(!RUN_DB)("Food Cost: import menu z GoPOS", () => {
     server?.close();
   });
 
-  it("GET /food-cost/gopos-menu: grupuje warianty, rozdziela różne dania, oznacza zaimportowane", async () => {
+  it("GET /food-cost/gopos-menu bez konfiguracji GoPOS: pusta lista, configured=false", async () => {
     const res = await call("/api/food-cost/gopos-menu");
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { items: MenuItem[]; maxDishes: number };
-    const names = body.items.map((i) => i.name).sort();
-    expect(names).toEqual(["Risotto", "Stek wołowy", "Zrazy wołowe", "Żurek"]);
-
-    const stek = body.items.find((i) => i.name === "Stek wołowy")!;
-    expect(stek.qty).toBe(10);
-    expect(stek.category).toBe("DANIA GŁÓWNE");
-    // 1000 zł netto / 10 szt × 1,08 VAT = 108 zł brutto.
-    expect(stek.sellPrice).toBeCloseTo(108, 2);
-    expect(stek.alreadyImported).toBe(false);
-
-    expect(body.items.find((i) => i.name === "Żurek")!.alreadyImported).toBe(true);
-    expect(body.items.some((i) => i.name === "Tajne danie")).toBe(false);
+    const body = (await res.json()) as { configured: boolean; items: MenuItem[] };
+    expect(body.configured).toBe(false);
+    expect(body.items).toEqual([]);
   });
 
   it("zapis dania z posProductName od razu wiąże je ze sprzedażą", async () => {
@@ -104,8 +94,6 @@ describe.skipIf(!RUN_DB)("Food Cost: import menu z GoPOS", () => {
     expect(dish.matched).toBe(true);
     expect(dish.soldQty).toBe(10);
 
-    const menu = (await (await call("/api/food-cost/gopos-menu")).json()) as { items: MenuItem[] };
-    expect(menu.items.find((i) => i.name === "Stek wołowy")!.alreadyImported).toBe(true);
   });
 
   it("POST /food-cost/import-menu/gopos: odrzuca pustą i zbyt długą listę", async () => {

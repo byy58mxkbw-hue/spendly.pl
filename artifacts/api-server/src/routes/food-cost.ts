@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { db, dishesTable, dishIngredientsTable, productsTable, invoiceItemsTable, invoicesTable, posSalesTable, restaurantRevenueTable } from "@workspace/db";
+import { db, dishesTable, dishIngredientsTable, productsTable, invoiceItemsTable, invoicesTable, posSalesTable, restaurantRevenueTable, goposConfigTable } from "@workspace/db";
 import { CreateDishBody, UpdateDishBody, GetDishParams, UpdateDishParams, DeleteDishParams, ImportMenuBody, SaveMenuDishesBody } from "@workspace/api-zod";
 import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-openai-ai-server";
 import { findOrCreateProductByName } from "../services/ksef-ingest";
@@ -8,7 +8,9 @@ import { normalizeProductName } from "../lib/categorize-ai";
 import { periodFromQuery, monthsInRange } from "../lib/period";
 
 import { captureServer } from "../lib/telemetry.js";
-import { normalizeName, groupPosByProduct, bestFuzzyMatch, sharesCommonPrefix } from "../lib/pos-group.js";
+import { normalizeName, groupPosByProduct, bestFuzzyMatch, sharesCommonPrefix, commonWordPrefix } from "../lib/pos-group.js";
+import { decryptSecret } from "../lib/encryption";
+import { getGoposToken, fetchCurrentMenu, type GoposMenuProduct } from "../services/gopos-client";
 
 const router: IRouter = Router();
 
@@ -855,19 +857,15 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
 });
 
 // ─── Import menu z GoPOS (bez zdjęcia karty) ──────────────────────────────────
-// Źródłem listy dań jest sprzedaż już zsynchronizowana z GoPOS (`pos_sales`):
-// nazwa, kategoria z „Konfiguracji Menu" i cena. Dzięki temu nie trzeba robić
-// zdjęcia karty ani OCR — AI dostaje tylko NAZWY dań (tekst, tanio) i szacuje
-// składniki. Każde danie zapisuje `posProductName`, więc od razu łączy się ze
-// sprzedażą w „Realny food cost — GoPOS".
-const GOPOS_MENU_MONTHS = 6;
+// Źródłem listy dań jest AKTUALNE menu z GoPOS (aktywne menu → pozycje z ceną z
+// karty i kategorią), a nie historia sprzedaży — dania zdjęte z karty nie wracają.
+// AI dostaje tylko NAZWY dań (tekst, tanio) i szacuje składniki. Każde danie
+// zapisuje `posProductName`, więc od razu łączy się ze sprzedażą w
+// „Realny food cost — GoPOS".
+const GOPOS_MENU_MONTHS = 6; // okno sprzedaży: kontekst „ile sprzedano" + dopasowanie nazw
 const GOPOS_MENU_MAX_DISHES = 80;
 const GOPOS_MENU_BATCH = 12;
 const GOPOS_MENU_CONCURRENCY = 4;
-// VAT gastronomii na jedzenie (8%). POS raportuje sprzedaż NETTO, a cena dania w
-// Food Cost jest BRUTTO (jak w karcie). Napoje z 23% VAT wyjdą lekko zaniżone —
-// cena jest edytowalna w podglądzie przed zapisem.
-const GOPOS_MENU_VAT = 0.08;
 
 function lastMonthKeys(n: number): string[] {
   const now = new Date();
@@ -879,15 +877,109 @@ function lastMonthKeys(n: number): string[] {
   return out;
 }
 
-// Lista pozycji menu z GoPOS do wyboru (bez AI, bez limitu).
+export type GoposMenuListItem = {
+  posProductName: string;
+  name: string;
+  category: string | null;
+  qty: number;
+  sellPrice: number | null;
+  alreadyImported: boolean;
+};
+
+/**
+ * Aktualne menu GoPOS → lista dań do importu. Czysta funkcja (bez sieci i bazy),
+ * żeby dało się ją przetestować bez prawdziwego konta GoPOS.
+ *
+ * - Warianty jednej grupy GoPOS (wspólne item_group, wspólny rdzeń nazwy: „Stek
+ *   Medium" / „Stek Well Done") → jedno danie, jak na stronie Sprzedaż.
+ * - Powiązanie ze sprzedażą PO NAZWIE (nazwa pozycji/grupy ↔ nazwy w `pos_sales`),
+ *   a nie po id — raport sprzedaży GoPOS grupuje po swoim id produktu, którego
+ *   relacji do id pozycji menu nie mamy potwierdzonej.
+ */
+export function buildGoposMenuList(
+  menu: GoposMenuProduct[],
+  sales: Array<{ name: string; posProductId: string | null; qty: number; net: number }>,
+  dishes: Array<{ name: string; posProductName: string | null }>,
+): GoposMenuListItem[] {
+  // Nazwy ze sprzedaży → nazwa, pod którą Food Cost szuka sprzedaży dania.
+  const salesLink = new Map<string, { link: string; qty: number }>();
+  for (const g of groupPosByProduct(sales)) {
+    const split = g.members.length > 1 && !sharesCommonPrefix(g.members.map((m) => m.name));
+    if (split) {
+      for (const m of g.members) salesLink.set(normalizeName(m.name), { link: m.name, qty: m.qty });
+      continue;
+    }
+    const entry = { link: g.name, qty: g.qty };
+    salesLink.set(normalizeName(g.name), entry);
+    for (const m of g.members) if (!salesLink.has(normalizeName(m.name))) salesLink.set(normalizeName(m.name), entry);
+  }
+
+  const existing = new Set<string>();
+  for (const d of dishes) {
+    existing.add(normalizeName(d.name));
+    if (d.posProductName) existing.add(normalizeName(d.posProductName));
+  }
+
+  // Grupowanie wariantów: ta sama grupa GoPOS + wspólny rdzeń nazwy.
+  const byGroup = new Map<string, GoposMenuProduct[]>();
+  for (const p of menu) {
+    const key = p.groupId ? `g:${p.groupId}` : `i:${p.id}`;
+    const list = byGroup.get(key) ?? [];
+    list.push(p);
+    byGroup.set(key, list);
+  }
+  const dishGroups: GoposMenuProduct[][] = [];
+  for (const list of byGroup.values()) {
+    if (list.length > 1 && sharesCommonPrefix(list.map((p) => p.name))) dishGroups.push(list);
+    else for (const p of list) dishGroups.push([p]);
+  }
+
+  const seen = new Set<string>();
+  const items: GoposMenuListItem[] = [];
+  for (const members of dishGroups) {
+    const name = commonWordPrefix(members.map((m) => m.name));
+    const key = normalizeName(name);
+    if (!key || seen.has(key)) continue; // ta sama pozycja w kilku menu (sala / dowóz)
+    seen.add(key);
+    const candidates = [name, ...members.map((m) => m.name)];
+    const sale = candidates.map((c) => salesLink.get(normalizeName(c))).find(Boolean) ?? null;
+    const prices = members.map((m) => m.price).filter((v): v is number => v != null);
+    items.push({
+      posProductName: sale?.link ?? name,
+      name,
+      category: members.map((m) => m.category).find(Boolean) ?? null,
+      qty: sale ? Math.round(sale.qty * 100) / 100 : 0,
+      // Cena z karty GoPOS (brutto). Przy wariantach — najniższa.
+      sellPrice: prices.length > 0 ? Math.min(...prices) : null,
+      alreadyImported: candidates.some((c) => existing.has(normalizeName(c))) || (sale != null && existing.has(normalizeName(sale.link))),
+    });
+  }
+  items.sort((a, b) => (a.category ?? "~").localeCompare(b.category ?? "~", "pl") || a.name.localeCompare(b.name, "pl"));
+  return items;
+}
+
+// Lista pozycji AKTUALNEGO menu GoPOS do wyboru (bez AI, bez limitu).
 router.get("/food-cost/gopos-menu", async (req, res): Promise<void> => {
   const userId = req.userId!;
+  const empty = { months: GOPOS_MENU_MONTHS, maxDishes: GOPOS_MENU_MAX_DISHES, items: [] as GoposMenuListItem[] };
+  const [cfg] = await db.select().from(goposConfigTable).where(eq(goposConfigTable.userId, userId)).limit(1);
+  if (!cfg || !cfg.locationId) { res.json({ ...empty, configured: false, error: null }); return; }
+
+  let menu: GoposMenuProduct[];
+  try {
+    const token = await getGoposToken(cfg.clientId, decryptSecret(cfg.encryptedClientSecret), cfg.locationId);
+    menu = await fetchCurrentMenu(token, cfg.locationId);
+  } catch (err) {
+    req.log.warn({ err: err instanceof Error ? err.message : String(err) }, "gopos-menu: nie udało się pobrać menu");
+    res.json({ ...empty, configured: true, error: "Nie udało się pobrać aktualnego menu z GoPOS. Spróbuj ponownie za chwilę." });
+    return;
+  }
+
   const [rows, dishes] = await Promise.all([
     db
       .select({
         name: posSalesTable.productName,
         posProductId: posSalesTable.posProductId,
-        category: sql<string | null>`MAX(${posSalesTable.category})`,
         qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
         net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
       })
@@ -899,45 +991,8 @@ router.get("/food-cost/gopos-menu", async (req, res): Promise<void> => {
       .from(dishesTable)
       .where(eq(dishesTable.userId, userId)),
   ]);
-
-  // Danie już jest w Food Cost, jeśli nazwa albo powiązanie POS się zgadza.
-  const existing = new Set<string>();
-  for (const d of dishes) {
-    existing.add(normalizeName(d.name));
-    if (d.posProductName) existing.add(normalizeName(d.posProductName));
-  }
-
-  const categoryByName = new Map(rows.map((r) => [r.name, r.category]));
-  const groups = groupPosByProduct(
-    rows.map((r) => ({ name: r.name, posProductId: r.posProductId, qty: Number(r.qty) || 0, net: Number(r.net) || 0 })),
-  );
-
-  const items: Array<{ posProductName: string; name: string; category: string | null; qty: number; sellPrice: number | null; alreadyImported: boolean }> = [];
-  const push = (name: string, members: Array<{ name: string; qty: number; net: number }>) => {
-    const qty = members.reduce((s, m) => s + m.qty, 0);
-    const net = members.reduce((s, m) => s + m.net, 0);
-    if (!name.trim() || qty <= 0) return; // zwroty / pozycje bez sprzedaży nie są daniami
-    const category = members.map((m) => categoryByName.get(m.name)).find((c) => c) ?? null;
-    items.push({
-      posProductName: name,
-      name,
-      category,
-      qty: Math.round(qty * 100) / 100,
-      sellPrice: net > 0 ? Math.round((net / qty) * (1 + GOPOS_MENU_VAT) * 100) / 100 : null,
-      alreadyImported: existing.has(normalizeName(name)) || members.some((m) => existing.has(normalizeName(m.name))),
-    });
-  };
-  for (const g of groups) {
-    // Różne dania pod wspólnym id POS (bez wspólnego rdzenia nazwy) — osobno,
-    // tak samo jak na stronie Sprzedaż. Warianty steka zostają jednym daniem.
-    if (g.members.length > 1 && !sharesCommonPrefix(g.members.map((m) => m.name))) {
-      for (const m of g.members) push(m.name, [m]);
-    } else {
-      push(g.name, g.members);
-    }
-  }
-  items.sort((a, b) => (a.category ?? "~").localeCompare(b.category ?? "~", "pl") || b.qty - a.qty);
-  res.json({ months: GOPOS_MENU_MONTHS, maxDishes: GOPOS_MENU_MAX_DISHES, items });
+  const sales = rows.map((r) => ({ name: r.name, posProductId: r.posProductId, qty: Number(r.qty) || 0, net: Number(r.net) || 0 }));
+  res.json({ ...empty, configured: true, error: null, items: buildGoposMenuList(menu, sales, dishes) });
 });
 
 const GOPOS_MENU_PROMPT = `Jesteś doświadczonym szefem kuchni i kalkulantem food cost. Dostajesz listę pozycji menu restauracji (z systemu kasowego), każdą z numerem "idx", nazwą i kategorią. Oszacuj skład JEDNEJ porcji każdej pozycji.

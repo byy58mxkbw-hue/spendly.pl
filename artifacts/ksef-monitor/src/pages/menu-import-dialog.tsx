@@ -111,8 +111,8 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
   const fileRef = useRef<HTMLInputElement>(null);
 
   const importFromGopos = useImportMenuFromGopos();
-  // Pozycje z GoPOS (sprzedaż już zsynchronizowana). Pusta lista = brak GoPOS,
-  // wtedy zostaje tylko import ze zdjęcia karty.
+  // Aktualne menu z GoPOS (pobierane na żywo). Brak konfiguracji GoPOS = zostaje
+  // tylko import ze zdjęcia karty.
   const { data: goposMenu, isLoading: goposLoading } = useGetGoposMenu();
   const goposItems = useMemo(() => goposMenu?.items ?? [], [goposMenu]);
   const goposMax = goposMenu?.maxDishes ?? 80;
@@ -276,9 +276,9 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                 >
                   <Plug className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                   <span className="space-y-1">
-                    <span className="block text-sm font-semibold text-foreground">Z GoPOS, bez zdjęcia</span>
+                    <span className="block text-sm font-semibold text-foreground">Z aktualnego menu GoPOS, bez zdjęcia</span>
                     <span className="block text-xs text-muted-foreground">
-                      <span className="num">{goposItems.length}</span> pozycji ze sprzedaży z ostatnich {goposMenu?.months ?? 6} miesięcy
+                      <span className="num">{goposItems.length}</span> pozycji w aktualnym menu
                       {goposItems.some((i) => i.alreadyImported) && (
                         <> (<span className="num">{goposItems.filter((i) => i.alreadyImported).length}</span> już w Food Cost)</>
                       )}
@@ -291,8 +291,14 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
             )}
             {goposLoading && (
               <p className="text-xs text-muted-foreground flex items-center gap-2">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Sprawdzam dane z GoPOS…
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Pobieram aktualne menu z GoPOS…
               </p>
+            )}
+            {!goposLoading && goposMenu?.configured && goposMenu.error && (
+              <p className="text-xs text-warning">{goposMenu.error}</p>
+            )}
+            {!goposLoading && goposMenu?.configured && !goposMenu.error && goposItems.length === 0 && (
+              <p className="text-xs text-muted-foreground">W GoPOS nie ma aktywnego menu z pozycjami do zaimportowania.</p>
             )}
             <p className="text-sm text-muted-foreground">
               Wgraj zdjęcie lub PDF karty menu. AI odczyta dania, oszacuje składniki i gramatury oraz policzy wstępny food cost.
@@ -356,7 +362,12 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                           {it.alreadyImported && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground shrink-0">już w Food Cost</span>
                           )}
-                          <span className="text-[11px] text-muted-foreground num w-16 text-right shrink-0">{it.qty.toLocaleString("pl-PL")} szt.</span>
+                          <span
+                            className="text-[11px] text-muted-foreground num w-24 text-right shrink-0"
+                            title={`Sprzedano w ostatnich ${goposMenu?.months ?? 6} miesiącach`}
+                          >
+                            {it.qty > 0 ? `${it.qty.toLocaleString("pl-PL")} szt.` : "bez sprzedaży"}
+                          </span>
                           <span className="text-[11px] num w-20 text-right shrink-0">{fmt(it.sellPrice)}</span>
                         </label>
                       ))}
@@ -367,7 +378,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
               {goposByCategory.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">Brak pozycji pasujących do wyszukiwania.</p>}
             </div>
             <p className="text-[11px] text-muted-foreground pt-2">
-              Cena to średnia cena sprzedaży z GoPOS przeliczona na brutto (8% VAT). Popraw ją w podglądzie, jeśli trzeba.
+              Ceny z karty GoPOS. Liczba sztuk to sprzedaż z ostatnich {goposMenu?.months ?? 6} miesięcy.
             </p>
             <div className="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-border">
               <Button variant="ghost" onClick={() => setStep("upload")}>Wstecz</Button>

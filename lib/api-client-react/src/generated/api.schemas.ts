@@ -1293,6 +1293,9 @@ export interface GoposMenuItem {
 }
 
 export interface GoposMenu {
+  configured: boolean;
+  /** @nullable */
+  error?: string | null;
   months: number;
   maxDishes: number;
   items: GoposMenuItem[];
