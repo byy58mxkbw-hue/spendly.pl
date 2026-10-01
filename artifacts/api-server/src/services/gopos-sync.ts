@@ -2,7 +2,7 @@ import type { Logger } from "pino";
 import { db, goposConfigTable, restaurantRevenueTable, posSalesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { decryptSecret } from "../lib/encryption";
-import { getGoposToken, fetchSales } from "./gopos-client";
+import { getGoposToken, fetchSales, type GoposSalesItem } from "./gopos-client";
 
 // Ostatnie n miesięcy jako 'YYYY-MM' (bieżący + poprzednie).
 function lastMonths(n: number): string[] {
@@ -20,6 +20,34 @@ function monthBounds(period: string): { from: string; to: string } {
   const [y, m] = period.split("-").map(Number);
   const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
   return { from: `${period}-01T00:00:00`, to: `${period}-${String(lastDay).padStart(2, "0")}T23:59:59` };
+}
+
+
+export type MergedSale = { qty: number; net: number; productId: string | null; category: string | null; topNet: number };
+
+export function mergeSalesByName(items: GoposSalesItem[]): Map<string, MergedSale> {
+  // Scalanie po nazwie (klucz unikalny pos_sales to user+okres+nazwa). SUMUJEMY,
+  // nie nadpisujemy: dwa różne produkty GoPOS o tej samej nazwie (np. „Schabowy”
+  // z karty i z zestawu lunchowego, różne id) albo produkt w dwóch kategoriach
+  // w jednym miesiącu dawały wcześniej tylko ostatni wiersz — sprzedaż była
+  // zaniżona na stronie Sprzedaż, w Excelu i w Food Cost (audyt 2026-10-01).
+  // id i kategoria: z pozycji o największej sprzedaży (najbardziej reprezentatywnej).
+  const byName = new Map<string, MergedSale>();
+  for (const it of items) {
+    const cur = byName.get(it.name);
+    if (!cur) {
+      byName.set(it.name, { qty: it.qty, net: it.net, productId: it.productId, category: it.category, topNet: it.net });
+      continue;
+    }
+    cur.qty += it.qty;
+    cur.net += it.net;
+    if (it.net > cur.topNet) {
+      cur.topNet = it.net;
+      cur.productId = it.productId ?? cur.productId;
+      cur.category = it.category ?? cur.category;
+    }
+  }
+  return byName;
 }
 
 export type GoposSyncSummary = { months: number; revenueUpserts: number; itemUpserts: number };
@@ -51,9 +79,7 @@ export async function syncGoposForUser(userId: string, log: Logger, monthsBack =
       });
     revenueUpserts++;
 
-    // Dedupe po nazwie (GoPOS grupuje po produkcie, ale asekuracyjnie) + bulk upsert.
-    const byName = new Map<string, { qty: number; net: number; productId: string | null; category: string | null }>();
-    for (const it of items) byName.set(it.name, { qty: it.qty, net: it.net, productId: it.productId, category: it.category });
+    const byName = mergeSalesByName(items);
     const rows = [...byName.entries()].map(([productName, v]) => ({
       userId, period, productName, posProductId: v.productId, category: v.category, qty: v.qty.toString(), netValue: v.net.toFixed(2), source: "gopos",
     }));

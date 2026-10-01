@@ -1,5 +1,5 @@
 import type { Logger } from "pino";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, isNull, sql } from "drizzle-orm";
 import {
   db,
   priceAlertsTable,
@@ -71,9 +71,17 @@ export async function computeTriggeredAlerts(userId: string): Promise<TriggeredA
               eq(invoiceItemsTable.productId, product.id),
               eq(invoicesTable.userId, userId),
               alert.supplierId ? eq(invoicesTable.supplierId, alert.supplierId) : undefined,
+              // Te same filtry co historia cen produktu (routes/products.ts) — inaczej
+              // alert pokazywał skok ceny z korekty albo faktury wykluczonej, którego
+              // nie ma na wykresie ceny. Cena 0 dawała zmianę „nieskończoną”.
+              eq(invoicesTable.excluded, false),
+              isNull(invoicesTable.parentInvoiceId),
+              sql`${invoicesTable.invoiceType} IS DISTINCT FROM 'KOR'`,
+              sql`${invoiceItemsTable.quantity}::numeric > 0`,
+              sql`${invoiceItemsTable.unitPrice}::numeric > 0`,
             ),
           )
-          .orderBy(desc(invoicesTable.invoiceDate))
+          .orderBy(desc(invoicesTable.invoiceDate), desc(invoicesTable.id))
           .limit(20);
 
         if (history.length < 2) return null;
