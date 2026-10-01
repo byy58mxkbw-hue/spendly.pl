@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListDishes,
@@ -27,7 +28,7 @@ import {
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import type { DishIngredientInput, DishDetail } from "@workspace/api-client-react";
-import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, ChevronDown, ChevronUp, Sparkles, ChevronLeft, ShoppingBag, RefreshCw } from "@/lib/icons";
+import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, Sparkles, ChevronLeft, ShoppingBag, RefreshCw } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 import { Combobox } from "@/components/ui/combobox";
@@ -501,9 +502,11 @@ function DishFormDialog({
   );
 }
 
-// ─── Ingredient card in detail view ───────────────────────────────────────────
+// ─── Ingredient row in detail view ────────────────────────────────────────────
+// Wiersz tabeli (nie osobna karta): nazwa + źródło ceny, ilość, koszt, udział.
+// Klik rozwija szczegóły i formularze (waga opakowania, cena ręczna).
 
-function IngredientDetailCard({
+function IngredientDetailRow({
   ing,
   totalCost,
   onPackageSaved,
@@ -521,9 +524,11 @@ function IngredientDetailCard({
   const [manualVal, setManualVal] = useState(ing.manualPrice != null ? String(ing.manualPrice) : "");
   const [manualUnit, setManualUnit] = useState("kg");
   const sharePct = ing.ingredientCost != null && totalCost ? (ing.ingredientCost / totalCost) * 100 : null;
+  // Formularz ceny pokazujemy od razu, gdy składnik nie ma żadnej ceny.
+  const showPriceForm = ing.canSetPrice && (ing.ingredientCost == null || expanded);
+  const showPackageForm = !!ing.needsPackage;
 
-  async function savePrice(e: MouseEvent) {
-    e.stopPropagation();
+  async function savePrice() {
     const n = parseFloat(manualVal.replace(",", "."));
     if (!(n > 0)) { toast({ variant: "destructive", title: "Podaj cenę większą od zera" }); return; }
     try {
@@ -535,146 +540,113 @@ function IngredientDetailCard({
     }
   }
 
-  async function savePackage(e: MouseEvent) {
-    e.stopPropagation();
+  async function savePackage() {
     const n = parseFloat(pkgQty.replace(",", "."));
     if (!(n > 0)) { toast({ variant: "destructive", title: "Podaj wagę większą od zera" }); return; }
     try {
       await setPkg.mutateAsync({ id: ing.productId, data: { packageQty: n, packageUnit: pkgUnit } });
-      toast({ title: "Zapisano wagę opakowania", description: `1 ${ing.invoiceUnit ?? "szt"} ≈ ${n} ${pkgUnit} — liczę z faktury.` });
+      toast({ title: "Zapisano wagę opakowania", description: `1 ${ing.invoiceUnit ?? "szt"} ≈ ${n} ${pkgUnit}. Liczę z faktury.` });
       onPackageSaved();
     } catch {
       toast({ variant: "destructive", title: "Nie udało się zapisać" });
     }
   }
 
+  const priceMeta =
+    ing.unitPrice != null
+      ? `${fmt(ing.unitPrice)}/${ing.productUnit}`
+      : ing.priceSource === "estimate" && ing.estUnitPrice != null
+        ? `~${fmt(ing.estUnitPrice)}/kg`
+        : null;
+
   return (
-    <div
-      className="rounded-xl overflow-hidden cursor-pointer transition-colors bg-secondary/40 border border-border hover:bg-secondary/60"
-      onClick={() => setExpanded((s) => !s)}
-    >
-      <div className="px-4 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground truncate">{ing.productName}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {ing.quantity} {ing.unit}
-              {ing.unitPrice != null && (
-                <span className="ml-1.5">· {fmt(ing.unitPrice)}/{ing.productUnit}</span>
-              )}
-              {ing.priceSource === "estimate" && ing.estUnitPrice != null && (
-                <span className="ml-1.5">· ~{fmt(ing.estUnitPrice)}/kg</span>
-              )}
-            </p>
-          </div>
-          <div className="text-right shrink-0 flex items-center gap-2">
-            {ing.ingredientCost != null ? (
-              <span className="text-sm font-semibold text-foreground flex items-center gap-1">
-                {ing.priceSource === "estimate" && (
-                  <span className="text-[10px] px-1 py-0.5 rounded bg-accent-soft text-primary font-medium" title="Prognoza ceny AI (brak faktury)">szac.</span>
-                )}
-                {ing.priceSource === "manual" && (
-                  <span className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium" title="Cena przypisana ręcznie">ręczna</span>
-                )}
-                {fmt(ing.ingredientCost)}
-              </span>
-            ) : (
-              <span className="text-[11px] text-warning flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" /> brak ceny
-              </span>
-            )}
-            {expanded ? (
-              <ChevronUp className="w-3.5 h-3.5 text-muted-foreground/60" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/60" />
-            )}
-          </div>
-        </div>
-
-        {sharePct != null && (
-          <div className="mt-2">
-            <div className="h-1 rounded-full bg-border overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all bg-primary"
-                style={{ width: `${Math.min(sharePct, 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {ing.needsPackage && (
-          <div className="mt-2 pt-2 border-t border-dashed border-border" onClick={(e) => e.stopPropagation()}>
-            <p className="text-[11px] text-muted-foreground mb-1.5">
-              Masz cenę z faktury ({fmt(ing.unitPrice)}/{ing.invoiceUnit}), ale nie znamy wagi 1 {ing.invoiceUnit}. Podaj ją, policzymy dokładnie z faktury:
-            </p>
-            <div className="flex items-center gap-1.5">
-              <Input
-                value={pkgQty}
-                onChange={(e) => setPkgQty(e.target.value)}
-                inputMode="decimal"
-                placeholder="np. 300"
-                className="h-7 w-20 text-xs"
-              />
-              <select
-                value={pkgUnit}
-                onChange={(e) => setPkgUnit(e.target.value)}
-                className="h-7 px-1.5 text-xs rounded-md bg-background border border-input text-foreground"
-              >
-                {["g", "kg", "ml", "l"].map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
-              <span className="text-[11px] text-muted-foreground">= 1 {ing.invoiceUnit}</span>
-              <Button size="sm" onClick={savePackage} disabled={setPkg.isPending} className="h-7 text-xs ml-auto">
-                {setPkg.isPending ? "…" : "Zapisz"}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {ing.canSetPrice && (ing.ingredientCost == null || expanded) && (
-          <div className="mt-2 pt-2 border-t border-dashed border-border" onClick={(e) => e.stopPropagation()}>
-            <p className="text-[11px] text-muted-foreground mb-1.5">
-              {ing.priceSource === "estimate" ? "Cena z prognozy AI — możesz przypisać własną:" : "Brak ceny z faktury (np. wyrób własny). Przypisz cenę ręcznie:"}
-            </p>
-            <div className="flex items-center gap-1.5">
-              <Input
-                value={manualVal}
-                onChange={(e) => setManualVal(e.target.value)}
-                inputMode="decimal"
-                placeholder="np. 30"
-                className="h-7 w-20 text-xs"
-              />
-              <span className="text-[11px] text-muted-foreground">zł /</span>
-              <select
-                value={manualUnit}
-                onChange={(e) => setManualUnit(e.target.value)}
-                className="h-7 px-1.5 text-xs rounded-md bg-background border border-input text-foreground"
-              >
-                {["kg", "l", "szt", "g", "ml"].map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
-              <Button size="sm" onClick={savePrice} disabled={setManual.isPending} className="h-7 text-xs ml-auto">
-                {setManual.isPending ? "…" : "Zapisz"}
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {expanded && ing.unitPrice != null && (
-        <div className="px-4 py-3 border-t border-border space-y-1.5 bg-secondary/20">
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Aktualna cena</span>
-            <span className="text-foreground font-medium">{fmt(ing.unitPrice)} / {ing.productUnit}</span>
-          </div>
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpanded((s) => !s)}
+        aria-expanded={expanded}
+        className="w-full grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 py-2.5 text-left hover:bg-secondary/40 transition-colors px-1 -mx-1 rounded-sm"
+      >
+        <span className="min-w-0">
+          <span className="block text-sm text-foreground truncate" title={ing.productName}>{ing.productName}</span>
+          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            {ing.priceSource === "estimate" && <span className="text-warning" title="Prognoza ceny AI, brak faktury">szacunek</span>}
+            {ing.priceSource === "manual" && <span title="Cena przypisana ręcznie">ręczna</span>}
+            {ing.priceSource === "invoice" && <span title="Cena z faktury">faktura</span>}
+            {priceMeta && <span className="num">{priceMeta}</span>}
+          </span>
+        </span>
+        <span className="text-xs text-muted-foreground num text-right w-16">
+          {ing.quantity} {ing.unit}
+        </span>
+        <span className="text-sm num text-right w-20">
+          {ing.ingredientCost != null ? (
+            fmt(ing.ingredientCost)
+          ) : (
+            <span className="text-[11px] text-warning inline-flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" /> brak
+            </span>
+          )}
+        </span>
+        <span className="w-14 text-right">
+          <span className="block text-[11px] text-muted-foreground num">{sharePct != null ? `${sharePct.toFixed(0)}%` : ""}</span>
           {sharePct != null && (
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Udział w koszcie porcji</span>
-              <span className="text-foreground font-medium">{sharePct.toFixed(1)}%</span>
+            <span className="block h-0.5 bg-border mt-0.5">
+              <span className="block h-full bg-primary" style={{ width: `${Math.min(sharePct, 100)}%` }} />
+            </span>
+          )}
+        </span>
+      </button>
+
+      {(expanded || showPackageForm || showPriceForm) && (
+        <div className="pb-3 pl-1 space-y-2.5">
+          {expanded && ing.unitPrice != null && (
+            <p className="text-[11px] text-muted-foreground">
+              Aktualna cena z faktury: <span className="num text-foreground">{fmt(ing.unitPrice)} / {ing.productUnit}</span>
+            </p>
+          )}
+
+          {showPackageForm && (
+            <div>
+              <p className="text-[11px] text-muted-foreground mb-1.5">
+                Cena z faktury to {fmt(ing.unitPrice)}/{ing.invoiceUnit}, ale nie znamy wagi 1 {ing.invoiceUnit}. Podaj ją, a policzymy koszt z faktury:
+              </p>
+              <div className="flex items-center gap-1.5">
+                <Input value={pkgQty} onChange={(e) => setPkgQty(e.target.value)} inputMode="decimal" placeholder="np. 300" className="h-7 w-20 text-xs" />
+                <select
+                  value={pkgUnit}
+                  onChange={(e) => setPkgUnit(e.target.value)}
+                  className="h-7 px-1.5 text-xs rounded-sm bg-background border border-input text-foreground"
+                >
+                  {["g", "kg", "ml", "l"].map((u) => <option key={u} value={u}>{u}</option>)}
+                </select>
+                <span className="text-[11px] text-muted-foreground">= 1 {ing.invoiceUnit}</span>
+                <Button size="sm" onClick={savePackage} disabled={setPkg.isPending} className="h-7 text-xs ml-auto">
+                  {setPkg.isPending ? "…" : "Zapisz"}
+                </Button>
+              </div>
             </div>
           )}
-          {ing.ingredientCost != null && (
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Koszt w porcji</span>
-              <span className="text-foreground font-medium">{fmt(ing.ingredientCost)}</span>
+
+          {showPriceForm && (
+            <div>
+              <p className="text-[11px] text-muted-foreground mb-1.5">
+                {ing.priceSource === "estimate" ? "Cena z prognozy AI. Możesz przypisać własną:" : "Brak ceny z faktury (np. wyrób własny). Przypisz cenę ręcznie:"}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <Input value={manualVal} onChange={(e) => setManualVal(e.target.value)} inputMode="decimal" placeholder="np. 30" className="h-7 w-20 text-xs" />
+                <span className="text-[11px] text-muted-foreground">zł /</span>
+                <select
+                  value={manualUnit}
+                  onChange={(e) => setManualUnit(e.target.value)}
+                  className="h-7 px-1.5 text-xs rounded-sm bg-background border border-input text-foreground"
+                >
+                  {["kg", "l", "szt", "g", "ml"].map((u) => <option key={u} value={u}>{u}</option>)}
+                </select>
+                <Button size="sm" onClick={savePrice} disabled={setManual.isPending} className="h-7 text-xs ml-auto">
+                  {setManual.isPending ? "…" : "Zapisz"}
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -706,8 +678,8 @@ function PosLinkSection({ dishId, currentLink, onChanged }: { dishId: number; cu
   ];
 
   return (
-    <div className="mx-5 mt-4">
-      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Powiązanie ze sprzedażą (GoPOS)</p>
+    <div>
+      <p className="label-caps text-[10px] text-muted-foreground mb-1.5">Powiązanie ze sprzedażą (GoPOS)</p>
       <Combobox
         options={options}
         value={currentLink ?? "__auto__"}
@@ -726,15 +698,35 @@ function PosLinkSection({ dishId, currentLink, onChanged }: { dishId: number; cu
   );
 }
 
-// ─── Dish detail bottom sheet ─────────────────────────────────────────────────
+// ─── Dish detail panel ────────────────────────────────────────────────────────
+// Desktop: panel z prawej o stałej szerokości (wcześniej dolny arkusz na całą
+// szerokość ekranu — wiersze „etykieta … wartość" rozjeżdżały się na 2000 px).
+// Telefon: dolny arkusz jak dotąd.
+
+type FcTone = "positive" | "warning" | "negative";
+function foodCostTone(pct: number): FcTone {
+  if (pct <= 35) return "positive";
+  if (pct <= 50) return "warning";
+  return "negative";
+}
+const TONE_TEXT: Record<FcTone, string> = { positive: "text-positive", warning: "text-warning", negative: "text-negative" };
+const TONE_BG: Record<FcTone, string> = { positive: "bg-positive", warning: "bg-warning", negative: "bg-negative" };
+const TONE_LABEL: Record<FcTone, string> = { positive: "w normie", warning: "do kontroli", negative: "za wysoki" };
+
+// Skala paska food cost: 0–60%. Strefa celu branżowego 25–35% zaznaczona tłem.
+const FC_SCALE = 60;
 
 function DishDetailSheet({
   dishId,
+  sales,
+  monthLabelText,
   onClose,
   onEdit,
   onDelete,
 }: {
   dishId: number;
+  sales?: { soldQty: number; monthlyCost?: number | null } | null;
+  monthLabelText?: string;
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -743,8 +735,13 @@ function DishDetailSheet({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const reprice = useRepriceDish();
-  const costPct = dish?.portionCost != null && dish.sellPrice > 0
-    ? (dish.portionCost / dish.sellPrice) * 100 : null;
+  const isMobile = useIsMobile();
+  const costPct = dish?.portionCost != null && dish.sellPrice > 0 ? (dish.portionCost / dish.sellPrice) * 100 : null;
+  const tone = costPct != null ? foodCostTone(costPct) : null;
+  const ingredients = useMemo(
+    () => [...(dish?.ingredients ?? [])].sort((a, b) => (b.ingredientCost ?? -1) - (a.ingredientCost ?? -1)),
+    [dish],
+  );
 
   async function handleReprice() {
     try {
@@ -752,155 +749,152 @@ function DishDetailSheet({
       queryClient.invalidateQueries({ queryKey: getGetDishQueryKey(dishId) });
       queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() });
       toast({
-        title: res.repriced > 0 ? `Przeliczono z faktur` : "Brak zmian",
-        description: res.repriced > 0
-          ? `${res.repriced} składnik(i) dostały realną cenę z KSeF.`
-          : "Nie znaleziono nowych dopasowań do kupionych produktów.",
+        title: res.repriced > 0 ? "Przeliczono z faktur" : "Brak zmian",
+        description:
+          res.repriced > 0
+            ? `${res.repriced} składnik(i) dostały realną cenę z KSeF.`
+            : "Nie znaleziono nowych dopasowań do kupionych produktów.",
       });
     } catch {
       toast({ variant: "destructive", title: "Nie udało się przeliczyć" });
     }
   }
 
+  const refreshDish = () => {
+    queryClient.invalidateQueries({ queryKey: getGetDishQueryKey(dishId) });
+    queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() });
+  };
+
   return (
     <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent
-        side="bottom"
-        className="rounded-t-2xl max-h-[88vh] flex flex-col p-0"
+        side={isMobile ? "bottom" : "right"}
+        className={cn(
+          "p-0 flex flex-col gap-0",
+          isMobile ? "max-h-[88vh] rounded-t-md" : "w-full sm:max-w-[560px]",
+        )}
       >
         {isLoading || !dish ? (
-          <div className="py-16 text-center text-muted-foreground text-sm">Ładowanie...</div>
+          <div className="py-16 text-center text-muted-foreground text-sm">Ładowanie…</div>
         ) : (
           <>
-            {/* Sticky nagłówek — poza obszarem scrolla (tytuł + akcje zawsze widoczne) */}
-            <div className="flex-shrink-0 bg-background rounded-t-2xl">
-              {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-border" />
+            {/* Nagłówek — poza scrollem, akcje zawsze pod ręką */}
+            <div className="flex-shrink-0 px-5 pt-5 pb-4 pr-12 border-b border-border flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                {dish.category && <p className="label-caps text-[10px] text-muted-foreground mb-1">{dish.category}</p>}
+                <h2 className="head-display text-lg font-bold text-foreground leading-tight">{dish.name}</h2>
               </div>
-              {/* Header */}
-              <div className="px-5 pt-3 pb-4 flex items-start justify-between gap-3 border-b border-border">
-                <div className="min-w-0">
-                  <h2 className="text-lg font-bold text-foreground truncate">{dish.name}</h2>
-                  {dish.category && <p className="text-xs text-muted-foreground mt-0.5">{dish.category}</p>}
-                </div>
-                <div className="flex items-center gap-1 shrink-0 mt-0.5">
-                  <button onClick={handleReprice} disabled={reprice.isPending} title="Przelicz z aktualnych faktur (szacunki → realne ceny)" className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50">
-                    <RefreshCw className={cn("w-4 h-4", reprice.isPending && "animate-spin")} />
-                  </button>
-                  <button onClick={onEdit} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button onClick={onDelete} className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  onClick={handleReprice}
+                  disabled={reprice.isPending}
+                  title="Przelicz z aktualnych faktur"
+                  aria-label="Przelicz z aktualnych faktur"
+                  className="p-2 rounded-sm text-muted-foreground hover:text-primary hover:bg-secondary transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("w-4 h-4", reprice.isPending && "animate-spin")} />
+                </button>
+                <button onClick={onEdit} title="Edytuj" aria-label="Edytuj danie" className="p-2 rounded-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button onClick={onDelete} title="Usuń" aria-label="Usuń danie" className="p-2 rounded-sm text-muted-foreground hover:text-negative hover:bg-secondary transition-colors">
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
-            {/* Treść — TO przewija się, nie cały modal */}
-            <div className="overflow-y-auto flex-1 pb-8">
-
-            {/* Summary block */}
-            <div className="mx-5 mt-4 rounded-2xl p-4 space-y-2 bg-secondary/40 border border-border">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Cena sprzedaży</span>
-                <span className="text-foreground font-semibold">{fmt(dish.sellPrice)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Koszt porcji</span>
-                <span className="text-foreground font-semibold">{fmt(dish.portionCost)}</span>
-              </div>
-              <div className="h-px bg-border my-1" />
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Marża</span>
-                <span className="font-bold" style={{ color: marginColor(dish.marginPct) }}>
-                  {dish.marginPct != null ? `${dish.marginPct.toFixed(1)}%` : "—"}
-                </span>
-              </div>
-              {costPct != null && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Food Cost</span>
-                  <span className="font-bold" style={{ color: foodCostColor(costPct) }}>
-                    {costPct.toFixed(1)}%
-                    <span className="text-[10px] font-normal text-muted-foreground ml-1">
-                      {costPct <= 35 ? "(optymalny)" : costPct <= 50 ? "(do kontroli)" : "(za wysoki)"}
-                    </span>
-                  </span>
-                </div>
-              )}
-
-              {/* Food cost bar */}
-              {costPct != null && (
-                <div className="mt-1">
-                  <div className="h-1.5 rounded-full bg-border overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${Math.min(costPct, 100)}%`, background: foodCostColor(costPct) }}
-                    />
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+              {/* KPI — cztery liczby w jednym rzędzie */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border border border-border">
+                {[
+                  { label: "Cena", value: fmt(dish.sellPrice), cls: "" },
+                  { label: "Koszt porcji", value: fmt(dish.portionCost), cls: "" },
+                  { label: "Food cost", value: costPct != null ? `${costPct.toFixed(1)}%` : "—", cls: tone ? TONE_TEXT[tone] : "" },
+                  { label: "Marża", value: dish.marginPct != null ? `${dish.marginPct.toFixed(1)}%` : "—", cls: "" },
+                ].map((k) => (
+                  <div key={k.label} className="bg-card px-3 py-2.5">
+                    <p className="label-caps text-[10px] text-muted-foreground">{k.label}</p>
+                    <p className={cn("num-lg text-lg mt-0.5", k.cls)}>{k.value}</p>
                   </div>
-                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">Cel branżowy: 25–35%</p>
-                </div>
-              )}
-            </div>
-
-            {/* Kompletność: ile składników ma jakąkolwiek cenę (faktura lub szacunek AI) */}
-            <div className="mx-5 mt-3 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Kompletność wyceny</span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full" style={{ background: dish.confidencePct >= 80 ? "#059669" : dish.confidencePct >= 50 ? "#d97706" : "#dc2626" }} />
-                <span className="text-muted-foreground">{dish.confidencePct}%</span>
-              </span>
-            </div>
-
-            {/* Wiarygodność wyceny: udział kosztu z realnych faktur vs prognoza AI */}
-            {dish.portionCost != null && dish.invoiceCostPct != null && (
-              <div className="mx-5 mt-2">
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-muted-foreground">Wiarygodność wyceny</span>
-                  <span className="font-medium" style={{ color: reliabilityColor(dish.invoiceCostPct) }}>
-                    {dish.invoiceCostPct}% z faktur
-                  </span>
-                </div>
-                <div className="h-1.5 rounded-full bg-border overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${dish.invoiceCostPct}%`, background: reliabilityColor(dish.invoiceCostPct) }} />
-                </div>
-                {dish.invoiceCostPct < 100 && (
-                  <p className="text-[10px] text-muted-foreground mt-1">Pozostałe {100 - dish.invoiceCostPct}% kosztu to prognoza AI — dokup te surowce przez KSeF, by uściślić.</p>
-                )}
-              </div>
-            )}
-
-            {/* Powiązanie ze sprzedażą GoPOS (ręczna korekta) */}
-            <PosLinkSection
-              dishId={dishId}
-              currentLink={dish.posProductName ?? null}
-              onChanged={() => {
-                queryClient.invalidateQueries({ queryKey: getGetDishQueryKey(dishId) });
-                queryClient.invalidateQueries({ queryKey: getGetDishesSalesQueryKey() });
-                queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() });
-              }}
-            />
-
-            {/* Ingredients */}
-            <div className="px-5 mt-5">
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
-                Składniki ({dish.ingredients.length})
-              </p>
-              <div className="space-y-2">
-                {dish.ingredients.map((ing) => (
-                  <IngredientDetailCard
-                    key={ing.id}
-                    ing={ing}
-                    totalCost={dish.portionCost ?? null}
-                    onPackageSaved={() => {
-                      queryClient.invalidateQueries({ queryKey: getGetDishQueryKey(dishId) });
-                      queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() });
-                    }}
-                  />
                 ))}
               </div>
-            </div>
+
+              {/* Pasek food cost ze strefą celu */}
+              {costPct != null && tone && (
+                <div>
+                  <div className="relative h-2 bg-border">
+                    <div
+                      className="absolute inset-y-0 bg-positive/25"
+                      style={{ left: `${(25 / FC_SCALE) * 100}%`, width: `${(10 / FC_SCALE) * 100}%` }}
+                      title="Cel branżowy 25–35%"
+                    />
+                    <div className={cn("absolute inset-y-0 left-0", TONE_BG[tone])} style={{ width: `${Math.min(costPct / FC_SCALE, 1) * 100}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
+                    <span>
+                      Food cost <span className={cn("font-semibold", TONE_TEXT[tone])}>{TONE_LABEL[tone]}</span>
+                    </span>
+                    <span>cel 25–35%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Sprzedaż w miesiącu + wiarygodność wyceny */}
+              <div className="rule-list border-y border-border text-xs">
+                {monthLabelText && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-muted-foreground">Sprzedaż, {monthLabelText}</span>
+                    <span className="num">
+                      {sales && sales.soldQty > 0 ? (
+                        <>
+                          {sales.soldQty.toLocaleString("pl-PL")} szt.
+                          {sales.monthlyCost != null && <span className="text-muted-foreground"> · surowiec {fmt(sales.monthlyCost)}</span>}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">brak sprzedaży</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-muted-foreground">Wycena</span>
+                  <span className="num">
+                    {dish.confidencePct}% składników z ceną
+                    {dish.invoiceCostPct != null && <span className="text-muted-foreground"> · {dish.invoiceCostPct}% kosztu z faktur</span>}
+                  </span>
+                </div>
+              </div>
+              {dish.invoiceCostPct != null && dish.invoiceCostPct < 100 && (
+                <p className="text-[11px] text-muted-foreground -mt-3">
+                  Reszta kosztu to prognoza AI. Ceny uściślą się, gdy te surowce pojawią się na fakturach z KSeF.
+                </p>
+              )}
+
+              {/* Powiązanie ze sprzedażą GoPOS (ręczna korekta) */}
+              <PosLinkSection
+                dishId={dishId}
+                currentLink={dish.posProductName ?? null}
+                onChanged={() => {
+                  refreshDish();
+                  queryClient.invalidateQueries({ queryKey: getGetDishesSalesQueryKey() });
+                }}
+              />
+
+              {/* Składniki — tabela, najdroższe na górze */}
+              <div>
+                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 pb-1.5 border-b border-border label-caps text-[10px] text-muted-foreground">
+                  <span>Składniki ({ingredients.length})</span>
+                  <span className="w-16 text-right">Ilość</span>
+                  <span className="w-20 text-right">Koszt</span>
+                  <span className="w-14 text-right">Udział</span>
+                </div>
+                <div className="rule-list">
+                  {ingredients.map((ing) => (
+                    <IngredientDetailRow key={ing.id} ing={ing} totalCost={dish.portionCost ?? null} onPackageSaved={refreshDish} />
+                  ))}
+                </div>
+                {ingredients.length === 0 && <p className="text-xs text-muted-foreground py-4">Brak składników. Dodaj je w edycji dania.</p>}
+              </div>
             </div>
           </>
         )}
@@ -1234,6 +1228,8 @@ export default function FoodCostPage() {
       {viewDishId != null && editDishId == null && (
         <DishDetailSheet
           dishId={viewDishId}
+          sales={salesById.get(viewDishId)}
+          monthLabelText={hasGopos ? monthLabel(month) : undefined}
           onClose={() => setViewDishId(null)}
           onEdit={() => { const id = viewDishId; setViewDishId(null); setEditDishId(id); }}
           onDelete={() => handleDelete(viewDishId)}
