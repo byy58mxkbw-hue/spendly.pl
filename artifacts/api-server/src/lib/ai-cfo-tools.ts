@@ -16,6 +16,14 @@ import { excludeNonSpendInvoiceTypes, spendOnly, realQuantityOnly } from "./invo
 // SUM(total_price) dla total_spend.
 const notSpendDistorting = excludeNonSpendInvoiceTypes("i");
 const moneyExpr = sql`ii.total_price::numeric`;
+// Brutto — tak liczą WSZYSTKIE ekrany wydatków (reguła 29). AI CFO analizuje koszt
+// na netto (VAT jest odliczany), ale gdy mówi „ile wydałeś", musi podać tę samą
+// kwotę co Dashboard/Raporty/Faktury — inaczej użytkownik widzi dwie różne liczby.
+const grossExpr = sql`ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)`;
+
+// Instrukcja dołączana do wyniku podsumowania wydatków — model widzi ją przy liczbach.
+const AMOUNTS_NOTE =
+  "Kwoty *_brutto są takie same jak na ekranach Spendly (Dashboard, Raporty, Faktury). Mówiąc użytkownikowi, ile wydał, podawaj BRUTTO. Kwoty bez sufiksu są NETTO — używaj ich do analizy kosztów (food cost, marże) i zawsze pisz przy nich „netto”.";
 
 // Narzędzia function-calling dla AI CFO (routes/ai-cfo.ts). Model SAM decyduje,
 // którego narzędzia użyć i z jakimi argumentami BIZNESOWYMI (nazwa produktu, ID,
@@ -527,12 +535,13 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
     db.execute(sql`
       SELECT s.id AS supplier_id, s.name AS supplier_name,
         ROUND(SUM(${spendOnly("i", moneyExpr)}), 0) AS total_spend,
+        ROUND(SUM(${spendOnly("i", grossExpr)}), 0) AS total_spend_brutto,
         ROUND(SUM(${realQuantityOnly("ii", sql`ii.quantity::numeric`)}), 2) AS total_qty,
         COUNT(DISTINCT i.id) AS invoice_count
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       JOIN suppliers s ON i.supplier_id = s.id
-      WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond} AND s.is_active = true
+      WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond} AND i.excluded = false
       GROUP BY s.id, s.name ORDER BY total_spend DESC LIMIT 8
     `),
     db.execute(sql`
@@ -549,20 +558,22 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
       JOIN invoices i ON ii.invoice_id = i.id
       JOIN products p ON ii.product_id = p.id
       JOIN suppliers s ON i.supplier_id = s.id
-      WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond}
+      WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond} AND i.excluded = false
       GROUP BY p.id, p.name, p.category, p.subcategory, s.id, s.name, ii.unit
       ORDER BY total_spend DESC LIMIT 25
     `),
     db.execute(sql`
-      SELECT SUBSTRING(i.invoice_date, 1, 7) AS month, ROUND(SUM(ii.total_price::numeric), 0) AS total
+      SELECT SUBSTRING(i.invoice_date, 1, 7) AS month, ROUND(SUM(ii.total_price::numeric), 0) AS total,
+        ROUND(SUM(${grossExpr}), 0) AS total_brutto
       FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
-      WHERE i.user_id = ${userId}
+      WHERE i.user_id = ${userId} AND i.excluded = false
         ${notSpendDistorting}
       GROUP BY 1 ORDER BY 1 DESC LIMIT 6
     `),
     db.execute(sql`
       SELECT COALESCE(p.category, 'Bez kategorii') AS category,
         ROUND(SUM(${spendOnly("i", moneyExpr)}), 0) AS total_spend,
+        ROUND(SUM(${spendOnly("i", grossExpr)}), 0) AS total_spend_brutto,
         ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
         COUNT(DISTINCT p.id) AS product_count
       FROM invoice_items ii
@@ -574,6 +585,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
     db.execute(sql`
       SELECT COALESCE(cc.name, 'Bez centrum kosztów') AS cost_center,
         ROUND(SUM(ii.total_price::numeric), 0) AS total_spend,
+        ROUND(SUM(${grossExpr}), 0) AS total_spend_brutto,
         COUNT(DISTINCT i.id) AS invoice_count
       FROM invoices i
       JOIN invoice_items ii ON ii.invoice_id = i.id
@@ -594,7 +606,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
       JOIN suppliers s ON i.supplier_id = s.id
       JOIN products p ON ii.product_id = p.id
       WHERE i.user_id = ${userId} AND i.invoice_date >= ${sinceStr} ${untilCond}
-        AND s.is_active = true AND i.excluded = false
+        AND i.excluded = false
       GROUP BY s.id, s.name
       ORDER BY total_spend DESC LIMIT 10
     `),
@@ -604,6 +616,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
 
   return {
     period: { from: sinceStr, to: untilStr ?? "dziś" },
+    kwoty: AMOUNTS_NOTE,
     suppliers: rowsOf(spendRes),
     products: rowsOf(topProductsRes),
     monthly: rowsOf(monthlyRes),
@@ -817,7 +830,7 @@ export const AI_CFO_TOOL_SCHEMAS: ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "get_spend_summary",
-      description: "Ogólne podsumowanie wydatków: top dostawcy, top produkty, wydatki miesięczne, kategorie, centra kosztów. Domyślnie ostatnie 90 dni — podaj date_from/date_to dla innego zakresu.",
+      description: "Ogólne podsumowanie wydatków: top dostawcy, top produkty, wydatki miesięczne, kategorie, centra kosztów. Domyślnie ostatnie 90 dni — podaj date_from/date_to dla innego zakresu. Zwraca kwoty netto i brutto (*_brutto = jak na ekranach Spendly).",
       parameters: {
         type: "object",
         properties: {
