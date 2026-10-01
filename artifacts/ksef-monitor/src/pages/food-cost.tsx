@@ -21,6 +21,7 @@ import {
   useGetPosItems,
   useSetDishPosLink,
   getGetDishesSalesQueryKey,
+  getGetGoposMenuQueryKey,
   getListDishesQueryKey,
   getGetDishQueryKey,
   getListProductsQueryKey,
@@ -1168,7 +1169,11 @@ export default function FoodCostPage() {
         <Suspense fallback={null}>
           <MenuImportDialog
             onClose={() => setShowImport(false)}
-            onSaved={() => queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() })}
+            onSaved={() => {
+              queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() });
+              queryClient.invalidateQueries({ queryKey: getGetDishesSalesQueryKey() });
+              queryClient.invalidateQueries({ queryKey: getGetGoposMenuQueryKey() });
+            }}
           />
         </Suspense>
       )}

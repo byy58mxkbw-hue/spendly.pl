@@ -231,6 +231,60 @@ export const ImportMenuBody = zod.object({
 export const ImportMenuResponse = zod.object({
   "dishes": zod.array(zod.object({
   "name": zod.string(),
+  "posProductName": zod.string().nullish(),
+  "sellPrice": zod.number().nullish(),
+  "category": zod.string().nullish(),
+  "portionCost": zod.number().nullish(),
+  "foodCostPct": zod.number().nullish(),
+  "confidencePct": zod.number(),
+  "ingredients": zod.array(zod.object({
+  "name": zod.string(),
+  "grams": zod.number(),
+  "matchedProductId": zod.number().nullish(),
+  "matchedName": zod.string().nullish(),
+  "unitPrice": zod.number().nullish(),
+  "estPricePerKg": zod.number().nullish(),
+  "estPieceGrams": zod.number().nullish(),
+  "priceSource": zod.union([zod.literal('invoice'),zod.literal('manual'),zod.literal('estimate'),zod.literal(null)]).nullish(),
+  "ingredientCost": zod.number().nullish()
+}))
+}))
+})
+
+
+/**
+ * @summary Menu items from synced GoPOS sales, to import as dishes (no AI)
+ */
+export const GetGoposMenuResponse = zod.object({
+  "months": zod.number(),
+  "maxDishes": zod.number(),
+  "items": zod.array(zod.object({
+  "posProductName": zod.string(),
+  "name": zod.string(),
+  "category": zod.string().nullish(),
+  "qty": zod.number(),
+  "sellPrice": zod.number().nullish(),
+  "alreadyImported": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Estimate ingredients for selected GoPOS menu items (AI text, preview only)
+ */
+export const ImportMenuFromGoposBody = zod.object({
+  "dishes": zod.array(zod.object({
+  "posProductName": zod.string(),
+  "name": zod.string(),
+  "category": zod.string().nullish(),
+  "sellPrice": zod.number().nullish()
+}))
+})
+
+export const ImportMenuFromGoposResponse = zod.object({
+  "dishes": zod.array(zod.object({
+  "name": zod.string(),
+  "posProductName": zod.string().nullish(),
   "sellPrice": zod.number().nullish(),
   "category": zod.string().nullish(),
   "portionCost": zod.number().nullish(),
@@ -257,6 +311,7 @@ export const ImportMenuResponse = zod.object({
 export const SaveMenuDishesBody = zod.object({
   "dishes": zod.array(zod.object({
   "name": zod.string(),
+  "posProductName": zod.string().nullish(),
   "sellPrice": zod.number().nullish(),
   "category": zod.string().nullish(),
   "ingredients": zod.array(zod.object({

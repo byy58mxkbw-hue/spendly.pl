@@ -8,7 +8,7 @@ import { normalizeProductName } from "../lib/categorize-ai";
 import { periodFromQuery, monthsInRange } from "../lib/period";
 
 import { captureServer } from "../lib/telemetry.js";
-import { normalizeName, groupPosByProduct, bestFuzzyMatch } from "../lib/pos-group.js";
+import { normalizeName, groupPosByProduct, bestFuzzyMatch, sharesCommonPrefix } from "../lib/pos-group.js";
 
 const router: IRouter = Router();
 
@@ -694,66 +694,24 @@ Zasady:
 
 type ExtractedMenuIngredient = { name: string; grams: number; estPricePerKg?: number | null; estPieceGrams?: number | null };
 type ExtractedMenuDish = { name: string; sellPrice: number | null; category: string | null; ingredients: ExtractedMenuIngredient[] };
+type CleanMenuDish = {
+  name: string;
+  sellPrice: number | null;
+  category: string | null;
+  /** Pozycja sprzedaży GoPOS, z której pochodzi danie — zapis wiąże danie ze sprzedażą. */
+  posProductName: string | null;
+  ingredients: Array<{ name: string; grams: number; estPricePerKg: number | null; estPieceGrams: number | null }>;
+};
 
-// Krok 2 — ekstrakcja z obrazów + read-only dopasowanie do produktów + wstępna wycena (bez zapisu)
-router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
-  const userId = req.userId!;
-  const body = ImportMenuBody.safeParse(req.body);
-  if (!body.success) { res.status(400).json({ error: body.error.message }); return; }
-
-  const images = body.data.images;
-  if (images.length === 0) { res.status(400).json({ error: "Brak obrazów do analizy." }); return; }
-  if (images.length > 8) { res.status(400).json({ error: "Za dużo stron (max 8). Zmniejsz liczbę stron menu." }); return; }
-
-  let totalBytes = 0;
-  for (const img of images) {
-    const m = /^data:([^;]+);base64,(.+)$/s.exec(img);
-    if (!m || !ALLOWED_IMAGE_MIME.includes(m[1].toLowerCase())) {
-      res.status(400).json({ error: "Nieobsługiwany format obrazu. Użyj JPEG, PNG, WebP lub GIF." });
-      return;
-    }
-    totalBytes += Math.floor((m[2].length * 3) / 4);
-  }
-  if (totalBytes > MAX_TOTAL_IMAGE_BYTES) {
-    res.status(400).json({ error: "Obrazy są za duże (max 20 MB łącznie). Zmniejsz pliki i spróbuj ponownie." });
-    return;
-  }
-
-  let dishes: ExtractedMenuDish[];
-  try {
-    const response = await requireOpenAI().chat.completions.create({
-      model: "gpt-4.1",
-      messages: [
-        {
-          role: "user",
-          content: [
-            ...images.map((url) => ({ type: "image_url" as const, image_url: { url, detail: "high" as const } })),
-            { type: "text" as const, text: MENU_PROMPT },
-          ],
-        },
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 4000,
-      temperature: 0,
-      // PostHog AI Observability (metadane, patrz integrations-openai-ai-server/client.ts).
-      ...(aiObservabilityEnabled ? { posthogDistinctId: userId } : {}),
-    });
-    const raw = response.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw) as { dishes?: unknown };
-    dishes = Array.isArray(parsed.dishes) ? (parsed.dishes as ExtractedMenuDish[]) : [];
-  } catch (err) {
-    req.log.error({ err }, "import-menu: OpenAI Vision error");
-    res.status(500).json({ error: "Nie udało się odczytać karty menu. Sprawdź jakość zdjęcia i spróbuj ponownie." });
-    return;
-  }
-
-  // Sanityzacja + zebranie znormalizowanych nazw składników
-  const cleanDishes = dishes
+// Sanityzacja odpowiedzi AI (wspólna dla importu ze zdjęcia i z GoPOS).
+function sanitizeMenuDishes(dishes: ExtractedMenuDish[]): CleanMenuDish[] {
+  return dishes
     .filter((d) => d && typeof d.name === "string" && d.name.trim())
     .map((d) => ({
       name: String(d.name).trim(),
       sellPrice: typeof d.sellPrice === "number" && d.sellPrice > 0 ? d.sellPrice : null,
       category: typeof d.category === "string" && d.category.trim() ? d.category.trim() : null,
+      posProductName: null,
       ingredients: (Array.isArray(d.ingredients) ? d.ingredients : [])
         .filter((i) => i && typeof i.name === "string" && i.name.trim())
         .map((i) => ({
@@ -763,7 +721,11 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
           estPieceGrams: typeof i.estPieceGrams === "number" && i.estPieceGrams > 0 ? i.estPieceGrams : null,
         })),
     }));
+}
 
+// Read-only dopasowanie składników do produktów usera + wstępna wycena (bez zapisu).
+// Wspólne dla importu ze zdjęcia karty i z GoPOS.
+async function buildMenuPreview(userId: string, cleanDishes: CleanMenuDish[]) {
   // Read-only match: wczytaj wszystkie produkty usera raz i zbuduj indeks (exact + tokeny)
   const userProducts = await db
     .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit, canonicalName: productsTable.canonicalName })
@@ -830,10 +792,258 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
     const portionCost = known.length > 0 ? known.reduce((s, i) => s + (i.ingredientCost ?? 0), 0) : null;
     const confidencePct = ingredients.length > 0 ? Math.round((known.length / ingredients.length) * 100) : 0;
     const foodCostPct = portionCost != null && d.sellPrice ? Math.round((portionCost / d.sellPrice) * 1000) / 10 : null;
-    return { name: d.name, sellPrice: d.sellPrice, category: d.category, portionCost, foodCostPct, confidencePct, ingredients };
+    return { name: d.name, sellPrice: d.sellPrice, category: d.category, posProductName: d.posProductName, portionCost, foodCostPct, confidencePct, ingredients };
   });
 
-  res.json({ dishes: preview });
+  return preview;
+}
+
+
+// Krok 2 — ekstrakcja z obrazów + read-only dopasowanie do produktów + wstępna wycena (bez zapisu)
+router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const body = ImportMenuBody.safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: body.error.message }); return; }
+
+  const images = body.data.images;
+  if (images.length === 0) { res.status(400).json({ error: "Brak obrazów do analizy." }); return; }
+  if (images.length > 8) { res.status(400).json({ error: "Za dużo stron (max 8). Zmniejsz liczbę stron menu." }); return; }
+
+  let totalBytes = 0;
+  for (const img of images) {
+    const m = /^data:([^;]+);base64,(.+)$/s.exec(img);
+    if (!m || !ALLOWED_IMAGE_MIME.includes(m[1].toLowerCase())) {
+      res.status(400).json({ error: "Nieobsługiwany format obrazu. Użyj JPEG, PNG, WebP lub GIF." });
+      return;
+    }
+    totalBytes += Math.floor((m[2].length * 3) / 4);
+  }
+  if (totalBytes > MAX_TOTAL_IMAGE_BYTES) {
+    res.status(400).json({ error: "Obrazy są za duże (max 20 MB łącznie). Zmniejsz pliki i spróbuj ponownie." });
+    return;
+  }
+
+  let dishes: ExtractedMenuDish[];
+  try {
+    const response = await requireOpenAI().chat.completions.create({
+      model: "gpt-4.1",
+      messages: [
+        {
+          role: "user",
+          content: [
+            ...images.map((url) => ({ type: "image_url" as const, image_url: { url, detail: "high" as const } })),
+            { type: "text" as const, text: MENU_PROMPT },
+          ],
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 4000,
+      temperature: 0,
+      // PostHog AI Observability (metadane, patrz integrations-openai-ai-server/client.ts).
+      ...(aiObservabilityEnabled ? { posthogDistinctId: userId } : {}),
+    });
+    const raw = response.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as { dishes?: unknown };
+    dishes = Array.isArray(parsed.dishes) ? (parsed.dishes as ExtractedMenuDish[]) : [];
+  } catch (err) {
+    req.log.error({ err }, "import-menu: OpenAI Vision error");
+    res.status(500).json({ error: "Nie udało się odczytać karty menu. Sprawdź jakość zdjęcia i spróbuj ponownie." });
+    return;
+  }
+
+  res.json({ dishes: await buildMenuPreview(userId, sanitizeMenuDishes(dishes)) });
+});
+
+// ─── Import menu z GoPOS (bez zdjęcia karty) ──────────────────────────────────
+// Źródłem listy dań jest sprzedaż już zsynchronizowana z GoPOS (`pos_sales`):
+// nazwa, kategoria z „Konfiguracji Menu" i cena. Dzięki temu nie trzeba robić
+// zdjęcia karty ani OCR — AI dostaje tylko NAZWY dań (tekst, tanio) i szacuje
+// składniki. Każde danie zapisuje `posProductName`, więc od razu łączy się ze
+// sprzedażą w „Realny food cost — GoPOS".
+const GOPOS_MENU_MONTHS = 6;
+const GOPOS_MENU_MAX_DISHES = 80;
+const GOPOS_MENU_BATCH = 12;
+const GOPOS_MENU_CONCURRENCY = 4;
+// VAT gastronomii na jedzenie (8%). POS raportuje sprzedaż NETTO, a cena dania w
+// Food Cost jest BRUTTO (jak w karcie). Napoje z 23% VAT wyjdą lekko zaniżone —
+// cena jest edytowalna w podglądzie przed zapisem.
+const GOPOS_MENU_VAT = 0.08;
+
+function lastMonthKeys(n: number): string[] {
+  const now = new Date();
+  const out: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    out.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
+  return out;
+}
+
+// Lista pozycji menu z GoPOS do wyboru (bez AI, bez limitu).
+router.get("/food-cost/gopos-menu", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const [rows, dishes] = await Promise.all([
+    db
+      .select({
+        name: posSalesTable.productName,
+        posProductId: posSalesTable.posProductId,
+        category: sql<string | null>`MAX(${posSalesTable.category})`,
+        qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
+        net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
+      })
+      .from(posSalesTable)
+      .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, lastMonthKeys(GOPOS_MENU_MONTHS))))
+      .groupBy(posSalesTable.productName, posSalesTable.posProductId),
+    db
+      .select({ name: dishesTable.name, posProductName: dishesTable.posProductName })
+      .from(dishesTable)
+      .where(eq(dishesTable.userId, userId)),
+  ]);
+
+  // Danie już jest w Food Cost, jeśli nazwa albo powiązanie POS się zgadza.
+  const existing = new Set<string>();
+  for (const d of dishes) {
+    existing.add(normalizeName(d.name));
+    if (d.posProductName) existing.add(normalizeName(d.posProductName));
+  }
+
+  const categoryByName = new Map(rows.map((r) => [r.name, r.category]));
+  const groups = groupPosByProduct(
+    rows.map((r) => ({ name: r.name, posProductId: r.posProductId, qty: Number(r.qty) || 0, net: Number(r.net) || 0 })),
+  );
+
+  const items: Array<{ posProductName: string; name: string; category: string | null; qty: number; sellPrice: number | null; alreadyImported: boolean }> = [];
+  const push = (name: string, members: Array<{ name: string; qty: number; net: number }>) => {
+    const qty = members.reduce((s, m) => s + m.qty, 0);
+    const net = members.reduce((s, m) => s + m.net, 0);
+    if (!name.trim() || qty <= 0) return; // zwroty / pozycje bez sprzedaży nie są daniami
+    const category = members.map((m) => categoryByName.get(m.name)).find((c) => c) ?? null;
+    items.push({
+      posProductName: name,
+      name,
+      category,
+      qty: Math.round(qty * 100) / 100,
+      sellPrice: net > 0 ? Math.round((net / qty) * (1 + GOPOS_MENU_VAT) * 100) / 100 : null,
+      alreadyImported: existing.has(normalizeName(name)) || members.some((m) => existing.has(normalizeName(m.name))),
+    });
+  };
+  for (const g of groups) {
+    // Różne dania pod wspólnym id POS (bez wspólnego rdzenia nazwy) — osobno,
+    // tak samo jak na stronie Sprzedaż. Warianty steka zostają jednym daniem.
+    if (g.members.length > 1 && !sharesCommonPrefix(g.members.map((m) => m.name))) {
+      for (const m of g.members) push(m.name, [m]);
+    } else {
+      push(g.name, g.members);
+    }
+  }
+  items.sort((a, b) => (a.category ?? "~").localeCompare(b.category ?? "~", "pl") || b.qty - a.qty);
+  res.json({ months: GOPOS_MENU_MONTHS, maxDishes: GOPOS_MENU_MAX_DISHES, items });
+});
+
+const GOPOS_MENU_PROMPT = `Jesteś doświadczonym szefem kuchni i kalkulantem food cost. Dostajesz listę pozycji menu restauracji (z systemu kasowego), każdą z numerem "idx", nazwą i kategorią. Oszacuj skład JEDNEJ porcji każdej pozycji.
+
+Zwróć WYŁĄCZNIE obiekt JSON:
+{
+  "dishes": [
+    {
+      "idx": number (ten sam co na wejściu),
+      "ingredients": [
+        { "name": "surowcowa nazwa składnika", "grams": number, "estPricePerKg": number, "estPieceGrams": number lub null }
+      ]
+    }
+  ]
+}
+
+Zasady:
+- Zwróć wpis dla KAŻDEGO idx z wejścia, w tej samej kolejności.
+- Generyczne, surowcowe nazwy składników po polsku (np. "pierś z kurczaka", "ser mozzarella", "ziemniaki") — łatwiej je dopasować do faktur zakupowych.
+- grams = realistyczna gramatura (g lub ml) na JEDNĄ porcję.
+- estPricePerKg = Twoja prognoza ceny zakupu surowca w Polsce w PLN za 1 kg (płyny: 1 kg ≈ 1 l).
+- estPieceGrams tylko dla surowców kupowanych na sztuki (jajko 60, cytryna 100, awokado 200), inaczej null.
+- Pozycje kupowane gotowe (napoje butelkowane, piwo, woda, soki w butelkach): jeden składnik = ten produkt, grams = jego pojemność w ml (np. "Coca-Cola 0,33 l" → 330).
+- Napoje robione na miejscu (kawa, herbata, lemoniada): składniki jak dla porcji (np. kawa ziarnista 18 g, mleko 150 ml).
+- Pomijaj sól/pieprz albo zgrupuj jako "przyprawy" z małą gramaturą i estPricePerKg ~20.
+- Jeśli pozycja nie jest daniem ani napojem (np. opłata, opakowanie, dopłata, voucher) — zwróć pustą listę ingredients.
+- Poprawny JSON, bez komentarzy.`;
+
+type GoposMenuInput = { name: string; sellPrice: number | null; category: string | null; posProductName: string };
+
+async function estimateIngredientsBatch(userId: string, batch: GoposMenuInput[]): Promise<ExtractedMenuIngredient[][]> {
+  const input = batch.map((d, idx) => ({ idx, name: d.name, category: d.category }));
+  const response = await requireOpenAI().chat.completions.create({
+    model: "gpt-4.1",
+    messages: [
+      { role: "system", content: GOPOS_MENU_PROMPT },
+      { role: "user", content: JSON.stringify(input) },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 6000,
+    temperature: 0,
+    ...(aiObservabilityEnabled ? { posthogDistinctId: userId } : {}),
+  });
+  const parsed = JSON.parse(response.choices[0]?.message?.content ?? "{}") as { dishes?: Array<{ idx?: unknown; ingredients?: unknown }> };
+  const out: ExtractedMenuIngredient[][] = batch.map(() => []);
+  for (const d of Array.isArray(parsed.dishes) ? parsed.dishes : []) {
+    const idx = typeof d?.idx === "number" ? d.idx : -1;
+    if (idx >= 0 && idx < batch.length && Array.isArray(d.ingredients)) out[idx] = d.ingredients as ExtractedMenuIngredient[];
+  }
+  return out;
+}
+
+// Szacowanie składników dla wybranych pozycji GoPOS → ten sam podgląd co import
+// ze zdjęcia. Ścieżka pod `/food-cost/import-menu/...`, więc łapie ją middleware
+// `aiQuota` (prefiks w routes/index.ts) — jedno użycie limitu AI na import.
+router.post("/food-cost/import-menu/gopos", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const raw = (req.body as { dishes?: unknown }).dishes;
+  if (!Array.isArray(raw) || raw.length === 0) { res.status(400).json({ error: "Wybierz przynajmniej jedną pozycję z GoPOS." }); return; }
+  if (raw.length > GOPOS_MENU_MAX_DISHES) {
+    res.status(400).json({ error: `Za dużo pozycji naraz (max ${GOPOS_MENU_MAX_DISHES}). Zaimportuj menu w kilku częściach.` });
+    return;
+  }
+  const input: GoposMenuInput[] = [];
+  for (const r of raw as Array<Record<string, unknown>>) {
+    const name = typeof r?.name === "string" ? r.name.trim().slice(0, 200) : "";
+    const posProductName = typeof r?.posProductName === "string" ? r.posProductName.trim().slice(0, 200) : "";
+    if (!name || !posProductName) continue;
+    input.push({
+      name,
+      posProductName,
+      sellPrice: typeof r.sellPrice === "number" && r.sellPrice > 0 ? r.sellPrice : null,
+      category: typeof r.category === "string" && r.category.trim() ? r.category.trim().slice(0, 100) : null,
+    });
+  }
+  if (input.length === 0) { res.status(400).json({ error: "Brak poprawnych pozycji do importu." }); return; }
+
+  const batches: GoposMenuInput[][] = [];
+  for (let i = 0; i < input.length; i += GOPOS_MENU_BATCH) batches.push(input.slice(i, i + GOPOS_MENU_BATCH));
+
+  const results: ExtractedMenuIngredient[][][] = new Array(batches.length);
+  try {
+    // Kilka partii równolegle (ograniczone) — przy 80 pozycjach jedno wywołanie
+    // trwałoby za długo i ucinało JSON na limicie tokenów.
+    let next = 0;
+    const worker = async () => {
+      while (next < batches.length) {
+        const b = next++;
+        results[b] = await estimateIngredientsBatch(userId, batches[b]);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(GOPOS_MENU_CONCURRENCY, batches.length) }, worker));
+  } catch (err) {
+    req.log.error({ err }, "import-menu/gopos: OpenAI error");
+    res.status(500).json({ error: "Nie udało się oszacować składników. Spróbuj ponownie za chwilę." });
+    return;
+  }
+
+  const extracted = input.map((d, i) => ({
+    name: d.name,
+    sellPrice: d.sellPrice,
+    category: d.category,
+    ingredients: results[Math.floor(i / GOPOS_MENU_BATCH)][i % GOPOS_MENU_BATCH] ?? [],
+  }));
+  const clean = sanitizeMenuDishes(extracted).map((d, i) => ({ ...d, posProductName: input[i].posProductName }));
+  res.json({ dishes: await buildMenuPreview(userId, clean) });
 });
 
 // Krok 3 — zapis zaakceptowanych dań: tworzy brakujące produkty + wstawia dania i składniki (unit "g")
@@ -880,6 +1090,8 @@ router.post("/food-cost/dishes/from-menu", async (req, res): Promise<void> => {
         name: d.name.trim(),
         sellPrice: String(d.sellPrice ?? 0),
         category: d.category?.trim() || null,
+        // Import z GoPOS: danie od razu powiązane ze swoją pozycją sprzedaży.
+        posProductName: d.posProductName?.trim() || null,
       })
       .returning();
 

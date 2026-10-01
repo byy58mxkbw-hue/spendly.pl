@@ -1268,6 +1268,8 @@ export interface MenuPreviewIngredient {
 export interface MenuPreviewDish {
   name: string;
   /** @nullable */
+  posProductName?: string | null;
+  /** @nullable */
   sellPrice?: number | null;
   /** @nullable */
   category?: string | null;
@@ -1277,6 +1279,36 @@ export interface MenuPreviewDish {
   foodCostPct?: number | null;
   confidencePct: number;
   ingredients: MenuPreviewIngredient[];
+}
+
+export interface GoposMenuItem {
+  posProductName: string;
+  name: string;
+  /** @nullable */
+  category?: string | null;
+  qty: number;
+  /** @nullable */
+  sellPrice?: number | null;
+  alreadyImported: boolean;
+}
+
+export interface GoposMenu {
+  months: number;
+  maxDishes: number;
+  items: GoposMenuItem[];
+}
+
+export interface GoposMenuImportDish {
+  posProductName: string;
+  name: string;
+  /** @nullable */
+  category?: string | null;
+  /** @nullable */
+  sellPrice?: number | null;
+}
+
+export interface GoposMenuImportBody {
+  dishes: GoposMenuImportDish[];
 }
 
 export interface MenuImportPreview {
@@ -1296,6 +1328,8 @@ export interface SaveMenuIngredient {
 
 export interface SaveMenuDish {
   name: string;
+  /** @nullable */
+  posProductName?: string | null;
   /** @nullable */
   sellPrice?: number | null;
   /** @nullable */

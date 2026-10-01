@@ -314,6 +314,38 @@ paths:
               schema:
                 $ref: "#/components/schemas/MenuImportPreview"
 
+  /food-cost/gopos-menu:
+    get:
+      operationId: getGoposMenu
+      tags: [food-cost]
+      summary: Menu items from synced GoPOS sales, to import as dishes (no AI)
+      responses:
+        "200":
+          description: GoPOS menu items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoposMenu"
+
+  /food-cost/import-menu/gopos:
+    post:
+      operationId: importMenuFromGopos
+      tags: [food-cost]
+      summary: Estimate ingredients for selected GoPOS menu items (AI text, preview only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoposMenuImportBody"
+      responses:
+        "200":
+          description: Dishes preview with rough food cost
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuImportPreview"
+
   /food-cost/dishes/from-menu:
     post:
       operationId: saveMenuDishes
@@ -4918,6 +4950,8 @@ components:
       properties:
         name:
           type: string
+        posProductName:
+          type: ["string", "null"]
         sellPrice:
           type: ["number", "null"]
         category:
@@ -4936,6 +4970,68 @@ components:
         - name
         - confidencePct
         - ingredients
+
+    GoposMenuItem:
+      type: object
+      properties:
+        posProductName:
+          type: string
+        name:
+          type: string
+        category:
+          type: ["string", "null"]
+        qty:
+          type: number
+        sellPrice:
+          type: ["number", "null"]
+        alreadyImported:
+          type: boolean
+      required:
+        - posProductName
+        - name
+        - qty
+        - alreadyImported
+
+    GoposMenu:
+      type: object
+      properties:
+        months:
+          type: integer
+        maxDishes:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoposMenuItem"
+      required:
+        - months
+        - maxDishes
+        - items
+
+    GoposMenuImportDish:
+      type: object
+      properties:
+        posProductName:
+          type: string
+        name:
+          type: string
+        category:
+          type: ["string", "null"]
+        sellPrice:
+          type: ["number", "null"]
+      required:
+        - posProductName
+        - name
+
+    GoposMenuImportBody:
+      type: object
+      properties:
+        dishes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoposMenuImportDish"
+      required:
+        - dishes
 
     MenuImportPreview:
       type: object
@@ -4969,6 +5065,8 @@ components:
       properties:
         name:
           type: string
+        posProductName:
+          type: ["string", "null"]
         sellPrice:
           type: ["number", "null"]
         category:

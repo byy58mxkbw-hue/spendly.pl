@@ -81,6 +81,8 @@ import type {
   GetSupplierTopProductsParams,
   GetTopPriceChangesParams,
   GlobalSearchParams,
+  GoposMenu,
+  GoposMenuImportBody,
   HealthStatus,
   ImportInvoiceBody,
   Invoice,
@@ -1052,6 +1054,153 @@ export const useImportMenu = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getImportMenuMutationOptions(options));
+    }
+
+export const getGetGoposMenuUrl = () => {
+
+
+
+
+  return `/api/food-cost/gopos-menu`
+}
+
+/**
+ * @summary Menu items from synced GoPOS sales, to import as dishes (no AI)
+ */
+export const getGoposMenu = async ( options?: RequestInit): Promise<GoposMenu> => {
+
+  return customFetch<GoposMenu>(getGetGoposMenuUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGoposMenuQueryKey = () => {
+    return [
+    `/api/food-cost/gopos-menu`
+    ] as const;
+    }
+
+
+export const getGetGoposMenuQueryOptions = <TData = Awaited<ReturnType<typeof getGoposMenu>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoposMenu>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGoposMenuQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGoposMenu>>> = ({ signal }) => getGoposMenu({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGoposMenu>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGoposMenuQueryResult = NonNullable<Awaited<ReturnType<typeof getGoposMenu>>>
+export type GetGoposMenuQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Menu items from synced GoPOS sales, to import as dishes (no AI)
+ */
+
+export function useGetGoposMenu<TData = Awaited<ReturnType<typeof getGoposMenu>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGoposMenu>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGoposMenuQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getImportMenuFromGoposUrl = () => {
+
+
+
+
+  return `/api/food-cost/import-menu/gopos`
+}
+
+/**
+ * @summary Estimate ingredients for selected GoPOS menu items (AI text, preview only)
+ */
+export const importMenuFromGopos = async (goposMenuImportBody: GoposMenuImportBody, options?: RequestInit): Promise<MenuImportPreview> => {
+
+  return customFetch<MenuImportPreview>(getImportMenuFromGoposUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(goposMenuImportBody)
+  }
+);}
+
+
+
+
+export const getImportMenuFromGoposMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importMenuFromGopos>>, TError,{data: BodyType<GoposMenuImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importMenuFromGopos>>, TError,{data: BodyType<GoposMenuImportBody>}, TContext> => {
+
+const mutationKey = ['importMenuFromGopos'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importMenuFromGopos>>, {data: BodyType<GoposMenuImportBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  importMenuFromGopos(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportMenuFromGoposMutationResult = NonNullable<Awaited<ReturnType<typeof importMenuFromGopos>>>
+    export type ImportMenuFromGoposMutationBody = BodyType<GoposMenuImportBody>
+    export type ImportMenuFromGoposMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Estimate ingredients for selected GoPOS menu items (AI text, preview only)
+ */
+export const useImportMenuFromGopos = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importMenuFromGopos>>, TError,{data: BodyType<GoposMenuImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof importMenuFromGopos>>,
+        TError,
+        {data: BodyType<GoposMenuImportBody>},
+        TContext
+      > => {
+      return useMutation(getImportMenuFromGoposMutationOptions(options));
     }
 
 export const getSaveMenuDishesUrl = () => {
