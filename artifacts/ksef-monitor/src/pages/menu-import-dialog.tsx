@@ -113,7 +113,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
   const importFromGopos = useImportMenuFromGopos();
   // Aktualne menu z GoPOS (pobierane na żywo). Brak konfiguracji GoPOS = zostaje
   // tylko import ze zdjęcia karty.
-  const { data: goposMenu, isLoading: goposLoading } = useGetGoposMenu();
+  const { data: goposMenu, isLoading: goposLoading, isError: goposFailed, refetch: refetchGopos } = useGetGoposMenu();
   const goposItems = useMemo(() => goposMenu?.items ?? [], [goposMenu]);
   const goposMax = goposMenu?.maxDishes ?? 80;
 
@@ -129,7 +129,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
     // jeszcze w Food Cost — najczęściej sprzedawane, do limitu. GoPOS oznacza dania
     // i dodatki tym samym typem, więc sprzedaż jest najlepszym sygnałem „to danie".
     const fresh = goposItems
-      .filter((i) => !i.alreadyImported && i.qty > 0)
+      .filter((i) => !i.alreadyImported)
       .sort((a, b) => b.qty - a.qty)
       .slice(0, goposMax);
     setPicked(new Set(fresh.map((i) => i.posProductName)));
@@ -283,7 +283,8 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                   <span className="space-y-1">
                     <span className="block text-sm font-semibold text-foreground">Z aktualnego menu GoPOS, bez zdjęcia</span>
                     <span className="block text-xs text-muted-foreground">
-                      <span className="num">{goposItems.length}</span> pozycji w aktualnym menu
+                      <span className="num">{goposItems.length}</span> pozycji w aktualnym menu, sprzedanych w ostatnich{" "}
+                      {goposMenu?.months ?? 3} miesiącach
                       {goposItems.some((i) => i.alreadyImported) && (
                         <> (<span className="num">{goposItems.filter((i) => i.alreadyImported).length}</span> już w Food Cost)</>
                       )}
@@ -299,11 +300,18 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> Pobieram aktualne menu z GoPOS…
               </p>
             )}
-            {!goposLoading && goposMenu?.configured && goposMenu.error && (
-              <p className="text-xs text-warning">{goposMenu.error}</p>
+            {!goposLoading && (goposFailed || (goposMenu?.configured && goposMenu.error)) && (
+              <p className="text-xs text-warning flex items-center gap-2">
+                {goposMenu?.error ?? "Nie udało się wczytać menu z GoPOS."}
+                <button onClick={() => void refetchGopos()} className="underline underline-offset-2">
+                  Spróbuj ponownie
+                </button>
+              </p>
             )}
             {!goposLoading && goposMenu?.configured && !goposMenu.error && goposItems.length === 0 && (
-              <p className="text-xs text-muted-foreground">W GoPOS nie ma aktywnego menu z pozycjami do zaimportowania.</p>
+              <p className="text-xs text-muted-foreground">
+                W GoPOS nie ma aktywnych pozycji sprzedanych w ostatnich {goposMenu.months} miesiącach.
+              </p>
             )}
             <p className="text-sm text-muted-foreground">
               Wgraj zdjęcie lub PDF karty menu. AI odczyta dania, oszacuje składniki i gramatury oraz policzy wstępny food cost.
@@ -369,9 +377,9 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                           )}
                           <span
                             className="text-[11px] text-muted-foreground num w-24 text-right shrink-0"
-                            title={`Sprzedano w ostatnich ${goposMenu?.months ?? 6} miesiącach`}
+                            title={`Sprzedano w ostatnich ${goposMenu?.months ?? 3} miesiącach`}
                           >
-                            {it.qty > 0 ? `${it.qty.toLocaleString("pl-PL")} szt.` : "bez sprzedaży"}
+                            {`${it.qty.toLocaleString("pl-PL")} szt.`}
                           </span>
                           <span
                             className={cn("text-[11px] num w-20 text-right shrink-0", it.priceSource === "sales" && "text-muted-foreground")}
@@ -390,12 +398,11 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
             </div>
             <p className="text-[11px] text-muted-foreground pt-2">
               Ceny z karty GoPOS. Cena z „~” to średnia ze sprzedaży, bo karta jej nie podaje. Liczba sztuk to sprzedaż z ostatnich{" "}
-              {goposMenu?.months ?? 6} miesięcy.
+              {goposMenu?.months ?? 3} miesięcy.
               {goposMenu?.stats && (
                 <span className="block mt-0.5">
-                  GoPOS zwrócił <span className="num">{goposMenu.stats.enabled}</span> aktywnych pozycji, z czego{" "}
-                  <span className="num">{goposMenu.stats.withPrice}</span> ma cenę w karcie. Domyślnie zaznaczone są pozycje ze
-                  sprzedażą.
+                  GoPOS ma <span className="num">{goposMenu.stats.enabled}</span> aktywnych pozycji. Na liście są tylko te
+                  sprzedane w ostatnich {goposMenu.months} miesiącach.
                 </span>
               )}
               {goposMenu?.stats?.sample && goposMenu.stats.withPrice === 0 && (

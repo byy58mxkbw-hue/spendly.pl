@@ -877,10 +877,13 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
 // AI dostaje tylko NAZWY dań (tekst, tanio) i szacuje składniki. Każde danie
 // zapisuje `posProductName`, więc od razu łączy się ze sprzedażą w
 // „Realny food cost — GoPOS".
-const GOPOS_MENU_MONTHS = 6; // okno sprzedaży: kontekst „ile sprzedano" + dopasowanie nazw
+// „Aktualne" = aktywne w GoPOS ORAZ sprzedane w ostatnich 3 miesiącach. Sama
+// aktywność w GoPOS nie wystarcza: na realnym koncie ~600 aktywnych pozycji,
+// w tym dodatki i stare dania (GoPOS oznacza je wszystkie tym samym typem).
+const GOPOS_MENU_MONTHS = 3;
 const GOPOS_MENU_MAX_DISHES = 80;
-const GOPOS_MENU_BATCH = 12;
-const GOPOS_MENU_CONCURRENCY = 4;
+const GOPOS_MENU_BATCH = 8;
+const GOPOS_MENU_CONCURRENCY = 5;
 
 function lastMonthKeys(n: number): string[] {
   const now = new Date();
@@ -961,9 +964,11 @@ export function buildGoposMenuList(
     const name = commonWordPrefix(members.map((m) => m.name));
     const key = normalizeName(name);
     if (!key || seen.has(key)) continue; // ta sama pozycja w kilku menu (sala / dowóz)
-    seen.add(key);
     const candidates = [name, ...members.map((m) => m.name)];
     const sale = candidates.map((c) => salesLink.get(normalizeName(c))).find(Boolean) ?? null;
+    // Tylko pozycje sprzedawane w oknie — reszta to dodatki i dania spoza karty.
+    if (!sale || sale.qty <= 0) continue;
+    seen.add(key);
     const prices = members.map((m) => m.price).filter((v): v is number => v != null);
     const menuPrice = prices.length > 0 ? Math.min(...prices) : null;
     const salesPrice = sale && sale.qty > 0 && sale.net > 0 ? Math.round((sale.net / sale.qty) * (1 + SALES_PRICE_VAT) * 100) / 100 : null;
@@ -1063,7 +1068,7 @@ async function estimateIngredientsBatch(userId: string, batch: GoposMenuInput[])
       { role: "user", content: JSON.stringify(input) },
     ],
     response_format: { type: "json_object" },
-    max_tokens: 6000,
+    max_tokens: 4000,
     temperature: 0,
     ...(aiObservabilityEnabled ? { posthogDistinctId: userId } : {}),
   });
@@ -1108,14 +1113,29 @@ router.post("/food-cost/import-menu/gopos", async (req, res): Promise<void> => {
   try {
     // Kilka partii równolegle (ograniczone) — przy 80 pozycjach jedno wywołanie
     // trwałoby za długo i ucinało JSON na limicie tokenów.
+    // Jedna nieudana partia (timeout / ucięty JSON) nie przekreśla całego importu:
+    // ponawiamy raz, a gdy dalej nie wyjdzie — te dania wracają bez składników
+    // (podgląd je odznacza). Całość pada dopiero, gdy nie udała się ŻADNA partia.
     let next = 0;
+    let failed = 0;
     const worker = async () => {
       while (next < batches.length) {
         const b = next++;
-        results[b] = await estimateIngredientsBatch(userId, batches[b]);
+        try {
+          results[b] = await estimateIngredientsBatch(userId, batches[b]);
+        } catch (first) {
+          try {
+            results[b] = await estimateIngredientsBatch(userId, batches[b]);
+          } catch {
+            req.log.warn({ err: first instanceof Error ? first.message : String(first), batch: b }, "import-menu/gopos: partia nieudana");
+            results[b] = batches[b].map(() => []);
+            failed++;
+          }
+        }
       }
     };
     await Promise.all(Array.from({ length: Math.min(GOPOS_MENU_CONCURRENCY, batches.length) }, worker));
+    if (failed === batches.length) throw new Error("all batches failed");
   } catch (err) {
     req.log.error({ err }, "import-menu/gopos: OpenAI error");
     res.status(500).json({ error: "Nie udało się oszacować składników. Spróbuj ponownie za chwilę." });

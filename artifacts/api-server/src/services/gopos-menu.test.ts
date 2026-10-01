@@ -65,6 +65,16 @@ describe("buildGoposMenuList", () => {
   const p = (id: string, name: string, extra: Partial<{ price: number | null; category: string | null; groupId: string | null }> = {}) => ({
     id, name, price: 50, category: "DANIA GŁÓWNE", groupId: null, groupName: null, ...extra,
   });
+  const sold = (name: string, qty = 1, net = 50, posProductId: string | null = null) => ({ name, posProductId, qty, net });
+
+  it("pokazuje tylko pozycje sprzedane w oknie (aktywne, ale bez sprzedaży odpadają)", () => {
+    const list = buildGoposMenuList(
+      [p("1", "Żurek"), p("2", "Extra ser"), p("3", "Stare danie")],
+      [sold("Żurek", 20, 500)],
+      [],
+    );
+    expect(list.map((i) => i.name)).toEqual(["Żurek"]);
+  });
 
   it("skleja warianty jednej grupy, a różne dania w grupie zostawia osobno", () => {
     const list = buildGoposMenuList(
@@ -74,44 +84,32 @@ describe("buildGoposMenuList", () => {
         p("3", "Pierogi ruskie", { groupId: "g2" }),
         p("4", "Naleśniki", { groupId: "g2" }),
       ],
-      [],
+      [sold("Stek wołowy Medium", 6, 600, "77"), sold("Stek wołowy Well Done", 4, 400, "77"), sold("Pierogi ruskie"), sold("Naleśniki")],
       [],
     );
     expect(list.map((i) => i.name).sort()).toEqual(["Naleśniki", "Pierogi ruskie", "Stek wołowy"]);
-    expect(list.find((i) => i.name === "Stek wołowy")!.sellPrice).toBe(95);
+    expect(list.find((i) => i.name === "Stek wołowy")).toMatchObject({ sellPrice: 95, qty: 10, posProductName: "Stek wołowy" });
   });
 
-  it("wiąże danie ze sprzedażą po nazwie i oznacza dania już w Food Cost", () => {
+  it("oznacza dania już w Food Cost (także przez powiązanie ze sprzedażą)", () => {
     const list = buildGoposMenuList(
-      [p("1", "Stek wołowy Medium", { groupId: "g1" }), p("2", "Stek wołowy Well Done", { groupId: "g1" }), p("3", "Żurek"), p("4", "Nowość")],
-      [
-        { name: "Stek wołowy Medium", posProductId: "77", qty: 6, net: 600 },
-        { name: "Stek wołowy Well Done", posProductId: "77", qty: 4, net: 400 },
-        { name: "Żurek", posProductId: "30", qty: 20, net: 500 },
-      ],
+      [p("1", "Żurek"), p("2", "Rosół")],
+      [sold("Żurek", 20, 500, "30"), sold("Rosół", 5, 100)],
       [{ name: "Zupa żurek", posProductName: "Żurek" }],
     );
-    const stek = list.find((i) => i.name === "Stek wołowy")!;
-    expect(stek).toMatchObject({ posProductName: "Stek wołowy", qty: 10, alreadyImported: false });
     expect(list.find((i) => i.name === "Żurek")!.alreadyImported).toBe(true);
-    // Nowe danie bez sprzedaży: wiązanie po własnej nazwie, sprzedaż 0.
-    expect(list.find((i) => i.name === "Nowość")).toMatchObject({ posProductName: "Nowość", qty: 0 });
+    expect(list.find((i) => i.name === "Rosół")!.alreadyImported).toBe(false);
   });
 
   it("bez ceny w karcie bierze średnią cenę ze sprzedaży z VAT 8%", () => {
-    const list = buildGoposMenuList(
-      [p("1", "Zadatek", { price: null }), p("2", "Usługa bez sprzedaży", { price: null })],
-      [{ name: "Zadatek", posProductId: "5", qty: 4, net: 400 }],
-      [],
-    );
-    expect(list.find((i) => i.name === "Zadatek")).toMatchObject({ sellPrice: 108, priceSource: "sales" });
-    expect(list.find((i) => i.name === "Usługa bez sprzedaży")).toMatchObject({ sellPrice: null, priceSource: null });
-    const withMenu = buildGoposMenuList([p("1", "Żurek", { price: 27 })], [{ name: "Żurek", posProductId: "1", qty: 1, net: 10 }], []);
+    const list = buildGoposMenuList([p("1", "Zadatek", { price: null })], [sold("Zadatek", 4, 400, "5")], []);
+    expect(list[0]).toMatchObject({ sellPrice: 108, priceSource: "sales" });
+    const withMenu = buildGoposMenuList([p("1", "Żurek", { price: 27 })], [sold("Żurek", 1, 10)], []);
     expect(withMenu[0]).toMatchObject({ sellPrice: 27, priceSource: "menu" });
   });
 
   it("ta sama pozycja w kilku menu (sala, dowóz) pojawia się raz", () => {
-    const list = buildGoposMenuList([p("1", "Żurek"), p("2", "żurek ")], [], []);
+    const list = buildGoposMenuList([p("1", "Żurek"), p("2", "żurek ")], [sold("Żurek")], []);
     expect(list).toHaveLength(1);
   });
 });
