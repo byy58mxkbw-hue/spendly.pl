@@ -327,11 +327,29 @@ function DishFormDialog({
     [products, productSearch],
   );
 
-  function addIngredient(productId: number, productName: string, productUnit: string) {
+  // Nowy składnik od razu dostaje ostatnią cenę z faktury (z listy produktów).
+  // Wcześniej szła tylko nazwa — edytor pokazywał „brak ceny" aż do zapisu dania,
+  // mimo że produkt pochodzi z faktur i cenę ma.
+  function addIngredient(productId: number, productName: string, productUnit: string, latestPrice?: number | null) {
     if (ingredients.find((i) => i.productId === productId)) return;
     const u = (productUnit ?? "").toLowerCase().trim();
     const defaultUnit = (u === "ml" || u === "l" || u === "litr") ? "ml" : "g";
-    setIngredients((prev) => [...prev, { _key: String(Date.now()), productId, productName, quantity: 100, unit: defaultUnit }]);
+    const unitPrice = latestPrice != null && latestPrice > 0 ? latestPrice : null;
+    const row: IngredientRow = {
+      _key: String(Date.now()),
+      productId,
+      productName,
+      quantity: 100,
+      unit: defaultUnit,
+      unitPrice,
+      invoiceUnit: unitPrice != null ? productUnit || "szt" : undefined,
+    };
+    const cost = unitPrice != null ? calcIngredientCost(100, defaultUnit, row.invoiceUnit!, unitPrice, productName) : null;
+    // Cena jest, ale faktura liczy „za szt", a z nazwy nie da się odczytać wagi →
+    // od razu prośba o wagę 1 szt. Brak ceny w ogóle → ręczna cena.
+    row.needsPackage = unitPrice != null && cost == null;
+    row.canSetPrice = unitPrice == null;
+    setIngredients((prev) => [...prev, row]);
     setProductSearch("");
   }
 
@@ -440,7 +458,7 @@ function DishFormDialog({
                   return (
                     <button
                       key={p.id}
-                      onClick={() => addIngredient(p.id, p.name, p.unit ?? "g")}
+                      onClick={() => addIngredient(p.id, p.name, p.unit ?? "g", p.latestPrice)}
                       disabled={added}
                       className="w-full text-left px-3 py-2 text-sm border-b border-border last:border-0 hover:bg-secondary/50 transition-colors disabled:opacity-40"
                     >
