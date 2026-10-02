@@ -50,6 +50,7 @@ import {
   acquireSession,
   clearCachedSession,
   ingestViaExport,
+  reparsePendingIfEmpty,
 } from "../services/ksef-ingest";
 
 const router: IRouter = Router();
@@ -693,7 +694,8 @@ async function runSync(
   let userCatsRetry: Array<{ id: string; label: string }> | undefined;
   for (const row of stillPending) {
     try {
-      const parsed = row.parsedJson as ParsedFa3;
+      // Stary wynik bez pozycji (np. zaliczka ZAL) → parsujemy XML od nowa.
+      const parsed = await reparsePendingIfEmpty(row);
       if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) continue;
       const match = await tryMatch(userId, parsed);
       if (!match.supplier) continue;
@@ -891,7 +893,8 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
 
   for (const row of stillPending) {
     try {
-      const parsed = row.parsedJson as ParsedFa3;
+      // Stary wynik bez pozycji (np. zaliczka ZAL) → parsujemy XML od nowa.
+      const parsed = await reparsePendingIfEmpty(row);
       if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) continue;
       const match = await tryMatch(userId, parsed);
       if (!match.supplier) continue;
@@ -1079,7 +1082,8 @@ router.get("/ksef/pending/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const parsed = row.parsedJson as ParsedFa3;
+  // Stary wynik bez pozycji (np. zaliczka ZAL) → parsujemy XML od nowa.
+  const parsed = (await reparsePendingIfEmpty(row)) as ParsedFa3;
   const match = await tryMatch(userId, parsed);
 
   res.json({
@@ -1176,8 +1180,8 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
     return;
   }
 
-  const parsed = row.parsedJson as ParsedFa3;
-  if (parsed.items.length === 0) {
+  const parsed = (await reparsePendingIfEmpty(row)) as ParsedFa3;
+  if (!parsed || parsed.items.length === 0) {
     res.status(400).json({ error: "Faktura nie zawiera pozycji." });
     return;
   }
@@ -1186,13 +1190,18 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   for (const m of body.data.itemMappings) {
     mappingByIndex.set(m.index, m.productId);
   }
-  if (mappingByIndex.size === 0) {
+  // Linie zaliczki (faktura ZAL, rozliczenie na ROZ) nie są towarem — wchodzą do
+  // faktury zawsze, bez produktu, tak jak przy automatycznym imporcie. Dzięki temu
+  // fakturę zaliczkową nowego dostawcy da się zaakceptować bez sztucznego mapowania.
+  const advanceIdx = new Set(parsed.items.map((it, i) => (isAdvanceSettlementLine(it.name) ? i : -1)).filter((i) => i >= 0));
+  const included = (i: number) => mappingByIndex.has(i) || advanceIdx.has(i);
+  if (mappingByIndex.size === 0 && advanceIdx.size === 0) {
     res.status(400).json({ error: "Musisz dopasować co najmniej jedną pozycję." });
     return;
   }
 
   const productIds = Array.from(new Set(mappingByIndex.values()));
-  const products = await db
+  const products = productIds.length === 0 ? [] : await db
     .select({ id: productsTable.id })
     .from(productsTable)
     .where(and(eq(productsTable.userId, userId), inArray(productsTable.id, productIds)));
@@ -1202,7 +1211,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
   }
 
   const totalAmount = parsed.items.reduce(
-    (s, item, i) => (mappingByIndex.has(i) ? s + item.gross : s),
+    (s, item, i) => (included(i) ? s + item.gross : s),
     0,
   );
   const acceptPayMethod = (parsed.header.paymentMethod as "gotowka" | "przelew" | "karta" | null | undefined) ?? null;
@@ -1230,13 +1239,13 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
 
     const items: Array<typeof invoiceItemsTable.$inferSelect> = [];
     for (let i = 0; i < parsed.items.length; i++) {
-      if (!mappingByIndex.has(i)) continue;
+      if (!included(i)) continue;
       const item = parsed.items[i];
       const [inserted] = await tx
         .insert(invoiceItemsTable)
         .values({
           invoiceId: inv.id,
-          productId: mappingByIndex.get(i)!,
+          productId: mappingByIndex.get(i) ?? null,
           productName: item.name,
           quantity: item.quantity.toString(),
           unit: item.unit,

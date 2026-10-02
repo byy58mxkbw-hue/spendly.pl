@@ -217,6 +217,34 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
       });
     }
 
+    // Faktura ZALICZKOWA (ZAL) w FA(3) nie ma <FaWiersz> — pozycje zamówienia są w
+    // <Zamowienie>/<ZamowienieWiersz> i opisują CAŁE zamówienie, a nie kwotę
+    // zaliczki. Bez tej gałęzi faktura trafiała do „Do przeglądu” jako „brak pozycji”,
+    // nie dało się jej zaakceptować i zapłacona zaliczka nie liczyła się nigdzie
+    // (audyt spójności 2026-10-01). Budujemy linie z sum faktury per stawka VAT
+    // (P_13_x netto + P_14_x VAT). Nazwa zaczyna się od „Zaliczka”, więc import
+    // traktuje ją jak rozliczenie zaliczki: bez produktu, bez „brakującego produktu”.
+    // Faktura rozliczeniowa (ROZ) zostaje poza sumą wydatków (invoice-line-classify),
+    // więc ten sam towar nie liczy się dwa razy.
+    if (rawItems.length === 0 && invoiceType === "ZAL") {
+      const zamowienie = stripped.match(/<ZamowienieWiersz>([\s\S]*?)<\/ZamowienieWiersz>/i)?.[1] ?? "";
+      const firstOrderItem = extractTag(zamowienie, "P_7Z")?.trim();
+      const label = firstOrderItem ? `Zaliczka na zamówienie: ${firstOrderItem}` : "Zaliczka na zamówienie";
+      const RATE_BY_FIELD: Record<number, number> = { 1: 23, 2: 8, 3: 5, 4: 4 };
+      for (let i = 1; i <= 7; i++) {
+        const netRaw = extractTag(stripped, `P_13_${i}`);
+        const net = netRaw != null ? parseNum(netRaw) : 0;
+        if (net === 0) continue;
+        const rate = RATE_BY_FIELD[i] ?? 0;
+        const vatRaw = extractTag(stripped, `P_14_${i}`);
+        const gross = vatRaw != null ? net + parseNum(vatRaw) : net * (1 + rate / 100);
+        rawItems.push({ name: label, gtin: null, quantity: 1, unit: "szt", unitPrice: net, net, vatRate: rate, gross });
+      }
+      if (rawItems.length === 0 && totalGross != null && totalGross !== 0) {
+        rawItems.push({ name: label, gtin: null, quantity: 1, unit: "szt", unitPrice: totalGross, net: totalGross, vatRate: null, gross: totalGross });
+      }
+    }
+
     // Guard against double-negation: only flip when header is negative AND
     // every line is still non-negative. If any issuer already encoded line
     // amounts as negative, keep them as-is.

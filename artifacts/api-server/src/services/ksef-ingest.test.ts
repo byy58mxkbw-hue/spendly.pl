@@ -143,8 +143,12 @@ describe.skipIf(!RUN_DB)("ksef-ingest: importMatchedInvoice", () => {
     await db.delete(productsTable).where(inArray(productsTable.userId, [ING_R]));
   });
 
-  async function invCount(): Promise<number> {
-    const rows = await db.select({ id: invoicesTable.id }).from(invoicesTable).where(eq(invoicesTable.userId, ING_R));
+  // Liczy faktury o KONKRETNYM numerze — inne testy w tym bloku (np. rozliczenie
+  // zaliczki) dokładają własne faktury, więc licznik wszystkich faktur usera
+  // dawał fałszywy „duplikat”.
+  async function invCount(invoiceNumber = "FV/IMP-MATCH/1"): Promise<number> {
+    const rows = await db.select({ id: invoicesTable.id }).from(invoicesTable)
+      .where(and(eq(invoicesTable.userId, ING_R), eq(invoicesTable.invoiceNumber, invoiceNumber)));
     return rows.length;
   }
 

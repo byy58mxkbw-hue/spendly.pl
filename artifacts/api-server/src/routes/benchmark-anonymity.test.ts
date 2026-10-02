@@ -43,7 +43,7 @@ let createdInvoiceIds: number[] = [];
 async function seedPurchase(userId: string, canonicalName: string, unit: string, category: string, unitPrice: number): Promise<void> {
   const [supplier] = await db
     .insert(suppliersTable)
-    .values({ userId, name: `Dostawca anon (${userId})` })
+    .values({ userId, name: `Dostawca anon (${userId})`, taxId: "0000000000" })
     .returning({ id: suppliersTable.id });
   createdSupplierIds.push(supplier!.id);
 

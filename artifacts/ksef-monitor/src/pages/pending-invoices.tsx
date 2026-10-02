@@ -67,6 +67,13 @@ import {
 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
+// Ta sama reguła co isAdvanceSettlementLine na serwerze (lib/invoice-line-classify.ts):
+// słowo zaczynające się od „zaliczk” po granicy słowa (reguła 27).
+const ADVANCE_LINE_RE = /(^|[^a-ząćęłńóśźż])zaliczk/i;
+function isAdvanceLine(name: string): boolean {
+  return ADVANCE_LINE_RE.test(name);
+}
+
 function formatMonth(ym: string): string {
   const [year, month] = ym.split("-");
   const date = new Date(Number(year), Number(month) - 1, 1);
@@ -1089,7 +1096,9 @@ function PendingDetailDialog({
     if (!supplierId) return false;
     const activeItems = detail.items.filter((_, i) => !skipped.has(i));
     if (activeItems.length === 0) return false;
-    return detail.items.every((_, i) => skipped.has(i) || !!mapping[i]);
+    // Linia zaliczki nie jest towarem — backend dodaje ją bez produktu, więc nie
+    // wymaga dopasowania (faktura zaliczkowa ma TYLKO takie linie).
+    return detail.items.every((item, i) => skipped.has(i) || !!mapping[i] || isAdvanceLine(item.name));
   }, [detail, supplierId, mapping, skipped]);
 
   const supplierKnown = detail?.suggestedSupplierId != null;
@@ -1490,6 +1499,9 @@ function PendingDetailDialog({
                           <p className={cn("text-sm font-medium text-foreground truncate", isSkipped && "line-through text-muted-foreground")}>
                             {item.name}
                           </p>
+                          {isAdvanceLine(item.name) && (
+                            <p className="text-[11px] text-muted-foreground">Zaliczka: wejdzie do faktury bez przypisania produktu.</p>
+                          )}
                           <p className="text-xs text-muted-foreground">
                             {item.quantity} {item.unit} × {formatPrice(item.unitPrice)} ={" "}
                             {formatPrice(item.gross)}

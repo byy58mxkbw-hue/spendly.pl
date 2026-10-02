@@ -61,7 +61,7 @@ describe.skipIf(!RUN_DB)("ensureGrossInvoiceTotals", () => {
   beforeAll(async () => {
     const [s] = await db
       .insert(suppliersTable)
-      .values({ userId: USER, name: "Dostawca testowy (gross totals)" })
+      .values({ userId: USER, name: "Dostawca testowy (gross totals)", taxId: "0000000000" })
       .returning({ id: suppliersTable.id });
     supplierId = s!.id;
 

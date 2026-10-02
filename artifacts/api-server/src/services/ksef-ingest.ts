@@ -491,3 +491,26 @@ export async function ingestViaExport(
   }
   return true;
 }
+
+// Wynik parsowania zapisany w kolejce „Do przeglądu” mógł powstać starszą wersją
+// parsera. Gdy nie ma w nim pozycji (np. faktura zaliczkowa ZAL przed obsługą
+// <ZamowienieWiersz>, audyt 2026-10-01), parsujemy oryginalny XML jeszcze raz
+// i zapisujemy nowy wynik — dzięki temu „Ponów” i kolejny sync importują ją sami.
+export async function reparsePendingIfEmpty(row: {
+  id: number;
+  ksefNumber: string;
+  rawXml: string;
+  parsedJson: unknown;
+}): Promise<ParsedFa3 | null> {
+  const parsed = row.parsedJson as ParsedFa3 | null;
+  if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) return parsed;
+  if (!row.rawXml) return parsed;
+  try {
+    const fresh = parseFA3Xml(row.rawXml, row.ksefNumber);
+    if (fresh.items.length === 0) return parsed;
+    await db.update(ksefPendingInvoicesTable).set({ parsedJson: fresh }).where(eq(ksefPendingInvoicesTable.id, row.id));
+    return fresh;
+  } catch {
+    return parsed;
+  }
+}
