@@ -61,7 +61,7 @@ router.get("/products", async (req, res): Promise<void> => {
     classificationConfidence: number | null; canonicalName: string | null; needsReview: boolean;
     latestPrice: string | null; lastPurchaseDate: string | null;
     supplierId: string | null; supplierName: string | null;
-    previousPrice: string | null; supplierCount: string | null; totalQuantity: string | null;
+    previousPrice: string | null; supplierCount: string | null; totalQuantity: string | null; quantityUnit?: string | null;
   };
 
   let rows: ProductRow[];
@@ -106,11 +106,13 @@ router.get("/products", async (req, res): Promise<void> => {
         GROUP BY ii.product_id
       ),
       qty_sums AS (
-        SELECT ii.product_id, SUM(ii.quantity::numeric) AS total_quantity
+        -- Ilość w JEDNOSTCE ostatniego zakupu (ta sama, w której lista pokazuje cenę) —
+        -- suma kg + szt w jednej liczbie nie miała sensu (audyt spójności 2026-10-01).
+        SELECT ii.product_id, ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit, SUM(ii.quantity::numeric) AS total_quantity
         FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
         WHERE i.user_id = ${userId} AND i.excluded = false
           AND i.invoice_date >= ${mStart} AND i.invoice_date < ${mEnd} ${ccSql}
-        GROUP BY ii.product_id
+        GROUP BY 1, 2
       )
       SELECT
         p.id, p.name, p.unit, p.category, p.subcategory,
@@ -123,13 +125,14 @@ router.get("/products", async (req, res): Promise<void> => {
         lb.supplier_name AS "supplierName",
         pb.previous_price::text AS "previousPrice",
         sc.supplier_count::text AS "supplierCount",
-        qs.total_quantity::text AS "totalQuantity"
+        qs.total_quantity::text AS "totalQuantity",
+        lb.norm_unit AS "quantityUnit"
       FROM products p
       LEFT JOIN latest_base lb ON p.id = lb.product_id
       -- Poprzednia cena tylko z tej samej znormalizowanej jednostki co najnowsza (bez tego kg vs szt daje fałszywe %)
       LEFT JOIN prev_base pb ON p.id = pb.product_id AND pb.norm_unit = lb.norm_unit
       LEFT JOIN sup_counts sc ON p.id = sc.product_id
-      LEFT JOIN qty_sums qs ON p.id = qs.product_id
+      LEFT JOIN qty_sums qs ON p.id = qs.product_id AND qs.norm_unit = lb.norm_unit
       WHERE p.user_id = ${userId}${categorySql}${needsReviewSql}
       ORDER BY p.name
     `);
@@ -170,10 +173,12 @@ router.get("/products", async (req, res): Promise<void> => {
         GROUP BY ii.product_id
       ),
       qty_sums AS (
-        SELECT ii.product_id, SUM(ii.quantity::numeric) AS total_quantity
+        -- Ilość w JEDNOSTCE ostatniego zakupu (ta sama, w której lista pokazuje cenę) —
+        -- suma kg + szt w jednej liczbie nie miała sensu (audyt spójności 2026-10-01).
+        SELECT ii.product_id, ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit, SUM(ii.quantity::numeric) AS total_quantity
         FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
         WHERE i.user_id = ${userId} AND i.excluded = false ${daysSql}${ccSql}
-        GROUP BY ii.product_id
+        GROUP BY 1, 2
       )
       SELECT
         p.id, p.name, p.unit, p.category, p.subcategory,
@@ -186,15 +191,17 @@ router.get("/products", async (req, res): Promise<void> => {
         MAX(CASE WHEN r.rn = 1 THEN r.supplier_name END) AS "supplierName",
         MAX(CASE WHEN r.rn = 2 THEN r.unit_price END)::text AS "previousPrice",
         sc.supplier_count::text AS "supplierCount",
-        qs.total_quantity::text AS "totalQuantity"
+        qs.total_quantity::text AS "totalQuantity",
+        lu2.norm_unit AS "quantityUnit"
       FROM products p
       LEFT JOIN ranked r ON p.id = r.product_id AND r.rn <= 2
       LEFT JOIN sup_counts sc ON p.id = sc.product_id
-      LEFT JOIN qty_sums qs ON p.id = qs.product_id
+      LEFT JOIN latest_unit lu2 ON p.id = lu2.product_id
+      LEFT JOIN qty_sums qs ON p.id = qs.product_id AND qs.norm_unit = lu2.norm_unit
       WHERE p.user_id = ${userId}${categorySql}${needsReviewSql}
       GROUP BY p.id, p.name, p.unit, p.category, p.subcategory,
                p.classification_confidence, p.canonical_name, p.needs_review,
-               sc.supplier_count, qs.total_quantity
+               sc.supplier_count, qs.total_quantity, lu2.norm_unit
       ORDER BY p.name
     `);
     rows = result.rows as ProductRow[];
@@ -220,6 +227,7 @@ router.get("/products", async (req, res): Promise<void> => {
       lastPurchaseDate: row.lastPurchaseDate ?? null,
       supplierCount: row.supplierCount != null ? toNum(row.supplierCount) : 0,
       totalQuantity: row.totalQuantity != null ? toNum(row.totalQuantity) : null,
+      quantityUnit: row.quantityUnit ?? null,
     };
   });
 
@@ -270,7 +278,7 @@ router.get("/products/page", async (req, res): Promise<void> => {
     classificationConfidence: number | null; canonicalName: string | null; needsReview: boolean;
     latestPrice: string | null; lastPurchaseDate: string | null;
     supplierId: string | null; supplierName: string | null;
-    previousPrice: string | null; supplierCount: string | null; totalQuantity: string | null;
+    previousPrice: string | null; supplierCount: string | null; totalQuantity: string | null; quantityUnit?: string | null;
   };
 
   const itemsResult = await db.execute(sql`
@@ -310,11 +318,13 @@ router.get("/products/page", async (req, res): Promise<void> => {
       GROUP BY ii.product_id
     ),
     qty_sums AS (
-      SELECT ii.product_id, SUM(ii.quantity::numeric) AS total_quantity
+      -- Ilość w JEDNOSTCE ostatniego zakupu (ta sama, w której lista pokazuje cenę) —
+      -- suma kg + szt w jednej liczbie nie miała sensu (audyt spójności 2026-10-01).
+      SELECT ii.product_id, ${normalizedUnitSql(sql`ii.unit`)} AS norm_unit, SUM(ii.quantity::numeric) AS total_quantity
       FROM invoice_items ii JOIN invoices i ON ii.invoice_id = i.id
       WHERE i.user_id = ${userId} AND i.excluded = false
         AND i.invoice_date >= ${mStart} AND i.invoice_date < ${mEnd} ${ccSql}
-      GROUP BY ii.product_id
+      GROUP BY 1, 2
     )
     SELECT
       p.id, p.name, p.unit, p.category, p.subcategory,
@@ -327,13 +337,14 @@ router.get("/products/page", async (req, res): Promise<void> => {
       lb.supplier_name AS "supplierName",
       pb.previous_price::text AS "previousPrice",
       sc.supplier_count::text AS "supplierCount",
-      qs.total_quantity::text AS "totalQuantity"
+      qs.total_quantity::text AS "totalQuantity",
+      lb.norm_unit AS "quantityUnit"
     FROM products p
     JOIN latest_base lb ON p.id = lb.product_id
     -- Poprzednia cena tylko z tej samej znormalizowanej jednostki co najnowsza (bez tego kg vs szt daje fałszywe %)
     LEFT JOIN prev_base pb ON p.id = pb.product_id AND pb.norm_unit = lb.norm_unit
     LEFT JOIN sup_counts sc ON p.id = sc.product_id
-    LEFT JOIN qty_sums qs ON p.id = qs.product_id
+    LEFT JOIN qty_sums qs ON p.id = qs.product_id AND qs.norm_unit = lb.norm_unit
     WHERE p.user_id = ${userId}${categorySql}${needsReviewSql}${searchSql}
     ORDER BY ${orderSql}, p.id
     LIMIT ${limit} OFFSET ${offset}
@@ -353,6 +364,7 @@ router.get("/products/page", async (req, res): Promise<void> => {
       lastPurchaseDate: row.lastPurchaseDate ?? null,
       supplierCount: row.supplierCount != null ? toNum(row.supplierCount) : 0,
       totalQuantity: row.totalQuantity != null ? toNum(row.totalQuantity) : null,
+      quantityUnit: row.quantityUnit ?? null,
     };
   });
 

@@ -980,7 +980,8 @@ export const ListProductsPagedResponse = zod.object({
   "supplierName": zod.string().nullish(),
   "lastPurchaseDate": zod.string().nullish(),
   "supplierCount": zod.number().optional(),
-  "totalQuantity": zod.number().nullish()
+  "totalQuantity": zod.number().nullish(),
+  "quantityUnit": zod.string().nullish().describe('Jednostka, w której liczona jest totalQuantity (jednostka ostatniego zakupu).')
 })),
   "total": zod.number().describe('Liczba produktów pasujących do filtrów (z aktywnym filtrem kategorii).'),
   "categoryCounts": zod.array(zod.object({
@@ -1019,7 +1020,8 @@ export const ListProductsResponseItem = zod.object({
   "supplierName": zod.string().nullish(),
   "lastPurchaseDate": zod.string().nullish(),
   "supplierCount": zod.number().optional(),
-  "totalQuantity": zod.number().nullish()
+  "totalQuantity": zod.number().nullish(),
+  "quantityUnit": zod.string().nullish().describe('Jednostka, w której liczona jest totalQuantity (jednostka ostatniego zakupu).')
 })
 export const ListProductsResponse = zod.array(ListProductsResponseItem)
 

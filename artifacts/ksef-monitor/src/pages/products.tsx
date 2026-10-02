@@ -606,7 +606,7 @@ export default function Products() {
                           <>
                             {product.lastPurchaseDate && <span className="text-[11px] text-muted-foreground/50">·</span>}
                             <p className="text-[11px] text-muted-foreground/70">
-                              {new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(product.totalQuantity)}{" "}{product.unit}
+                              {new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(product.totalQuantity)}{" "}{product.quantityUnit || product.unit}
                             </p>
                           </>
                         )}
@@ -765,7 +765,7 @@ export default function Products() {
                           <p className="text-sm font-semibold text-foreground tabular-nums">
                             {new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(product.totalQuantity)}
                           </p>
-                          <p className="text-xs text-muted-foreground">{product.unit}</p>
+                          <p className="text-xs text-muted-foreground">{product.quantityUnit || product.unit}</p>
                         </>
                       ) : (
                         <p className="text-sm text-muted-foreground">—</p>

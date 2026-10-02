@@ -26,6 +26,8 @@ export type ProductItem = {
   priceChangePercent?: number | null;
   supplierCount?: number;
   totalQuantity?: number | null;
+  /** Jednostka ilości (ostatni zakup) — może różnić się od jednostki produktu. */
+  quantityUnit?: string | null;
 };
 
 export function PriceChangeBadge({ change }: { change: number | null | undefined }) {

@@ -2797,6 +2797,9 @@ components:
           type: integer
         totalQuantity:
           type: ["number", "null"]
+        quantityUnit:
+          type: ["string", "null"]
+          description: Jednostka, w której liczona jest totalQuantity (jednostka ostatniego zakupu).
       required:
         - id
         - name

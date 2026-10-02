@@ -167,7 +167,7 @@ export function KeywordComparisonModal({
                               <p className="text-xs text-muted-foreground mt-0.5">
                                 {p.unit}
                                 {p.totalQuantity != null && p.totalQuantity > 0 && (
-                                  <> · <span className="text-foreground/70">{new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(p.totalQuantity)} {p.unit}</span></>
+                                  <> · <span className="text-foreground/70">{new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 2 }).format(p.totalQuantity)} {p.quantityUnit || p.unit}</span></>
                                 )}
                                 {" · "} ostatni zakup: {formatDate(p.lastPurchaseDate)}
                               </p>

@@ -121,6 +121,11 @@ export interface Product {
   supplierCount?: number;
   /** @nullable */
   totalQuantity?: number | null;
+  /**
+     * Jednostka, w której liczona jest totalQuantity (jednostka ostatniego zakupu).
+     * @nullable
+     */
+  quantityUnit?: string | null;
 }
 
 export interface CreateProductBody {
