@@ -54,6 +54,13 @@ jobs:
         env:
           DATABASE_URL: postgres://user:pass@localhost:5432/spendly_test
 
+      # pg_trgm (similarity()) — na produkcji włącza go start serwera
+      # (services/ensure-market-benchmark.ts), ale testy importują samą aplikację,
+      # bez tego kroku. Bez rozszerzenia wyszukiwanie AI CFO (search_products /
+      # search_suppliers) zwraca błąd i testy izolacji tenantów padają.
+      - name: Enable pg_trgm (test)
+        run: psql postgres://user:pass@localhost:5432/spendly_test -c "CREATE EXTENSION IF NOT EXISTS pg_trgm"
+
       # TEST_DATABASE_URL odblokowuje testy DB-zależne (izolacja tenantów).
       # Lokalnie bez tej zmiennej te testy się pomijają — `pnpm test` zostaje zielony.
       - name: Test
