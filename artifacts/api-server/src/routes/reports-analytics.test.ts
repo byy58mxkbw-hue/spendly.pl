@@ -183,12 +183,18 @@ describe.skipIf(!RUN_DB)("Excel: /reports/products-by-cost-center.xlsx", () => {
   // Znajduje wiersz „Suma — <grupa>" i zwraca [wartość brutto, poprz. okres] z kolumn.
   function sumaRow(ws: ExcelJS.Worksheet): { total: number; prev: number | null } {
     let found: { total: number; prev: number | null } | null = null;
+    // Kolumny po NAZWIE nagłówka (wiersz 3), nie po numerze — układ arkusza zmienia
+    // się z trybem (porównanie ilości dodaje kolumny), a test ma sprawdzać kwoty.
+    const headers = (ws.getRow(3).values as unknown[]).map((v) => (typeof v === "string" ? v : ""));
+    const valueCol = headers.indexOf("Wartość brutto");
+    const prevCol = headers.indexOf("Śr. cena poprz. okres");
+    if (valueCol < 1 || prevCol < 1) throw new Error("Brak kolumn Wartość brutto / poprz. okres");
     ws.eachRow((row) => {
       const label = row.getCell(1).value;
       if (typeof label === "string" && label.startsWith("Suma — ")) {
-        // Tryb ogólny (bez costCenterId): value=kol.5, pricePrev=kol.6.
-        const total = Number(row.getCell(5).value);
-        const prevCell = row.getCell(6).value;
+        // W wierszu SUMA kolumna „poprz. okres” niesie sumę poprzedniego okresu.
+        const total = Number(row.getCell(valueCol).value);
+        const prevCell = row.getCell(prevCol).value;
         found = { total, prev: prevCell == null ? null : Number(prevCell) };
       }
     });
