@@ -270,11 +270,10 @@ function ReportsInner() {
       setExportingXlsx(false);
     }
   }
-  // On first load, default the view to the month where the user's data actually is —
-  // the month with the highest spend. Freshly imported invoices are usually from a
-  // prior month, so defaulting to the (near-empty) current calendar month made the
-  // reports look broken / "out of sync". In steady use this converges to the current
-  // month once it accumulates the most spend.
+  // Domyślnie BIEŻĄCY miesiąc. Tylko gdy nie ma w nim jeszcze żadnych zakupów (np. świeże
+  // konto z fakturami z poprzednich miesięcy), przechodzimy na OSTATNI miesiąc z danymi.
+  // Wcześniej wybierany był miesiąc z NAJWIĘKSZYMI zakupami z całego roku — u usera
+  // Raporty otwierały się na lipcu zamiast na bieżącym miesiącu (zgłoszenie 2026-10-03).
   const [autoMonthDone, setAutoMonthDone] = useState(false);
   const { data: trendForDefault } = useGetCategorySpendTrend(
     { months: 12 },
@@ -283,21 +282,21 @@ function ReportsInner() {
   useEffect(() => {
     if (autoMonthDone || !trendForDefault) return;
     setAutoMonthDone(true);
-    // Tylko przy domyślnym „ten miesiąc" — ustaw okres na miesiąc z największymi zakupami
-    // (świeżo zaimportowane faktury bywają z poprzedniego miesiąca → pusty bieżący).
     if (preset !== "this-month") return;
     const spendByMonth = new Map<string, number>();
     for (const r of trendForDefault) {
       spendByMonth.set(r.month, (spendByMonth.get(r.month) ?? 0) + (r.totalSpend ?? 0));
     }
-    let best: string | null = null;
-    let bestSpend = 0;
-    for (const [m, s] of spendByMonth) {
-      if (s > bestSpend) { bestSpend = s; best = m; }
-    }
+    const current = currentMonth();
+    if ((spendByMonth.get(current) ?? 0) > 0) return; // bieżący ma dane — zostaje
+    const latestWithData = [...spendByMonth.entries()]
+      .filter(([m, s]) => s > 0 && m < current)
+      .map(([m]) => m)
+      .sort()
+      .pop();
     // setMonth (nie setCustom) — dzięki temu nagłówek pokazuje nawigator miesiąca
     // ze strzałkami, a nie pigułkę z zakresem dat.
-    if (best && best !== currentMonth()) setMonth(best);
+    if (latestWithData) setMonth(latestWithData);
   }, [trendForDefault, autoMonthDone, preset]);
   const [tab, setTab] = useState("podsumowanie");
   const [trendMonths, setTrendMonths] = useState(6);

@@ -90,10 +90,12 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(LS_KEY);
       if (raw) {
         const p = JSON.parse(raw) as { preset: PresetKey; period: Period };
-        // Presety liczymy od dziś (żeby „ten miesiąc" był bieżący); custom bierzemy zapisany.
+        // Przywracamy tylko presety WZGLĘDNE (liczone od dziś: ten miesiąc, 3/6 mies., rok).
+        // Konkretny miesiąc albo własny zakres NIE wraca przy kolejnym wejściu — inaczej
+        // raz wybrany (albo auto-wybrany) lipiec zostawał na stałe i Raporty „nie pokazywały
+        // bieżącego miesiąca” (zgłoszenie usera 2026-10-03). Nowa wizyta = bieżący miesiąc.
         const literal = p.preset === "custom" || p.preset === "month";
         if (p.preset && !literal) return { preset: p.preset, period: presetPeriod(p.preset) };
-        if (literal && p.period?.from && p.period?.to) return p;
       }
     } catch {}
     return { preset: "this-month", period: presetPeriod("this-month") };
