@@ -155,7 +155,10 @@ function withTimeout(ms: number) {
 }
 const OP_TIMEOUT = 30_000;
 app.use("/api/ai-cfo/chat", withTimeout(OP_TIMEOUT));
-app.use("/api/invoices/scan-receipt", withTimeout(OP_TIMEOUT));
+// Skan może mieć kilka stron faktury w jednym zapytaniu do AI (vision) — 30 s nie
+// wystarcza dla 4–6 stron, więc ten endpoint ma dłuższy limit.
+const SCAN_TIMEOUT = 90_000;
+app.use("/api/invoices/scan-receipt", withTimeout(SCAN_TIMEOUT));
 // UWAGA: /api/ksef/sync to długi strumień SSE (skanowanie okien + fallback
 // per-faktura + retry pending) — NIE nakładamy 30s socket-timeout, bo ucinał
 // połączenie w połowie i klient nie dostawał podsumowania. Endpoint sam zarządza

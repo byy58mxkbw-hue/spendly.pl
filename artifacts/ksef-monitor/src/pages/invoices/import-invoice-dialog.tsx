@@ -30,6 +30,11 @@ import { Camera, Plus, X, Loader2, ScanLine, CheckCircle2 } from "@/lib/icons";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { track } from "@/lib/posthog";
+import { fileToImages } from "@/lib/file-to-images";
+
+// Faktury hurtowni mają kilka stron — skanowane osobno dawały kilka „faktur” o tym
+// samym numerze. Teraz wszystkie strony idą w JEDNYM skanie jako jedna faktura.
+const MAX_SCAN_PAGES = 6;
 import { useToast } from "@/hooks/use-toast";
 
 interface ParsedItem { productName: string; quantity: number; unit: string; unitPrice: number; totalPrice: number; vatRate: number | null; }
@@ -108,7 +113,9 @@ export function ImportInvoiceDialog({
 
   const [importTab, setImportTab] = useState<"xml" | "photo">("xml");
   const [xmlPreview, setXmlPreview] = useState<XmlPreview | null>(null);
-  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null);
+  // Strony skanowanej faktury (data-URL), w kolejności. Jedno zdjęcie = jedna strona.
+  const [scanPages, setScanPages] = useState<string[]>([]);
+  const [readingFiles, setReadingFiles] = useState(false);
   const [scannedData, setScannedData] = useState<ScannedReceiptData | null>(null);
   const [duplicateConflict, setDuplicateConflict] = useState<{ message: string; values: ImportFormValues } | null>(null);
   const [showAddSupplier, setShowAddSupplier] = useState(false);
@@ -156,11 +163,13 @@ export function ImportInvoiceDialog({
   }
 
   async function handleScanReceipt() {
-    if (!receiptPreviewUrl) return;
-    const { base64, mimeType } = await compressImage(receiptPreviewUrl);
+    if (scanPages.length === 0) return;
+    const pages = await Promise.all(scanPages.map((url) => compressImage(url)));
     const startedAt = Date.now();
     try {
-      const data = await scanReceipt.mutateAsync({ data: { imageBase64: base64, mimeType } });
+      const data = await scanReceipt.mutateAsync({
+        data: { pages: pages.map((pg) => ({ imageBase64: pg.base64, mimeType: pg.mimeType })) },
+      });
       track("ocr_scan");
       track("invoice_ocr_completed", { items_count: data.items.length, processing_time_ms: Date.now() - startedAt });
       setScannedData(data);
@@ -229,6 +238,39 @@ export function ImportInvoiceDialog({
     );
   }
 
+  async function addScanFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setReadingFiles(true);
+    try {
+      const added: string[] = [];
+      let truncated = false;
+      for (const file of Array.from(files)) {
+        track("invoice_upload_completed", { file_type: file.type, file_size_kb: Math.round(file.size / 1024) });
+        const room = MAX_SCAN_PAGES - scanPages.length - added.length;
+        if (room <= 0) { truncated = true; break; }
+        const imgs = await fileToImages(file, room);
+        added.push(...imgs);
+      }
+      if (added.length === 0) {
+        toast({ variant: "destructive", title: "Nie udało się odczytać pliku" });
+      } else if (truncated || scanPages.length + added.length >= MAX_SCAN_PAGES) {
+        toast({ title: `Maksymalnie ${MAX_SCAN_PAGES} stron w jednym skanie`, description: "Dłuższą fakturę zeskanuj w dwóch częściach." });
+      }
+      setScanPages((prev) => [...prev, ...added].slice(0, MAX_SCAN_PAGES));
+      setScannedData(null);
+    } catch {
+      toast({ variant: "destructive", title: "Nie udało się odczytać pliku", description: "Użyj zdjęcia JPG/PNG albo pliku PDF." });
+    } finally {
+      setReadingFiles(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function removeScanPage(index: number) {
+    setScanPages((prev) => prev.filter((_, i) => i !== index));
+    setScannedData(null);
+  }
+
   async function handleSubmit(values: ImportFormValues, force = false) {
     const items = importTab === "photo" && scannedData?.items.length
       ? scannedData.items.map((it) => ({ ...it, vatRate: null as number | null }))
@@ -253,7 +295,7 @@ export function ImportInvoiceDialog({
       track("invoice_saved", { items_count: savedItemsCount, supplier_id: values.supplierId });
       toast({ title: "Dodano zakup" });
       form.reset({ supplierId: "", invoiceNumber: "", invoiceDate: new Date().toISOString().split("T")[0], xmlContent: "", paymentMethod: undefined, paymentDueDate: "" });
-      setXmlPreview(null); setScannedData(null); setReceiptPreviewUrl(null);
+      setXmlPreview(null); setScannedData(null); setScanPages([]);
       setShowAddSupplier(false); setNewSupplierName(""); setNewSupplierNip("");
       setIsCorrection(false); setCorrectedInvoiceNumber("");
       onClose();
@@ -452,43 +494,62 @@ export function ImportInvoiceDialog({
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,application/pdf"
+                    multiple
                     className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      track("invoice_upload_completed", { file_type: file.type, file_size_kb: Math.round(file.size / 1024) });
-                      const reader = new FileReader();
-                      reader.onload = (ev) => { setReceiptPreviewUrl(ev.target?.result as string); setScannedData(null); };
-                      reader.readAsDataURL(file);
-                    }}
+                    onChange={(e) => void addScanFiles(e.target.files)}
                   />
-                  {receiptPreviewUrl ? (
-                    <div className="relative">
-                      <img src={receiptPreviewUrl} alt="Paragon" className="w-full max-h-40 object-contain rounded-lg border border-border" />
-                      <button
-                        type="button"
-                        onClick={() => { setReceiptPreviewUrl(null); setScannedData(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
-                        className="absolute top-1 right-1 p-1 bg-black/50 rounded-full text-white"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                  {scanPages.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        {scanPages.map((url, i) => (
+                          <div key={i} className="relative">
+                            <img src={url} alt={`Strona ${i + 1}`} className="w-full h-24 object-cover rounded-sm border border-border" />
+                            <span className="absolute bottom-1 left-1 text-[10px] px-1 rounded-sm bg-background/90 num">{i + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeScanPage(i)}
+                              className="absolute top-1 right-1 p-1 bg-background/90 rounded-sm text-foreground"
+                              aria-label={`Usuń stronę ${i + 1}`}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                        {scanPages.length < MAX_SCAN_PAGES && (
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={readingFiles}
+                            className="h-24 border border-dashed border-border rounded-sm flex flex-col items-center justify-center gap-1 text-[11px] text-muted-foreground hover:border-primary/50 transition-colors"
+                          >
+                            {readingFiles ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                            Dodaj stronę
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Wszystkie strony zostaną odczytane jako JEDNA faktura. Kolejne faktury skanuj osobno.
+                      </p>
                     </div>
                   ) : (
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full border-2 border-dashed border-border rounded-xl py-8 text-center text-muted-foreground hover:border-primary/50 transition-colors"
+                      disabled={readingFiles}
+                      className="w-full border-2 border-dashed border-border rounded-md py-8 text-center text-muted-foreground hover:border-primary/50 transition-colors"
                     >
-                      <Camera className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
-                      <p className="text-sm font-medium">Kliknij, aby dodać zdjęcie</p>
-                      <p className="text-xs text-muted-foreground mt-1">paragon lub faktura</p>
+                      {readingFiles ? <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin" /> : <Camera className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />}
+                      <p className="text-sm font-medium">Kliknij, aby dodać zdjęcia lub PDF</p>
+                      <p className="text-xs text-muted-foreground mt-1">paragon albo faktura, także kilka stron (do {MAX_SCAN_PAGES})</p>
                     </button>
                   )}
-                  {receiptPreviewUrl && !scannedData && (
-                    <Button type="button" variant="outline" className="w-full gap-2" onClick={handleScanReceipt} disabled={scanReceipt.isPending}>
+                  {scanPages.length > 0 && !scannedData && (
+                    <Button type="button" variant="outline" className="w-full gap-2" onClick={handleScanReceipt} disabled={scanReceipt.isPending || readingFiles}>
                       {scanReceipt.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
-                      {scanReceipt.isPending ? "Skanuję..." : "Skanuj paragon"}
+                      {scanReceipt.isPending
+                        ? scanPages.length > 1 ? `Skanuję ${scanPages.length} ${scanPages.length >= 5 ? "stron" : "strony"}…` : "Skanuję..."
+                        : scanPages.length > 1 ? `Skanuj fakturę (${scanPages.length} ${scanPages.length >= 5 ? "stron" : "strony"})` : "Skanuj paragon"}
                     </Button>
                   )}
                   {scannedData && scannedData.items.length > 0 && (

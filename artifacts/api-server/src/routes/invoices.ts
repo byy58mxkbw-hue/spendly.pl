@@ -606,24 +606,54 @@ router.post("/invoices/scan-receipt", async (req, res): Promise<void> => {
     return;
   }
 
-  const { imageBase64, mimeType } = parsed.data;
+  // Jedno zdjęcie (imageBase64) albo kilka stron TEJ SAMEJ faktury (pages). Faktury
+  // hurtowni (np. Chefs Culinar) mają kilka stron — skanowane osobno dawały kilka
+  // „faktur” o tym samym numerze i różnych kwotach (przegląd kont 2026-10-05).
+  const pagesIn = parsed.data.pages && parsed.data.pages.length > 0
+    ? parsed.data.pages
+    : parsed.data.imageBase64 && parsed.data.mimeType
+      ? [{ imageBase64: parsed.data.imageBase64, mimeType: parsed.data.mimeType }]
+      : [];
+  const MAX_PAGES = 6;
+  if (pagesIn.length === 0) {
+    res.status(400).json({ error: "Brak zdjęcia do zeskanowania." });
+    return;
+  }
+  if (pagesIn.length > MAX_PAGES) {
+    res.status(400).json({ error: `Za dużo stron (max ${MAX_PAGES}). Zeskanuj fakturę w częściach.` });
+    return;
+  }
 
   const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
-  if (!allowedMimeTypes.includes(mimeType)) {
-    res.status(400).json({ error: "Nieobsługiwany format obrazu. Użyj JPEG, PNG, WebP lub GIF." });
+  const MAX_BYTES = 10 * 1024 * 1024; // jedna strona
+  const MAX_TOTAL_BYTES = 14 * 1024 * 1024; // wszystkie strony (limit ciała zapytania to 15 MB)
+  let totalBytes = 0;
+  const pages: Array<{ base64: string; mimeType: string }> = [];
+  for (const pg of pagesIn) {
+    if (!allowedMimeTypes.includes(pg.mimeType)) {
+      res.status(400).json({ error: "Nieobsługiwany format obrazu. Użyj JPEG, PNG, WebP lub GIF." });
+      return;
+    }
+    const b64 = pg.imageBase64.includes(",") ? pg.imageBase64.split(",").pop()! : pg.imageBase64;
+    const bytes = Math.floor((b64.length * 3) / 4);
+    if (bytes > MAX_BYTES) {
+      res.status(400).json({ error: "Obraz jest za duży (max 10 MB na stronę). Zmniejsz plik i spróbuj ponownie." });
+      return;
+    }
+    totalBytes += bytes;
+    pages.push({ base64: b64, mimeType: pg.mimeType });
+  }
+  if (totalBytes > MAX_TOTAL_BYTES) {
+    res.status(400).json({ error: "Strony są łącznie za duże (max 14 MB). Zmniejsz pliki i spróbuj ponownie." });
     return;
   }
 
-  // Walidacja rozmiaru: base64 dekoduje się do ~3/4 swojej długości. Limit 10MB.
-  const MAX_BYTES = 10 * 1024 * 1024;
-  const sanitizedB64 = imageBase64.includes(",") ? imageBase64.split(",").pop()! : imageBase64;
-  const approxBytes = Math.floor((sanitizedB64.length * 3) / 4);
-  if (approxBytes > MAX_BYTES) {
-    res.status(400).json({ error: "Obraz jest za duży (max 10 MB). Zmniejsz plik i spróbuj ponownie." });
-    return;
-  }
+  const multiPageNote = pages.length > 1
+    ? `The ${pages.length} images are consecutive PAGES of ONE invoice, in order. Read the header (supplier, NIP, number, date) from the page where it appears (usually the first). Combine the line items from ALL pages into one list, in page order. Do NOT repeat items that appear again in page headers, carry-over rows ("z przeniesienia", "do przeniesienia") or totals/summary tables, and skip subtotal and VAT summary rows.
 
-  const prompt = `Analyze this receipt or invoice image and extract the data as JSON. Be precise with numbers.
+`
+    : "";
+  const prompt = multiPageNote + `Analyze this receipt or invoice image and extract the data as JSON. Be precise with numbers.
 
 Return ONLY a JSON object with this exact structure (all fields optional except items and isCorrection):
 {
@@ -662,19 +692,17 @@ Important:
         {
           role: "user",
           content: [
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${imageBase64}`,
-                detail: "high",
-              },
-            },
-            { type: "text", text: prompt },
+            ...pages.map((pg) => ({
+              type: "image_url" as const,
+              image_url: { url: `data:${pg.mimeType};base64,${pg.base64}`, detail: "high" as const },
+            })),
+            { type: "text" as const, text: prompt },
           ],
         },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 2000,
+      // Więcej stron = więcej pozycji w JSON-ie; 2000 tokenów ucinało długie faktury.
+      max_tokens: Math.min(8000, 2000 + 1500 * (pages.length - 1)),
       temperature: 0,
       // PostHog AI Observability (metadane, patrz integrations-openai-ai-server/client.ts).
       ...(aiObservabilityEnabled ? { posthogDistinctId: req.userId! } : {}),
@@ -700,7 +728,7 @@ Important:
       extracted.supplierNip = extracted.supplierNip.replace(/[\s\-]/g, "");
     }
 
-    captureServer(req.userId!, "receipt_scanned");
+    captureServer(req.userId!, "receipt_scanned", { pages: pages.length });
 
     // Dopasowanie do ISTNIEJĄCEGO dostawcy (NIP → nazwa → NIP z błędem jednej cyfry).
     // Bez tego każdy błąd OCR w NIP-ie albo inna forma nazwy („oddział Warszawa”)

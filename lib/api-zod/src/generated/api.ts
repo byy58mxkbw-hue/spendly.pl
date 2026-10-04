@@ -1358,10 +1358,18 @@ export const DeleteAllInvoicesResponse = zod.object({
 /**
  * @summary Scan a receipt or invoice image with OCR (GPT-4o Vision) and extract structured data
  */
+export const scanReceiptBodyPagesMax = 6;
+
+
+
 export const ScanReceiptBody = zod.object({
-  "imageBase64": zod.string().describe('Base64-encoded image data'),
-  "mimeType": zod.string().describe('MIME type of the image (e.g. image\/jpeg, image\/png)')
-})
+  "imageBase64": zod.string().optional().describe('Base64-encoded image data (pojedyncze zdjęcie)'),
+  "mimeType": zod.string().optional().describe('MIME type of the image (e.g. image\/jpeg, image\/png)'),
+  "pages": zod.array(zod.object({
+  "imageBase64": zod.string(),
+  "mimeType": zod.string()
+})).max(scanReceiptBodyPagesMax).optional()
+}).describe('Jedno zdjęcie (imageBase64 + mimeType) albo kilka stron TEJ SAMEJ faktury (pages, max 6).')
 
 export const ScanReceiptResponse = zod.object({
   "supplierNip": zod.string().nullish(),

@@ -319,11 +319,21 @@ export interface InvoiceWithItems {
   items: InvoiceItem[];
 }
 
-export interface ScanReceiptBody {
-  /** Base64-encoded image data */
+export interface ScanReceiptPage {
   imageBase64: string;
-  /** MIME type of the image (e.g. image/jpeg, image/png) */
   mimeType: string;
+}
+
+/**
+ * Jedno zdjęcie (imageBase64 + mimeType) albo kilka stron TEJ SAMEJ faktury (pages, max 6).
+ */
+export interface ScanReceiptBody {
+  /** Base64-encoded image data (pojedyncze zdjęcie) */
+  imageBase64?: string;
+  /** MIME type of the image (e.g. image/jpeg, image/png) */
+  mimeType?: string;
+  /** @maxItems 6 */
+  pages?: ScanReceiptPage[];
 }
 
 export interface ScannedReceiptItem {
