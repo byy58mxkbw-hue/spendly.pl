@@ -15,7 +15,7 @@ router.get("/healthz", (_req, res) => {
 // na prod (healthz nie zmienia siÄ™ miÄ™dzy deployami). Bump `build` przy istotnych
 // zmianach, ktĂłrych wdroĹĽenie chcesz potwierdziÄ‡ bez tokenu.
 router.get("/version", (_req, res) => {
-  res.json({ status: "ok", build: "2026-10-03-qty-unit-avg-zal", startedAt: process.uptime() });
+  res.json({ status: "ok", build: "2026-10-05-ocr-guards", startedAt: process.uptime() });
 });
 
 // Readiness â€” sprawdza poĹ‚Ä…czenie z bazÄ… (SELECT 1). 503 gdy baza niedostÄ™pna.

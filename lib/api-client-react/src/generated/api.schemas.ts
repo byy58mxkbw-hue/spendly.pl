@@ -334,6 +334,18 @@ export interface ScannedReceiptItem {
   totalPrice: number;
 }
 
+/**
+ * @nullable
+ */
+export type ScannedReceiptDataMatchReason = typeof ScannedReceiptDataMatchReason[keyof typeof ScannedReceiptDataMatchReason] | null;
+
+
+export const ScannedReceiptDataMatchReason = {
+  nip: 'nip',
+  name: 'name',
+  nip_typo: 'nip_typo',
+} as const;
+
 export interface ScannedReceiptData {
   /** @nullable */
   supplierNip?: string | null;
@@ -350,6 +362,15 @@ export interface ScannedReceiptData {
      * @nullable
      */
   correctedInvoiceNumber?: string | null;
+  /** Czy odczytany NIP przechodzi sumę kontrolną (false = prawdopodobny błąd OCR) */
+  supplierNipValid?: boolean;
+  /**
+     * Istniejący dostawca dopasowany do skanu (NIP, nazwa albo NIP z błędem jednej cyfry)
+     * @nullable
+     */
+  matchedSupplierId?: number | null;
+  /** @nullable */
+  matchReason?: ScannedReceiptDataMatchReason;
   items: ScannedReceiptItem[];
 }
 

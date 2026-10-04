@@ -1370,6 +1370,9 @@ export const ScanReceiptResponse = zod.object({
   "invoiceDate": zod.string().nullish(),
   "isCorrection": zod.boolean().describe('True if the scanned invoice is a correction (KOR type)'),
   "correctedInvoiceNumber": zod.string().nullish().describe('Invoice number being corrected, if this is a correction invoice'),
+  "supplierNipValid": zod.boolean().optional().describe('Czy odczytany NIP przechodzi sumę kontrolną (false = prawdopodobny błąd OCR)'),
+  "matchedSupplierId": zod.number().nullish().describe('Istniejący dostawca dopasowany do skanu (NIP, nazwa albo NIP z błędem jednej cyfry)'),
+  "matchReason": zod.union([zod.literal('nip'),zod.literal('name'),zod.literal('nip_typo'),zod.literal(null)]).nullish(),
   "items": zod.array(zod.object({
   "productName": zod.string(),
   "quantity": zod.number(),

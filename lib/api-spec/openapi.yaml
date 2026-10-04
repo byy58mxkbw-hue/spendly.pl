@@ -3187,6 +3187,15 @@ components:
         correctedInvoiceNumber:
           type: ["string", "null"]
           description: "Invoice number being corrected, if this is a correction invoice"
+        supplierNipValid:
+          type: boolean
+          description: "Czy odczytany NIP przechodzi sumę kontrolną (false = prawdopodobny błąd OCR)"
+        matchedSupplierId:
+          type: ["integer", "null"]
+          description: "Istniejący dostawca dopasowany do skanu (NIP, nazwa albo NIP z błędem jednej cyfry)"
+        matchReason:
+          type: ["string", "null"]
+          enum: ["nip", "name", "nip_typo", null]
         items:
           type: array
           items:

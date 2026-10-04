@@ -20,6 +20,7 @@ import { encryptSecret } from "../lib/encryption";
 import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
 import { parseKSeFXml } from "../lib/invoice-xml-parse";
 import { isAdvanceSettlementLine, excludeNonSpendInvoiceTypes, spendInvoicesFilter, isSpendInvoice } from "../lib/invoice-line-classify.js";
+import { findSupplierMatch, isValidNip } from "../lib/supplier-match.js";
 
 const router: IRouter = Router();
 
@@ -701,6 +702,15 @@ Important:
 
     captureServer(req.userId!, "receipt_scanned");
 
+    // Dopasowanie do ISTNIEJĄCEGO dostawcy (NIP → nazwa → NIP z błędem jednej cyfry).
+    // Bez tego każdy błąd OCR w NIP-ie albo inna forma nazwy („oddział Warszawa”)
+    // tworzyła nowego dostawcę, a dedup faktur działa per dostawca (lib/supplier-match.ts).
+    const userSuppliers = await db
+      .select({ id: suppliersTable.id, name: suppliersTable.name, taxId: suppliersTable.taxId })
+      .from(suppliersTable)
+      .where(eq(suppliersTable.userId, req.userId!));
+    const match = findSupplierMatch({ nip: extracted.supplierNip ?? null, name: extracted.supplierName ?? null }, userSuppliers);
+
     res.json({
       supplierNip: extracted.supplierNip ?? null,
       supplierName: extracted.supplierName ?? null,
@@ -708,6 +718,9 @@ Important:
       invoiceDate: extracted.invoiceDate ?? null,
       isCorrection: extracted.isCorrection === true,
       correctedInvoiceNumber: extracted.correctedInvoiceNumber ?? null,
+      supplierNipValid: isValidNip(extracted.supplierNip),
+      matchedSupplierId: match?.id ?? null,
+      matchReason: match?.reason ?? null,
       items: Array.isArray(extracted.items) ? extracted.items : [],
     });
   } catch (err) {
@@ -752,6 +765,14 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
       ? manualItems
       : (parsed2?.items ?? []);
 
+  // Faktura bez pozycji i bez kwoty to nieudany odczyt (OCR nic nie rozpoznał), a nie
+  // zakup — zapisana psuła listy i liczniki (przegląd kont 2026-10-05: dwie faktury
+  // „FV/<timestamp>” na 0 zł). XML z kwotą w nagłówku (np. zaliczka) przechodzi.
+  if (parsedItems.length === 0 && !(parsed2?.totalGross && parsed2.totalGross !== 0)) {
+    res.status(400).json({ error: "Faktura nie ma żadnej pozycji. Zrób wyraźniejsze zdjęcie albo dodaj pozycje ręcznie." });
+    return;
+  }
+
   if (parsedItems.length > MAX_INVOICE_ITEMS) {
     res.status(400).json({ error: `Faktura zawiera zbyt wiele pozycji (${parsedItems.length}). Maksymalnie dozwolone: ${MAX_INVOICE_ITEMS}.` });
     return;
@@ -791,6 +812,56 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     0,
   );
   const totalAmount = calculatedTotal !== 0 ? calculatedTotal : (parsed2?.totalGross ?? 0);
+
+  // Duplikaty, których nie łapie sprawdzenie „ten sam dostawca + numer” (wyżej):
+  // 1) ten sam numer i data, ale INNY rekord dostawcy — OCR odczytał inny NIP/nazwę
+  //    i powstał drugi dostawca (realny przypadek: Chefs Culinar ×3);
+  // 2) ten sam dostawca, data i kwota, ale inny numer — OCR źle odczytał numer.
+  // Użytkownik może świadomie zapisać mimo to (force), np. dwie różne faktury tego dnia.
+  if (!force) {
+    if (hasExplicitNumber) {
+      const [sameNumber] = await db
+        .select({ id: invoicesTable.id, supplierName: suppliersTable.name })
+        .from(invoicesTable)
+        .innerJoin(suppliersTable, eq(suppliersTable.id, invoicesTable.supplierId))
+        .where(
+          and(
+            eq(invoicesTable.userId, userId),
+            eq(invoicesTable.invoiceNumber, finalInvoiceNumber),
+            eq(invoicesTable.invoiceDate, finalInvoiceDate),
+          ),
+        )
+        .limit(1);
+      if (sameNumber) {
+        res.status(409).json({
+          error: `Faktura "${finalInvoiceNumber}" z ${finalInvoiceDate} już jest zapisana u dostawcy ${sameNumber.supplierName}. To prawdopodobnie ta sama faktura z innym odczytem dostawcy.`,
+          existingInvoiceId: sameNumber.id,
+        });
+        return;
+      }
+    }
+    if (totalAmount !== 0) {
+      const [sameAmount] = await db
+        .select({ id: invoicesTable.id, invoiceNumber: invoicesTable.invoiceNumber })
+        .from(invoicesTable)
+        .where(
+          and(
+            eq(invoicesTable.userId, userId),
+            eq(invoicesTable.supplierId, supplierId),
+            eq(invoicesTable.invoiceDate, finalInvoiceDate),
+            sql`abs(${invoicesTable.totalAmount}::numeric - ${totalAmount}) < 0.05`,
+          ),
+        )
+        .limit(1);
+      if (sameAmount) {
+        res.status(409).json({
+          error: `Od ${supplier.name} jest już faktura "${sameAmount.invoiceNumber}" z tego samego dnia na tę samą kwotę. Czy to nie ta sama faktura?`,
+          existingInvoiceId: sameAmount.id,
+        });
+        return;
+      }
+    }
+  }
 
   // Determine invoice type and corrected invoice number
   const finalInvoiceType = parsed2?.invoiceType ?? null;

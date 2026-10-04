@@ -114,6 +114,8 @@ export function ImportInvoiceDialog({
   const [showAddSupplier, setShowAddSupplier] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState("");
   const [newSupplierNip, setNewSupplierNip] = useState("");
+  // OCR odczytał NIP, który nie przechodzi sumy kontrolnej — pokaż ostrzeżenie przy nowym dostawcy.
+  const [ocrNipSuspicious, setOcrNipSuspicious] = useState(false);
   const [isCorrection, setIsCorrection] = useState(false);
   const [correctedInvoiceNumber, setCorrectedInvoiceNumber] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -164,24 +166,34 @@ export function ImportInvoiceDialog({
       setScannedData(data);
       if (data.invoiceNumber && !form.getValues("invoiceNumber")) form.setValue("invoiceNumber", data.invoiceNumber);
       if (data.invoiceDate) form.setValue("invoiceDate", data.invoiceDate);
-      if (data.supplierName) {
-        const needle = data.supplierName.toLowerCase().trim();
-        const match = suppliers.find(
-          (s) => s.name.toLowerCase().includes(needle) || needle.includes(s.name.toLowerCase()),
-        );
-        if (match) {
-          form.setValue("supplierId", String(match.id));
-        } else {
-          setNewSupplierName(data.supplierName);
-          setNewSupplierNip(data.supplierNip ?? "");
-          setShowAddSupplier(true);
-        }
+      // Dostawcę dopasowuje serwer (NIP → nazwa bez form prawnych → NIP z błędem jednej
+      // cyfry). Wcześniej porównanie „nazwa zawiera nazwę” tworzyło drugiego dostawcę
+      // dla „Chefs Culinar oddział Warszawa” obok „Chefs Culinar Sp. z o.o.”.
+      const matched = data.matchedSupplierId != null ? suppliers.find((s) => s.id === data.matchedSupplierId) : undefined;
+      setOcrNipSuspicious(false);
+      if (matched) {
+        form.setValue("supplierId", String(matched.id));
+        setShowAddSupplier(false);
+      } else if (data.supplierName) {
+        setNewSupplierName(data.supplierName);
+        setNewSupplierNip(data.supplierNip ?? "");
+        setOcrNipSuspicious(!!data.supplierNip && data.supplierNipValid === false);
+        setShowAddSupplier(true);
       }
       if (data.isCorrection) {
         setIsCorrection(true);
         setCorrectedInvoiceNumber(data.correctedInvoiceNumber ?? "");
       }
-      toast({ title: "Skan gotowy", description: `Rozpoznano ${data.items.length} pozycji.` });
+      if (data.items.length === 0) {
+        toast({ variant: "destructive", title: "Nie rozpoznano pozycji", description: "Zrób wyraźniejsze zdjęcie całej faktury i zeskanuj ponownie." });
+      } else {
+        toast({
+          title: "Skan gotowy",
+          description: matched
+            ? `Rozpoznano ${data.items.length} pozycji. Dostawca: ${matched.name}.`
+            : `Rozpoznano ${data.items.length} pozycji.`,
+        });
+      }
     } catch (err) {
       // Komunikat serwera (m.in. 429 o wyczerpaniu miesięcznego limitu AI planu).
       const serverMsg = (err as { data?: { error?: string } })?.data?.error;
@@ -320,9 +332,14 @@ export function ImportInvoiceDialog({
                   <Input
                     placeholder="NIP (opcjonalnie)"
                     value={newSupplierNip}
-                    onChange={(e) => setNewSupplierNip(e.target.value)}
+                    onChange={(e) => { setNewSupplierNip(e.target.value); setOcrNipSuspicious(false); }}
                     className="h-8 text-sm font-mono"
                   />
+                  {ocrNipSuspicious && (
+                    <p className="text-[11px] text-warning">
+                      Odczytany NIP nie przechodzi weryfikacji, to prawdopodobnie błąd odczytu. Porównaj go z fakturą, zanim dodasz dostawcę.
+                    </p>
+                  )}
                   <Button
                     type="button"
                     size="sm"
@@ -474,18 +491,27 @@ export function ImportInvoiceDialog({
                       {scanReceipt.isPending ? "Skanuję..." : "Skanuj paragon"}
                     </Button>
                   )}
-                  {scannedData && (
+                  {scannedData && scannedData.items.length > 0 && (
                     <div className="text-xs text-positive flex items-center gap-1.5 bg-positive/10 rounded-lg px-3 py-2">
                       <CheckCircle2 className="w-4 h-4 shrink-0" />
                       Rozpoznano {scannedData.items.length} pozycji
                     </div>
+                  )}
+                  {scannedData && scannedData.items.length === 0 && (
+                    <p className="text-xs text-warning bg-warning/10 rounded-lg px-3 py-2">
+                      Nie rozpoznano żadnej pozycji, więc tej faktury nie da się zapisać. Zrób wyraźniejsze zdjęcie i zeskanuj ponownie.
+                    </p>
                   )}
                 </div>
               )}
 
               </div>
               <div className="pt-3 mt-1 border-t border-border">
-                <Button type="submit" className="w-full" disabled={importInvoice.isPending}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={importInvoice.isPending || (importTab === "photo" && (!scannedData || scannedData.items.length === 0))}
+                >
                   {importInvoice.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   Dodaj zakup
                 </Button>
