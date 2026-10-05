@@ -349,3 +349,54 @@ html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce){
   .spendly-site *,.spendly-site *::before,.spendly-site *::after{transition:none !important;}
 }
+
+/* ── „Jak to działa” — telefon z 3 ekranami (components/how-it-works-phone.tsx) ──
+   Cykl 12 s: ekran i krok n widoczne przez ~4 s. Czysty CSS, bez JS.
+   Wzór: hero inFaktu (2026-10). Kolory z tokenów, więc działa w obu motywach. */
+.spendly-site .hiw{display:grid;grid-template-columns:auto minmax(0,1fr);gap:56px;align-items:center;max-width:980px;margin:0 auto;}
+.spendly-site .hiw-phone{position:relative;width:272px;height:556px;border-radius:40px;background:var(--text);padding:12px;box-shadow:0 1px 0 var(--brd);}
+.spendly-site .hiw-notch{position:absolute;top:20px;left:50%;transform:translateX(-50%);width:84px;height:22px;border-radius:12px;background:var(--text);z-index:2;}
+.spendly-site .hiw-screen{position:relative;width:100%;height:100%;border-radius:30px;background:var(--panel-solid);overflow:hidden;}
+.spendly-site .hiw-scr{position:absolute;inset:0;padding:52px 18px 18px;display:flex;flex-direction:column;opacity:0;animation:hiw-show 12s infinite both;}
+.spendly-site .hiw-scr.s2{animation-delay:4s;} .spendly-site .hiw-scr.s3{animation-delay:8s;}
+.spendly-site .hiw-status{position:absolute;top:22px;left:22px;right:22px;display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:var(--muted);}
+.spendly-site .hiw-ok{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;margin:28px auto 12px;background:var(--acc-soft);color:var(--acc-text);}
+.spendly-site .hiw-ok.warn{background:rgba(198,138,30,.16);color:var(--warn);}
+.spendly-site .hiw-ok svg{width:22px;height:22px;}
+.spendly-site .hiw-t{font-size:16px;font-weight:700;text-align:center;margin:0;color:var(--text);}
+.spendly-site .hiw-s{font-size:12px;text-align:center;color:var(--muted);margin:4px 0 16px;}
+.spendly-site .hiw-card{border:1px solid var(--brd);border-radius:var(--r);background:var(--panel);}
+.spendly-site .hiw-row{display:flex;justify-content:space-between;gap:8px;padding:9px 12px;font-size:12px;color:var(--muted);}
+.spendly-site .hiw-row + .hiw-row{border-top:1px solid var(--brd);}
+.spendly-site .hiw-row b{color:var(--text);font-weight:600;}
+.spendly-site .hiw-row.tot b{font-weight:700;}
+.spendly-site .hiw-row.bad b,.spendly-site .hiw-fc .bad{color:var(--acc-text);}
+.spendly-site .hiw-note{font-size:11px;color:var(--muted);text-align:center;margin:12px 0 0;}
+.spendly-site .hiw-fc{display:flex;align-items:center;justify-content:center;gap:14px;margin:18px 0 12px;}
+.spendly-site .hiw-fc div{display:flex;flex-direction:column;align-items:center;}
+.spendly-site .hiw-fc span{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}
+.spendly-site .hiw-fc b{font-size:26px;font-weight:700;letter-spacing:-.02em;color:var(--text);}
+.spendly-site .hiw-fc .arrow{font-size:18px;color:var(--muted);}
+.spendly-site .hiw-bar{height:6px;background:var(--brd);margin:0 0 16px;}
+.spendly-site .hiw-bar i{display:block;height:100%;background:var(--acc);}
+.spendly-site .num{font-variant-numeric:tabular-nums;}
+.spendly-site .hiw-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;}
+.spendly-site .hiw-step{display:flex;gap:14px;align-items:flex-start;padding:18px 20px;border:1px solid var(--brd);border-left:3px solid var(--brd);border-radius:var(--r);background:transparent;animation:hiw-step 12s infinite both;}
+.spendly-site .hiw-step.st2{animation-delay:4s;} .spendly-site .hiw-step.st3{animation-delay:8s;}
+.spendly-site .hiw-step h3{font-size:16px;font-weight:700;margin:0 0 4px;color:var(--text);}
+.spendly-site .hiw-step p{font-size:14px;line-height:1.55;color:var(--muted);margin:0;}
+.spendly-site .hiw-ic{flex:0 0 36px;height:36px;border-radius:var(--r-xs);display:grid;place-items:center;background:var(--acc-soft);color:var(--acc-text);}
+.spendly-site .hiw-ic svg{width:18px;height:18px;}
+@keyframes hiw-show{0%{opacity:0;transform:translateY(6px);}3%,30%{opacity:1;transform:none;}33.34%,100%{opacity:0;transform:none;}}
+@keyframes hiw-step{0%,30%{background:var(--panel);border-left-color:var(--acc);}33.34%,100%{background:transparent;border-left-color:var(--brd);}}
+@media(max-width:860px){
+  .spendly-site .hiw{grid-template-columns:1fr;gap:32px;justify-items:center;}
+  .spendly-site .hiw-steps{width:100%;}
+}
+@media(max-width:380px){
+  .spendly-site .hiw-phone{width:240px;height:500px;}
+}
+@media (prefers-reduced-motion: reduce){
+  .spendly-site .hiw-scr,.spendly-site .hiw-step{animation:none;}
+  .spendly-site .hiw-scr.s2{opacity:1;}
+}

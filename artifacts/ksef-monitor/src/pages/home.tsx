@@ -1,11 +1,12 @@
 import { HOME_FAQ } from "@/lib/home-faq";
+import { HowItWorksPhone } from "@/components/how-it-works-phone";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   Zap, ArrowRight, Play, Check, ScanLine, BellRing, GitCompare,
   UtensilsCrossed, Sparkles, FileCheck2, RefreshCw, FileText, Plus, Moon, Sun,
   Menu, X, Hotel, Truck, Building2, Lock, Server, KeyRound, ShieldCheck,
-  ChevronRight,
+  ChevronRight, Cheese, Cow, Carrot,
 } from "@/lib/icons";
 import "@/styles/landing.css";
 import { track } from "@/lib/posthog";
@@ -174,7 +175,7 @@ export default function Home() {
         <p className="lead">Faktury zakupowe wpadają <strong>automatycznie z KSeF</strong> — bez przepisywania, bez skanowania, bez limitów stron. Spendly pilnuje cen dostawców i alarmuje o podwyżce w dniu, w którym się pojawia — nie na koniec miesiąca.</p>
         <div className="hero-cta">
           <a className="btn btn-primary btn-lg" href="/sign-up" onClick={go("/sign-up")}>Rozpocznij za darmo <ArrowRight /></a>
-          <a className="btn btn-ghost btn-lg" href="#ksef"><Play />Zobacz jak działa</a>
+          <a className="btn btn-ghost btn-lg" href="#jak-to-dziala"><Play />Zobacz jak działa</a>
         </div>
         <div className="microcopy">
           <span><Check />Bezpłatnie w okresie testowym</span>
@@ -208,9 +209,9 @@ export default function Home() {
               </div>
               <div className="mb-side">
                 <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)" }}>Alerty cenowe</div>
-                <div className="alert"><div className="ic" style={{ background: "rgba(255,92,92,.14)" }}>🧈</div><div><div className="n">Masło extra 82%</div><div className="s">Makro</div></div><div className="dd bad">+18,2%</div></div>
-                <div className="alert"><div className="ic" style={{ background: "rgba(255,92,92,.14)" }}>🥩</div><div><div className="n">Karkówka</div><div className="s">Bidfood</div></div><div className="dd bad">+9,7%</div></div>
-                <div className="alert"><div className="ic" style={{ background: "rgba(61,220,151,.14)" }}>🍅</div><div><div className="n">Pomidory</div><div className="s">Makro</div></div><div className="dd good">−6,3%</div></div>
+                <div className="alert"><div className="ic" style={{ background: "var(--acc-soft)", color: "var(--acc-text)" }}><Cheese /></div><div><div className="n">Masło extra 82%</div><div className="s">Makro</div></div><div className="dd bad">+18,2%</div></div>
+                <div className="alert"><div className="ic" style={{ background: "var(--acc-soft)", color: "var(--acc-text)" }}><Cow /></div><div><div className="n">Karkówka</div><div className="s">Bidfood</div></div><div className="dd bad">+9,7%</div></div>
+                <div className="alert"><div className="ic" style={{ background: "rgba(107,122,58,.14)", color: "#6B7A3A" }}><Carrot /></div><div><div className="n">Pomidory</div><div className="s">Makro</div></div><div className="dd good">−6,3%</div></div>
               </div>
             </div>
           </div>
@@ -224,6 +225,16 @@ export default function Home() {
           <span className="b">Integracja&nbsp;z&nbsp;KSeF</span><span className="b">Szyfrowanie&nbsp;AES-256</span><span className="b">Serwery&nbsp;w&nbsp;UE&nbsp;·&nbsp;RODO</span><span className="b">Bez&nbsp;karty</span><span className="b">Anuluj&nbsp;kiedy&nbsp;chcesz</span>
         </div>
       </div>
+
+      {/* JAK TO DZIAŁA — telefon z animacją (wzór: inFakt) */}
+      <section className="blk wrap" id="jak-to-dziala">
+        <div className="sec-head">
+          <div className="sec-eye">Jak to działa</div>
+          <h2>Od faktury do decyzji w trzy minuty</h2>
+          <p>Nie musisz niczego przepisywać ani liczyć w Excelu. Spendly robi to w tle, a Ty dostajesz gotową informację.</p>
+        </div>
+        <HowItWorksPhone />
+      </section>
 
       {/* FEATURES */}
       <section className="blk wrap" id="funkcje">
