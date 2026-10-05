@@ -1,9 +1,9 @@
 ---
 slug: amortyzacja-sprzetu-gastronomicznego
 title: Amortyzacja sprzętu gastronomicznego — jak to policzyć i dlaczego wpływa na realną rentowność
-description: Piec konwekcyjny za 40 tysięcy złotych nie jest kosztem jednego miesiąca — jest kosztem rozłożonym na lata, o którym łatwo zapomnieć przy liczeniu rentowności. Sprawdź, jak policzyć amortyzację sprzętu gastronomicznego i po co to w ogóle robić.
+description: Jak policzyć amortyzację sprzętu gastronomicznego i ile lat działa piec, chłodnia czy zmywarka. Realny miesięczny koszt sprzętu w restauracji.
 date: 2026-09-24
-updated: 2026-09-24
+updated: 2026-10-05
 category: Finanse
 keywords: amortyzacja sprzętu gastronomicznego, stawki amortyzacyjne restauracja, leasing czy zakup sprzętu gastronomicznego, koszt sprzętu w rentowności restauracji, amortyzacja pieca konwekcyjnego
 lead: Kupujesz piec za 40 tysięcy złotych i księgowa mówi „to koszt roku". W rzeczywistości ekonomicznej to koszt najbliższych ośmiu lat — i dopóki tak go nie policzysz, Twoja rentowność jest zniekształcona.
@@ -49,3 +49,25 @@ Amortyzacja policzona raz w arkuszu i zapomniana nie pomaga — ma sens dopiero 
 [Spendly](/food-cost) liczy realną rentowność na bazie faktur z [KSeF](/ksef) — dokładając do tego stały koszt amortyzacji sprzętu, wynik przestaje skakać z miesiąca na miesiąc bez powodu i zaczyna pokazywać to, co faktycznie dzieje się z marżą.
 
 > Piec, który stoi w kuchni, kosztuje Cię każdego miesiąca — niezależnie od tego, czy w tym miesiącu za niego płacisz. Policz to raz porządnie, a przestaniesz się dziwić miesiącom, które „wyglądają gorzej niż powinny".
+
+## Najczęstsze pytania
+
+### Jak policzyć amortyzację sprzętu gastronomicznego?
+
+Podziel cenę sprzętu przez okres użytkowania w miesiącach. Piec konwekcyjny za 40 000 zł używany 8 lat kosztuje około 417 zł miesięcznie, niezależnie od tego, kiedy za niego zapłacono.
+
+### Ile lat użytkuje się sprzęt w gastronomii?
+
+Orientacyjnie: piece i kuchnie 6–10 lat, chłodnie i zamrażarki 6–8 lat, zmywarki przemysłowe 5–7 lat, meble i wyposażenie sali 8–12 lat, a sprzęt POS i terminale 3–5 lat.
+
+### Dlaczego amortyzacja ma znaczenie poza księgowością?
+
+Bo pokazuje realny miesięczny koszt sprzętu. Bez niej miesiące z zakupem wyglądają fatalnie, a pozostałe za dobrze.
+
+### Czy amortyzację doliczać do kosztu dania?
+
+Przy dokładnej wycenie warto. Danie, które wymaga długiej pracy drogiego pieca, faktycznie kosztuje więcej niż wynika z samych składników.
+
+### Kiedy opłaca się wymienić stary sprzęt?
+
+Gdy miesięczna amortyzacja nowego sprzętu jest niższa niż oszczędność na energii i naprawach. Takie porównanie zamienia emocjonalną decyzję w policzalną.

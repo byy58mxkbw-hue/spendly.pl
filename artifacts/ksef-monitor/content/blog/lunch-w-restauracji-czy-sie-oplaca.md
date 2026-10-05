@@ -1,9 +1,9 @@
 ---
 slug: lunch-w-restauracji-czy-sie-oplaca
 title: Czy lunch się opłaca? Jak policzyć rentowność zestawów lunchowych
-description: Zestawy lunchowe mają niski food cost procentowy i niską marżę na sztuce. Pokazujemy, jak policzyć, czy lunch naprawdę zarabia, i kiedy zjada sprzedaż z karty zamiast ją uzupełniać.
+description: Czy lunch w restauracji się opłaca? Jak policzyć rentowność zestawów lunchowych i rozpoznać, kiedy lunch zjada sprzedaż dań z karty.
 date: 2026-09-04
-updated: 2026-09-04
+updated: 2026-10-05
 category: Menu
 keywords: lunch w restauracji rentowność, zestaw lunchowy kalkulacja, czy lunch się opłaca, food cost lunch, marża lunch gastronomia
 lead: Lunch prawie zawsze wygląda źle w zestawieniu marż i prawie zawsze jest potrzebny. Cała sztuka polega na sprawdzeniu, czy dokłada do wyniku, czy tylko do obrotu.
@@ -66,3 +66,25 @@ Skoro lunch działa wolumenem, to w nim najbardziej opłaca się szukać groszy 
 Trzy miejsca, w których zwykle one są: gramatura dodatku skrobiowego, cena mięsa u alternatywnego dostawcy ([jak porównywać dostawców](/blog/jak-wybrac-dostawce-do-restauracji)) i straty przy przygotowaniu ([food waste](/blog/food-waste-w-restauracji)).
 
 [Spendly](/) zestawia sprzedaż z POS z kosztem porcji liczonym z faktur KSeF i pokazuje lunch jako jedną pozycję, z rozbiciem na dania po rozwinięciu — więc widać i całość oferty, i to, które danie w niej kosztuje najwięcej.
+
+## Najczęstsze pytania
+
+### Czy lunch w restauracji się opłaca?
+
+Często tak, mimo niższej marży na talerzu. Lunch działa wolumenem: 100 zestawów po 26 zł marży daje 2 600 zł dziennie, czyli więcej niż kilkanaście droższych dań z karty w tych samych godzinach.
+
+### Jak ocenić opłacalność lunchu?
+
+Patrz na marżę w godzinach lunchowych, a nie na food cost pojedynczego zestawu. Jeśli łączna marża z godzin 12–15 rośnie, lunch robi swoją robotę.
+
+### Kiedy lunch szkodzi restauracji?
+
+Gdy kanibalizuje sprzedaż dań z karty, czyli goście biorą tańszy zestaw zamiast droższego dania, oraz gdy porcja jest liczona z głowy i realnie kosztuje więcej niż zakładasz.
+
+### Jakie dane są potrzebne do analizy lunchu?
+
+Liczba sprzedanych zestawów z POS, realny koszt porcji z receptury i cen z faktur, sprzedaż dań z karty w godzinach lunchowych przed i po wprowadzeniu lunchu oraz średni rachunek.
+
+### Gdzie szukać oszczędności w lunchu?
+
+W koszcie porcji, bo lunch sprzedaje się w dużych ilościach. Dwa złote mniej na zestawie przy 2 000 zestawów miesięcznie to 4 000 zł.

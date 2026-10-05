@@ -1,9 +1,9 @@
 ---
 slug: prime-cost-restauracja
 title: Prime cost w restauracji — co to jest, wzór i ile powinien wynosić
-description: Prime cost to najważniejszy wskaźnik rentowności restauracji — suma kosztu surowców i pracy. Wyjaśniamy wzór, podajemy zdrowe widełki procentowe i pokazujemy, jak go obniżyć.
+description: Prime cost w restauracji: co to jest, wzór, ile powinien wynosić dla różnych lokali i jak go obniżyć po stronie surowców i pracy.
 date: 2026-07-14
-updated: 2026-07-14
+updated: 2026-10-05
 category: Finanse
 keywords: prime cost restauracja, prime cost wzór, prime cost gastronomia, koszt pracy restauracja, rentowność restauracji
 lead: Food cost mówi połowę prawdy. Dopiero prime cost — koszt surowców plus koszt pracy — pokazuje, czy restauracja naprawdę zarabia. Zobacz, jak go liczyć i jaki poziom jest zdrowy.
@@ -85,3 +85,25 @@ Jeśli prime cost zjada 70%, a czynsz 12%, na wszystko pozostałe i zysk masz ra
 Koszt pracy pilnujesz w grafiku, ale koszt surowców zmienia się z każdą fakturą — i to on najczęściej wymyka się spod kontroli. [Spendly](/food-cost) pobiera faktury zakupowe z [KSeF](/ksef), śledzi ceny każdego surowca i liczy food cost na bieżąco. Masz aktualną surowcową połowę prime cost bez ręcznej roboty — wystarczy dołożyć koszt pracy z grafiku, żeby zobaczyć pełny wskaźnik.
 
 Zacznij od policzenia swojego prime cost za ostatni miesiąc, porównaj z tabelą powyżej i skup się na tej stronie, która najbardziej odstaje. Jeśli dopiero uczysz się liczyć koszty, zajrzyj wcześniej do: [Jak liczyć food cost](/blog/jak-liczyc-food-cost) oraz [Ile powinien wynosić food cost](/blog/ile-powinien-wynosic-food-cost).
+
+## Najczęstsze pytania
+
+### Co to jest prime cost?
+
+Prime cost to suma kosztu surowców (food cost i beverage cost) oraz kosztu pracy, czyli wynagrodzeń, składek i benefitów. To zwykle 55–70% wszystkich wydatków lokalu i najważniejszy wskaźnik decydujący o zysku.
+
+### Jak obliczyć prime cost?
+
+Prime cost % = (koszt surowców + koszt pracy) / przychód × 100. Przykład: przy przychodzie 120 000 zł, surowcach 36 000 zł i koszcie pracy 34 000 zł prime cost wynosi 70 000 zł, czyli 58%.
+
+### Ile powinien wynosić prime cost w restauracji?
+
+Cel dla większości lokali to 55–65% przychodu. Restauracja z pełną obsługą zwykle mieści się w 60–65%, pizzeria lub lokal z dowozem w 50–58%. Prime cost powyżej 65% to sygnał ostrzegawczy.
+
+### Dlaczego food cost i koszt pracy liczy się razem?
+
+Bo te koszty można wymieniać. Gotowe frytki podnoszą food cost, ale obniżają koszt pracy. Dopiero suma pokazuje, czy taka zmiana się opłaca.
+
+### Jak obniżyć prime cost?
+
+Po stronie surowców: pilnuj cen zakupu, porównuj dostawców, standaryzuj porcje i ograniczaj marnotrawstwo. Po stronie pracy: układaj grafiki pod ruch, ograniczaj nadgodziny i automatyzuj powtarzalne zadania, jak przepisywanie faktur.

@@ -1,9 +1,9 @@
 ---
 slug: jak-wycenic-danie-w-menu
 title: Jak wycenić danie w menu — menu engineering krok po kroku
-description: Wycena dań to nie zgadywanie. Poznaj metodę menu engineering: jak policzyć koszt talerza, ustawić cenę pod docelowy food cost i które dania zarabiają, a które tylko zajmują kartę.
+description: Jak wycenić danie w menu: koszt talerza, cena pod docelowy food cost, mnożnik i menu engineering. Praktyczny przewodnik dla restauracji.
 date: 2026-07-14
-updated: 2026-07-14
+updated: 2026-10-05
 category: Menu
 keywords: jak wycenić danie, wycena dań restauracja, menu engineering, cena dania w menu, kalkulacja dania
 lead: Cena z sufitu albo „jak u konkurencji" to najszybsza droga do topniejącej marży. Menu engineering łączy koszt talerza i sprzedaż, żeby każde danie w karcie realnie na Ciebie pracowało.
@@ -88,3 +88,25 @@ Wyceniłeś kartę pół roku temu, ceny surowców od tego czasu wzrosły — i 
 [Spendly](/food-cost) pobiera faktury z [KSeF](/ksef), aktualizuje ceny surowców i przelicza food cost dań na bieżąco — więc od razu widzisz, które pozycje zeszły poniżej celu i wymagają korekty ceny. Zamiast raz w roku przeliczać całą kartę, reagujesz punktowo, gdy konkretny składnik drożeje.
 
 Ustaw ceny metodą docelowego food cost, raz na kwartał przejrzyj kartę pod kątem czterech grup i pilnuj kosztów zakupu. To wystarcza, żeby menu pracowało na zysk, a nie tylko wypełniało stół. Zobacz też: [Marża a narzut w gastronomii](/blog/marza-a-narzut-gastronomia).
+
+## Najczęstsze pytania
+
+### Jak obliczyć cenę dania w menu?
+
+Najprościej z docelowego food cost: cena netto = koszt składników / docelowy food cost. Przy koszcie talerza 12 zł i celu 30% cena netto wynosi 40 zł, a do ceny w karcie doliczasz VAT.
+
+### Co to jest mnożnik przy wycenie dań?
+
+To skrót tej samej metody: cena netto = koszt składników × mnożnik. Dla food cost 30% mnożnik wynosi około 3,3, dla 25% równo 4, a dla 33% około 3.
+
+### Czy do kosztu dania doliczać straty?
+
+Tak. Do sumy z receptury dolicz 3–8% na straty, czyli obierki, przypalenia i zwroty. Dopiero ta kwota jest bazą do wyceny.
+
+### Na czym polega menu engineering?
+
+Na zestawieniu marży dania z jego popularnością. Dania dzielą się na gwiazdy (wysoka marża i sprzedaż), konie robocze (niska marża, wysoka sprzedaż), zagadki (wysoka marża, niska sprzedaż) i psy (niska marża i sprzedaż).
+
+### Jak często aktualizować ceny w menu?
+
+Wycena jest aktualna tylko przy aktualnych kosztach. Kartę warto przeglądać przynajmniej raz na kwartał i reagować punktowo, gdy konkretny składnik drożeje.

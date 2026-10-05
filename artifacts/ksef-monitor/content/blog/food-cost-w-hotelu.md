@@ -1,9 +1,9 @@
 ---
 slug: food-cost-w-hotelu
 title: Food cost w hotelu — czym różni się od restauracji i dlaczego trudniej go policzyć
-description: Bufet śniadaniowy, room service, eventy i bankiety — hotel ma zupełnie inną strukturę zużycia surowców niż restauracja z kartą dań. Sprawdź, dlaczego standardowe liczenie food costu tu zawodzi i co policzyć zamiast tego.
+description: Food cost w hotelu: jak liczyć koszt bufetu śniadaniowego, room service i bankietów oraz dlaczego jeden wskaźnik dla całego hotelu nie wystarcza.
 date: 2026-09-27
-updated: 2026-09-27
+updated: 2026-10-05
 category: Food cost
 keywords: food cost w hotelu, food cost hotel, koszty gastronomii hotelowej, bufet śniadaniowy koszty, food cost bankiety
 lead: W restauracji food cost dania liczysz z przepisu na talerz. W hotelu ten sam wskaźnik musi ogarnąć bufet, do którego gość podchodzi trzy razy, i bankiet na 120 osób zamówiony tydzień wcześniej — to zupełnie inna gra.
@@ -45,3 +45,25 @@ Hotel zwykle ma więcej fizycznych punktów przechowywania i wydawania jedzenia 
 [Spendly](/food-cost) pozwala przypisać faktury i produkty do konkretnych centrów kosztów — więc bufet, bankiety i restauracja a la carte mogą mieć osobne, czytelne rozliczenie zamiast jednej zbiorczej liczby, która ukrywa, gdzie realnie znika marża.
 
 > Jeden food cost dla całego hotelu to trochę jak jedna temperatura dla całego budynku — technicznie liczba istnieje, ale nie mówi Ci, w którym pokoju jest problem.
+
+## Najczęstsze pytania
+
+### Czym różni się food cost w hotelu od restauracji?
+
+Hotel ma kilka segmentów o różnej ekonomii: bufet śniadaniowy, room service, bankiety i restaurację a la carte. Klasyczny food cost per danie ma sens głównie w tej ostatniej.
+
+### Jak liczyć koszt bufetu śniadaniowego?
+
+Jako koszt na osobę: całkowity koszt surowców przygotowanych na dany dzień podzielony przez liczbę faktycznie obsłużonych gości, a nie przez liczbę pokoi czy rezerwacji.
+
+### Dlaczego bufet ma większe marnotrawstwo?
+
+Bo trzeba go przygotować z zapasem na nieprzewidywalną liczbę gości i ich apetyt. Dlatego przy bufecie warto osobno mierzyć, ile jedzenia trafia do kosza.
+
+### Kiedy liczyć koszt bankietu?
+
+Przed wydarzeniem, a nie tylko po nim. Zamówienie jest znane z wyprzedzeniem, często z gwarantowaną minimalną liczbą gości, więc koszt można policzyć przy wycenie.
+
+### Czy hotel powinien liczyć jeden food cost dla całości?
+
+Nie. Jeden wskaźnik dla całego hotelu ukrywa, w którym segmencie jest problem. Bufet, bankiety i restauracja powinny mieć osobne wyliczenia.

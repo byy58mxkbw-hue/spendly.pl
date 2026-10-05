@@ -1,9 +1,9 @@
 ---
 slug: jak-liczyc-food-cost
 title: Jak liczyć food cost w restauracji — wzór, przykłady i błędy
-description: Prosty przewodnik po liczeniu food cost. Wzór na food cost procentowy i talerzowy, przykłady obliczeń oraz najczęstsze błędy, które zawyżają Twoje koszty.
+description: Jak liczyć food cost w restauracji: wzór procentowy i talerzowy, przykład obliczeń krok po kroku oraz najczęstsze błędy zawyżające koszty.
 date: 2026-07-14
-updated: 2026-07-14
+updated: 2026-10-05
 category: Food cost
 keywords: jak liczyć food cost, food cost wzór, food cost restauracja, food cost procentowy, koszt talerza
 lead: Food cost to najważniejszy wskaźnik rentowności w gastronomii. Pokazujemy, jak policzyć go poprawnie — od wzoru, przez przykłady, po błędy, które cicho zjadają marżę.
@@ -89,3 +89,25 @@ Dlatego warto oprzeć food cost na **realnych fakturach zakupowych**, a nie na w
 > **W skrócie:** licz food cost od ceny netto, opieraj go na aktualnych cenach z faktur, patrz na pojedyncze dania (nie tylko średnią) i doliczaj straty. Reszta to już tylko konsekwencja.
 
 Chcesz wiedzieć, jaki poziom food cost jest zdrowy dla Twojego typu lokalu? Sprawdź: [Ile powinien wynosić food cost](/blog/ile-powinien-wynosic-food-cost).
+
+## Najczęstsze pytania
+
+### Jak obliczyć food cost?
+
+Food cost % = koszt zużytych surowców / przychód ze sprzedaży netto × 100. Dla jednego dania: koszt składników porcji / cena sprzedaży netto × 100. Danie za 40 zł netto z kosztem składników 12 zł ma food cost 30%.
+
+### Jak policzyć koszt zużytych surowców w miesiącu?
+
+Zużycie = stan początkowy + zakupy − stan końcowy. Przykład: 8 000 zł + 22 000 zł − 6 000 zł = 24 000 zł. Przy przychodzie 75 000 zł food cost wynosi 32%.
+
+### Czy food cost liczy się od ceny brutto czy netto?
+
+Zawsze od ceny netto. VAT nie jest przychodem restauracji, więc liczenie od brutto zaniża wynik.
+
+### Jakie są najczęstsze błędy przy liczeniu food cost?
+
+Liczenie od ceny brutto, pomijanie strat i odpadów, nieaktualne ceny w recepturach, patrzenie tylko na średnią zamiast na pojedyncze dania oraz ignorowanie różnic cen między dostawcami.
+
+### Jak liczyć food cost bez Excela?
+
+Oprzyj go na realnych fakturach zakupowych zamiast na ręcznie wpisanych cenach. Narzędzie takie jak Spendly pobiera faktury z KSeF, aktualizuje ceny surowców i przelicza food cost dań przy każdej nowej dostawie.

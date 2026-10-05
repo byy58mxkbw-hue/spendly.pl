@@ -1,9 +1,9 @@
 ---
 slug: rentownosc-restauracji-wskazniki
 title: Rentowność restauracji — 7 wskaźników, które warto znać co tydzień
-description: Rachunek wyników przychodzi za późno. Poznaj wskaźniki, które pokazują kondycję restauracji na bieżąco: prime cost, food cost, koszt pracy, marża na gościa i inne.
+description: Rentowność restauracji: 7 wskaźników do śledzenia co tydzień, od prime cost i food cost po średni rachunek i sprzedaż na roboczogodzinę.
 date: 2026-08-10
-updated: 2026-08-10
+updated: 2026-10-05
 category: Finanse
 keywords: rentowność restauracji, wskaźniki KPI gastronomia, jak liczyć zysk restauracji, prime cost, średni rachunek restauracja
 lead: Miesięczny raport z księgowości mówi, ile już straciłeś. Te siedem liczb mówi, co możesz zmienić jeszcze w tym tygodniu.
@@ -85,3 +85,25 @@ Największy problem nie polega na tym, że te wskaźniki są trudne — tylko na
 [Spendly](/food-cost) zdejmuje najżmudniejszą część: faktury pobiera z [KSeF](/ksef) i sam liczy koszt surowców, ceny jednostkowe i food cost dań na aktualnych danych. Zostaje Ci wpisanie sprzedaży i decyzja, co z tym zrobić.
 
 > Zacznij od prime costu liczonego co tydzień. Jeśli mieści się poniżej 65%, masz zdrowy fundament. Jeśli nie — pozostałe wskaźniki powiedzą Ci, po której stronie szukać: surowców czy pracy.
+
+## Najczęstsze pytania
+
+### Jakie wskaźniki rentowności restauracji warto śledzić?
+
+Prime cost, food cost, koszt pracy, średni rachunek na gościa, sprzedaż na roboczogodzinę, udział największych pozycji zakupowych i marżę kwotową dań.
+
+### Który wskaźnik jest najważniejszy w gastronomii?
+
+Prime cost, czyli suma kosztu surowców i pracy. Poniżej 65% przychodu oznacza zdrowy fundament, powyżej trzeba szukać przyczyny po stronie surowców albo pracy.
+
+### Jak często sprawdzać wskaźniki restauracji?
+
+Codziennie sprzedaż i obsadę, co tydzień prime cost, koszt pracy, średni rachunek i sprzedaż na roboczogodzinę, co miesiąc rzeczywisty food cost i inwentaryzację, a co kwartał ceny dostawców i kartę.
+
+### Dlaczego obrót nie mówi, czy restauracja zarabia?
+
+Bo pełna sala nie oznacza zysku. Jeśli koszty surowców i pracy rosną szybciej niż sprzedaż, obrót może rosnąć, a zysk spadać.
+
+### Czy liczyć marżę dania procentowo czy kwotowo?
+
+Warto patrzeć na obie. Danie z niższą marżą procentową, ale wyższą kwotową, może zarabiać więcej niż tanie danie z wysokim procentem.

@@ -57,16 +57,17 @@
     "https://www.spendly.pl/blog/og/raport-sprzedazy-z-pos.png"
   ],
   "datePublished": "2026-09-04",
-  "dateModified": "2026-09-04",
+  "dateModified": "2026-10-05",
   "inLanguage": "pl-PL",
   "mainEntityOfPage": {
     "@type": "WebPage",
     "@id": "https://www.spendly.pl/blog/raport-sprzedazy-z-pos"
   },
   "author": {
-    "@type": "Organization",
-    "name": "Spendly",
-    "url": "https://www.spendly.pl"
+    "@type": "Person",
+    "name": "Patryk",
+    "jobTitle": "Właściciel restauracji i sali weselnej, twórca Spendly",
+    "url": "https://www.spendly.pl/blog"
   },
   "publisher": {
     "@type": "Organization",
@@ -102,6 +103,54 @@
       "position": 3,
       "name": "Jak czytać raport sprzedaży z POS — na co patrzeć co miesiąc",
       "item": "https://www.spendly.pl/blog/raport-sprzedazy-z-pos"
+    }
+  ]
+}
+    </script>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Na co patrzeć w miesięcznym raporcie sprzedaży z POS?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Na ilość i wartość sprzedaży osobno, na pozycje, które najbardziej urosły i spadły w złotówkach, a nie w procentach, oraz na udział największych pozycji w obrocie."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Dlaczego ilość i wartość sprzedaży trzeba czytać osobno?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Bo pokazują dwie różne historie. Jeśli ilość wzrosła o 20%, a wartość o 45%, to większość wyniku zrobiła podwyżka ceny, a nie większy popyt."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Jakie są pułapki porównywania sprzedaży miesiąc do miesiąca?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nowe pozycje pokazane jako wzrost, chociaż nie mają z czym się porównać, oraz niepełny poprzedni miesiąc, gdy integracja z POS zaczęła zbierać dane w jego połowie."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Czego raport z POS nie pokazuje?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Kosztów. Zna przychód, ale nie wie, że surowiec do dania podrożał i marża spadła. Do tego potrzebny jest food cost liczony z faktur i marża dań po aktualnych cenach."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Co to jest wariancja food cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "To różnica między tym, ile powinieneś wydać na surowce przy danej sprzedaży i recepturach, a tym, ile wydałeś naprawdę. Pokazuje marnowanie, złe porcjowanie i straty przy przyjęciu towaru."
+      }
     }
   ]
 }
@@ -176,6 +225,24 @@
       footer.ft .col a{display:block;font-size:13px;color:#8A7C63;text-decoration:none;margin-bottom:8px}
       footer.ft .bottom{padding-top:20px;border-top:1px solid #E2D8C6;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:center;font-size:12px;color:#8A7C63}
       footer.ft .bottom a{color:#8A7C63;text-decoration:none}
+      .toc{background:#FBF7EF;border:1px solid #E2D8C6;border-radius:4px;padding:16px 20px;margin:20px 0 8px}
+      .toc-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#8A7C63;margin:0 0 8px}
+      .toc ol{margin:0;padding-left:20px;font-size:14px;line-height:1.7}
+      .toc a{color:#211B12;text-decoration:none}
+      .toc a:hover{color:#A8431F;text-decoration:underline}
+      .share{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:#8A7C63;margin:28px 0 0;padding-top:18px;border-top:1px solid #E2D8C6}
+      .share a{color:#211B12;text-decoration:none;border:1px solid #E2D8C6;border-radius:3px;padding:4px 10px;background:#FBF7EF}
+      .share a:hover{border-color:rgba(168,67,31,0.35)}
+      .author{display:flex;gap:14px;align-items:flex-start;margin:24px 0 0;padding:18px 20px;background:#FBF7EF;border:1px solid #E2D8C6;border-radius:4px}
+      .author .av{flex:0 0 44px;height:44px;border-radius:50%;background:#A8431F;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}
+      .author p{margin:0}
+      .author .an{font-weight:700;color:#211B12}
+      .author .ar{font-size:13px;color:#A8431F;margin-bottom:6px}
+      .author .ab{font-size:14px;color:#5C5340;line-height:1.6}
+      .related-grid .k2{display:block;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#A8431F;margin-bottom:6px}
+      .cats{max-width:1200px;margin:0 auto;padding:0 24px;display:flex;flex-wrap:wrap;gap:8px}
+      .cats a{font-size:13px;color:#211B12;text-decoration:none;border:1px solid #E2D8C6;border-radius:3px;padding:6px 12px;background:#FBF7EF}
+      .cats a.on,.cats a:hover{border-color:#A8431F;color:#A8431F}
       /* Blog index */
       .hero{max-width:1200px;margin:0 auto;padding:64px 24px 32px}
       .hero h1{font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(2rem,5vw,3rem);font-weight:600;letter-spacing:0;margin:0 0 14px;color:#211B12}
@@ -202,11 +269,12 @@
       </nav>
     </div></header>
     <main>
-      <div class="wrap crumbs"><a href="/">Strona główna</a> › <a href="/blog">Blog</a> › Jak czytać raport sprzedaży z POS — na co patrzeć co miesiąc</div>
+      <div class="wrap crumbs"><a href="/">Strona główna</a> › <a href="/blog">Blog</a> › <a href="/blog/kategoria/operacje">Operacje</a> › Jak czytać raport sprzedaży z POS — na co patrzeć co miesiąc</div>
       <article class="post">
         <h1>Jak czytać raport sprzedaży z POS — na co patrzeć co miesiąc</h1>
-        <div class="post-meta"><span>4 września 2026</span><span>3 min czytania</span></div>
+        <div class="post-meta"><span>Patryk</span><span>4 września 2026</span><span>zaktualizowano 5 października 2026</span><span>4 min czytania</span></div>
         <p class="lead">Większość raportów z POS kończy się na liście „ile czego sprzedano". To dopiero materiał. Wnioski zaczynają się tam, gdzie zestawisz sprzedaż z poprzednim miesiącem i z kosztem surowca.</p>
+        <nav class="toc" aria-label="Spis treści"><p class="toc-h">Spis treści</p><ol><li><a href="#ilość-i-wartość-to-dwie-różne-historie">Ilość i wartość to dwie różne historie</a></li><li><a href="#cztery-liczby-na-comiesięczny-przegląd">Cztery liczby na comiesięczny przegląd</a></li><li><a href="#trzy-pułapki-w-porównaniu-miesiąc-do-miesiąca">Trzy pułapki w porównaniu miesiąc do miesiąca</a></li><li><a href="#gdzie-raport-z-pos-przestaje-wystarczać">Gdzie raport z POS przestaje wystarczać</a></li><li><a href="#rytm-ma-znaczenie">Rytm ma znaczenie</a></li><li><a href="#najczęstsze-pytania">Najczęstsze pytania</a></li></ol></nav>
         <div class="post-body">
 <h2 id="ilość-i-wartość-to-dwie-różne-historie">Ilość i wartość to dwie różne historie</h2>
 <p>Pierwsza rzecz, którą trzeba rozdzielić: liczba sprzedanych sztuk i wartość sprzedaży zmieniają się <strong>niezależnie od siebie</strong>.</p>
@@ -229,14 +297,32 @@
 <h2 id="rytm-ma-znaczenie">Rytm ma znaczenie</h2>
 <p>Raport sprzedaży oglądany raz na kwartał opisuje przeszłość, której nie da się już naprawić. Ten sam raport oglądany co tydzień pozwala zareagować, kiedy problem jeszcze kosztuje setki, a nie tysiące — błąd w porcjowaniu widać po tygodniu, a po kwartale jest już tylko dziurą w wyniku, której nikt nie umie wyjaśnić.</p>
 <p><a href="/">Spendly</a> łączy sprzedaż z POS z fakturami z KSeF: pokazuje sprzedaż miesiąc do miesiąca w ilościach i kwotach, grupuje warianty w jedną pozycję i pozwala kliknąć w dowolne danie, żeby zobaczyć jego przebieg przez cały rok.</p>
+<h2 id="najczęstsze-pytania">Najczęstsze pytania</h2>
+<h3 id="na-co-patrzeć-w-miesięcznym-raporcie-sprzedaży-z-pos">Na co patrzeć w miesięcznym raporcie sprzedaży z POS?</h3>
+<p>Na ilość i wartość sprzedaży osobno, na pozycje, które najbardziej urosły i spadły w złotówkach, a nie w procentach, oraz na udział największych pozycji w obrocie.</p>
+<h3 id="dlaczego-ilość-i-wartość-sprzedaży-trzeba-czytać-osobno">Dlaczego ilość i wartość sprzedaży trzeba czytać osobno?</h3>
+<p>Bo pokazują dwie różne historie. Jeśli ilość wzrosła o 20%, a wartość o 45%, to większość wyniku zrobiła podwyżka ceny, a nie większy popyt.</p>
+<h3 id="jakie-są-pułapki-porównywania-sprzedaży-miesiąc-do-miesiąca">Jakie są pułapki porównywania sprzedaży miesiąc do miesiąca?</h3>
+<p>Nowe pozycje pokazane jako wzrost, chociaż nie mają z czym się porównać, oraz niepełny poprzedni miesiąc, gdy integracja z POS zaczęła zbierać dane w jego połowie.</p>
+<h3 id="czego-raport-z-pos-nie-pokazuje">Czego raport z POS nie pokazuje?</h3>
+<p>Kosztów. Zna przychód, ale nie wie, że surowiec do dania podrożał i marża spadła. Do tego potrzebny jest food cost liczony z faktur i marża dań po aktualnych cenach.</p>
+<h3 id="co-to-jest-wariancja-food-cost">Co to jest wariancja food cost?</h3>
+<p>To różnica między tym, ile powinieneś wydać na surowce przy danej sprzedaży i recepturach, a tym, ile wydałeś naprawdę. Pokazuje marnowanie, złe porcjowanie i straty przy przyjęciu towaru.</p>
         </div>
+        <div class="share"><span>Udostępnij:</span>
+          <a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fwww.spendly.pl%2Fblog%2Fraport-sprzedazy-z-pos" target="_blank" rel="noopener noreferrer">Facebook</a>
+          <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fwww.spendly.pl%2Fblog%2Fraport-sprzedazy-z-pos" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a href="https://x.com/intent/post?url=https%3A%2F%2Fwww.spendly.pl%2Fblog%2Fraport-sprzedazy-z-pos&amp;text=Jak%20czyta%C4%87%20raport%20sprzeda%C5%BCy%20z%20POS%20%E2%80%94%20na%20co%20patrze%C4%87%20co%20miesi%C4%85c" target="_blank" rel="noopener noreferrer">X</a>
+          <a href="mailto:?subject=Jak%20czyta%C4%87%20raport%20sprzeda%C5%BCy%20z%20POS%20%E2%80%94%20na%20co%20patrze%C4%87%20co%20miesi%C4%85c&amp;body=https%3A%2F%2Fwww.spendly.pl%2Fblog%2Fraport-sprzedazy-z-pos">E-mail</a>
+        </div>
+        <aside class="author" aria-label="O autorze"><div class="av" aria-hidden="true">P</div><div><p class="an">Patryk</p><p class="ar">Właściciel restauracji i sali weselnej, twórca Spendly</p><p class="ab">Na co dzień prowadzę restaurację i salę weselną. Spendly zbudowałem najpierw dla siebie, żeby widzieć podwyżki u dostawców i realny food cost bez ręcznego przepisywania faktur. Na blogu piszę o tym, co sprawdza się w moim lokalu.</p></div></aside>
       </article>
       <div class="cta-box"><div class="cta-inner">
         <h2>Policz food cost automatycznie z Spendly</h2>
         <p>Faktury z KSeF, OCR paragonów i alerty cenowe w jednym miejscu. Okres testowy — bezpłatnie.</p>
         <a class="btn" href="/sign-up">Rozpocznij za darmo</a>
       </div></div>
-      <section class="related"><h2>Zobacz też</h2><div class="related-grid"><a href="/blog/najlepsze-programy-food-cost-ksef-2026"><span class="t">Najlepsze programy food cost i KSeF 2026 — porównanie</span><span class="d">28 września 2026</span></a><a href="/blog/food-cost-w-hotelu"><span class="t">Food cost w hotelu — czym różni się od restauracji i dlaczego trudniej go policzyć</span><span class="d">27 września 2026</span></a><a href="/blog/ocr-faktur-w-gastronomii"><span class="t">OCR faktur w gastronomii — jak działa automatyczne odczytywanie faktur od dostawców</span><span class="d">27 września 2026</span></a></div></section>
+      <section class="related"><h2>Zobacz też</h2><div class="related-grid"><a href="/blog/food-waste-w-restauracji"><span class="k2">Operacje</span><span class="t">Food waste w restauracji — jak ograniczyć marnotrawstwo i odzyskać marżę</span><span class="d">4 min czytania</span></a><a href="/blog/ocr-faktur-w-gastronomii"><span class="k2">Operacje</span><span class="t">OCR faktur w gastronomii — jak działa automatyczne odczytywanie faktur od dostawców</span><span class="d">4 min czytania</span></a><a href="/blog/menu-engineering-restauracja"><span class="k2">Menu</span><span class="t">Menu engineering — gwiazdy, konie pociągowe, zagadki i psy</span><span class="d">4 min czytania</span></a><a href="/blog/rentownosc-restauracji-wskazniki"><span class="k2">Finanse</span><span class="t">Rentowność restauracji — 7 wskaźników, które warto znać co tydzień</span><span class="d">4 min czytania</span></a></div></section>
     </main>
 
     <footer class="ft"><div class="wrap">

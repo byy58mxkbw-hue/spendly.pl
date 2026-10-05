@@ -3,7 +3,7 @@ slug: ksef-limit-10-tysiecy-gastronomia
 title: KSeF a limit 10 000 zł — czy Twoja restauracja jeszcze nie musi wystawiać e-faktur
 description: Do końca 2026 firmy ze sprzedażą fakturową poniżej 10 000 zł miesięcznie mogą fakturować po staremu. Jak liczyć ten limit w gastronomii?
 date: 2026-09-04
-updated: 2026-09-04
+updated: 2026-10-05
 category: KSeF
 keywords: KSeF limit 10000 zł, KSeF zwolnienie gastronomia, KSeF mikroprzedsiębiorca, KSeF od 2027, KSeF restauracja obowiązek
 lead: Wielu restauratorów słyszało, że „mali jeszcze nie muszą" — i zrozumiało to tak, że KSeF ich nie dotyczy. To nieporozumienie, które kosztuje. Zwolnienie dotyczy tylko wystawiania faktur, nigdy ich odbierania.
@@ -68,3 +68,25 @@ Obowiązek, który wygląda na kolejny biurokratyczny ciężar, jest w rzeczywis
 [Spendly](/) pobiera faktury z KSeF automatycznie, rozpoznaje pozycje z każdej z nich i pokazuje, co podrożało, u kogo kupujesz najdrożej i jak zmienia się koszt Twoich dań. Bez przepisywania czegokolwiek ręcznie.
 
 To ta sama praca, którą musiałbyś wykonać z kalkulatorem i arkuszem — tylko że dane są już w systemie, więc nie ma czego przepisywać.
+
+## Najczęstsze pytania
+
+### Na czym polega zwolnienie z KSeF do 10 000 zł?
+
+Do 31 grudnia 2026 podatnik, którego miesięczna sprzedaż brutto udokumentowana fakturami nie przekracza 10 000 zł, może wystawiać faktury poza KSeF, na dotychczasowych zasadach.
+
+### Czy limit 10 000 zł liczy się z całego obrotu restauracji?
+
+Nie. Liczy się sprzedaż udokumentowana fakturami, a nie paragonami. Restauracja z dużym obrotem może mieć niewiele faktur i zmieścić się w limicie.
+
+### Co się dzieje po przekroczeniu limitu 10 000 zł?
+
+Przekroczenie działa od razu. Od faktury, która przekracza limit, wystawiasz już w KSeF i tak zostaje. Jedno duże wesele albo catering potrafi wyczerpać limit w jeden dzień.
+
+### Czy zwolnienie z limitu dotyczy odbierania faktur?
+
+Nie. Zwolnienie dotyczy wystawiania faktur. Odbieranie faktur zakupowych przez KSeF obowiązuje wszystkich od 1 lutego 2026.
+
+### Czy mogę sam ocenić, czy przysługuje mi zwolnienie?
+
+Lepiej potwierdzić to z księgową. Sposób liczenia limitu może zależeć od formy sprzedaży, a pomyłka oznacza faktury wystawione niezgodnie z przepisami.

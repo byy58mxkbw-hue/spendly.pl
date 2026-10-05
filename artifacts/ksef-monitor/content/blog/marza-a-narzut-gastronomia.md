@@ -1,9 +1,9 @@
 ---
 slug: marza-a-narzut-gastronomia
 title: Marża a narzut w gastronomii — różnica, wzory i przykłady
-description: Marża i narzut to nie to samo — mylenie ich zaniża zyski restauracji. Wyjaśniamy różnicę na przykładach, podajemy wzory i pokazujemy, jak poprawnie wyceniać dania.
+description: Marża a narzut w gastronomii: różnica, wzory, przykłady i przeliczanie jednego na drugie. Jak nie zaniżyć zysku przy wycenie dań.
 date: 2026-07-14
-updated: 2026-07-14
+updated: 2026-10-05
 category: Finanse
 keywords: marża a narzut, marża narzut gastronomia, jak liczyć marżę, narzut na dania, wycena dań restauracja
 lead: „Mam narzut 200%, więc marża 200%" — to najczęstszy błąd w wycenie dań. Marża i narzut liczą się od różnych podstaw. Pokazujemy różnicę i wzory, żebyś nie tracił na każdym talerzu.
@@ -92,3 +92,25 @@ Marża jest tylko tak dobra, jak aktualny jest koszt składników w Twoich wylic
 [Spendly](/food-cost) pobiera faktury z [KSeF](/ksef) i automatycznie aktualizuje ceny surowców, więc widzisz, kiedy realny koszt dania rośnie i marża się kurczy — zanim odbije się to na wyniku. Ustaw ceny dań świadomie: policz narzut od aktualnego kosztu, sprawdź, jaką marżę to daje, i porównaj z celem food cost.
 
 Chcesz spójnie ułożyć całą rentowność lokalu? Zobacz też: [Prime cost w restauracji](/blog/prime-cost-restauracja).
+
+## Najczęstsze pytania
+
+### Czym różni się marża od narzutu?
+
+Narzut liczysz od kosztu, a marżę od ceny sprzedaży. Zysk w złotówkach jest ten sam, różni się tylko podstawa, od której liczysz procent.
+
+### Jak obliczyć marżę i narzut?
+
+Narzut % = (cena − koszt) / koszt × 100. Marża % = (cena − koszt) / cena × 100. Przykład: danie za 30 zł o koszcie 10 zł ma narzut 200% i marżę 66,7%.
+
+### Czy marża może być większa niż 100%?
+
+Nie. Marża nigdy nie przekracza 100%, bo jest częścią ceny sprzedaży. Narzut może być dowolnie wysoki.
+
+### Jak przeliczyć narzut na marżę?
+
+Marża = narzut / (100 + narzut) × 100. Na przykład narzut 100% to marża 50%, a narzut 300% to marża 75%.
+
+### Jaki jest związek marży z food cost?
+
+Dla samych surowców marża + food cost = 100%. Jeśli food cost dania wynosi 30%, marża surowcowa to 70%. Obie liczby liczy się od ceny netto.

@@ -1,3 +1,4 @@
+import { HOME_FAQ } from "@/lib/home-faq";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
@@ -66,13 +67,8 @@ const SECURITY = [
   { Icon: ShieldCheck, h: "Twoje dane = Twoje", p: "Nie sprzedajemy ani nie udostępniamy Twoich danych nikomu." },
 ];
 
-const FAQS = [
-  { q: "Czym jest KSeF i czy muszę go mieć?", a: "KSeF to Krajowy System e-Faktur — od 2026 obowiązkowy dla firm w Polsce. Spendly łączy się z nim bezpośrednio, więc faktury spływają automatycznie, bez skanowania i przepisywania." },
-  { q: "Jak szybko zobaczę efekty?", a: "Pierwsze alerty cenowe pojawiają się po zaimportowaniu kilku faktur — zwykle w pierwszym tygodniu. Pełny obraz food cost masz po podpięciu receptur." },
-  { q: "Czy muszę zmieniać dostawców albo system POS?", a: "Nie. Spendly działa obok Twoich obecnych dostawców i systemów. Podpinasz KSeF i ewentualnie wgrywasz receptury — reszta zostaje bez zmian." },
-  { q: "Czy moje dane są bezpieczne?", a: "Dane trzymane są na serwerach w UE, szyfrowane w tranzycie i spoczynku. Dostęp do KSeF autoryzujesz Ty i możesz go cofnąć w każdej chwili." },
-  { q: "Co jeśli mam kilka lokali?", a: "Plan Pro obsługuje do 3 lokali, a plan Sieć — dowolną liczbę, z centrami kosztów, rolami i raportami konsolidowanymi dla całej grupy." },
-];
+// Wspólne z prerenderem i schema FAQPage w index.html — patrz lib/home-faq.ts.
+const FAQS = HOME_FAQ;
 
 export default function Home() {
   usePageMeta({

@@ -1,9 +1,9 @@
 ---
 slug: ile-powinien-wynosic-food-cost
 title: Ile powinien wynosić food cost? Idealny wskaźnik dla restauracji
-description: Jaki food cost jest zdrowy dla restauracji, pizzerii, baru czy kawiarni? Widełki procentowe dla różnych typów lokali i sposoby na obniżenie food cost bez utraty jakości.
+description: Ile powinien wynosić food cost? Zdrowe widełki dla restauracji, pizzerii, baru i kawiarni oraz sposoby na obniżenie kosztu bez utraty jakości.
 date: 2026-07-13
-updated: 2026-07-13
+updated: 2026-10-05
 category: Food cost
 keywords: ile powinien wynosić food cost, idealny food cost, food cost restauracja procent, dobry food cost, jak obniżyć food cost
 lead: „Trzydzieści procent" to popularna odpowiedź, ale nie dla każdego lokalu prawdziwa. Zobacz realne widełki food cost dla różnych typów gastronomii i jak zejść z kosztami bez psucia jakości.
@@ -73,3 +73,25 @@ Dlatego patrz też na **prime cost** — sumę kosztu surowców i kosztu pracy. 
 Ręczne pilnowanie cen kilkuset produktów u kilkunastu dostawców jest niewykonalne. Dlatego [Spendly](/food-cost) pobiera faktury z [KSeF](/ksef), śledzi historię cen każdego surowca i wysyła alert, gdy któryś przekroczy ustawiony próg. Food cost przelicza się sam — na podstawie realnych zakupów, nie szacunków.
 
 Zacznij od policzenia swojego wskaźnika, ustaw cel z tabeli powyżej i pilnuj cen zakupu. To wystarczy, żeby food cost przestał być zagadką na koniec miesiąca.
+
+## Najczęstsze pytania
+
+### Ile powinien wynosić food cost w restauracji?
+
+Dla większości restauracji zdrowy food cost mieści się w przedziale 28–35% ceny dania. Konkretny cel zależy od typu lokalu: pizzerie i kawiarnie zwykle mają niższy wskaźnik, a fine dining i bary szybkiej obsługi wyższy.
+
+### Czy food cost 35% to za dużo?
+
+Niekoniecznie. Food cost trzeba czytać razem z resztą kosztów. Jeśli prime cost, czyli surowce plus praca, mieści się w 55–65% przychodu, food cost na poziomie 33–35% nie musi być problemem.
+
+### Co najczęściej podbija food cost?
+
+Najczęściej są to ciche podwyżki dostawców, zbyt duże porcje, straty i marnotrawstwo, nieaktualne receptury oraz błędy w wydawaniu towaru.
+
+### Jak obniżyć food cost bez pogarszania jakości?
+
+Najszybciej przez pilnowanie cen zakupu: monitorowanie podwyżek z faktur, porównywanie dostawców i regularną aktualizację receptur oraz cen w menu. Pomaga też standaryzacja porcji i usuwanie dań z wysokim food cost, które słabo się sprzedają.
+
+### Jaki food cost ma pizzeria, a jaki kawiarnia?
+
+Typowe widełki to 22–30% dla pizzerii i 18–28% dla kawiarni. Niskie koszty surowców bazowych, takich jak ciasto czy kawa, pozwalają tym lokalom na niższy wskaźnik niż w klasycznej restauracji.

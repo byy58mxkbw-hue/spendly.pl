@@ -103,7 +103,7 @@
     }
     </script>
 
-    <!-- Schema.org: FAQPage -->
+    <!-- Schema.org: FAQPage (źródło: src/lib/home-faq.ts) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -111,26 +111,18 @@
       "mainEntity": [
         {
           "@type": "Question",
-          "name": "Czy mogę anulować w dowolnym momencie?",
+          "name": "Czym jest KSeF?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Tak. Brak długoterminowych umów — anulujesz subskrypcję kiedy chcesz, bez żadnych opłat za rezygnację."
+            "text": "KSeF, czyli Krajowy System e-Faktur, to rządowa platforma do wystawiania i odbierania faktur w jednym formacie XML. Wszystkie faktury od dostawców trafiają do jednego systemu, przypisane do NIP-u Twojej firmy."
           }
         },
         {
           "@type": "Question",
-          "name": "Czy jest okres próbny?",
+          "name": "Od kiedy KSeF jest obowiązkowy dla restauracji?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Tak. Nowi Użytkownicy dostają 30 dni darmowego dostępu do planu Pro, bez podawania karty. Po tym czasie wybierają: zostają na bezpłatnym planie Start albo przechodzą na Pro."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Jak chronione są moje dane?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Faktury i tokeny KSeF są szyfrowane AES-256-GCM w bazie danych. Każdy użytkownik ma dostęp wyłącznie do swoich danych — bez wyjątków. Komunikacja odbywa się wyłącznie przez szyfrowane połączenie HTTPS."
+            "text": "Obowiązek wchodzi etapami w 2026 roku. Odbieranie faktur przez KSeF dotyczy wszystkich od 1 lutego 2026, a większość restauracji będących czynnymi podatnikami VAT wystawia faktury w KSeF od 1 kwietnia 2026."
           }
         },
         {
@@ -138,15 +130,23 @@
           "name": "Czy Spendly integruje się z KSeF?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Tak. Spendly łączy się bezpośrednio z API Krajowego Systemu e-Faktur i automatycznie pobiera faktury zakupowe dla Twojego NIP-u. Wystarczy jednorazowo podać NIP i token — resztą zajmuje się system."
+            "text": "Tak. Spendly łączy się bezpośrednio z API Krajowego Systemu e-Faktur i automatycznie pobiera faktury zakupowe dla Twojego NIP-u. Wystarczy jednorazowo podać NIP i token, resztą zajmuje się system."
           }
         },
         {
           "@type": "Question",
-          "name": "Czy system działa dla wielu lokali?",
+          "name": "Co to jest food cost i jak liczy go Spendly?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Tak. System obsługuje wiele lokali i dostawców z jednego panelu. Skontaktuj się z nami, jeśli masz specyficzne wymagania dla sieci restauracji."
+            "text": "Food cost to udział kosztu surowców w cenie dania albo w przychodzie lokalu. Spendly liczy go z cen z Twoich faktur zakupowych i receptur dań, więc koszt porcji aktualizuje się przy każdej nowej dostawie."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Jak Spendly wyłapuje podwyżki cen u dostawców?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Porównuje cenę każdego produktu z poprzednimi fakturami w tej samej jednostce miary. Gdy cena przekroczy ustawiony próg, dostajesz alert i widzisz, które dania podrożały."
           }
         },
         {
@@ -154,7 +154,55 @@
           "name": "Jak działa OCR faktur?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "System automatycznie odczytuje dane z faktur kosztowych — ze zdjęcia telefonu lub pliku PDF. Rozpoznaje dostawcę, produkty, ceny i daty bez ręcznego przepisywania."
+            "text": "Robisz zdjęcie faktury albo wgrywasz PDF, także kilkustronicowy. System odczytuje dostawcę, produkty, ilości i ceny, a pozycje dopasowuje do produktów, które już kupujesz."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy muszę zmieniać dostawców albo system POS?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Nie. Spendly działa obok Twoich obecnych dostawców i systemów. Podpinasz KSeF, a jeśli używasz GoPOS, możesz połączyć też sprzedaż, żeby liczyć realny food cost."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Ile kosztuje Spendly?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Plan Start jest darmowy dla jednego lokalu. Plan Pro kosztuje 150 zł miesięcznie i obejmuje do 3 lokali, porównanie dostawców, food cost i asystenta AI. Dla sieci przygotowujemy wycenę indywidualną."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy jest okres próbny?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tak. Nowi użytkownicy dostają 30 dni darmowego dostępu do planu Pro, bez podawania karty. Po tym czasie zostają na bezpłatnym planie Start albo przechodzą na Pro."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy mogę zrezygnować w dowolnym momencie?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tak. Nie ma długoterminowych umów. Rezygnujesz z subskrypcji, kiedy chcesz, bez opłat za rezygnację."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Jak chronione są moje dane?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Faktury i tokeny KSeF są szyfrowane AES-256-GCM w bazie danych. Każdy użytkownik ma dostęp wyłącznie do swoich danych, a komunikacja odbywa się tylko przez szyfrowane połączenie HTTPS."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Czy Spendly sprawdzi się przy kilku lokalach?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Tak. Plan Pro obsługuje do 3 lokali, a plan Sieć dowolną liczbę, z centrami kosztów, rolami i raportami dla całej grupy."
           }
         }
       ]
@@ -467,28 +515,52 @@
           </div>
           <div style="border-top:1px solid #E2D8C6;">
             <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
-              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy mogę anulować w dowolnym momencie?</h3>
-              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Tak. Brak długoterminowych umów — anulujesz subskrypcję kiedy chcesz, bez żadnych opłat za rezygnację.</p>
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czym jest KSeF?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">KSeF, czyli Krajowy System e-Faktur, to rządowa platforma do wystawiania i odbierania faktur w jednym formacie XML. Wszystkie faktury od dostawców trafiają do jednego systemu, przypisane do NIP-u Twojej firmy.</p>
             </div>
             <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
-              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy jest okres próbny?</h3>
-              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Tak. Nowi Użytkownicy dostają 30 dni darmowego dostępu do planu Pro, bez podawania karty. Po tym czasie wybierają: zostają na bezpłatnym planie Start albo przechodzą na Pro.</p>
-            </div>
-            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
-              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Jak chronione są moje dane?</h3>
-              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Faktury i tokeny KSeF są szyfrowane AES-256-GCM w bazie danych. Każdy użytkownik ma dostęp wyłącznie do swoich danych — bez wyjątków. Komunikacja odbywa się wyłącznie przez szyfrowane połączenie HTTPS.</p>
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Od kiedy KSeF jest obowiązkowy dla restauracji?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Obowiązek wchodzi etapami w 2026 roku. Odbieranie faktur przez KSeF dotyczy wszystkich od 1 lutego 2026, a większość restauracji będących czynnymi podatnikami VAT wystawia faktury w KSeF od 1 kwietnia 2026.</p>
             </div>
             <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
               <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy Spendly integruje się z KSeF?</h3>
-              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Tak. Spendly łączy się bezpośrednio z API Krajowego Systemu e-Faktur i automatycznie pobiera faktury zakupowe dla Twojego NIP-u. Wystarczy jednorazowo podać NIP i token — resztą zajmuje się system.</p>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Tak. Spendly łączy się bezpośrednio z API Krajowego Systemu e-Faktur i automatycznie pobiera faktury zakupowe dla Twojego NIP-u. Wystarczy jednorazowo podać NIP i token, resztą zajmuje się system.</p>
             </div>
             <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
-              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy system działa dla wielu lokali?</h3>
-              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Tak. System obsługuje wiele lokali i dostawców z jednego panelu. Skontaktuj się z nami, jeśli masz specyficzne wymagania dla sieci restauracji.</p>
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Co to jest food cost i jak liczy go Spendly?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Food cost to udział kosztu surowców w cenie dania albo w przychodzie lokalu. Spendly liczy go z cen z Twoich faktur zakupowych i receptur dań, więc koszt porcji aktualizuje się przy każdej nowej dostawie.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Jak Spendly wyłapuje podwyżki cen u dostawców?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Porównuje cenę każdego produktu z poprzednimi fakturami w tej samej jednostce miary. Gdy cena przekroczy ustawiony próg, dostajesz alert i widzisz, które dania podrożały.</p>
             </div>
             <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
               <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Jak działa OCR faktur?</h3>
-              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">System automatycznie odczytuje dane z faktur kosztowych — ze zdjęcia telefonu lub pliku PDF. Rozpoznaje dostawcę, produkty, ceny i daty bez ręcznego przepisywania.</p>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Robisz zdjęcie faktury albo wgrywasz PDF, także kilkustronicowy. System odczytuje dostawcę, produkty, ilości i ceny, a pozycje dopasowuje do produktów, które już kupujesz.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy muszę zmieniać dostawców albo system POS?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Nie. Spendly działa obok Twoich obecnych dostawców i systemów. Podpinasz KSeF, a jeśli używasz GoPOS, możesz połączyć też sprzedaż, żeby liczyć realny food cost.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Ile kosztuje Spendly?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Plan Start jest darmowy dla jednego lokalu. Plan Pro kosztuje 150 zł miesięcznie i obejmuje do 3 lokali, porównanie dostawców, food cost i asystenta AI. Dla sieci przygotowujemy wycenę indywidualną.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy jest okres próbny?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Tak. Nowi użytkownicy dostają 30 dni darmowego dostępu do planu Pro, bez podawania karty. Po tym czasie zostają na bezpłatnym planie Start albo przechodzą na Pro.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy mogę zrezygnować w dowolnym momencie?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Tak. Nie ma długoterminowych umów. Rezygnujesz z subskrypcji, kiedy chcesz, bez opłat za rezygnację.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Jak chronione są moje dane?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Faktury i tokeny KSeF są szyfrowane AES-256-GCM w bazie danych. Każdy użytkownik ma dostęp wyłącznie do swoich danych, a komunikacja odbywa się tylko przez szyfrowane połączenie HTTPS.</p>
+            </div>
+            <div style="border-bottom:1px solid #E2D8C6;padding:20px 0;">
+              <h3 style="font-size:15px;font-weight:500;color:#211B12;margin:0 0 8px;">Czy Spendly sprawdzi się przy kilku lokalach?</h3>
+              <p style="font-size:14px;color:#8A7C63;line-height:1.7;margin:0;">Tak. Plan Pro obsługuje do 3 lokali, a plan Sieć dowolną liczbę, z centrami kosztów, rolami i raportami dla całej grupy.</p>
             </div>
           </div>
         </section>

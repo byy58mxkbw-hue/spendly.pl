@@ -1,9 +1,9 @@
 ---
 slug: jak-negocjowac-ceny-z-dostawcami
 title: Jak negocjować ceny z dostawcami gastronomicznymi — 8 sposobów
-description: Konkretne taktyki negocjacji cen z dostawcami dla restauracji: jak wykorzystać dane o zakupach, porównać oferty, ustalić rabaty ilościowe i reagować na ciche podwyżki.
+description: Jak negocjować ceny z dostawcami gastronomicznymi: 8 sposobów, od rabatów ilościowych po reagowanie na ciche podwyżki, poparte danymi z faktur.
 date: 2026-07-14
-updated: 2026-07-14
+updated: 2026-10-05
 category: Zakupy
 keywords: negocjacje z dostawcami, jak negocjować ceny dostawcy, dostawcy gastronomiczni, rabaty dla restauracji, obniżenie kosztów zakupu
 lead: Najszybsza oszczędność w restauracji nie leży w kuchni, tylko w cenie zakupu. Kto negocjuje z twardymi danymi w ręku, płaci mniej — oto osiem sposobów, jak to robić.
@@ -50,3 +50,25 @@ Cała siła leży w danych o zakupach — a te są rozproszone po fakturach. Rę
 [Spendly](/ksef) pobiera faktury z KSeF, buduje historię cen każdego produktu u każdego dostawcy i [porównuje dostawców](/food-cost) między sobą. Wchodzisz na rozmowę z konkretem: o ile dana pozycja podrożała, kto ma najtaniej i ile realnie kupujesz. Alerty cenowe pilnują cichych podwyżek, więc reagujesz w dniu, w którym się pojawiają — nie na koniec kwartału.
 
 Zacznij od zebrania twardych danych o 10 najczęściej kupowanych pozycjach, sprawdź, jak zmieniały się ich ceny, i wejdź z tym do dostawcy. To najszybszy sposób na obniżenie kosztów bez ruszania jakości ani karty. Zobacz też: [Prime cost w restauracji](/blog/prime-cost-restauracja).
+
+## Najczęstsze pytania
+
+### Od czego zacząć negocjacje cen z dostawcą?
+
+Od danych. Zbierz historię zakupów: co kupujesz regularnie, ile, u kogo i jak zmieniały się ceny. Bez tego negocjujesz na wyczucie, a dostawca swoje liczby zna dokładnie.
+
+### Jak wynegocjować rabat ilościowy?
+
+Pokaż udokumentowany, stały wolumen, na przykład ile kilogramów danej pozycji kupujesz miesięcznie. Przewidywalny odbiór to dla dostawcy realna wartość i dobra podstawa do rabatu.
+
+### Co negocjować, jeśli dostawca nie chce obniżyć ceny?
+
+Warunki: dłuższy termin płatności, darmową dostawę, gratisy przy większym zamówieniu albo stałą cenę na kwartał. To też realne pieniądze.
+
+### Jak wyłapać ciche podwyżki u dostawców?
+
+Porównuj ceny z faktury na fakturę dla tych samych produktów. Podwyżka zauważona od razu i zgłoszona dostawcy często wraca do poprzedniego poziomu. Pomaga w tym automatyczny alert cenowy na podstawie faktur z KSeF.
+
+### Czy warto ustalać ceny kontraktowe z dostawcami?
+
+Dla produktów kupowanych stale tak. Cena gwarantowana na okres, na przykład kwartał, chroni przed wahaniami i ułatwia wycenę dań w menu.

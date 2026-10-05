@@ -1,9 +1,9 @@
 ---
 slug: menu-engineering-restauracja
 title: Menu engineering — gwiazdy, konie pociągowe, zagadki i psy
-description: Menu engineering dzieli dania na cztery grupy według marży i popularności. Pokazujemy, jak zrobić tę analizę na własnych danych i co konkretnie zrobić z każdą z czterech grup.
+description: Menu engineering w restauracji: gwiazdy, konie pociągowe, zagadki i psy. Jak zrobić analizę na własnych danych i co zrobić z każdą grupą.
 date: 2026-09-04
-updated: 2026-09-04
+updated: 2026-10-05
 category: Menu
 keywords: menu engineering, analiza menu restauracja, macierz menu, rentowność dań, marża jednostkowa danie
 lead: Najczęstszy błąd w karcie to usuwanie dań, które „mało zarabiają procentowo". Menu engineering pokazuje, dlaczego to rozumowanie potrafi wyciąć z karty danie, które utrzymuje lokal.
@@ -66,3 +66,25 @@ Menu engineering nie mówi, co wyrzucić. Mówi, gdzie szukać — a to jest inn
 Analiza ma sens tylko wtedy, gdy da się ją powtórzyć co miesiąc. Robiona raz w roku w arkuszu opisuje kartę, której już nie ma.
 
 [Spendly](/) liczy koszt porcji na bieżąco z faktur KSeF i zestawia go ze sprzedażą z POS — więc marża każdego dania aktualizuje się sama, razem z cenami dostawców.
+
+## Najczęstsze pytania
+
+### Co to jest menu engineering?
+
+To analiza karty, która zestawia popularność dań, czyli liczbę sprzedanych sztuk, z marżą jednostkową w złotych. Na tej podstawie dzieli dania na gwiazdy, konie pociągowe, zagadki i psy.
+
+### Dlaczego w menu engineering liczy się marża w złotych, a nie food cost?
+
+Bo danie z food cost 40%, które zostawia 46 zł marży, zarabia więcej niż danie z food cost 25%, które zostawia 9 zł. Procent nie mówi, ile pieniędzy zostaje.
+
+### Co zrobić z końmi pociągowymi w menu?
+
+Nie usuwać, bo ściągają gości. Lepiej szukać kilku złotych w koszcie porcji: gramaturze, tańszym zamienniku albo innym dostawcy.
+
+### Jakie dane są potrzebne do menu engineering?
+
+Liczba sprzedanych sztuk z raportu POS, cena sprzedaży z karty i koszt porcji z receptury wycenionej po realnych cenach z faktur.
+
+### Jaki błąd najczęściej zawyża marżę w analizie menu?
+
+Odejmowanie kosztu netto z faktury od ceny brutto z karty. Najpierw trzeba sprowadzić cenę do netto, inaczej marża wyjdzie zawyżona o VAT.

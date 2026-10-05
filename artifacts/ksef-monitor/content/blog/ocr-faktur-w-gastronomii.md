@@ -1,9 +1,9 @@
 ---
 slug: ocr-faktur-w-gastronomii
 title: OCR faktur w gastronomii — jak działa automatyczne odczytywanie faktur od dostawców
-description: Nie każda faktura od dostawcy trafia do Ciebie przez KSeF od razu w formie elektronicznej. Sprawdź, jak OCR odczytuje zdjęcie lub PDF faktury i zamienia ją w gotowe dane — bez ręcznego przepisywania pozycji do arkusza.
+description: OCR faktur w gastronomii: jak zdjęcie lub PDF faktury zamienia się w dane o kosztach bez przepisywania i kiedy uzupełnia KSeF.
 date: 2026-09-27
-updated: 2026-09-27
+updated: 2026-10-05
 category: Operacje
 keywords: OCR faktur, OCR faktur w gastronomii, automatyczne odczytywanie faktur, skanowanie faktur restauracja, faktura ze zdjęcia
 lead: Dostawca zostawia papierową fakturę przy dostawie, kurier podaje PDF mailem, a Ty i tak masz to ręcznie wpisać do arkusza. OCR faktur zdejmuje z Ciebie tę robotę — sprawdź, jak to realnie działa.
@@ -47,3 +47,25 @@ Najlepiej myśleć o tym jako o dwóch strumieniach zasilających tę samą baz�
 [Spendly](/ocr-faktur) czyta faktury ze zdjęcia lub PDF w około 15 sekund i od razu dokłada je do tej samej bazy co import z [KSeF](/ksef) — bez podwójnej pracy i bez dwóch osobnych źródeł prawdy o kosztach.
 
 > Faktura, która nie trafiła do KSeF, nie przestaje być kosztem — po prostu łatwiej ją przeoczyć. OCR nie zastępuje uważności, ale zdejmuje z Ciebie najbardziej żmudną część: przepisywanie liczb.
+
+## Najczęstsze pytania
+
+### Co to jest OCR faktur?
+
+To automatyczne odczytanie danych ze zdjęcia lub skanu faktury: dostawcy i NIP-u, numeru i daty, pozycji z ilościami i cenami oraz stawek VAT.
+
+### Po co OCR, skoro jest KSeF?
+
+Nie każda faktura trafia do KSeF. Zakupy na paragon, faktury od mniejszych dostawców czy dokumenty papierowe trzeba wprowadzić inaczej, a OCR zdejmuje z Ciebie przepisywanie liczb.
+
+### Co dzieje się z danymi po odczytaniu faktury?
+
+Pozycje są dopasowywane do istniejących produktów, dostają kategorię i dokładają się do historii cen, tak samo jak faktury z KSeF.
+
+### Co zrobić, gdy OCR źle odczyta fakturę?
+
+Sprawdzić odczyt przed zapisem, zwłaszcza NIP, numer faktury i kwoty, i poprawić błędy. Wyraźne zdjęcie całej faktury znacznie zmniejsza liczbę pomyłek.
+
+### Czy można zeskanować fakturę z kilkoma stronami?
+
+Tak. W Spendly możesz dodać kilka zdjęć albo plik PDF, a wszystkie strony zostaną odczytane jako jedna faktura.

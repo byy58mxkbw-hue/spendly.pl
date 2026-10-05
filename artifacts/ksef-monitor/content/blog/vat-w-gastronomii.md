@@ -1,9 +1,9 @@
 ---
 slug: vat-w-gastronomii
 title: VAT w gastronomii — jak stawki wpływają na koszty, ceny i marżę
-description: W restauracji spotykasz kilka stawek VAT naraz — na sprzedaży i na zakupach. Sprawdź, jak nie pomylić netto z brutto w kalkulacjach i dlaczego food cost liczy się zawsze w kwotach netto.
+description: VAT w gastronomii: jak stawki wpływają na koszty, ceny i marżę oraz dlaczego food cost liczy się zawsze w kwotach netto. Wzory i przykłady.
 date: 2026-08-02
-updated: 2026-08-02
+updated: 2026-10-05
 category: Finanse
 keywords: VAT w gastronomii, stawki VAT restauracja, VAT 8 czy 23 gastronomia, netto czy brutto food cost, VAT na wynos restauracja
 lead: VAT jest przechodni — ale tylko wtedy, gdy liczysz go poprawnie. Najczęstszy kosztowny błąd w gastronomii to mieszanie kwot netto i brutto w jednej kalkulacji.
@@ -58,3 +58,25 @@ Ten drugi problem w praktyce znika wraz z [KSeF](/blog/ksef-dla-restauracji-od-k
 Ręczne przepisywanie faktur to najczęstsze źródło pomyłek netto/brutto — zwłaszcza gdy jedna dostawa zawiera pozycje w kilku stawkach. [Spendly](/food-cost) pobiera faktury bezpośrednio z KSeF wraz ze stawkami VAT dla każdej pozycji, więc ceny surowców w kalkulacjach są **zawsze w netto**, a raporty i eksporty pokazują to, czego akurat potrzebujesz — koszt netto do marży, brutto do rozmowy o przepływach pieniężnych.
 
 > Zapamiętaj jedno zdanie: koszty w netto, karta w brutto, nigdy nie mieszaj tego w jednym wzorze. A przypisanie konkretnych stawek do swojego menu i dostaw ustal z księgowym — przepisy się zmieniają, arytmetyka nie.
+
+## Najczęstsze pytania
+
+### Czy food cost liczyć z VAT czy bez?
+
+Bez VAT. Jako czynny podatnik VAT zwykle odliczasz VAT od zakupów, więc kosztem surowca jest kwota netto. Cenę w karcie, która zawiera VAT, też trzeba sprowadzić do netto.
+
+### Jak przeliczyć cenę z karty na netto?
+
+Podziel cenę brutto przez 1 plus stawka VAT. Danie za 48 zł przy stawce 8% ma cenę netto 48 / 1,08 = 44,44 zł.
+
+### Czy na jednej fakturze mogą być różne stawki VAT?
+
+Tak. Na fakturze zakupowej stawki bywają różne w obrębie jednego dokumentu, dlatego nie da się przeliczyć całej faktury jednym mnożnikiem.
+
+### Dlaczego zakupy na paragon podnoszą koszty restauracji?
+
+Bez faktury nie ma odliczenia VAT, więc koszt surowca rośnie o pełną stawkę podatku. Zgubiona faktura to dodatkowo brak danych o cenie surowca.
+
+### Kto powinien ustalić stawki VAT dla menu i dostaw?
+
+Księgowy. Przepisy się zmieniają, dlatego przypisanie konkretnych stawek do dań i zakupów warto ustalić z biurem rachunkowym.

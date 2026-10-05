@@ -234,7 +234,7 @@ linie działowe zamiast morza zaokrąglonych kart. Jedna sygnaturowa barwa — t
 ### ⚠️ Do weryfikacji
 - **SSL na gołej domenie `spendly.pl` (apex) — DO NAPRAWY w panelu cyberfolks (2026-07-15).** `https://spendly.pl` (bez www) zwraca `ERR_CERT_COMMON_NAME_INVALID` — apex serwuje cudzy cert `*.cyberfolks.pl` zamiast własnego. `www.spendly.pl` działa bez zarzutu (cert ważny), `http://spendly.pl` → 301 na www. To NIE kod aplikacji — to konfiguracja hostingu: włączyć darmowy cert (Let's Encrypt) dla `spendly.pl` bez www albo przekierowanie apex→www po HTTPS z ważnym certem. Do zrobienia w panelu/supporcie cyberfolks. Zawsze linkuj i testuj na `www.spendly.pl`.
 - `ocr-faktur.tsx` i `cennik.tsx` — to celowo STATYCZNE strony marketingowo-SEO (własny NavBar, zero wywołań API). NIE są zepsutymi funkcjami — nie potrzebują backendu. Funkcjonalny OCR jest na stronie Faktur (`/invoices/scan-receipt`). Motyw: obie mają palety LIGHT/DARK, czytają `spendly_site_theme` z localStorage i mają własny przełącznik — synchronizują się z landingiem (już NIE są zawsze-ciemne).
-- Cennik ujednolicony: `cennik.tsx` ma tablicę `PLANS` z 3 planami (Start 0 / Pro 199 / Sieć „Wycena”), spójną z `home.tsx` i backendem (free/pro/business). Dawna niespójność (1 plan vs 3) naprawiona.
+- Cennik ujednolicony: `cennik.tsx` ma tablicę `PLANS` z 3 planami (Start 0 / Pro 150 / Sieć „Wycena”), spójną z `home.tsx` i backendem (free/pro/business). Dawna niespójność (1 plan vs 3) naprawiona.
 - Mapowanie produktów — DZIAŁA w przepływie akceptacji „Do przeglądu" (`pending-invoices.tsx`): mapowanie pozycji faktury na produkt (`itemMappings`), pomijanie pozycji, tworzenie produktu w locie. Poza tym przepływem brak osobnego ekranu mapowania (i raczej niepotrzebny).
 
 ### 🟡 Dług techniczny

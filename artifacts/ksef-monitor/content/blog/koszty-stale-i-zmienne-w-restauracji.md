@@ -1,9 +1,9 @@
 ---
 slug: koszty-stale-i-zmienne-w-restauracji
 title: Koszty stałe i zmienne w restauracji — i ile musisz sprzedać, żeby wyjść na zero
-description: Podział kosztów na stałe i zmienne pozwala policzyć próg rentowności restauracji. Zobacz, jak to zrobić na własnych liczbach i co z tego wynika dla cen w karcie.
+description: Koszty stałe i zmienne w restauracji oraz próg rentowności: jak policzyć, ile musisz sprzedać, żeby wyjść na zero. Wzór i przykład.
 date: 2026-08-10
-updated: 2026-08-10
+updated: 2026-10-05
 category: Finanse
 keywords: koszty stałe i zmienne restauracja, próg rentowności gastronomia, break even restauracja, ile musi sprzedać restauracja
 lead: Jest taka kwota sprzedaży, poniżej której dokładasz do lokalu każdego dnia. Większość restauratorów zna ją tylko z przeczucia — a liczy się ją w dziesięć minut.
@@ -70,3 +70,25 @@ Koszty stałe znasz — są w umowach. Problem jest po stronie zmiennych, bo sur
 [Spendly](/food-cost) pobiera faktury z [KSeF](/ksef) i sumuje zakupy w okresie z podziałem na kategorie i centra kosztów — masz gotową największą składową kosztów zmiennych, bez wertowania segregatora. A ponieważ widzisz też, jak zmieniają się ceny, wiesz, kiedy Twój próg rentowności po cichu się przesunął.
 
 > Policz próg raz i zapisz go w widocznym miejscu — jako dzienną sprzedaż i liczbę gości. To jedna liczba, która natychmiast mówi, czy dzisiejszy dzień był do przodu, czy do tyłu.
+
+## Najczęstsze pytania
+
+### Czym różnią się koszty stałe od zmiennych w restauracji?
+
+Koszty stałe nie zależą od sprzedaży, na przykład czynsz i stałe pensje. Koszty zmienne rosną razem ze sprzedażą, na przykład surowce, opakowania i prowizje.
+
+### Jak obliczyć próg rentowności restauracji?
+
+Próg = koszty stałe / wskaźnik marży pokrycia, gdzie wskaźnik = 1 − udział kosztów zmiennych w przychodzie. Przy kosztach stałych 48 000 zł i kosztach zmiennych 42% próg wynosi około 82 759 zł sprzedaży.
+
+### Co to jest marża pokrycia?
+
+To część przychodu, która zostaje po pokryciu kosztów zmiennych i idzie na koszty stałe, a po ich pokryciu na zysk.
+
+### Skąd wziąć dane do progu rentowności?
+
+Koszty stałe uśrednij z ostatnich trzech miesięcy, a koszty zmienne zsumuj za ten sam okres: surowce z faktur, opakowania, prowizje i dodatkowe zmiany.
+
+### Jak korzystać z progu rentowności na co dzień?
+
+Przelicz go na dzienną sprzedaż i liczbę gości. Ta jedna liczba od razu mówi, czy dzień był na plus, czy na minus.

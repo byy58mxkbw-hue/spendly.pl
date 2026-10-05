@@ -1,9 +1,9 @@
 ---
 slug: inwentaryzacja-w-restauracji
 title: Inwentaryzacja w restauracji — jak i jak często ją robić
-description: Inwentaryzacja to podstawa liczenia realnego food cost. Wyjaśniamy, jak przeprowadzić remanent magazynu, jak często go robić i jak wychwycić straty oraz różnice między stanem a sprzedażą.
+description: Inwentaryzacja w restauracji krok po kroku: jak często robić remanent, jak policzyć zużycie surowców i wychwycić straty w magazynie.
 date: 2026-07-14
-updated: 2026-07-14
+updated: 2026-10-05
 category: Operacje
 keywords: inwentaryzacja restauracja, remanent w gastronomii, jak robić inwentaryzację, stan magazynowy restauracja, food cost inwentaryzacja
 lead: Bez inwentaryzacji food cost jest tylko szacunkiem. Regularny remanent pokazuje realne zużycie, ujawnia straty i marnotrawstwo, a przede wszystkim mówi, czy Twoje liczby zgadzają się z rzeczywistością.
@@ -80,3 +80,25 @@ Minimum sensowne dla kontroli kosztów to **pełny remanent raz w miesiącu** pl
 Połowa równania — zakupy — pochodzi z faktur. Jeśli zbierasz je ręcznie, spięcie remanentu z realnymi kosztami jest żmudne i podatne na błędy. [Spendly](/ksef) pobiera faktury z KSeF i automatycznie buduje historię zakupów oraz aktualne ceny surowców, więc do wzoru na zużycie wstawiasz gotowe, wiarygodne dane o zakupach — a przy inwentaryzacji wyceniasz stan po realnych, aktualnych cenach, nie z pamięci.
 
 Zacznij od miesięcznego pełnego remanentu, licz w tych samych jednostkach co faktury i zawsze porównuj zużycie realne z recepturowym. Ta różnica to Twoja mapa oszczędności. Zobacz też: [Ile powinien wynosić food cost](/blog/ile-powinien-wynosic-food-cost).
+
+## Najczęstsze pytania
+
+### Po co robić inwentaryzację w restauracji?
+
+Żeby policzyć realne zużycie surowców. Receptury mówią, ile powinno się zużyć, a inwentaryzacja pokazuje, ile zużyło się naprawdę. Różnica to straty, marnotrawstwo albo błędy.
+
+### Jak policzyć zużycie surowców?
+
+Zużycie = stan początkowy + zakupy − stan końcowy. Stany pochodzą z inwentaryzacji, a zakupy z faktur. Zużycie podzielone przez przychód daje food cost okresu.
+
+### Jak często robić remanent w restauracji?
+
+Minimum to pełna inwentaryzacja raz w miesiącu. Najdroższe i najbardziej narażone na straty pozycje, jak alkohol czy drogie mięso, warto liczyć częściej, nawet codziennie.
+
+### Jak przeprowadzić inwentaryzację krok po kroku?
+
+Licz zawsze o tej samej porze, w uporządkowanym magazynie i w tych samych jednostkach co na fakturach. Zapisuj ilość i wartość po aktualnej cenie zakupu, przy droższych pozycjach licz we dwie osoby, a na koniec porównaj wynik z poprzednim okresem i zużyciem recepturowym.
+
+### Co może ujawnić inwentaryzacja?
+
+Straty i marnotrawstwo, zbyt duże porcje, kradzieże i błędy wydawania oraz martwy stok, czyli produkty, które leżą, psują się i zamrażają gotówkę.

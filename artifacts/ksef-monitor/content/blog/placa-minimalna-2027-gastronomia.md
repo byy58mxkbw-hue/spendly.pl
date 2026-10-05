@@ -3,7 +3,7 @@ slug: placa-minimalna-2027-gastronomia
 title: Płaca minimalna 2027 w gastronomii — ile realnie zapłacisz
 description: Płaca minimalna 2027 to 4950 zł brutto i 32,30 zł/h. Ile ta podwyżka realnie kosztuje restaurację i co robi z labor costem?
 date: 2026-09-04
-updated: 2026-09-04
+updated: 2026-10-05
 category: Finanse
 keywords: płaca minimalna 2027, najniższa krajowa 2027 gastronomia, stawka godzinowa 2027, koszty pracy restauracja 2027, labor cost podwyżka
 lead: Podwyżka wygląda skromnie — 144 zł brutto na etat. Dopiero po doliczeniu składek i przemnożeniu przez obsadę widać, co naprawdę robi z rachunkiem wyników.
@@ -72,3 +72,25 @@ Trzy liczby, które warto mieć przed końcem roku:
 3. **Food cost z ostatnich trzech miesięcy** — jeśli i on rośnie, dwa największe koszty ruszają w tę samą stronę naraz
 
 [Spendly](/) liczy stronę surowcową automatycznie z faktur KSeF — więc gdy koszt pracy rośnie z mocy rozporządzenia, przynajmniej wiesz dokładnie, co dzieje się z drugą połową prime costu.
+
+## Najczęstsze pytania
+
+### Ile wynosi płaca minimalna w 2027 roku?
+
+Według decyzji rządu opisanej w artykule minimalne wynagrodzenie w 2027 roku wynosi 4 950 zł brutto, a minimalna stawka godzinowa 32,30 zł. To wzrost o około 3% wobec 2026 roku.
+
+### Ile kosztuje pracodawcę etat na płacy minimalnej?
+
+Do kwoty brutto dochodzą składki pracodawcy, łącznie około 20%. W 2027 roku to około 5 940 zł miesięcznie na jednym etacie, czyli około 170 zł więcej niż w 2026.
+
+### Jak podwyżka płacy minimalnej wpłynie na restaurację?
+
+Przy 10 osobach na płacy minimalnej koszt rośnie o około 1 730 zł miesięcznie, czyli około 20 800 zł rocznie. Dodatkowo spłaszcza się siatka płac, więc zwykle trzeba podnieść też wyższe pensje.
+
+### Jak zareagować na wzrost kosztów pracy?
+
+Szukać marży tam, gdzie jest wolumen, czyli w daniach sprzedawanych setkami, pilnować prime cost i obserwować jednocześnie food cost, bo oba największe koszty mogą rosnąć naraz.
+
+### Co policzyć przed wejściem nowej płacy minimalnej?
+
+Ilu pracowników realnie dotknie podwyżka, łącznie z tymi tuż powyżej progu, aktualny prime cost oraz food cost z ostatnich trzech miesięcy.

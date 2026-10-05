@@ -1,9 +1,9 @@
 ---
 slug: ksef-a-odliczenie-vat
 title: KSeF a odliczenie VAT — jak faktury kosztowe wpływają na podatek
-description: KSeF gromadzi wszystkie faktury zakupowe w jednym miejscu, co ułatwia pełne odliczenie VAT. Wyjaśniamy związek KSeF z podatkiem naliczonym i typowe błędy restauracji.
+description: KSeF a odliczenie VAT w restauracji: dlaczego faktury w jednym systemie ułatwiają pełne odliczenie i gdzie lokale najczęściej tracą na VAT.
 date: 2026-07-16
-updated: 2026-07-16
+updated: 2026-10-05
 category: KSeF
 keywords: KSeF odliczenie VAT, VAT naliczony faktury kosztowe, KSeF a podatek, odliczenie VAT restauracja, faktury zakupowe VAT
 lead: Każda zagubiona faktura kosztowa to VAT, którego nie odliczysz — czyli realnie wyższy podatek. KSeF sprawia, że żadna nie ginie. Wyjaśniamy, jak to działa i gdzie restauracje tracą.
@@ -62,3 +62,25 @@ Skoro wszystkie faktury zakupowe i tak spływają do KSeF, warto je wykorzystać
 [Spendly](/ksef) pobiera faktury z KSeF, porządkuje je i zamienia w analizę: historię cen, porównanie dostawców i [food cost](/blog/jak-liczyc-food-cost). Księgowość dostaje komplet dokumentów, a Ty — obraz kosztów lokalu w czasie rzeczywistym. Jeśli dopiero przygotowujesz się do KSeF, zacznij od: [KSeF dla restauracji — od kiedy obowiązkowy](/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy).
 
 > **W skrócie:** żeby odliczyć VAT, musisz mieć fakturę — a KSeF sprawia, że masz je wszystkie. Mniej zgubionych dokumentów to niższy podatek i mniej pracy w księgowości. Detale rozliczeń zostaw księgowej; KSeF daje jej komplet danych.
+
+## Najczęstsze pytania
+
+### Czy do odliczenia VAT potrzebna jest faktura?
+
+Tak. Żeby odliczyć VAT naliczony z zakupu, trzeba mieć fakturę i ująć ją w rozliczeniu. Brak faktury oznacza brak odliczenia i wyższy podatek do zapłaty.
+
+### Gdzie restauracje najczęściej tracą na VAT?
+
+Na zgubionych fakturach, zakupach udokumentowanych tylko paragonem, dokumentach, które dotarły po terminie rozliczenia, oraz na chaosie przy wielu dostawcach.
+
+### Jak KSeF pomaga w odliczaniu VAT?
+
+Wszystkie faktury ustrukturyzowane trafiają do jednego systemu i są automatycznie przypisane do Twojego NIP-u. Faktura nie ginie, nawet jeśli dostawca jej nie prześle, więc łatwiej odliczyć pełny VAT.
+
+### Czy faktury z KSeF można wykorzystać do kontroli kosztów?
+
+Tak. Te same dane, które służą do rozliczeń, pokazują zmiany cen surowców i porównanie dostawców. Spendly pobiera je z KSeF i zamienia w historię cen i food cost.
+
+### Czy ten artykuł zastępuje poradę podatkową?
+
+Nie. To materiał edukacyjny. Szczegóły rozliczeń VAT zawsze konsultuj z księgową lub biurem rachunkowym.

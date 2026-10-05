@@ -164,6 +164,74 @@ function readingTime(md) {
   return Math.max(1, Math.round(words / 200));
 }
 
+// ── Wzorowane na blogu inFaktu (2026-10): spis treści, FAQ ze schema.org,
+// ramka autora, tematyczne „Zobacz też”, strony kategorii, udostępnianie. ──
+
+const slugify = (txt) =>
+  String(txt).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ł/g, "l")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const headingId = (txt) => txt.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, "").trim().replace(/\s+/g, "-");
+const stripMd = (t) => t.replace(/\*\*|\*|_|`/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").trim();
+
+// Nagłówek sekcji FAQ w Markdownie. Pytania to „### …?” pod nim, odpowiedź to
+// akapity/listy do następnego „###” albo „##”.
+const FAQ_HEADING_RE = /^##\s+(Najczęstsze pytania|FAQ|Często zadawane pytania)\b.*$/im;
+
+function extractFaq(md) {
+  const lines = md.replace(/\r\n/g, "\n").split("\n");
+  const start = lines.findIndex((l) => FAQ_HEADING_RE.test(l));
+  if (start < 0) return [];
+  const items = [];
+  let cur = null;
+  for (let i = start + 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (/^##\s/.test(l)) break;
+    const q = l.match(/^###\s+(.*)$/);
+    if (q) { if (cur) items.push(cur); cur = { q: stripMd(q[1]), a: [] }; continue; }
+    if (cur && l.trim()) cur.a.push(stripMd(l.replace(/^\s*([-*]|\d+\.)\s+/, "")));
+  }
+  if (cur) items.push(cur);
+  return items.filter((x) => x.q && x.a.length).map((x) => ({ q: x.q, a: x.a.join(" ") }));
+}
+
+function tocHtml(md) {
+  const h2 = md.split("\n").map((l) => l.match(/^##\s+(.*)$/)).filter(Boolean).map((m) => m[1]);
+  if (h2.length < 3) return "";
+  return `<nav class="toc" aria-label="Spis treści"><p class="toc-h">Spis treści</p><ol>${h2
+    .map((t) => `<li><a href="#${escAttr(headingId(t))}">${esc(stripMd(t))}</a></li>`)
+    .join("")}</ol></nav>`;
+}
+
+// Autor bloga — prawdziwa osoba z doświadczeniem w branży (E-E-A-T). Front matter
+// `author: <klucz>` wybiera wpis; domyślnie właściciel.
+const AUTHORS = {
+  patryk: {
+    name: "Patryk",
+    role: "Właściciel restauracji i sali weselnej, twórca Spendly",
+    bio: "Na co dzień prowadzę restaurację i salę weselną. Spendly zbudowałem najpierw dla siebie, żeby widzieć podwyżki u dostawców i realny food cost bez ręcznego przepisywania faktur. Na blogu piszę o tym, co sprawdza się w moim lokalu.",
+  },
+};
+const authorOf = (post) => AUTHORS[post.meta.author || "patryk"] || AUTHORS.patryk;
+
+const kwSet = (post) => new Set(String(post.meta.keywords || "").toLowerCase().split(/[,\s]+/).filter((w) => w.length > 3));
+
+// „Zobacz też” po temacie: ta sama kategoria i wspólne słowa kluczowe, potem
+// świeżość. Wcześniej pod KAŻDYM artykułem były te same 3 najnowsze wpisy.
+function relatedFor(post, posts, n = 4) {
+  const mine = kwSet(post);
+  return posts
+    .filter((p) => p.slug !== post.slug)
+    .map((p) => {
+      let score = p.meta.category && p.meta.category === post.meta.category ? 3 : 0;
+      for (const w of kwSet(p)) if (mine.has(w)) score += 1;
+      if (post.body.includes(`/blog/${p.slug}`)) score += 2; // już linkowany w treści = mocno powiązany
+      return { p, score };
+    })
+    .sort((a, b) => b.score - a.score || String(b.p.meta.date).localeCompare(String(a.p.meta.date)))
+    .slice(0, n)
+    .map((x) => x.p);
+}
+
 function plDate(iso) {
   try {
     return new Date(iso).toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
@@ -283,6 +351,24 @@ const STYLE = `
       footer.ft .col a{display:block;font-size:13px;color:#8A7C63;text-decoration:none;margin-bottom:8px}
       footer.ft .bottom{padding-top:20px;border-top:1px solid #E2D8C6;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:center;font-size:12px;color:#8A7C63}
       footer.ft .bottom a{color:#8A7C63;text-decoration:none}
+      .toc{background:#FBF7EF;border:1px solid #E2D8C6;border-radius:4px;padding:16px 20px;margin:20px 0 8px}
+      .toc-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#8A7C63;margin:0 0 8px}
+      .toc ol{margin:0;padding-left:20px;font-size:14px;line-height:1.7}
+      .toc a{color:#211B12;text-decoration:none}
+      .toc a:hover{color:#A8431F;text-decoration:underline}
+      .share{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:#8A7C63;margin:28px 0 0;padding-top:18px;border-top:1px solid #E2D8C6}
+      .share a{color:#211B12;text-decoration:none;border:1px solid #E2D8C6;border-radius:3px;padding:4px 10px;background:#FBF7EF}
+      .share a:hover{border-color:rgba(168,67,31,0.35)}
+      .author{display:flex;gap:14px;align-items:flex-start;margin:24px 0 0;padding:18px 20px;background:#FBF7EF;border:1px solid #E2D8C6;border-radius:4px}
+      .author .av{flex:0 0 44px;height:44px;border-radius:50%;background:#A8431F;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}
+      .author p{margin:0}
+      .author .an{font-weight:700;color:#211B12}
+      .author .ar{font-size:13px;color:#A8431F;margin-bottom:6px}
+      .author .ab{font-size:14px;color:#5C5340;line-height:1.6}
+      .related-grid .k2{display:block;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#A8431F;margin-bottom:6px}
+      .cats{max-width:1200px;margin:0 auto;padding:0 24px;display:flex;flex-wrap:wrap;gap:8px}
+      .cats a{font-size:13px;color:#211B12;text-decoration:none;border:1px solid #E2D8C6;border-radius:3px;padding:6px 12px;background:#FBF7EF}
+      .cats a.on,.cats a:hover{border-color:#A8431F;color:#A8431F}
       /* Blog index */
       .hero{max-width:1200px;margin:0 auto;padding:64px 24px 32px}
       .hero h1{font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(2rem,5vw,3rem);font-weight:600;letter-spacing:0;margin:0 0 14px;color:#211B12}
@@ -362,7 +448,7 @@ function renderPost(post, related) {
     dateModified: post.meta.updated || post.meta.date,
     inLanguage: "pl-PL",
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
-    author: { "@type": "Organization", name: "Spendly", url: SITE },
+    author: { "@type": "Person", name: authorOf(post).name, jobTitle: authorOf(post).role, url: `${SITE}/blog` },
     publisher: {
       "@type": "Organization",
       name: "Spendly",
@@ -384,10 +470,30 @@ function renderPost(post, related) {
     ? `<section class="related"><h2>Zobacz też</h2><div class="related-grid">${related
         .map(
           (r) =>
-            `<a href="/blog/${r.slug}"><span class="t">${esc(r.meta.title)}</span><span class="d">${plDate(r.meta.date)}</span></a>`,
+            `<a href="/blog/${r.slug}"><span class="k2">${esc(r.meta.category || "Poradnik")}</span><span class="t">${esc(r.meta.title)}</span><span class="d">${readingTime(r.body)} min czytania</span></a>`,
         )
         .join("")}</div></section>`
     : "";
+  const faq = extractFaq(post.body);
+  const faqLd = faq.length
+    ? {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faq.map((x) => ({ "@type": "Question", name: x.q, acceptedAnswer: { "@type": "Answer", text: x.a } })),
+      }
+    : null;
+  const author = authorOf(post);
+  const updated = post.meta.updated && post.meta.updated !== post.meta.date ? post.meta.updated : null;
+  const catSlug = post.meta.category ? slugify(post.meta.category) : null;
+  const shareUrl = encodeURIComponent(url);
+  const shareTitle = encodeURIComponent(post.meta.title);
+  const shareHtml = `<div class="share"><span>Udostępnij:</span>
+          <a href="https://www.facebook.com/sharer/sharer.php?u=${shareUrl}" target="_blank" rel="noopener noreferrer">Facebook</a>
+          <a href="https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a href="https://x.com/intent/post?url=${shareUrl}&amp;text=${shareTitle}" target="_blank" rel="noopener noreferrer">X</a>
+          <a href="mailto:?subject=${shareTitle}&amp;body=${shareUrl}">E-mail</a>
+        </div>`;
+  const authorHtml = `<aside class="author" aria-label="O autorze"><div class="av" aria-hidden="true">${esc(author.name.slice(0, 1))}</div><div><p class="an">${esc(author.name)}</p><p class="ar">${esc(author.role)}</p><p class="ab">${esc(author.bio)}</p></div></aside>`;
 
   return `<!DOCTYPE html>
 <html lang="pl" class="light">
@@ -416,19 +522,25 @@ ${jsonLd(blogPosting)}
     </script>
     <script type="application/ld+json">
 ${jsonLd(breadcrumb)}
-    </script>${STYLE}
+    </script>${faqLd ? `
+    <script type="application/ld+json">
+${jsonLd(faqLd)}
+    </script>` : ""}${STYLE}
   </head>
   <body>
 ${nav()}
     <main>
-      <div class="wrap crumbs"><a href="/">Strona główna</a> › <a href="/blog">Blog</a> › ${esc(post.meta.title)}</div>
+      <div class="wrap crumbs"><a href="/">Strona główna</a> › <a href="/blog">Blog</a>${catSlug ? ` › <a href="/blog/kategoria/${catSlug}">${esc(post.meta.category)}</a>` : ""} › ${esc(post.meta.title)}</div>
       <article class="post">
         <h1>${esc(post.meta.h1 || post.meta.title)}</h1>
-        <div class="post-meta"><span>${plDate(post.meta.date)}</span><span>${rt} min czytania</span></div>
+        <div class="post-meta"><span>${esc(author.name)}</span><span>${plDate(post.meta.date)}</span>${updated ? `<span>zaktualizowano ${plDate(updated)}</span>` : ""}<span>${rt} min czytania</span></div>
         ${post.meta.lead ? `<p class="lead">${inline(post.meta.lead)}</p>` : ""}
+        ${tocHtml(post.body)}
         <div class="post-body">
 ${bodyHtml}
         </div>
+        ${shareHtml}
+        ${authorHtml}
       </article>
       <div class="cta-box"><div class="cta-inner">
         <h2>Policz food cost automatycznie z Spendly</h2>
@@ -444,7 +556,25 @@ ${footer()}
 }
 
 // ── Render indeksu bloga ─────────────────────────────────────────────────────
-function renderIndex(posts) {
+function categoriesOf(posts) {
+  const map = new Map();
+  for (const p of posts) {
+    const c = p.meta.category || "Poradnik";
+    if (!map.has(c)) map.set(c, []);
+    map.get(c).push(p);
+  }
+  return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
+}
+
+const catsHtml = (posts, active) =>
+  `<nav class="cats" aria-label="Kategorie"><a href="/blog"${active ? "" : ' class="on"'}>Wszystkie</a>${categoriesOf(posts)
+    .map(([c, list]) => `<a href="/blog/kategoria/${slugify(c)}"${active === c ? ' class="on"' : ""}>${esc(c)} (${list.length})</a>`)
+    .join("")}</nav>`;
+
+function renderIndex(posts, opts = {}) {
+  const allPosts = opts.allPosts || posts;
+  const category = opts.category || null;
+  const pageUrl = category ? `${SITE}/blog/kategoria/${slugify(category)}` : `${SITE}/blog`;
   const cards = posts
     .map(
       (p) => `
@@ -485,13 +615,13 @@ function renderIndex(posts) {
   return `<!DOCTYPE html>
 <html lang="pl" class="light">
   <head>${HEAD_COMMON}
-    <title>Blog Spendly — food cost, KSeF i kontrola kosztów w gastronomii</title>
-    <meta name="description" content="Praktyczne poradniki dla restauracji: jak liczyć food cost, ile powinien wynosić, KSeF dla gastronomii i automatyzacja faktur. Wiedza od twórców Spendly." />
+    <title>${category ? `${esc(category)} — poradniki dla gastronomii | Blog Spendly` : "Blog Spendly — food cost, KSeF i kontrola kosztów w gastronomii"}</title>
+    <meta name="description" content="${category ? `Poradniki z kategorii ${escAttr(category)}: praktyczna wiedza o kosztach restauracji od właściciela lokalu.` : "Praktyczne poradniki dla restauracji: jak liczyć food cost, ile powinien wynosić, KSeF dla gastronomii i automatyzacja faktur. Wiedza od twórców Spendly."}" />
     <meta name="keywords" content="food cost, food cost restauracja, jak liczyć food cost, KSeF restauracja, kontrola kosztów gastronomia, blog gastronomiczny" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="${SITE}/blog" />
+    <link rel="canonical" href="${pageUrl}" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="${SITE}/blog" />
+    <meta property="og:url" content="${pageUrl}" />
     <meta property="og:title" content="Blog Spendly — food cost, KSeF i kontrola kosztów w gastronomii" />
     <meta property="og:description" content="Praktyczne poradniki dla restauracji: food cost, KSeF, automatyzacja faktur." />
     <meta property="og:site_name" content="Spendly.pl | kontrola kosztów w gastronomii" />
@@ -512,11 +642,12 @@ ${jsonLd(breadcrumb)}
   <body>
 ${nav()}
     <main>
-      <div class="wrap crumbs"><a href="/">Strona główna</a> › Blog</div>
+      <div class="wrap crumbs"><a href="/">Strona główna</a> › ${category ? `<a href="/blog">Blog</a> › ${esc(category)}` : "Blog"}</div>
       <section class="hero">
-        <h1>Blog Spendly</h1>
-        <p>Praktyczna wiedza o food cost, kontroli kosztów restauracji, KSeF i automatyzacji faktur — od zespołu, który buduje narzędzie dla gastronomii.</p>
+        <h1>${category ? esc(category) : "Blog Spendly"}</h1>
+        <p>${category ? `Poradniki z kategorii ${esc(category)}.` : "Praktyczna wiedza o food cost, kontroli kosztów restauracji, KSeF i automatyzacji faktur. Piszę z perspektywy właściciela restauracji i sali weselnej."}</p>
       </section>
+      ${catsHtml(allPosts, category)}
       <section class="posts">${cards}
       </section>
     </main>
@@ -527,7 +658,7 @@ ${footer()}
 }
 
 // ── Sitemap ──────────────────────────────────────────────────────────────────
-function writeSitemap(posts) {
+function writeSitemap(posts, cats = []) {
   const today = new Date().toISOString().slice(0, 10);
   // Najnowsza data publikacji/aktualizacji artykułu — dla indeksu bloga.
   const newestPost = posts
@@ -537,6 +668,12 @@ function writeSitemap(posts) {
     .pop();
   const urls = [
     ...STATIC_URLS.map((u) => ({ ...u, lastmod: u.lastmod ?? newestPost ?? today })),
+    ...cats.map(([c, list]) => ({
+      loc: `/blog/kategoria/${slugify(c)}`,
+      changefreq: "weekly",
+      priority: "0.5",
+      lastmod: list.map((p) => p.meta.updated || p.meta.date).filter(Boolean).sort().pop() || today,
+    })),
     ...posts.map((p) => ({
       loc: `/blog/${p.slug}`,
       changefreq: "monthly",
@@ -574,14 +711,21 @@ function main() {
   posts.sort((a, b) => String(b.meta.date).localeCompare(String(a.meta.date)));
 
   for (const post of posts) {
-    const related = posts.filter((p) => p.slug !== post.slug).slice(0, 3);
+    const related = relatedFor(post, posts);
     writeFileSync(path.join(OUT_DIR, `${post.slug}.html`), renderPost(post, related), "utf8");
   }
   // Index jako public/blog.html (NIE blog/index.html): sirv z SPA-fallbackiem na
   // prodzie serwuje bezrozszerzeniowe /blog przez rozszerzenie (.html), tak jak
   // /ksef → ksef.html. Katalog-index (blog/index.html) łapał się tylko lokalnie.
   writeFileSync(path.join(ROOT, "public", "blog.html"), renderIndex(posts), "utf8");
-  writeSitemap(posts);
+  // Strony kategorii: public/blog/kategoria/<slug>.html (sirv serwuje /blog/kategoria/<slug>).
+  const catDir = path.join(OUT_DIR, "kategoria");
+  mkdirSync(catDir, { recursive: true });
+  const cats = categoriesOf(posts);
+  for (const [c, list] of cats) {
+    writeFileSync(path.join(catDir, `${slugify(c)}.html`), renderIndex(list, { allPosts: posts, category: c }), "utf8");
+  }
+  writeSitemap(posts, cats);
 
   console.log(`[blog] wygenerowano ${posts.length} artykuł(ów) + index + sitemap.`);
   for (const p of posts) console.log(`  /blog/${p.slug}`);

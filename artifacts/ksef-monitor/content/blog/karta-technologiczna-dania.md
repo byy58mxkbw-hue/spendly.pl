@@ -1,9 +1,9 @@
 ---
 slug: karta-technologiczna-dania
 title: Karta technologiczna dania — jak spisać recepturę, żeby koszt się zgadzał
-description: Bez spisanej receptury food cost jest tylko szacunkiem. Zobacz, co musi zawierać karta technologiczna dania, jak uwzględnić ubytki obróbki i jak utrzymać ją aktualną.
+description: Karta technologiczna dania: co musi zawierać, jak liczyć gramaturę brutto i ubytki obróbki oraz jak utrzymać aktualny koszt porcji.
 date: 2026-08-02
-updated: 2026-08-02
+updated: 2026-10-05
 category: Operacje
 keywords: karta technologiczna dania, receptura gastronomiczna, kalkulacja dania wzór, standaryzacja receptur restauracja, gramatura dania
 lead: Ta sama potrawa robiona przez trzy osoby potrafi mieć trzy różne koszty. Karta technologiczna to najprostsze narzędzie, które zamienia „na oko" w powtarzalną liczbę.
@@ -65,3 +65,25 @@ Największa słabość receptur w arkuszu kalkulacyjnym: ceny wpisuje się raz i
 [Spendly](/food-cost) trzyma receptury razem z cenami pobieranymi z faktur w [KSeF](/ksef): dodajesz danie, przypisujesz składniki z gramaturami, a koszt porcji i food cost przeliczają się same przy każdej nowej dostawie. Gdy surowiec drożeje, od razu widzisz, które dania to odczują i o ile — zanim zrobi to Twój rachunek wyników.
 
 > Spisz receptury raz, licz od gramatury brutto z uwzględnieniem wydajności, nie zapomnij o półproduktach i dodatkach — i zadbaj, żeby ceny w kalkulacji aktualizowały się same. Karta technologiczna z nieaktualnymi cenami jest gorsza niż jej brak, bo daje fałszywe poczucie kontroli.
+
+## Najczęstsze pytania
+
+### Co to jest karta technologiczna dania?
+
+To spisana receptura: składniki z gramaturą netto i brutto, ceny jednostkowe z faktur, koszt porcji, sposób przygotowania, zdjęcie wydania i data aktualizacji. Bez niej koszt dania jest tylko szacunkiem.
+
+### Czym różni się gramatura brutto od netto?
+
+Netto to ilość, która trafia na talerz. Brutto to ilość przed obróbką, którą faktycznie kupujesz i za którą płacisz. Gramatura brutto = gramatura netto / wydajność surowca.
+
+### Dlaczego koszt dania trzeba liczyć od gramatury brutto?
+
+Bo płacisz za produkt razem z tym, co zostaje na desce. Przy 150 g polędwicy o wydajności 78% liczenie od talerza zaniża koszt o 28%.
+
+### O jakich kosztach najczęściej zapomina się w recepturze?
+
+O sosach i marynatach liczonych jako półprodukt, dodatkach podawanych gratis, przyprawach i oleju oraz opakowaniach na wynos.
+
+### Jak często aktualizować karty technologiczne?
+
+Przy każdej zmianie ceny surowca. Karta z nieaktualnymi cenami daje fałszywe poczucie kontroli, dlatego najlepiej, gdy ceny w kalkulacji aktualizują się same z faktur.

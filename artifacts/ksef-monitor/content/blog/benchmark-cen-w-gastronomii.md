@@ -1,9 +1,9 @@
 ---
 slug: benchmark-cen-w-gastronomii
 title: Benchmark cen w gastronomii — skąd wiesz, że nie przepłacasz za produkty
-description: Widzisz tylko swoje ceny — bez punktu odniesienia nie wiesz, czy 32 zł za kilogram polędwicy to rynek, czy przepłata. Sprawdź, jak anonimowy benchmark cen pozwala to ocenić bez ujawniania danych żadnej restauracji.
+description: Skąd wiesz, że nie przepłacasz za surowce? Jak anonimowy benchmark cen z faktur porównuje Twoją cenę z rynkiem i co zrobić, gdy płacisz więcej.
 date: 2026-09-24
-updated: 2026-09-27
+updated: 2026-10-05
 category: Zakupy
 keywords: benchmark cen gastronomia, porównanie cen dostawców restauracja, czy przepłacam za produkty, mediana cen rynkowych restauracja, ceny surowców na tle rynku
 lead: Twoja faktura pokazuje, ile zapłaciłeś. Nie pokazuje, ile płacą inni za ten sam towar — a bez tego liczba na fakturze jest tylko liczbą, nie diagnozą.
@@ -45,3 +45,25 @@ Model, który ma sens, jest wzajemny: Twoje ceny anonimowo zasilają medianę dl
 [Spendly](/food-cost) liczy takie [porównanie cen](/porownanie-cen) automatycznie z faktur, które i tak trafiają z [KSeF](/ksef) — bez ręcznego wpisywania cen i bez ujawniania ich nikomu. Widzisz swoją pozycję na tle rynku obok historii własnych cen, w tym samym miejscu, w którym już sprawdzasz [food cost](/blog/jak-liczyc-food-cost).
 
 > Cena bez punktu odniesienia to tylko liczba. Zanim uznasz podwyżkę za nieuniknioną, sprawdź, czy to rynek drożeje, czy tylko Twój dostawca.
+
+## Najczęstsze pytania
+
+### Co to jest benchmark cen w gastronomii?
+
+To porównanie ceny, którą płacisz za produkt, z ceną rynkową, na przykład z medianą cen płaconych przez inne restauracje za ten sam towar. Pokazuje, czy przepłacasz.
+
+### Skąd wiedzieć, czy nie przepłacam za produkty?
+
+Sama historia własnych cen pokazuje tylko zmiany. Do oceny potrzebny jest punkt odniesienia, czyli ceny innych lokali albo oferty innych dostawców dla tego samego towaru.
+
+### Co zrobić, gdy płacę więcej niż rynek?
+
+Sprawdź, czy to na pewno ten sam towar, policz różnicę w złotówkach przy swoim wolumenie, porozmawiaj z dostawcą z konkretną liczbą w ręku, a dopiero potem porównuj oferty innych dostawców.
+
+### Dlaczego różnicę cen liczyć w złotówkach, a nie w procentach?
+
+Bo 12% na produkcie kupowanym raz w miesiącu to drobiazg, a 12% na głównym mięsie w karcie to realne pieniądze.
+
+### Jak Spendly liczy benchmark cen?
+
+Na podstawie faktur zakupowych. Twoja cena jest anonimowo porównywana z medianą innych restauracji kupujących ten sam produkt, bez ujawniania danych innych lokali.

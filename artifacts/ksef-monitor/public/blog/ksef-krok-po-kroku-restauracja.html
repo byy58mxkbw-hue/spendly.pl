@@ -57,16 +57,17 @@
     "https://www.spendly.pl/blog/og/ksef-krok-po-kroku-restauracja.png"
   ],
   "datePublished": "2026-08-10",
-  "dateModified": "2026-08-10",
+  "dateModified": "2026-10-05",
   "inLanguage": "pl-PL",
   "mainEntityOfPage": {
     "@type": "WebPage",
     "@id": "https://www.spendly.pl/blog/ksef-krok-po-kroku-restauracja"
   },
   "author": {
-    "@type": "Organization",
-    "name": "Spendly",
-    "url": "https://www.spendly.pl"
+    "@type": "Person",
+    "name": "Patryk",
+    "jobTitle": "Właściciel restauracji i sali weselnej, twórca Spendly",
+    "url": "https://www.spendly.pl/blog"
   },
   "publisher": {
     "@type": "Organization",
@@ -102,6 +103,54 @@
       "position": 3,
       "name": "KSeF krok po kroku — jak przygotować restaurację (praktyczny przewodnik)",
       "item": "https://www.spendly.pl/blog/ksef-krok-po-kroku-restauracja"
+    }
+  ]
+}
+    </script>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Co jest potrzebne, żeby zacząć korzystać z KSeF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "NIP firmy, na który przychodzą faktury zakupowe, sposób uwierzytelnienia (podpis lub pieczęć kwalifikowana albo Profil Zaufany osoby uprawnionej) oraz decyzja, kto ma mieć dostęp."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Jak wygenerować token KSeF dla programu?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Wygeneruj token o najwęższym potrzebnym zakresie, na przykład tylko do odbioru faktur, zapisz go od razu i nie wysyłaj mailem. Gdy wycieknie albo odejdzie osoba, która go wygenerowała, unieważnij go i wystaw nowy."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Komu nadać uprawnienia w KSeF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Konkretnym osobom, bo uprawnienia nadaje się imiennie. Do kontroli kosztów wystarczy dostęp do faktur zakupowych, a zarządzanie uprawnieniami najlepiej zostawić tylko właścicielowi."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Dlaczego nie widzę faktury, która jest w KSeF?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Sprawdź zakres dat pobierania i czy dostawca wystawił fakturę na Twój NIP, a nie na inny podmiot z grupy. Komunikat o braku uprawnień zwykle oznacza token o złym zakresie."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Ile trwa wdrożenie KSeF w restauracji?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Zwykle jedno popołudnie: uwierzytelnienie, imienne uprawnienia, token, data początkowa pobierania i sprawdzenie pierwszej paczki faktur."
+      }
     }
   ]
 }
@@ -176,6 +225,24 @@
       footer.ft .col a{display:block;font-size:13px;color:#8A7C63;text-decoration:none;margin-bottom:8px}
       footer.ft .bottom{padding-top:20px;border-top:1px solid #E2D8C6;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:center;font-size:12px;color:#8A7C63}
       footer.ft .bottom a{color:#8A7C63;text-decoration:none}
+      .toc{background:#FBF7EF;border:1px solid #E2D8C6;border-radius:4px;padding:16px 20px;margin:20px 0 8px}
+      .toc-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#8A7C63;margin:0 0 8px}
+      .toc ol{margin:0;padding-left:20px;font-size:14px;line-height:1.7}
+      .toc a{color:#211B12;text-decoration:none}
+      .toc a:hover{color:#A8431F;text-decoration:underline}
+      .share{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:#8A7C63;margin:28px 0 0;padding-top:18px;border-top:1px solid #E2D8C6}
+      .share a{color:#211B12;text-decoration:none;border:1px solid #E2D8C6;border-radius:3px;padding:4px 10px;background:#FBF7EF}
+      .share a:hover{border-color:rgba(168,67,31,0.35)}
+      .author{display:flex;gap:14px;align-items:flex-start;margin:24px 0 0;padding:18px 20px;background:#FBF7EF;border:1px solid #E2D8C6;border-radius:4px}
+      .author .av{flex:0 0 44px;height:44px;border-radius:50%;background:#A8431F;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px}
+      .author p{margin:0}
+      .author .an{font-weight:700;color:#211B12}
+      .author .ar{font-size:13px;color:#A8431F;margin-bottom:6px}
+      .author .ab{font-size:14px;color:#5C5340;line-height:1.6}
+      .related-grid .k2{display:block;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#A8431F;margin-bottom:6px}
+      .cats{max-width:1200px;margin:0 auto;padding:0 24px;display:flex;flex-wrap:wrap;gap:8px}
+      .cats a{font-size:13px;color:#211B12;text-decoration:none;border:1px solid #E2D8C6;border-radius:3px;padding:6px 12px;background:#FBF7EF}
+      .cats a.on,.cats a:hover{border-color:#A8431F;color:#A8431F}
       /* Blog index */
       .hero{max-width:1200px;margin:0 auto;padding:64px 24px 32px}
       .hero h1{font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(2rem,5vw,3rem);font-weight:600;letter-spacing:0;margin:0 0 14px;color:#211B12}
@@ -202,11 +269,12 @@
       </nav>
     </div></header>
     <main>
-      <div class="wrap crumbs"><a href="/">Strona główna</a> › <a href="/blog">Blog</a> › KSeF krok po kroku — jak przygotować restaurację (praktyczny przewodnik)</div>
+      <div class="wrap crumbs"><a href="/">Strona główna</a> › <a href="/blog">Blog</a> › <a href="/blog/kategoria/ksef">KSeF</a> › KSeF krok po kroku — jak przygotować restaurację (praktyczny przewodnik)</div>
       <article class="post">
         <h1>KSeF krok po kroku — jak przygotować restaurację (praktyczny przewodnik)</h1>
-        <div class="post-meta"><span>10 sierpnia 2026</span><span>3 min czytania</span></div>
+        <div class="post-meta"><span>Patryk</span><span>10 sierpnia 2026</span><span>zaktualizowano 5 października 2026</span><span>4 min czytania</span></div>
         <p class="lead">Nie potrzebujesz kursu ani wdrożeniowca. Poniżej masz kolejność działań, którą przechodzi się raz i ma spokój — plus miejsca, w których najczęściej coś się zacina.</p>
+        <nav class="toc" aria-label="Spis treści"><p class="toc-h">Spis treści</p><ol><li><a href="#zanim-zaczniesz-trzy-rzeczy-pod-ręką">Zanim zaczniesz — trzy rzeczy pod ręką</a></li><li><a href="#krok-1-wejdź-do-systemu-jako-podmiot">Krok 1. Wejdź do systemu jako podmiot</a></li><li><a href="#krok-2-nadaj-uprawnienia-ludziom-nie-firmie">Krok 2. Nadaj uprawnienia ludziom, nie „firmie"</a></li><li><a href="#krok-3-wygeneruj-token-do-integracji">Krok 3. Wygeneruj token do integracji</a></li><li><a href="#krok-4-podłącz-odbieranie-faktur-zakupowych">Krok 4. Podłącz odbieranie faktur zakupowych</a></li><li><a href="#krok-5-sprawdź-co-przyszło">Krok 5. Sprawdź, co przyszło</a></li><li><a href="#gdy-coś-nie-działa">Gdy coś nie działa</a></li><li><a href="#co-zyskujesz-gdy-to-już-stoi">Co zyskujesz, gdy to już stoi</a></li><li><a href="#najczęstsze-pytania">Najczęstsze pytania</a></li></ol></nav>
         <div class="post-body">
 <h2 id="zanim-zaczniesz-trzy-rzeczy-pod-ręką">Zanim zaczniesz — trzy rzeczy pod ręką</h2>
 <ul><li><strong>NIP firmy</strong> (ten, na który przychodzą faktury zakupowe),</li><li><strong>sposób uwierzytelnienia</strong> — podpis kwalifikowany, pieczęć kwalifikowana albo Profil Zaufany osoby uprawnionej,</li><li><strong>decyzja, kto ma dostęp</strong> — właściciel, księgowa, manager. To ważne, bo uprawnienia nadaje się imiennie.</li></ul>
@@ -231,14 +299,32 @@
 <h2 id="co-zyskujesz-gdy-to-już-stoi">Co zyskujesz, gdy to już stoi</h2>
 <p>Papier znika, ale to nie jest największa korzyść. Najważniejsze jest to, że <strong>ceny surowców stają się danymi</strong>: widzisz, że filet zdrożał o 8% między dostawami, zanim zobaczysz to w rachunku wyników. <a href="/food-cost">Spendly</a> pobiera faktury z KSeF, buduje historię cen każdego produktu i alarmuje przy przekroczeniu progu — a Ty decydujesz, czy negocjować, zmienić dostawcę czy skorygować kartę.</p>
 <blockquote>Wdrożenie to jedno popołudnie: uwierzytelnienie, uprawnienia imienne, wąski token, data początkowa i weryfikacja pierwszej paczki faktur. Potem system pracuje sam.</blockquote>
+<h2 id="najczęstsze-pytania">Najczęstsze pytania</h2>
+<h3 id="co-jest-potrzebne-żeby-zacząć-korzystać-z-ksef">Co jest potrzebne, żeby zacząć korzystać z KSeF?</h3>
+<p>NIP firmy, na który przychodzą faktury zakupowe, sposób uwierzytelnienia (podpis lub pieczęć kwalifikowana albo Profil Zaufany osoby uprawnionej) oraz decyzja, kto ma mieć dostęp.</p>
+<h3 id="jak-wygenerować-token-ksef-dla-programu">Jak wygenerować token KSeF dla programu?</h3>
+<p>Wygeneruj token o najwęższym potrzebnym zakresie, na przykład tylko do odbioru faktur, zapisz go od razu i nie wysyłaj mailem. Gdy wycieknie albo odejdzie osoba, która go wygenerowała, unieważnij go i wystaw nowy.</p>
+<h3 id="komu-nadać-uprawnienia-w-ksef">Komu nadać uprawnienia w KSeF?</h3>
+<p>Konkretnym osobom, bo uprawnienia nadaje się imiennie. Do kontroli kosztów wystarczy dostęp do faktur zakupowych, a zarządzanie uprawnieniami najlepiej zostawić tylko właścicielowi.</p>
+<h3 id="dlaczego-nie-widzę-faktury-która-jest-w-ksef">Dlaczego nie widzę faktury, która jest w KSeF?</h3>
+<p>Sprawdź zakres dat pobierania i czy dostawca wystawił fakturę na Twój NIP, a nie na inny podmiot z grupy. Komunikat o braku uprawnień zwykle oznacza token o złym zakresie.</p>
+<h3 id="ile-trwa-wdrożenie-ksef-w-restauracji">Ile trwa wdrożenie KSeF w restauracji?</h3>
+<p>Zwykle jedno popołudnie: uwierzytelnienie, imienne uprawnienia, token, data początkowa pobierania i sprawdzenie pierwszej paczki faktur.</p>
         </div>
+        <div class="share"><span>Udostępnij:</span>
+          <a href="https://www.facebook.com/sharer/sharer.php?u=https%3A%2F%2Fwww.spendly.pl%2Fblog%2Fksef-krok-po-kroku-restauracja" target="_blank" rel="noopener noreferrer">Facebook</a>
+          <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fwww.spendly.pl%2Fblog%2Fksef-krok-po-kroku-restauracja" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a href="https://x.com/intent/post?url=https%3A%2F%2Fwww.spendly.pl%2Fblog%2Fksef-krok-po-kroku-restauracja&amp;text=KSeF%20krok%20po%20kroku%20%E2%80%94%20jak%20przygotowa%C4%87%20restauracj%C4%99%20(praktyczny%20przewodnik)" target="_blank" rel="noopener noreferrer">X</a>
+          <a href="mailto:?subject=KSeF%20krok%20po%20kroku%20%E2%80%94%20jak%20przygotowa%C4%87%20restauracj%C4%99%20(praktyczny%20przewodnik)&amp;body=https%3A%2F%2Fwww.spendly.pl%2Fblog%2Fksef-krok-po-kroku-restauracja">E-mail</a>
+        </div>
+        <aside class="author" aria-label="O autorze"><div class="av" aria-hidden="true">P</div><div><p class="an">Patryk</p><p class="ar">Właściciel restauracji i sali weselnej, twórca Spendly</p><p class="ab">Na co dzień prowadzę restaurację i salę weselną. Spendly zbudowałem najpierw dla siebie, żeby widzieć podwyżki u dostawców i realny food cost bez ręcznego przepisywania faktur. Na blogu piszę o tym, co sprawdza się w moim lokalu.</p></div></aside>
       </article>
       <div class="cta-box"><div class="cta-inner">
         <h2>Policz food cost automatycznie z Spendly</h2>
         <p>Faktury z KSeF, OCR paragonów i alerty cenowe w jednym miejscu. Okres testowy — bezpłatnie.</p>
         <a class="btn" href="/sign-up">Rozpocznij za darmo</a>
       </div></div>
-      <section class="related"><h2>Zobacz też</h2><div class="related-grid"><a href="/blog/najlepsze-programy-food-cost-ksef-2026"><span class="t">Najlepsze programy food cost i KSeF 2026 — porównanie</span><span class="d">28 września 2026</span></a><a href="/blog/food-cost-w-hotelu"><span class="t">Food cost w hotelu — czym różni się od restauracji i dlaczego trudniej go policzyć</span><span class="d">27 września 2026</span></a><a href="/blog/ocr-faktur-w-gastronomii"><span class="t">OCR faktur w gastronomii — jak działa automatyczne odczytywanie faktur od dostawców</span><span class="d">27 września 2026</span></a></div></section>
+      <section class="related"><h2>Zobacz też</h2><div class="related-grid"><a href="/blog/ksef-limit-10-tysiecy-gastronomia"><span class="k2">KSeF</span><span class="t">KSeF a limit 10 000 zł — czy Twoja restauracja jeszcze nie musi wystawiać e-faktur</span><span class="d">4 min czytania</span></a><a href="/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy"><span class="k2">KSeF</span><span class="t">KSeF dla restauracji — od kiedy obowiązkowy? Przewodnik 2026</span><span class="d">4 min czytania</span></a><a href="/blog/ksef-a-odliczenie-vat"><span class="k2">KSeF</span><span class="t">KSeF a odliczenie VAT — jak faktury kosztowe wpływają na podatek</span><span class="d">4 min czytania</span></a><a href="/blog/jak-czytac-fakture-ksef"><span class="k2">KSeF</span><span class="t">Jak czytać fakturę z KSeF — pola FA(3) krok po kroku</span><span class="d">4 min czytania</span></a></div></section>
     </main>
 
     <footer class="ft"><div class="wrap">

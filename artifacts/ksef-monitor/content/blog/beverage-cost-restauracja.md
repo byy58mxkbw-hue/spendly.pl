@@ -1,9 +1,9 @@
 ---
 slug: beverage-cost-restauracja
 title: Czym jest beverage cost — wzór, normy i jak go liczyć
-description: Beverage cost to koszt napojów wyrażony jako procent sprzedaży napojów. Wzór, typowe widełki dla piwa, wina i alkoholi mocnych oraz najczęstsze przyczyny zawyżonego wskaźnika.
+description: Czym jest beverage cost i jak go liczyć. Wzór, normy dla piwa, wina i alkoholi mocnych oraz najczęstsze przyczyny zawyżonego kosztu napojów.
 date: 2026-09-04
-updated: 2026-09-04
+updated: 2026-10-05
 category: Finanse
 keywords: beverage cost, czym jest beverage cost, beverage cost co to, jak liczyć beverage cost, koszt napojów restauracja, food cost a beverage cost
 lead: Bar potrafi być najbardziej rentowną częścią lokalu i jednocześnie tą, w której najłatwiej gubi się pieniądze. Beverage cost jest wskaźnikiem, który to pokazuje.
@@ -71,3 +71,25 @@ Bar bywa przy tym kołem ratunkowym rentowności: przy food coście 32% i bevera
 Beverage cost wymaga trzech rzeczy: [faktur zakupowych z pozycjami](/blog/jak-czytac-fakture-ksef), przychodu ze sprzedaży napojów i inwentaryzacji baru. Pierwsze dwie od 2026 roku są dostępne automatycznie — faktury przychodzą przez [KSeF](/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy), a sprzedaż jest w systemie POS.
 
 [Spendly](/) pobiera faktury z KSeF, rozpoznaje pozycje i przypisuje je do kategorii — więc koszt napojów wylicza się sam, razem z porównaniem do poprzedniego miesiąca. Zostaje Ci policzenie stanu baru, którego żaden system nie zrobi za Ciebie.
+
+## Najczęstsze pytania
+
+### Co to jest beverage cost?
+
+Beverage cost to koszt napojów wyrażony jako procent przychodu z ich sprzedaży. To odpowiednik food costu liczony osobno dla baru: piwa, wina, alkoholi mocnych, napojów bezalkoholowych, kawy i herbaty.
+
+### Jak obliczyć beverage cost?
+
+Beverage cost % = koszt zużytych napojów / przychód netto ze sprzedaży napojów × 100. Koszt zużycia liczysz tak samo jak przy food cost: stan początkowy + zakupy − stan końcowy.
+
+### Ile powinien wynosić beverage cost?
+
+Łącznie zwykle 18–24%. Kategorie różnią się jednak mocno: alkohole mocne 15–20%, piwo beczkowe 18–24%, piwo butelkowe 22–28%, wino 25–35%, napoje bezalkoholowe 10–15%, kawa i herbata 8–15%.
+
+### Dlaczego beverage cost wzrósł, choć ceny się nie zmieniły?
+
+Często to zmiana struktury sprzedaży. Jeśli sprzedajesz więcej wina, a mniej wódki, wskaźnik rośnie, bo wino ma wyższy typowy beverage cost. Dlatego warto liczyć go osobno dla kategorii.
+
+### Co najczęściej zawyża beverage cost?
+
+Nalewanie na oko, bo różnica między 40 a 50 ml to 25% surowca, oraz straty przy nalewaniu piwa. Przy piwie normą są 3–5% strat, a powyżej 8% warto sprawdzić instalację i temperaturę.

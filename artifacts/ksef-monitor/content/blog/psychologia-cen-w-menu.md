@@ -1,9 +1,9 @@
 ---
 slug: psychologia-cen-w-menu
 title: Psychologia cen w menu — jak układać ceny, żeby gość zamawiał więcej
-description: Sposób prezentacji cen w karcie wpływa na to, co i ile zamawia gość. Poznaj sprawdzone techniki psychologii cen w menu — bez oszukiwania, z korzyścią dla marży.
+description: Psychologia cen w menu: jak zapisywać i układać ceny w karcie, żeby gość wybierał dania z najlepszą marżą. Sprawdzone techniki bez oszukiwania.
 date: 2026-07-16
-updated: 2026-07-16
+updated: 2026-10-05
 category: Menu
 keywords: psychologia cen menu, jak ustawiać ceny w karcie, ceny w menu restauracja, karta menu ceny, menu engineering ceny
 lead: Ta sama cena może wyglądać drogo albo rozsądnie — zależnie od tego, jak ją pokażesz. Oto techniki, które kierują uwagę gościa na dania, na których naprawdę zarabiasz.
@@ -48,3 +48,25 @@ Najlepiej ułożona karta nic nie da, jeśli ceny w Twoich kalkulacjach są niea
 [Spendly](/food-cost) pobiera faktury z [KSeF](/ksef) i aktualizuje ceny surowców, więc widzisz realny koszt i marżę każdego dania — i wiesz, które pozycje wymagają korekty ceny, zanim zaczną tracić. Psychologia cen ustawia uwagę gościa; aktualne dane pilnują, żeby ta uwaga trafiała na dania, które naprawdę zarabiają.
 
 > Dobra karta to nie sztuczki, tylko porządek: policz marżę każdego dania, wyeksponuj te najlepsze, opisz je apetycznie i pilnuj aktualnych kosztów. Reszta to konsekwencja.
+
+## Najczęstsze pytania
+
+### Jak zapisywać ceny w menu?
+
+Bez znaku waluty i bez groszy, na przykład „39” zamiast „39,00 zł”. Taki zapis mniej przypomina gościowi o wydawaniu pieniędzy.
+
+### Dlaczego nie wyrównywać cen w kolumnie po prawej?
+
+Bo gość skanuje wtedy ceny pionowo i wybiera najtańsze. Cena tuż po opisie dania sprawia, że najpierw czyta danie, a dopiero potem cenę.
+
+### Na czym polega kotwiczenie cen w menu?
+
+Jedno wyraźnie droższe danie sprawia, że pozostałe wydają się rozsądne. Nie musi się dobrze sprzedawać, bo jego rolą jest bycie punktem odniesienia.
+
+### Gdzie w karcie umieścić najbardziej opłacalne dania?
+
+Tam, gdzie najpierw pada wzrok gościa: w okolicy prawego górnego rogu i na początku list. To miejsce dla dań z wysoką marżą i dobrą sprzedażą.
+
+### Czego unikać przy ustalaniu cen w menu?
+
+Ukrytych dopłat i mylących porcji, panicznego obniżania cen przy rosnących kosztach oraz zostawiania karty bez zmian przez lata. Nieaktualnie wyceniona karta po cichu zjada marżę.

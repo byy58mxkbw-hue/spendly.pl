@@ -1,9 +1,9 @@
 ---
 slug: jak-czytac-fakture-ksef
 title: Jak czytać fakturę z KSeF — pola FA(3) krok po kroku
-description: Faktura z KSeF ma format XML FA(3), nie PDF. Wyjaśniamy najważniejsze pola — sprzedawca, nabywca, pozycje, stawki VAT — i pokazujemy, jak wyciągnąć z nich dane o kosztach.
+description: Jak czytać fakturę z KSeF w formacie FA(3): sprzedawca, nabywca, pozycje i stawki VAT oraz które pola są ważne dla kontroli kosztów.
 date: 2026-07-14
-updated: 2026-07-14
+updated: 2026-10-05
 category: KSeF
 keywords: jak czytać fakturę KSeF, faktura FA(3), pola faktury KSeF, struktura faktury KSeF, XML faktura KSeF
 lead: Faktura z KSeF to nie PDF, tylko ustrukturyzowany plik XML w formacie FA(3). Brzmi technicznie, ale w praktyce to uporządkowany zestaw pól. Pokazujemy, co gdzie jest i jak to czytać.
@@ -83,3 +83,25 @@ Przy kilku fakturach miesięcznie da się to ogarnąć okiem. Przy kilkudziesię
 [Spendly](/ksef) pobiera faktury z KSeF przez oficjalne API, parsuje pola FA(3), normalizuje jednostki i zamienia surowy XML w gotową analizę: historię cen każdego surowca, porównanie dostawców i [food cost](/blog/jak-liczyc-food-cost) liczony automatycznie. Zamiast czytać XML, patrzysz na to, co z niego wynika — gdzie rosną koszty i u kogo kupujesz najtaniej.
 
 Jeśli dopiero przygotowujesz lokal do KSeF, zacznij od: [KSeF dla restauracji — od kiedy obowiązkowy](/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy).
+
+## Najczęstsze pytania
+
+### W jakim formacie jest faktura z KSeF?
+
+Faktura z KSeF to plik XML w formacie FA(3). Każda informacja ma w nim swoje ściśle określone pole, dzięki czemu programy mogą ją przetwarzać automatycznie. Większość systemów potrafi pokazać ją też jako czytelną wizualizację.
+
+### Gdzie na fakturze KSeF są dane sprzedawcy i nabywcy?
+
+Sprzedawca, czyli zwykle dostawca, jest w sekcji Podmiot1, a nabywca w sekcji Podmiot2. Po NIP-ie nabywcy KSeF przypisuje fakturę do Twojej firmy. Czasem pojawia się też Podmiot3, na przykład konkretny lokal, do którego dostarczono towar.
+
+### Które pola faktury KSeF są najważniejsze dla kontroli kosztów?
+
+Pozycje faktury (FaWiersz): nazwa towaru, ilość, jednostka miary, cena jednostkowa netto i stawka VAT. Z nich buduje się historię cen surowców.
+
+### Dlaczego porównując ceny trzeba uważać na jednostki miary?
+
+Ten sam produkt bywa fakturowany raz w kilogramach, raz w opakowaniach albo sztukach. Bez ujednolicenia jednostek porównanie cen pokazuje fałszywe skoki.
+
+### Czy do analizy kosztów brać ceny netto czy brutto?
+
+Netto. Jeśli odliczasz VAT, nie jest on Twoim kosztem, dlatego food cost i analizę cen liczy się na kwotach netto.

@@ -1,9 +1,9 @@
 ---
 slug: food-waste-w-restauracji
 title: Food waste w restauracji — jak ograniczyć marnotrawstwo i odzyskać marżę
-description: Marnotrawstwo żywności potrafi zjeść kilka procent obrotu restauracji. Poznaj główne źródła food waste, sposoby pomiaru i konkretne metody ograniczenia strat.
+description: Food waste w restauracji: skąd się bierze, jak zmierzyć marnotrawstwo i jakie metody realnie ograniczają straty żywności w kuchni.
 date: 2026-07-16
-updated: 2026-07-16
+updated: 2026-10-05
 category: Operacje
 keywords: food waste restauracja, marnotrawstwo żywności gastronomia, jak ograniczyć straty w kuchni, straty żywności restauracja
 lead: Każdy wyrzucony produkt to koszt, który już zapłaciłeś, a którego nie sprzedasz. Marnotrawstwo bywa cichym wyciekiem marży — pokazujemy, gdzie ucieka i jak je zatrzymać.
@@ -73,3 +73,25 @@ Ograniczanie food waste zaczyna się od **wiedzy, co i za ile kupujesz oraz jak 
 [Spendly](/food-cost) pobiera faktury z [KSeF](/ksef), buduje historię zakupów każdego produktu i pokazuje, ile i za ile kupujesz — a przy inwentaryzacji łatwo zestawić to z realnym zużyciem. Widzisz, gdzie kupujesz więcej, niż schodzi, i które produkty najczęściej się marnują.
 
 > Marnotrawstwo to marża, którą już masz — wystarczy przestać ją wyrzucać. Pomiar dwóch–trzech grup produktów przez miesiąc zwykle wystarcza, żeby znaleźć pierwsze kilka procent oszczędności.
+
+## Najczęstsze pytania
+
+### Ile kosztuje marnotrawstwo żywności w restauracji?
+
+Zwykle 4–10% wartości zakupów, a w źle zarządzanych kuchniach więcej. To produkty, za które zapłaciłeś dostawcy, a które nigdy nie trafiły na paragon.
+
+### Skąd bierze się food waste w gastronomii?
+
+Najczęściej z nadprodukcji, złego przechowywania, przeterminowań, złej obróbki, zwrotów z sali oraz kradzieży i znikania towaru.
+
+### Jak zmierzyć food waste?
+
+Porównaj realne zużycie z inwentaryzacji ze zużyciem recepturowym, prowadź dziennik odpadów i sprawdzaj, które produkty kupujesz dużo, a rzadko schodzą.
+
+### Jak ograniczyć marnotrawstwo w kuchni?
+
+Zamawiaj pod realne zużycie, stosuj rotację FIFO, standaryzuj porcje i receptury, wykorzystuj nadwyżki, na przykład obierki na bulion, i usuwaj z menu pozycje, przez które marnuje się towar.
+
+### Od czego zacząć walkę z food waste?
+
+Od pomiaru dwóch–trzech najdroższych i najszybciej psujących się grup produktów, takich jak mięso, ryby, nabiał i świeże zioła. Tam zwykle ukrytych jest najwięcej pieniędzy.

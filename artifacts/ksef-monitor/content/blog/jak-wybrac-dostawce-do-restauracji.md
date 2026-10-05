@@ -3,7 +3,7 @@ slug: jak-wybrac-dostawce-do-restauracji
 title: Jak wybrać dostawcę do restauracji — kryteria, pułapki i test na 30 dni
 description: Najtańsza oferta rzadko oznacza najniższy koszt. Sprawdź, na co patrzeć przy wyborze dostawcy do restauracji i jak zweryfikować go w praktyce.
 date: 2026-08-10
-updated: 2026-08-10
+updated: 2026-10-05
 category: Zakupy
 keywords: jak wybrać dostawcę do restauracji, dostawcy gastronomiczni, hurtownia dla restauracji, zmiana dostawcy gastronomia
 lead: Cennik pokazuje ceny startowe. O tym, ile naprawdę zapłacisz, decydują braki w dostawie, jakość partii i to, co dzieje się z cenami po trzech miesiącach.
@@ -63,3 +63,25 @@ Zmiana ma sens, gdy różnica jest trwała (nie jednorazowa promocja), dotyczy p
 [Spendly](/food-cost) czyta faktury z [KSeF](/ksef) i pokazuje ten sam produkt u różnych dostawców obok siebie, z ceną przeliczoną na jednostkę i historią zmian. Widzisz, gdzie realnie przepłacasz i ile odzyskasz po przeniesieniu wolumenu — zanim podejmiesz decyzję.
 
 > Wybieraj po kompletności dostaw, stabilności jakości i cenach z faktur, nie z ofert. Testuj miesiąc na wycinku asortymentu. I trzymaj alternatywę na kluczowych kategoriach — to ona daje Ci siłę w rozmowie o cenach.
+
+## Najczęstsze pytania
+
+### Jak wybrać dostawcę do restauracji?
+
+Nie tylko po cenie z oferty. Liczy się kompletność dostaw, stabilność jakości, elastyczność zamówień, warunki płatności, reakcja na reklamacje, przejrzystość cen i poprawne faktury w KSeF.
+
+### Ilu dostawców powinna mieć restauracja?
+
+Na kluczową kategorię dwóch, czasem trzech. Jeden to ryzyko przestoju, pięciu to rozdrobnione zamówienia i gorsze ceny.
+
+### Jak przetestować nowego dostawcę?
+
+Przez 30 dni na wycinku asortymentu. Sprawdź kompletność i terminowość dostaw, ceny z faktur, a nie z oferty, wydajność surowca po obróbce i sposób załatwienia drobnej reklamacji.
+
+### Dlaczego najtańsza oferta nie zawsze jest najtańsza?
+
+Braki w dostawach wymuszają droższe zakupy awaryjne, gorsza jakość obniża wydajność po obróbce, a pierwsza niska cena bywa wabikiem przed podwyżką.
+
+### Czy porównywać ceny z ofert czy z faktur?
+
+Z faktur. Oferta i faktura to często dwie różne ceny, a o koszcie decyduje ta druga.

@@ -3,7 +3,7 @@ slug: ksef-krok-po-kroku-restauracja
 title: KSeF krok po kroku — jak przygotować restaurację (praktyczny przewodnik)
 description: Konkretna lista kroków wdrożenia KSeF w restauracji: uprawnienia, token, odbieranie faktur zakupowych i co zrobić, gdy system nie odpowiada.
 date: 2026-08-10
-updated: 2026-08-10
+updated: 2026-10-05
 category: KSeF
 keywords: KSeF krok po kroku, jak wdrożyć KSeF w restauracji, token KSeF, uprawnienia KSeF, KSeF instrukcja gastronomia
 lead: Nie potrzebujesz kursu ani wdrożeniowca. Poniżej masz kolejność działań, którą przechodzi się raz i ma spokój — plus miejsca, w których najczęściej coś się zacina.
@@ -66,3 +66,25 @@ Po pierwszym pobraniu przejrzyj listę i zweryfikuj trzy rzeczy:
 Papier znika, ale to nie jest największa korzyść. Najważniejsze jest to, że **ceny surowców stają się danymi**: widzisz, że filet zdrożał o 8% między dostawami, zanim zobaczysz to w rachunku wyników. [Spendly](/food-cost) pobiera faktury z KSeF, buduje historię cen każdego produktu i alarmuje przy przekroczeniu progu — a Ty decydujesz, czy negocjować, zmienić dostawcę czy skorygować kartę.
 
 > Wdrożenie to jedno popołudnie: uwierzytelnienie, uprawnienia imienne, wąski token, data początkowa i weryfikacja pierwszej paczki faktur. Potem system pracuje sam.
+
+## Najczęstsze pytania
+
+### Co jest potrzebne, żeby zacząć korzystać z KSeF?
+
+NIP firmy, na który przychodzą faktury zakupowe, sposób uwierzytelnienia (podpis lub pieczęć kwalifikowana albo Profil Zaufany osoby uprawnionej) oraz decyzja, kto ma mieć dostęp.
+
+### Jak wygenerować token KSeF dla programu?
+
+Wygeneruj token o najwęższym potrzebnym zakresie, na przykład tylko do odbioru faktur, zapisz go od razu i nie wysyłaj mailem. Gdy wycieknie albo odejdzie osoba, która go wygenerowała, unieważnij go i wystaw nowy.
+
+### Komu nadać uprawnienia w KSeF?
+
+Konkretnym osobom, bo uprawnienia nadaje się imiennie. Do kontroli kosztów wystarczy dostęp do faktur zakupowych, a zarządzanie uprawnieniami najlepiej zostawić tylko właścicielowi.
+
+### Dlaczego nie widzę faktury, która jest w KSeF?
+
+Sprawdź zakres dat pobierania i czy dostawca wystawił fakturę na Twój NIP, a nie na inny podmiot z grupy. Komunikat o braku uprawnień zwykle oznacza token o złym zakresie.
+
+### Ile trwa wdrożenie KSeF w restauracji?
+
+Zwykle jedno popołudnie: uwierzytelnienie, imienne uprawnienia, token, data początkowa pobierania i sprawdzenie pierwszej paczki faktur.

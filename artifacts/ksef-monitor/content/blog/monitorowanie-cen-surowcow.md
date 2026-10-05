@@ -1,9 +1,9 @@
 ---
 slug: monitorowanie-cen-surowcow
 title: Monitorowanie cen surowców — jak wyłapać podwyżki, zanim zjedzą marżę
-description: Ceny dostaw rosną po cichu, pozycja po pozycji. Sprawdź, jak monitorować ceny surowców w restauracji, które wskaźniki obserwować i jak reagować na podwyżkę bez podnoszenia całej karty.
+description: Monitorowanie cen surowców w restauracji: jak wyłapać ciche podwyżki dostawców, co obserwować i jak reagować bez podnoszenia całej karty.
 date: 2026-08-02
-updated: 2026-08-02
+updated: 2026-10-05
 category: Zakupy
 keywords: monitorowanie cen surowców, wzrost cen w gastronomii, kontrola cen dostawców restauracja, jak śledzić ceny produktów spożywczych, podwyżki cen dostaw
 lead: Podwyżka o 8% na jednej pozycji jest niewidoczna. Dziesięć takich podwyżek w kwartale to już różnica między zyskiem a stratą — i nikt Cię o nich nie poinformuje.
@@ -50,3 +50,25 @@ Raport za miniony kwartał mówi, ile już straciłeś. Wartość ma tylko infor
 [Spendly](/food-cost) pobiera faktury bezpośrednio z [KSeF](/ksef), buduje historię cen każdego surowca i wysyła alert, gdy cena przekroczy ustawiony przez Ciebie próg. Widzisz od razu, u którego dostawcy produkt jest tańszy, ile podwyżka kosztuje Cię miesięcznie przy Twoim wolumenie i które dania przestały się spinać. Reakcja przestaje być kwartalnym sprzątaniem, a staje się bieżącą decyzją.
 
 > Nie da się kontrolować kosztów, których się nie mierzy. Ustaw sobie próg — na przykład 10% zmiany na pozycjach stanowiących największą część zakupów — i pilnuj go automatycznie. Podwyżka wyłapana w tygodniu kosztuje kilka telefonów; wyłapana po pół roku kosztuje marżę całego sezonu.
+
+## Najczęstsze pytania
+
+### Jak monitorować ceny surowców w restauracji?
+
+Śledź zmianę ceny tego samego produktu u tego samego dostawcy w czasie, porównuj dostawców, przeliczaj ceny na porównywalną jednostkę (kg lub litr) i patrz, jak podwyżka wpływa na konkretne dania.
+
+### Jak rozpoznać ukrytą podwyżkę u dostawcy?
+
+Przeliczaj cenę na kilogram lub litr. Najczęstsza ukryta podwyżka to mniejsza gramatura opakowania przy tej samej cenie kartonu.
+
+### Które podwyżki cen są najgroźniejsze?
+
+Te na pozycjach, które stanowią dużą część zakupów. Wzrost o 5% na produkcie z 12-procentowym udziałem w zakupach kosztuje więcej niż 20% na przyprawie.
+
+### Co zrobić, gdy surowiec podrożał?
+
+Najpierw sprawdź, czy to nie błąd w cenniku lub rabacie. Potem porównaj dostawców, rozważ inną specyfikację produktu albo korektę receptury. Cenę w karcie zmieniaj na końcu i tylko na daniach, których to dotyczy.
+
+### Jaki próg alertu cenowego ustawić?
+
+Dobry start to około 10% zmiany na pozycjach, które stanowią największą część zakupów. Podwyżka wyłapana w tygodniu kosztuje kilka telefonów, a zauważona po kwartale realne pieniądze.

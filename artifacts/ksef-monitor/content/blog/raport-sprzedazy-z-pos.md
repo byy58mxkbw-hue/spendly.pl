@@ -3,7 +3,7 @@ slug: raport-sprzedazy-z-pos
 title: Jak czytać raport sprzedaży z POS — na co patrzeć co miesiąc
 description: Które cztery liczby z raportu POS sprawdzać co miesiąc i jakie pułapki kryje porównanie sprzedaży miesiąc do miesiąca.
 date: 2026-09-04
-updated: 2026-09-04
+updated: 2026-10-05
 category: Operacje
 keywords: raport sprzedaży POS, analiza sprzedaży restauracja, sprzedaż miesiąc do miesiąca gastronomia, średni rachunek restauracja
 lead: Większość raportów z POS kończy się na liście „ile czego sprzedano". To dopiero materiał. Wnioski zaczynają się tam, gdzie zestawisz sprzedaż z poprzednim miesiącem i z kosztem surowca.
@@ -52,3 +52,25 @@ Ta trzecia liczba jest zwykle najbardziej niewygodna i najbardziej wartościowa.
 Raport sprzedaży oglądany raz na kwartał opisuje przeszłość, której nie da się już naprawić. Ten sam raport oglądany co tydzień pozwala zareagować, kiedy problem jeszcze kosztuje setki, a nie tysiące — błąd w porcjowaniu widać po tygodniu, a po kwartale jest już tylko dziurą w wyniku, której nikt nie umie wyjaśnić.
 
 [Spendly](/) łączy sprzedaż z POS z fakturami z KSeF: pokazuje sprzedaż miesiąc do miesiąca w ilościach i kwotach, grupuje warianty w jedną pozycję i pozwala kliknąć w dowolne danie, żeby zobaczyć jego przebieg przez cały rok.
+
+## Najczęstsze pytania
+
+### Na co patrzeć w miesięcznym raporcie sprzedaży z POS?
+
+Na ilość i wartość sprzedaży osobno, na pozycje, które najbardziej urosły i spadły w złotówkach, a nie w procentach, oraz na udział największych pozycji w obrocie.
+
+### Dlaczego ilość i wartość sprzedaży trzeba czytać osobno?
+
+Bo pokazują dwie różne historie. Jeśli ilość wzrosła o 20%, a wartość o 45%, to większość wyniku zrobiła podwyżka ceny, a nie większy popyt.
+
+### Jakie są pułapki porównywania sprzedaży miesiąc do miesiąca?
+
+Nowe pozycje pokazane jako wzrost, chociaż nie mają z czym się porównać, oraz niepełny poprzedni miesiąc, gdy integracja z POS zaczęła zbierać dane w jego połowie.
+
+### Czego raport z POS nie pokazuje?
+
+Kosztów. Zna przychód, ale nie wie, że surowiec do dania podrożał i marża spadła. Do tego potrzebny jest food cost liczony z faktur i marża dań po aktualnych cenach.
+
+### Co to jest wariancja food cost?
+
+To różnica między tym, ile powinieneś wydać na surowce przy danej sprzedaży i recepturach, a tym, ile wydałeś naprawdę. Pokazuje marnowanie, złe porcjowanie i straty przy przyjęciu towaru.
