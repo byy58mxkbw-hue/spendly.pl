@@ -74,6 +74,58 @@ Ręczne pilnowanie cen kilkuset produktów u kilkunastu dostawców jest niewykon
 
 Zacznij od policzenia swojego wskaźnika, ustaw cel z tabeli powyżej i pilnuj cen zakupu. To wystarczy, żeby food cost przestał być zagadką na koniec miesiąca.
 
+
+## Przykład: dwie restauracje, ten sam przychód
+
+Porównajmy dwa lokale z przychodem netto 100 000 zł miesięcznie:
+
+| Pozycja | Restauracja A | Restauracja B |
+| --- | --- | --- |
+| Food cost | 33% (33 000 zł) | 26% (26 000 zł) |
+| Koszt pracy | 27% (27 000 zł) | 34% (34 000 zł) |
+| Czynsz | 8% (8 000 zł) | 14% (14 000 zł) |
+| Zostaje na resztę kosztów i zysk | 32 000 zł | 26 000 zł |
+
+Restauracja B ma „lepszy” food cost, a zostaje jej o 6 000 zł mniej. Obie mają taki sam prime cost (60%), ale B płaci znacznie wyższy czynsz. Dlatego food costu nie ocenia się w oderwaniu od reszty rachunku ([prime cost](/blog/prime-cost-restauracja), [rentowność restauracji](/blog/rentownosc-restauracji-wskazniki)).
+
+## Jak ustalić docelowy food cost dla swojego lokalu
+
+Zamiast brać liczbę z internetu, wylicz ją od góry:
+
+1. Ustal, ile chcesz zostawić na zysk, na przykład 10% przychodu.
+2. Zsumuj koszty stałe poza pracą: czynsz, media, leasingi, księgowość. Załóżmy 18%.
+3. Sprawdź realny koszt pracy z ostatnich miesięcy, na przykład 30%.
+4. To, co zostaje, to maksymalny koszt surowców: 100% − 10% − 18% − 30% = 42% na kuchnię i bar razem.
+5. Rozdziel to między kuchnię i bar według udziału w sprzedaży. Bar ma zwykle niższy wskaźnik, więc kuchnia może mieć nieco więcej.
+
+Tak wyliczony cel jest Twój, a nie średnia z branży. Jeśli wychodzi mniej niż 28%, to sygnał, że problemem są koszty stałe albo praca, a nie kuchnia.
+
+## Food cost według rodzaju dań
+
+W obrębie jednej karty dania mają bardzo różny food cost i to jest normalne. Orientacyjnie, w wielu lokalach:
+
+| Rodzaj dań | Typowy food cost |
+| --- | --- |
+| Zupy | 15–25% |
+| Makarony i dania z kasz | 18–28% |
+| Desery | 15–25% |
+| Dania mięsne | 30–40% |
+| Ryby i owoce morza | 35–45% |
+
+Steki i ryby z wyższym food costem równoważą zupy i makarony z niższym. Liczy się średnia ważona sprzedażą, a nie to, żeby każde danie miało 30%. Dlatego ważniejsza od procentu bywa marża w złotówkach ([menu engineering](/blog/menu-engineering-restauracja)).
+
+## Sezonowe wahania food costu
+
+Food cost zmienia się w ciągu roku nawet przy tej samej karcie. Warzywa i owoce drożeją poza sezonem, ceny mięsa i nabiału potrafią skakać w ciągu kilku tygodni, a alkohol drożeje skokowo przy zmianie akcyzy. Dlatego porównuj food cost z tym samym miesiącem rok wcześniej i miej w karcie dania sezonowe, które pozwalają korzystać z tańszych w danym okresie surowców.
+
+## Jak często sprawdzać food cost
+
+- **Co tydzień:** ceny zakupu najważniejszych surowców i zużycie 10–15 najdroższych pozycji.
+- **Co miesiąc:** pełny food cost z inwentaryzacji i faktur, porównany z teoretycznym z receptur.
+- **Co kwartał:** przegląd całej karty i cen dań.
+
+Szybkie sprawdzenie pojedynczego dania zrobisz w [kalkulatorze food cost](/kalkulatory/kalkulator-food-cost).
+
 ## Najczęstsze pytania
 
 ### Ile powinien wynosić food cost w restauracji?

@@ -53,6 +53,57 @@ Raport sprzedaży oglądany raz na kwartał opisuje przeszłość, której nie d
 
 [Spendly](/) łączy sprzedaż z POS z fakturami z KSeF: pokazuje sprzedaż miesiąc do miesiąca w ilościach i kwotach, grupuje warianty w jedną pozycję i pozwala kliknąć w dowolne danie, żeby zobaczyć jego przebieg przez cały rok.
 
+
+## Przykład miesięcznego przeglądu
+
+Tak może wyglądać zestawienie pięciu ważnych pozycji z raportu POS za dwa kolejne miesiące:
+
+| Pozycja | Sztuki wrzesień | Sztuki październik | Wartość wrzesień | Wartość październik | Zmiana wartości |
+| --- | --- | --- | --- | --- | --- |
+| Burger klasyczny | 380 | 410 | 13 300 zł | 14 760 zł | +11,0% |
+| Schabowy | 290 | 285 | 9 860 zł | 9 690 zł | −1,7% |
+| Zupa dnia | 520 | 610 | 7 800 zł | 9 150 zł | +17,3% |
+| Stek (wszystkie wysmażenia) | 95 | 88 | 8 550 zł | 7 920 zł | −7,4% |
+| Lemoniada | 300 | 180 | 3 600 zł | 2 160 zł | −40,0% |
+
+Co z tego wynika:
+
+- **Burger** sprzedał się o 7,9% lepiej w sztukach, ale wartość wzrosła o 11%. Różnica to podwyżka ceny z 35 do 36 zł. Wzrost jest więc częściowo zasługą ceny, a nie popytu.
+- **Zupa dnia** rośnie wyłącznie ilościowo, przy tej samej cenie. To prawdziwy wzrost popytu i dobry kandydat do sprawdzenia marży, bo dużo się sprzedaje.
+- **Lemoniada** spadła najmocniej w procentach, ale to sezon. W złotówkach to 1 440 zł mniej, czyli mniej więcej tyle, ile przewidywalnie odpada jesienią.
+- **Stek** spadł o 630 zł. To mniejsza kwota, ale bez sezonowego wytłumaczenia, więc warto zapytać, czy nie zmieniła się jakość, cena albo pozycja w karcie.
+
+Taki przegląd zajmuje kwadrans, a pokazuje, które zmiany są normalne, a które wymagają reakcji.
+
+## Średni rachunek i sprzedaż na dzień
+
+Średni rachunek liczy się prosto:
+
+```
+Średni rachunek = wartość sprzedaży / liczba paragonów
+```
+
+Przy sprzedaży 186 000 zł i 4 650 paragonach średni rachunek wynosi 40 zł. Warto go oglądać osobno dla dni tygodnia i pór dnia, bo lunch w tygodniu i kolacja w sobotę to dwa różne biznesy.
+
+Druga poprawka to liczba dni otwarcia. Wrzesień ma 30 dni, a październik 31. Jeśli sprzedaż wzrosła ze 168 000 zł do 176 700 zł, to wzrost wynosi 5,2%. W przeliczeniu na dzień to jednak 5 600 zł wobec 5 700 zł, czyli tylko 1,8%. Większość wzrostu dał dodatkowy dzień w kalendarzu.
+
+## Sprzedaż według kategorii
+
+Oprócz pojedynczych pozycji warto co miesiąc spojrzeć na udział kategorii: dań głównych, zup, deserów, napojów i alkoholu. Zmiana struktury mówi więcej niż zmiana pojedynczego dania. Rosnący udział napojów zwykle poprawia marżę całego lokalu, bo bar ma niższy koszt surowca niż kuchnia ([beverage cost](/blog/beverage-cost-restauracja)). Spadający udział dań głównych przy rosnącym udziale przekąsek może z kolei oznaczać, że goście oszczędzają.
+
+## Sezonowość: porównuj rok do roku
+
+Porównanie miesiąc do miesiąca zawsze miesza wynik z sezonem. Grudzień z imprezami firmowymi, lato z ogródkiem, styczeń po świętach. Najuczciwsze porównanie to ten sam miesiąc rok wcześniej, przeliczony na dzień otwarcia. Jeśli lokal działa krócej niż rok, porównuj tygodnie z tymi samymi dniami tygodnia i zapisuj wydarzenia, które zmieniały ruch, na przykład remont ulicy albo koncert w okolicy.
+
+## Checklista na 15 minut w miesiącu
+
+1. Sprzedaż na dzień otwarcia wobec poprzedniego miesiąca i tego samego miesiąca rok wcześniej.
+2. Średni rachunek i liczba paragonów, osobno dla weekendów.
+3. Pięć pozycji, które najbardziej wzrosły i spadły, w złotówkach.
+4. Udział kategorii w sprzedaży.
+5. Nowe i usunięte pozycje, oznaczone osobno, żeby nie psuły porównań.
+6. Food cost za miesiąc z faktur i sprzedaży, policzony w [kalkulatorze food cost](/kalkulatory/kalkulator-food-cost) albo automatycznie.
+
 ## Najczęstsze pytania
 
 ### Na co patrzeć w miesięcznym raporcie sprzedaży z POS?

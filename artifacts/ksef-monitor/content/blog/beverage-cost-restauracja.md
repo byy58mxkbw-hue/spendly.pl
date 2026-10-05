@@ -72,6 +72,66 @@ Beverage cost wymaga trzech rzeczy: [faktur zakupowych z pozycjami](/blog/jak-cz
 
 [Spendly](/) pobiera faktury z KSeF, rozpoznaje pozycje i przypisuje je do kategorii — więc koszt napojów wylicza się sam, razem z porównaniem do poprzedniego miesiąca. Zostaje Ci policzenie stanu baru, którego żaden system nie zrobi za Ciebie.
 
+
+## Przykład: beverage cost baru krok po kroku
+
+Weźmy bar w restauracji i jeden miesiąc. Inwentaryzację zrobiono na początku i na końcu miesiąca, zakupy pochodzą z faktur, a sprzedaż netto z systemu POS. Liczymy osobno każdą kategorię, a dopiero potem całość.
+
+| Kategoria | Stan początkowy | Zakupy | Stan końcowy | Zużycie | Sprzedaż netto | Beverage cost |
+| --- | --- | --- | --- | --- | --- | --- |
+| Alkohole mocne | 6 000 zł | 9 000 zł | 5 400 zł | 9 600 zł | 52 000 zł | 18,5% |
+| Piwo | 2 000 zł | 12 000 zł | 2 200 zł | 11 800 zł | 54 000 zł | 21,9% |
+| Wino | 4 500 zł | 7 000 zł | 4 100 zł | 7 400 zł | 25 000 zł | 29,6% |
+| Bezalkoholowe, kawa, herbata | 800 zł | 3 600 zł | 700 zł | 3 700 zł | 30 000 zł | 12,3% |
+| **Razem** | | | | **32 500 zł** | **161 000 zł** | **20,2%** |
+
+Łączny wynik 20,2% mieści się w normie. Każda kategoria też jest w swoich widełkach, chociaż wino jest blisko górnej granicy. To podpowiedź, gdzie zajrzeć najpierw: do strat na otwartych butelkach i do cen kieliszków.
+
+Gdyby w tym samym miesiącu bar sprzedał więcej wina, a mniej wódki, łączny beverage cost wzrósłby, mimo że w żadnej kategorii nic by się nie pogorszyło. Właśnie dlatego liczy się go osobno dla kategorii.
+
+## Jak policzyć koszt jednego drinka
+
+Beverage cost całego baru mówi, czy coś jest nie tak. Koszt pojedynczego drinka mówi, czy jego cena w karcie ma sens. Liczy się go jak recepturę dania:
+
+| Składnik | Ilość | Cena zakupu netto | Koszt |
+| --- | --- | --- | --- |
+| Wódka (butelka 0,7 l) | 40 ml | 62 zł za butelkę | 3,54 zł |
+| Sok | 150 ml | 4 zł za litr | 0,60 zł |
+| Lód, cytryna, dekoracja | ryczałt | — | 0,40 zł |
+| **Koszt drinka** | | | **4,54 zł** |
+
+Drink kosztuje w karcie 22 zł brutto. Przy VAT 23% cena netto wynosi 17,89 zł, więc beverage cost tego drinka to 25,4%. To wyżej niż typowe 15–20% dla alkoholi mocnych, bo dochodzą dodatki, a cena jest umiarkowana. Podniesienie ceny do 24 zł obniża wskaźnik do 23,3%.
+
+Szybko przeliczysz to w [kalkulatorze beverage cost](/kalkulatory/kalkulator-beverage-cost).
+
+## Wino na kieliszki — gdzie ucieka marża
+
+Wino sprzedawane na kieliszki to najczęstsze źródło zawyżonego beverage costu. Butelka 0,75 litra daje 5 kieliszków po 150 ml, ale tylko wtedy, gdy wszystko się sprzeda. Otwarta butelka, której nikt nie dokończył, po dwóch–trzech dniach traci jakość i ląduje w zlewie.
+
+Przykład: butelka za 36 zł netto. Kieliszek kosztuje 7,20 zł. Jeśli przyjmiesz 10% strat na otwartych butelkach, realny koszt kieliszka to 8,00 zł.
+
+| Cena kieliszka (brutto) | Cena netto | Beverage cost |
+| --- | --- | --- |
+| 24 zł | 19,51 zł | 41,0% |
+| 30 zł | 24,39 zł | 32,8% |
+
+Przy 24 zł wino na kieliszki jest mocno nierentowne, mimo że ta sama butelka sprzedawana w całości mieściłaby się w normie. Co pomaga: krótsza lista win na kieliszki, mniejsze butelki albo system do przechowywania otwartego wina i cena kieliszka liczona od realnego kosztu ze stratami.
+
+## Najczęstsze błędy przy liczeniu beverage costu
+
+1. **Liczenie z zakupów zamiast ze zużycia.** Duża dostawa pod koniec miesiąca zawyża wynik, chociaż alkohol stoi jeszcze na półce. Bez inwentaryzacji baru wynik jest tylko przybliżeniem.
+2. **Mieszanie netto z brutto.** Ceny zakupu z faktur są netto, a ceny w karcie brutto. Przed dzieleniem trzeba sprowadzić cenę sprzedaży do netto, a przy alkoholu VAT to zwykle 23%.
+3. **Wrzucanie baru do food costu.** Wspólny wskaźnik dla kuchni i baru ukrywa problemy w obu miejscach, bo mają zupełnie inne normy.
+4. **Brak ewidencji poczęstunków.** Drink na koszt firmy, degustacja dla dostawcy czy napój dla personelu bez wpisu w systemie wyglądają potem jak strata albo kradzież.
+5. **Stara kalkulacja karty drinków.** Alkohole drożeją skokowo. Karta wyceniona przed podwyżką akcyzy ma dziś niższą marżę na każdej pozycji.
+
+## Plan na 30 dni: jak obniżyć beverage cost
+
+- **Tydzień 1:** zrób inwentaryzację baru i policz beverage cost za ostatni miesiąc osobno dla każdej kategorii.
+- **Tydzień 2:** wprowadź miarki do wszystkich alkoholi mocnych i spisz receptury drinków z gramaturą.
+- **Tydzień 3:** przelicz koszt każdego drinka i kieliszka wina po aktualnych cenach z faktur. Popraw ceny pozycji, które wyraźnie odstają.
+- **Tydzień 4:** powtórz inwentaryzację i porównaj wynik. Różnica pokaże, ile dały miarki i nowe ceny.
+
 ## Najczęstsze pytania
 
 ### Co to jest beverage cost?
