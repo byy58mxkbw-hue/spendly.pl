@@ -9,6 +9,7 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { TOOLS, renderToolPage, renderToolsIndex } from "./tools-pages.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -34,6 +35,7 @@ const STATIC_URLS = [
   // Indeks bloga zmienia się realnie przy każdym nowym artykule — datę bierzemy
   // z najnowszego wpisu, więc jest prawdziwa bez ręcznego pilnowania.
   { loc: "/blog", changefreq: "weekly", priority: "0.7", lastmod: null },
+  { loc: "/kalkulatory", changefreq: "monthly", priority: "0.8", lastmod: "2026-10-05" },
   { loc: "/regulamin", changefreq: "yearly", priority: "0.3", lastmod: "2026-07-04" },
   { loc: "/polityka-prywatnosci", changefreq: "yearly", priority: "0.3", lastmod: "2026-08-28" },
 ];
@@ -236,6 +238,13 @@ function relatedFor(post, posts, n = 4) {
     .map((x) => x.p);
 }
 
+// Artykuł → kalkulator (linkowanie wewnętrzne w obie strony).
+function toolBox(slug) {
+  const t = TOOLS.find((x) => x.article === slug);
+  if (!t) return "";
+  return `<a class="toolbox" href="/kalkulatory/${t.slug}"><span class="tb-k">Darmowe narzędzie</span><span class="tb-t">${esc(t.h1)}: policz od razu na swoich liczbach →</span></a>`;
+}
+
 function plDate(iso) {
   try {
     return new Date(iso).toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
@@ -355,6 +364,10 @@ const STYLE = `
       footer.ft .col a{display:block;font-size:13px;color:#8A7C63;text-decoration:none;margin-bottom:8px}
       footer.ft .bottom{padding-top:20px;border-top:1px solid #E2D8C6;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:center;font-size:12px;color:#8A7C63}
       footer.ft .bottom a{color:#8A7C63;text-decoration:none}
+      .toolbox{display:block;margin:18px 0 0;padding:14px 18px;border:1px solid #E2D8C6;border-left:3px solid #A8431F;border-radius:4px;background:#FBF7EF;text-decoration:none}
+      .toolbox:hover{border-color:rgba(168,67,31,0.45)}
+      .toolbox .tb-k{display:block;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#A8431F;margin-bottom:2px}
+      .toolbox .tb-t{color:#211B12;font-weight:600;font-size:15px}
       .toc{background:#FBF7EF;border:1px solid #E2D8C6;border-radius:4px;padding:16px 20px;margin:20px 0 8px}
       .toc-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#8A7C63;margin:0 0 8px}
       .toc ol{margin:0;padding-left:20px;font-size:14px;line-height:1.7}
@@ -402,6 +415,7 @@ const nav = () => `
       <a class="brand" href="/" aria-label="Spendly" style="display:inline-flex;line-height:0;">${wordmarkSvg(20)}</a>
       <nav class="nav-links" aria-label="Nawigacja główna">
         <a href="/blog">Blog</a>
+        <a class="hide-sm" href="/kalkulatory">Kalkulatory</a>
         <a class="hide-sm" href="/ksef">KSeF</a>
         <a class="hide-sm" href="/food-cost">Food cost</a>
         <a class="hide-sm" href="/cennik">Cennik</a>
@@ -425,6 +439,7 @@ const footer = () => `
         <nav class="col" aria-label="Zasoby">
           <p class="h">Zasoby</p>
           <a href="/blog">Blog</a>
+          <a href="/kalkulatory">Kalkulatory</a>
           <a href="/cennik">Cennik</a>
           <a href="/sign-up">Rejestracja</a>
           <a href="mailto:kontakt@spendly.pl">Kontakt</a>
@@ -539,6 +554,7 @@ ${nav()}
         <h1>${esc(post.meta.h1 || post.meta.title)}</h1>
         <div class="post-meta"><span>${esc(author.name)}</span><span>${plDate(post.meta.date)}</span>${updated ? `<span>zaktualizowano ${plDate(updated)}</span>` : ""}<span>${rt} min czytania</span></div>
         ${post.meta.lead ? `<p class="lead">${inline(post.meta.lead)}</p>` : ""}
+        ${toolBox(post.slug)}
         ${tocHtml(post.body)}
         <div class="post-body">
 ${bodyHtml}
@@ -672,6 +688,7 @@ function writeSitemap(posts, cats = []) {
     .pop();
   const urls = [
     ...STATIC_URLS.map((u) => ({ ...u, lastmod: u.lastmod ?? newestPost ?? today })),
+    ...TOOLS.map((t) => ({ loc: `/kalkulatory/${t.slug}`, changefreq: "monthly", priority: "0.8", lastmod: "2026-10-05" })),
     ...cats.map(([c, list]) => ({
       loc: `/blog/kategoria/${slugify(c)}`,
       changefreq: "weekly",
@@ -729,6 +746,12 @@ function main() {
   for (const [c, list] of cats) {
     writeFileSync(path.join(catDir, `${slugify(c)}.html`), renderIndex(list, { allPosts: posts, category: c }), "utf8");
   }
+  // Kalkulatory: public/kalkulatory.html (indeks) + public/kalkulatory/<slug>.html.
+  const toolHelpers = { SITE, HEAD_COMMON, STYLE, nav, footer, mdToHtml, esc, escAttr, jsonLd, extractFaq };
+  const toolDir = path.join(ROOT, "public", "kalkulatory");
+  mkdirSync(toolDir, { recursive: true });
+  for (const t of TOOLS) writeFileSync(path.join(toolDir, `${t.slug}.html`), renderToolPage(t, toolHelpers), "utf8");
+  writeFileSync(path.join(ROOT, "public", "kalkulatory.html"), renderToolsIndex(toolHelpers), "utf8");
   writeSitemap(posts, cats);
 
   console.log(`[blog] wygenerowano ${posts.length} artykuł(ów) + index + sitemap.`);
