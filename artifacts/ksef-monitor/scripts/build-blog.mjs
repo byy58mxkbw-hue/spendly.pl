@@ -44,7 +44,11 @@ const escAttr = (s) => esc(s).replace(/"/g, "&quot;");
 // JSON-LD: unikamy </script> breakout i domykamy encje
 const jsonLd = (obj) => JSON.stringify(obj, null, 2).replace(/</g, "\\u003c");
 
-function parseFrontmatter(raw) {
+function parseFrontmatter(rawIn) {
+  // Windows (git autocrlf) daje CRLF. Bez normalizacji `(.*)$` nie łapie `\r`
+  // i żadne pole front matter się nie wczytuje — build na Windowsie gubił
+  // tytuły, opisy i daty wszystkich artykułów (2026-10-05).
+  const raw = rawIn.replace(/\r\n/g, "\n");
   const m = raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
   if (!m) return { meta: {}, body: raw };
   const meta = {};
