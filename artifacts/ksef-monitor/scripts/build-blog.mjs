@@ -6,7 +6,7 @@
 // Uruchomienie: `node scripts/build-blog.mjs` (odpala się też automatycznie w `build`).
 // Edycja artykułu = edytuj .md i przebuduj.
 
-import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { TOOLS, renderToolPage, renderToolsIndex } from "./tools-pages.mjs";
@@ -742,6 +742,9 @@ function main() {
   // Strony kategorii: public/blog/kategoria/<slug>.html (sirv serwuje /blog/kategoria/<slug>).
   const catDir = path.join(OUT_DIR, "kategoria");
   mkdirSync(catDir, { recursive: true });
+  // Usuń strony kategorii, których już nie ma (np. po zmianie nazwy kategorii) —
+  // inaczej zostają w public/ i trafiają do builda jako osierocone strony.
+  for (const f of readdirSync(catDir)) if (f.endsWith(".html")) rmSync(path.join(catDir, f));
   const cats = categoriesOf(posts);
   for (const [c, list] of cats) {
     writeFileSync(path.join(catDir, `${slugify(c)}.html`), renderIndex(list, { allPosts: posts, category: c }), "utf8");
