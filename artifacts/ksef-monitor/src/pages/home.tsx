@@ -232,8 +232,8 @@ export default function Home() {
       <section className="blk wrap" id="jak-to-dziala">
         <div className="sec-head">
           <div className="sec-eye">Jak to działa</div>
-          <h2>Od faktury do decyzji w trzy minuty</h2>
-          <p>Nie musisz niczego przepisywać ani liczyć w Excelu. Spendly robi to w tle, a Ty dostajesz gotową informację.</p>
+          <h2>Od KSeF do uporządkowanych kosztów w kilka minut</h2>
+          <p>Podłączasz KSeF raz. Faktury, produkty i ceny układają się same, a Ty od razu widzisz, co drożeje.</p>
         </div>
         <HowItWorksPhone />
       </section>

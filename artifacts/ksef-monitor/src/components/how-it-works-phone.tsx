@@ -1,27 +1,42 @@
-import { Receipt, TrendingUp, Calculator, Check, BellRing } from "@/lib/icons";
+import { RefreshCw, Package, Receipt } from "@/lib/icons";
 
-// „Jak to działa” na stronie głównej — telefon z trzema ekranami, które zmieniają
-// się co 4 s, i trzy kroki obok podświetlane w tym samym rytmie (wzór: hero inFaktu).
+// „Jak to działa” na stronie głównej — telefon z trzema ekranami aplikacji, które
+// zmieniają się co 4 s, i trzy kroki obok podświetlane w tym samym rytmie (wzór:
+// hero inFaktu). Ekrany: synchronizacja KSeF → Produkty → Faktury (decyzja usera
+// 2026-10-05: pokazujemy realne ekrany aplikacji, nie food cost).
 // Czysty CSS (landing.css → .hiw-*), zero JS. Przy prefers-reduced-motion telefon
-// pokazuje statycznie ekran alertu, a kroki są widoczne wszystkie naraz.
-// Liczby są spójne z makietą dashboardu w hero (Masło extra 82%, Makro, +18,2%).
+// pokazuje statycznie ekran Produktów, a kroki są widoczne wszystkie naraz.
 
 const STEPS = [
   {
+    Icon: RefreshCw,
+    h: "Synchronizacja z KSeF",
+    p: "Podajesz NIP i token, a Spendly sam pobiera faktury zakupowe od wszystkich dostawców. Bez skanowania i przepisywania.",
+  },
+  {
+    Icon: Package,
+    h: "Produkty z aktualnymi cenami",
+    p: "Każda pozycja z faktury trafia do listy produktów. Widzisz ostatnią cenę, dostawcę i to, o ile cena zmieniła się od poprzedniej dostawy.",
+  },
+  {
     Icon: Receipt,
-    h: "Faktura wpada sama z KSeF",
-    p: "Spendly pobiera faktury zakupowe dla Twojego NIP-u. Bez skanowania i przepisywania pozycji.",
+    h: "Wszystkie faktury w jednym miejscu",
+    p: "Faktury z KSeF i ze zdjęć są uporządkowane po dniach i dostawcach, z kwotami i terminami płatności.",
   },
-  {
-    Icon: TrendingUp,
-    h: "Wyłapujemy podwyżkę od razu",
-    p: "Każda cena jest porównywana z poprzednią dostawą. Gdy surowiec drożeje, dostajesz alert jeszcze tego samego dnia.",
-  },
-  {
-    Icon: Calculator,
-    h: "Widzisz, ile tracisz na daniu",
-    p: "Food cost dań z tym surowcem przelicza się sam, więc wiesz, którą cenę w karcie poprawić albo z kim negocjować.",
-  },
+];
+
+const PRODUCTS = [
+  { n: "Masło extra 82%", s: "Makro · 1 kg", p: "31,80 zł", d: "+18,2%", up: true },
+  { n: "Karkówka wieprzowa", s: "Bidfood · 1 kg", p: "21,40 zł", d: "+9,7%", up: true },
+  { n: "Pomidory malinowe", s: "Makro · 1 kg", p: "12,90 zł", d: "−6,3%", up: false },
+  { n: "Mąka pszenna typ 450", s: "Chefs Culinar · 1 kg", p: "3,10 zł", d: "0,0%", up: null },
+];
+
+const INVOICES = [
+  { n: "Makro Cash and Carry", s: "FV/10/1482 · dziś", p: "4 812,40 zł" },
+  { n: "Bidfood Farutex", s: "FS/2026/8841 · dziś", p: "2 106,15 zł" },
+  { n: "Chefs Culinar", s: "302536583 · wczoraj", p: "1 446,78 zł" },
+  { n: "Hurtownia Warzyw Jan", s: "12/10/2026 · wczoraj", p: "684,00 zł" },
 ];
 
 export function HowItWorksPhone() {
@@ -30,50 +45,52 @@ export function HowItWorksPhone() {
       <div className="hiw-phone" aria-hidden="true">
         <div className="hiw-notch" />
         <div className="hiw-screen">
-          {/* Ekran 1 — faktura z KSeF */}
+          {/* Ekran 1 — synchronizacja z KSeF */}
           <div className="hiw-scr s1">
-            <div className="hiw-status"><span>06:02</span><span>KSeF</span></div>
-            <div className="hiw-ok"><Check /></div>
-            <p className="hiw-t">Nowa faktura z KSeF</p>
-            <p className="hiw-s">pobrana automatycznie</p>
+            <div className="hiw-status"><span>06:00</span><span>KSeF</span></div>
+            <div className="hiw-ok spin"><RefreshCw /></div>
+            <p className="hiw-t">Synchronizacja z KSeF</p>
+            <p className="hiw-s">NIP 526-***-**-95 · pobieranie faktur</p>
+            <div className="hiw-bar"><i className="grow" /></div>
             <div className="hiw-card">
-              <div className="hiw-row"><span>Dostawca</span><b>Makro</b></div>
-              <div className="hiw-row"><span>Numer</span><b className="num">FV/10/1482</b></div>
-              <div className="hiw-row"><span>Pozycje</span><b className="num">23</b></div>
-              <div className="hiw-row tot"><span>Razem brutto</span><b className="num">4 812,40 zł</b></div>
+              <div className="hiw-row"><span>Nowe faktury</span><b className="num">23</b></div>
+              <div className="hiw-row"><span>Dostawcy</span><b className="num">8</b></div>
+              <div className="hiw-row"><span>Pozycje</span><b className="num">412</b></div>
+              <div className="hiw-row tot ok"><span>Status</span><b>gotowe</b></div>
             </div>
+            <p className="hiw-note">Kolejna synchronizacja automatycznie</p>
           </div>
 
-          {/* Ekran 2 — alert o podwyżce */}
+          {/* Ekran 2 — produkty */}
           <div className="hiw-scr s2">
-            <div className="hiw-status"><span>06:03</span><span>Alert</span></div>
-            <div className="hiw-ok warn"><BellRing /></div>
-            <p className="hiw-t">Podwyżka u dostawcy</p>
-            <p className="hiw-s">Masło extra 82%, 1 kg · Makro</p>
-            <div className="hiw-card">
-              <div className="hiw-row"><span>Poprzednio</span><b className="num">26,90 zł</b></div>
-              <div className="hiw-row"><span>Teraz</span><b className="num">31,80 zł</b></div>
-              <div className="hiw-row tot bad"><span>Zmiana</span><b className="num">+18,2%</b></div>
+            <div className="hiw-status"><span>06:01</span><span>Produkty</span></div>
+            <p className="hiw-h">Produkty</p>
+            <div className="hiw-list">
+              {PRODUCTS.map((x) => (
+                <div className="hiw-li" key={x.n}>
+                  <div className="hiw-li-l"><b>{x.n}</b><span>{x.s}</span></div>
+                  <div className="hiw-li-r">
+                    <b className="num">{x.p}</b>
+                    <span className={`num ${x.up === true ? "bad" : x.up === false ? "good" : ""}`}>{x.d}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-            <p className="hiw-note">Surowiec występuje w 4 daniach</p>
           </div>
 
-          {/* Ekran 3 — food cost dania */}
+          {/* Ekran 3 — faktury */}
           <div className="hiw-scr s3">
-            <div className="hiw-status"><span>06:03</span><span>Food cost</span></div>
-            <p className="hiw-t">Pierogi ruskie na maśle</p>
-            <p className="hiw-s">cena w karcie 32 zł</p>
-            <div className="hiw-fc">
-              <div><span>było</span><b className="num">29,8%</b></div>
-              <div className="arrow">→</div>
-              <div><span>teraz</span><b className="num bad">32,6%</b></div>
+            <div className="hiw-status"><span>06:01</span><span>Faktury</span></div>
+            <p className="hiw-h">Faktury</p>
+            <div className="hiw-sum"><span>Październik</span><b className="num">48 216,90 zł</b></div>
+            <div className="hiw-list">
+              {INVOICES.map((x) => (
+                <div className="hiw-li" key={x.s}>
+                  <div className="hiw-li-l"><b>{x.n}</b><span>{x.s}</span></div>
+                  <div className="hiw-li-r"><b className="num">{x.p}</b><span className="tag">KSeF</span></div>
+                </div>
+              ))}
             </div>
-            <div className="hiw-bar"><i style={{ width: "54%" }} /></div>
-            <div className="hiw-card">
-              <div className="hiw-row"><span>Koszt porcji</span><b className="num">+0,83 zł</b></div>
-              <div className="hiw-row"><span>Miesięcznie</span><b className="num">≈ −330 zł marży</b></div>
-            </div>
-            <p className="hiw-note">Sprawdź tańszego dostawcę albo cenę w karcie</p>
           </div>
         </div>
       </div>
