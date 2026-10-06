@@ -570,7 +570,7 @@ ${bodyHtml}
         ${authorHtml}
       </article>
       <div class="cta-box"><div class="cta-inner">
-        <h2>Policz food cost automatycznie z Spendly</h2>
+        <h2>Policz food cost automatycznie ze Spendly</h2>
         <p>Faktury z KSeF, OCR paragonów i alerty cenowe w jednym miejscu. Okres testowy — bezpłatnie.</p>
         <a class="btn" href="/sign-up">Rozpocznij za darmo</a>
       </div></div>

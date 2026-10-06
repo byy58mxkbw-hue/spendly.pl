@@ -1,7 +1,8 @@
 ---
 slug: jak-liczyc-food-cost
-title: Jak liczyć food cost w restauracji — wzór, przykłady i błędy
-description: Jak liczyć food cost w restauracji: wzór procentowy i talerzowy, przykład obliczeń krok po kroku oraz najczęstsze błędy zawyżające koszty.
+title: Jak obliczyć food cost — wzór i przykład
+h1: Jak obliczyć food cost w restauracji — wzór, przykłady i błędy
+description: Jak obliczyć food cost: wzór dla dania i całej restauracji, przykład burgera krok po kroku, normy 28–35% i darmowy kalkulator food cost.
 date: 2026-07-14
 updated: 2026-10-05
 category: Food cost
@@ -14,6 +15,14 @@ lead: Food cost to najważniejszy wskaźnik rentowności w gastronomii. Pokazuje
 Food cost to udział kosztu surowców w przychodach ze sprzedaży. Mówiąc prościej: ile z każdej złotówki utargu wraca do dostawców za produkty. Jeśli sprzedajesz danie za 40 zł, a składniki kosztują 12 zł, food cost tego dania wynosi 30%.
 
 To jeden wskaźnik, który natychmiast mówi Ci, czy restauracja zarabia, czy tylko się kręci. Zbyt wysoki food cost oznacza, że marża topnieje — nawet przy pełnej sali.
+
+## Jak obliczyć food cost w 3 krokach
+
+1. **Policz koszt składników porcji netto.** Zsumuj gramaturę każdego składnika razy cenę zakupu bez VAT z ostatniej faktury.
+2. **Sprowadź cenę dania do netto.** Cenę z karty podziel przez 1,08, bo jedzenie ma zwykle VAT 8%.
+3. **Podziel koszt przez cenę netto i pomnóż przez 100.** Wynik to food cost dania w procentach.
+
+Przykład: składniki kosztują 12 zł, danie kosztuje w karcie 43,20 zł, czyli 40 zł netto. Food cost = 12 / 40 × 100 = **30%**. Te same liczby możesz od razu wpisać w [kalkulator food cost](/kalkulatory/kalkulator-food-cost).
 
 ## Wzór na food cost
 
@@ -61,8 +70,8 @@ Koszt składników = **11,46 zł**. Food cost = 11,46 / 36,11 × 100 = **31,7%**
 <desc id="fcDesc">Cena netto dania to 100 procent. Około 32 procent stanowi koszt składników (food cost), a pozostałe 68 procent to marża brutto na pokrycie kosztów pracy, najmu i zysku.</desc>
 <text x="0" y="20" fill="#8A7C63" font-family="sans-serif" font-size="13">Cena netto dania = 100%</text>
 <rect x="0" y="34" width="179" height="42" rx="6" fill="#E06A3C"/>
-<rect x="183" y="34" width="377" height="42" rx="6" fill="#2a3542"/>
-<text x="12" y="61" fill="#06231a" font-family="sans-serif" font-size="14" font-weight="700">Food cost ~32%</text>
+<rect x="183" y="34" width="377" height="42" rx="6" fill="#211B12"/>
+<text x="12" y="61" fill="#211B12" font-family="sans-serif" font-size="14" font-weight="700">Food cost ~32%</text>
 <text x="197" y="61" fill="#F0E9DB" font-family="sans-serif" font-size="14" font-weight="700">Marża ~68%</text>
 <text x="0" y="100" fill="#8A7C63" font-family="sans-serif" font-size="12">Koszt składników</text>
 <text x="183" y="100" fill="#8A7C63" font-family="sans-serif" font-size="12">Na pracę, najem, media i zysk</text>
@@ -70,7 +79,11 @@ Koszt składników = **11,46 zł**. Food cost = 11,46 / 36,11 × 100 = **31,7%**
 <figcaption>Food cost to udział kosztu składników w cenie netto dania — im niższy, tym więcej zostaje na resztę kosztów i zysk.</figcaption>
 </figure>
 
-To zdrowy wynik dla burgera. Gdyby wołowina podrożała o 20% (do 40,80 zł/kg), koszt porcji mięsa rośnie do 6,12 zł, a food cost całego dania skacze do **34,5%** — i nikt tego nie zauważy, dopóki nie policzy.
+To zdrowy wynik dla burgera. Gdyby wołowina podrożała o 20% (do 40,80 zł/kg), koszt porcji mięsa rośnie do 6,12 zł, a food cost całego dania skacze do **34,6%** — i nikt tego nie zauważy, dopóki nie policzy.
+
+## Ile powinien wynosić food cost
+
+Dla większości restauracji zdrowy food cost mieści się w przedziale **28–35%** przychodu netto z jedzenia. Pizzerie, kawiarnie i lokale z dużą sprzedażą zup czy makaronów schodzą niżej, a steakhouse'y i restauracje rybne bywają wyżej. Normy dla różnych typów lokali i sposób na wyliczenie własnego celu opisujemy w artykule [ile powinien wynosić food cost](/blog/ile-powinien-wynosic-food-cost).
 
 ## Najczęstsze błędy przy liczeniu food cost
 
@@ -137,6 +150,14 @@ Pełny remanent raz w miesiącu wystarcza do rozliczenia, ale do reagowania jest
 | Food cost powyżej normy, różnica duża | Oba problemy naraz | Zacznij od strat, potem ceny |
 
 Pojedyncze danie szybko sprawdzisz w [kalkulatorze food cost](/kalkulatory/kalkulator-food-cost).
+
+## Jak obniżyć food cost — 5 sposobów
+
+1. **Trzymaj gramatury.** Spisz receptury w [karcie technologicznej dania](/blog/karta-technologiczna-dania) i porcjuj na wadze, a nie na oko.
+2. **Pilnuj cen u dostawców.** [Monitorowanie cen surowców](/blog/monitorowanie-cen-surowcow) wyłapuje podwyżki, zanim zjedzą marżę.
+3. **Negocjuj z danymi w ręku.** Historia cen z faktur to najlepszy argument w [negocjacjach z dostawcami](/blog/jak-negocjowac-ceny-z-dostawcami).
+4. **Ogranicz straty.** Kontrola zużycia i [mniej marnotrawstwa](/blog/food-waste-w-restauracji) obniżają food cost rzeczywisty bez ruszania karty.
+5. **Popraw kartę.** [Menu engineering](/blog/menu-engineering-restauracja) pokazuje, które dania podnieść cenowo, a które usunąć.
 
 ## Najczęstsze pytania
 
