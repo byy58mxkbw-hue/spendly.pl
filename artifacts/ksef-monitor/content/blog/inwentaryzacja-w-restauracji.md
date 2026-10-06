@@ -11,7 +11,7 @@ lead: Bez inwentaryzacji food cost jest tylko szacunkiem. Regularny remanent pok
 
 ## Po co robić inwentaryzację
 
-Inwentaryzacja (remanent) to policzenie fizycznego stanu magazynu: ile faktycznie masz surowców w danym momencie. Bez niej nie policzysz **realnego zużycia**, a więc i realnego [food cost](/blog/jak-liczyc-food-cost). Recepturowy food cost mówi, ile *powinno* się zużyć; inwentaryzacja mówi, ile zużyło się *naprawdę*. Różnica między nimi to straty, marnotrawstwo albo błędy — i to najcenniejsza informacja.
+Inwentaryzacja (remanent) to policzenie fizycznego stanu magazynu: ile faktycznie masz surowców w danym momencie. Bez niej nie policzysz **realnego zużycia**, a więc i realnego food costu ([wzór na food cost](/blog/jak-liczyc-food-cost) rozpisujemy w osobnym artykule). Recepturowy food cost mówi, ile *powinno* się zużyć; inwentaryzacja mówi, ile zużyło się *naprawdę*. Różnica między nimi to straty, marnotrawstwo albo błędy — i to najcenniejsza informacja.
 
 ## Wzór, który spina wszystko
 

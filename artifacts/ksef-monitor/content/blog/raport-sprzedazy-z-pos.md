@@ -89,7 +89,7 @@ Druga poprawka to liczba dni otwarcia. Wrzesień ma 30 dni, a październik 31. J
 
 ## Sprzedaż według kategorii
 
-Oprócz pojedynczych pozycji warto co miesiąc spojrzeć na udział kategorii: dań głównych, zup, deserów, napojów i alkoholu. Zmiana struktury mówi więcej niż zmiana pojedynczego dania. Rosnący udział napojów zwykle poprawia marżę całego lokalu, bo bar ma niższy koszt surowca niż kuchnia ([beverage cost](/blog/beverage-cost-restauracja)). Spadający udział dań głównych przy rosnącym udziale przekąsek może z kolei oznaczać, że goście oszczędzają.
+Oprócz pojedynczych pozycji warto co miesiąc spojrzeć na udział kategorii: dań głównych, zup, deserów, napojów i alkoholu. Zmiana struktury mówi więcej niż zmiana pojedynczego dania. Rosnący udział napojów zwykle poprawia marżę całego lokalu, bo bar ma niższy koszt surowca niż kuchnia (więcej w artykule [czym jest beverage cost](/blog/beverage-cost-restauracja)). Spadający udział dań głównych przy rosnącym udziale przekąsek może z kolei oznaczać, że goście oszczędzają.
 
 ## Sezonowość: porównuj rok do roku
 

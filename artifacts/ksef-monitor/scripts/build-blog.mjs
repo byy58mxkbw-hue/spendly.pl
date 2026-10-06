@@ -318,7 +318,7 @@ const STYLE = `
       .nav-cta{padding:7px 16px;border-radius:3px;font-size:13px;font-weight:600;background:#A8431F;color:#FFFFFF !important;text-decoration:none}
       @media(max-width:720px){.nav-links .hide-sm{display:none}}
       main{display:block}
-      .crumbs{font-size:12px;color:rgba(33,27,18,.60);padding:20px 0 0}
+      .crumbs{font-size:12px;color:rgba(33,27,18,.60);padding-top:20px}
       .crumbs a{color:#8A7C63;text-decoration:none}
       article.post{max-width:760px;margin:0 auto;padding:8px 24px 40px}
       article.post h1{font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(1.9rem,4.5vw,2.9rem);font-weight:600;letter-spacing:0;line-height:1.12;margin:20px 0 14px;color:#211B12}
@@ -386,6 +386,13 @@ const STYLE = `
       .cats{max-width:1200px;margin:0 auto;padding:0 24px;display:flex;flex-wrap:wrap;gap:8px}
       .cats a{font-size:13px;color:#211B12;text-decoration:none;border:1px solid #E2D8C6;border-radius:3px;padding:6px 12px;background:#FBF7EF}
       .cats a.on,.cats a:hover{border-color:#A8431F;color:#A8431F}
+      .start{max-width:1200px;margin:0 auto;padding:8px 24px 28px}
+      .start .k{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#A8431F;margin:0 0 10px}
+      .start ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1px;background:#E2D8C6;border:1px solid #E2D8C6}
+      .start li{background:#FBF7EF;padding:14px 16px}
+      .start a{font-weight:600;color:#211B12;text-decoration:none}
+      .start a:hover{color:#A8431F}
+      .start span{display:block;font-size:13px;color:#8A7C63;margin-top:4px;line-height:1.5}
       /* Blog index */
       .hero{max-width:1200px;margin:0 auto;padding:64px 24px 32px}
       .hero h1{font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(2rem,5vw,3rem);font-weight:600;letter-spacing:0;margin:0 0 14px;color:#211B12}
@@ -591,6 +598,21 @@ const catsHtml = (posts, active) =>
     .map(([c, list]) => `<a href="/blog/kategoria/${slugify(c)}"${active === c ? ' class="on"' : ""}>${esc(c)} (${list.length})</a>`)
     .join("")}</nav>`;
 
+// Blok „Zacznij tutaj" na indeksie bloga. Anchory to DOKŁADNE frazy z Search
+// Console (2026-10-06): na „jak obliczyć food cost", „czym jest beverage cost"
+// itd. Google pokazywał indeks /blog zamiast artykułów — linki z frazą mówią mu,
+// która strona jest odpowiedzią. Zmieniasz anchor → sprawdź frazę w GSC.
+const START_HERE = [
+  ["/blog/jak-liczyc-food-cost", "Jak obliczyć food cost", "Wzór na food cost, przykład dania krok po kroku i najczęstsze błędy."],
+  ["/blog/ile-powinien-wynosic-food-cost", "Ile powinien wynosić food cost", "Normy dla restauracji, pizzerii, kawiarni i barów."],
+  ["/kalkulatory/kalkulator-food-cost", "Kalkulator food cost", "Policz food cost dania online, za darmo i bez rejestracji."],
+  ["/blog/beverage-cost-restauracja", "Czym jest beverage cost", "Koszt napojów i alkoholu: wzór i normy dla baru."],
+  ["/blog/marza-a-narzut-gastronomia", "Marża a narzut w gastronomii", "Różnica, wzory i przeliczanie jednego na drugie."],
+  ["/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy", "KSeF od kiedy obowiązkowy", "Terminy dla restauracji i co zmienia się w praktyce."],
+];
+const startHereHtml = () =>
+  `<section class="start" aria-label="Zacznij tutaj"><p class="k">Zacznij tutaj</p><ul>${START_HERE.map(([href, t, d]) => `<li><a href="${href}">${esc(t)}</a><span>${esc(d)}</span></li>`).join("")}</ul></section>`;
+
 function renderIndex(posts, opts = {}) {
   const allPosts = opts.allPosts || posts;
   const category = opts.category || null;
@@ -667,6 +689,7 @@ ${nav()}
         <h1>${category ? esc(category) : "Blog Spendly"}</h1>
         <p>${category ? `Poradniki z kategorii ${esc(category)}.` : "Praktyczna wiedza o food cost, kontroli kosztów restauracji, KSeF i automatyzacji faktur. Piszę z perspektywy właściciela restauracji i sali weselnej."}</p>
       </section>
+      ${category ? "" : startHereHtml()}
       ${catsHtml(allPosts, category)}
       <section class="posts">${cards}
       </section>

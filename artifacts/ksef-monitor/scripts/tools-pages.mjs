@@ -32,6 +32,8 @@ export const TOOLS = [
     lead: "Wpisz koszt składników porcji i cenę dania z karty. Kalkulator sprowadzi cenę do netto, policzy food cost i marżę oraz podpowie cenę dla docelowego food costu.",
     keywords: "kalkulator food cost, jak obliczyć food cost, food cost dania, food cost kalkulator online",
     article: "jak-liczyc-food-cost",
+    // Anchor = fraza z Search Console, nie ogólnik (patrz START_HERE w build-blog).
+    articleAnchor: "jak obliczyć food cost",
     form: [
       field("cost", "Koszt składników porcji (netto)", "12,50", "zł", "Suma z receptury, z ceną zakupu bez VAT."),
       field("price", "Cena dania w karcie (brutto)", "42", "zł", ""),
@@ -90,6 +92,8 @@ Food cost lokalu = (stan początkowy + zakupy − stan końcowy) / przychód net
     lead: "Wpisz koszt i cenę sprzedaży netto, a policzymy marżę, narzut i zysk na sztuce. Niżej przeliczysz narzut na marżę i odwrotnie.",
     keywords: "kalkulator marży, kalkulator narzutu, marża a narzut, jak obliczyć marżę, przeliczanie narzutu na marżę",
     article: "marza-a-narzut-gastronomia",
+    // Anchor = fraza z Search Console, nie ogólnik (patrz START_HERE w build-blog).
+    articleAnchor: "marża a narzut w gastronomii",
     form: [
       field("cost", "Koszt (netto)", "10", "zł", ""),
       field("price", "Cena sprzedaży (netto)", "30", "zł", ""),
@@ -141,6 +145,8 @@ To zależy od docelowego food costu. Przy food coście 30% narzut na składniki 
     lead: "Wpisz cenę butelki, jej pojemność i wielkość porcji. Kalkulator policzy koszt porcji z uwzględnieniem strat i beverage cost przy Twojej cenie.",
     keywords: "kalkulator beverage cost, beverage cost, koszt drinka, koszt porcji alkoholu, jak liczyć beverage cost",
     article: "beverage-cost-restauracja",
+    // Anchor = fraza z Search Console, nie ogólnik (patrz START_HERE w build-blog).
+    articleAnchor: "czym jest beverage cost",
     form: [
       field("bottle", "Cena butelki (netto)", "62", "zł", ""),
       field("vol", "Pojemność butelki", "700", "ml", ""),
@@ -196,6 +202,8 @@ Koszt zużytych napojów (stan początkowy + zakupy − stan końcowy) dzielisz 
     lead: "Wpisz miesięczne koszty stałe i udział kosztów zmiennych w sprzedaży. Kalkulator pokaże, ile musisz sprzedać, żeby wyjść na zero, w skali miesiąca i dnia.",
     keywords: "próg rentowności restauracji, kalkulator progu rentowności, ile musi zarobić restauracja, koszty stałe i zmienne restauracja",
     article: "koszty-stale-i-zmienne-w-restauracji",
+    // Anchor = fraza z Search Console, nie ogólnik (patrz START_HERE w build-blog).
+    articleAnchor: "koszty stałe i zmienne w restauracji",
     form: [
       field("fixed", "Koszty stałe miesięcznie", "48000", "zł", "Czynsz, stałe pensje, media, leasingi, księgowość."),
       field("var", "Koszty zmienne", "42", "% sprzedaży", "Surowce, opakowania, prowizje."),
@@ -244,6 +252,8 @@ Tak. VAT ze sprzedaży oddajesz do urzędu, więc porównuj próg ze sprzedażą
 export const TOOL_STYLE = `
       .calc{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin:24px 0 8px}
       @media(max-width:720px){.calc{grid-template-columns:1fr}}
+      .calc-more{font-size:14px;color:#8A7C63;margin:6px 0 0}
+      .calc-more a{color:#A8431F;font-weight:600}
       .calc .box{background:#FBF7EF;border:1px solid #E2D8C6;border-radius:4px;padding:20px}
       .calc .f{display:block;margin:0 0 14px}
       .calc .fl{display:block;font-size:13px;font-weight:600;color:#211B12;margin-bottom:6px}
@@ -326,7 +336,8 @@ ${h.nav()}
             <p class="rh">Wynik</p>
             ${tool.results}
           </div>
-        </form>
+        </form>${tool.article ? `
+        <p class="calc-more">Wzór i przykład krok po kroku: <a href="/blog/${tool.article}">${h.esc(tool.articleAnchor || tool.h1)}</a>.</p>` : ""}
         <div class="post-body">
 ${h.mdToHtml(tool.body)}
         </div>

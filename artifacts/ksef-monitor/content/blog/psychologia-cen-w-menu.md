@@ -13,7 +13,7 @@ lead: Ta sama cena może wyglądać drogo albo rozsądnie — zależnie od tego,
 
 Gość rzadko liczy. Zamiast tego **porównuje i czuje**. To, czy danie wyda mu się drogie, zależy nie tylko od kwoty, ale od kontekstu: sąsiednich pozycji, sposobu zapisu ceny i miejsca w karcie. Dobra karta nie oszukuje — po prostu **kieruje uwagę** tam, gdzie masz najlepszą marżę.
 
-Zanim zaczniesz bawić się prezentacją, musisz wiedzieć, które dania faktycznie zarabiają — czyli policzyć [food cost](/blog/jak-liczyc-food-cost) i [marżę](/blog/marza-a-narzut-gastronomia) każdej pozycji.
+Zanim zaczniesz bawić się prezentacją, musisz wiedzieć, które dania faktycznie zarabiają — czyli policzyć food cost i [marżę](/blog/marza-a-narzut-gastronomia) każdej pozycji. Jeśli jeszcze tego nie robisz, zacznij od tego, [jak obliczyć food cost](/blog/jak-liczyc-food-cost) jednego dania.
 
 ## Techniki, które działają
 

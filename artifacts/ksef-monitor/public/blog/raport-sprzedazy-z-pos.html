@@ -179,7 +179,7 @@
       .nav-cta{padding:7px 16px;border-radius:3px;font-size:13px;font-weight:600;background:#A8431F;color:#FFFFFF !important;text-decoration:none}
       @media(max-width:720px){.nav-links .hide-sm{display:none}}
       main{display:block}
-      .crumbs{font-size:12px;color:rgba(33,27,18,.60);padding:20px 0 0}
+      .crumbs{font-size:12px;color:rgba(33,27,18,.60);padding-top:20px}
       .crumbs a{color:#8A7C63;text-decoration:none}
       article.post{max-width:760px;margin:0 auto;padding:8px 24px 40px}
       article.post h1{font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(1.9rem,4.5vw,2.9rem);font-weight:600;letter-spacing:0;line-height:1.12;margin:20px 0 14px;color:#211B12}
@@ -247,6 +247,13 @@
       .cats{max-width:1200px;margin:0 auto;padding:0 24px;display:flex;flex-wrap:wrap;gap:8px}
       .cats a{font-size:13px;color:#211B12;text-decoration:none;border:1px solid #E2D8C6;border-radius:3px;padding:6px 12px;background:#FBF7EF}
       .cats a.on,.cats a:hover{border-color:#A8431F;color:#A8431F}
+      .start{max-width:1200px;margin:0 auto;padding:8px 24px 28px}
+      .start .k{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#A8431F;margin:0 0 10px}
+      .start ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1px;background:#E2D8C6;border:1px solid #E2D8C6}
+      .start li{background:#FBF7EF;padding:14px 16px}
+      .start a{font-weight:600;color:#211B12;text-decoration:none}
+      .start a:hover{color:#A8431F}
+      .start span{display:block;font-size:13px;color:#8A7C63;margin-top:4px;line-height:1.5}
       /* Blog index */
       .hero{max-width:1200px;margin:0 auto;padding:64px 24px 32px}
       .hero h1{font-family:'Baloo 2 Variable',system-ui,sans-serif;font-size:clamp(2rem,5vw,3rem);font-weight:600;letter-spacing:0;margin:0 0 14px;color:#211B12}
@@ -277,7 +284,7 @@
       <div class="wrap crumbs"><a href="/">Strona główna</a> › <a href="/blog">Blog</a> › <a href="/blog/kategoria/operacje">Operacje</a> › Jak czytać raport sprzedaży z POS — na co patrzeć co miesiąc</div>
       <article class="post">
         <h1>Jak czytać raport sprzedaży z POS — na co patrzeć co miesiąc</h1>
-        <div class="post-meta"><span>Patryk</span><span>4 września 2026</span><span>zaktualizowano 5 października 2026</span><span>6 min czytania</span></div>
+        <div class="post-meta"><span>Patryk</span><span>4 września 2026</span><span>zaktualizowano 5 października 2026</span><span>7 min czytania</span></div>
         <p class="lead">Większość raportów z POS kończy się na liście „ile czego sprzedano". To dopiero materiał. Wnioski zaczynają się tam, gdzie zestawisz sprzedaż z poprzednim miesiącem i z kosztem surowca.</p>
         
         <nav class="toc" aria-label="Spis treści"><p class="toc-h">Spis treści</p><ol><li><a href="#ilość-i-wartość-to-dwie-różne-historie">Ilość i wartość to dwie różne historie</a></li><li><a href="#cztery-liczby-na-comiesięczny-przegląd">Cztery liczby na comiesięczny przegląd</a></li><li><a href="#trzy-pułapki-w-porównaniu-miesiąc-do-miesiąca">Trzy pułapki w porównaniu miesiąc do miesiąca</a></li><li><a href="#gdzie-raport-z-pos-przestaje-wystarczać">Gdzie raport z POS przestaje wystarczać</a></li><li><a href="#rytm-ma-znaczenie">Rytm ma znaczenie</a></li><li><a href="#przykład-miesięcznego-przeglądu">Przykład miesięcznego przeglądu</a></li><li><a href="#średni-rachunek-i-sprzedaż-na-dzień">Średni rachunek i sprzedaż na dzień</a></li><li><a href="#sprzedaż-według-kategorii">Sprzedaż według kategorii</a></li><li><a href="#sezonowość-porównuj-rok-do-roku">Sezonowość: porównuj rok do roku</a></li><li><a href="#checklista-na-15-minut-w-miesiącu">Checklista na 15 minut w miesiącu</a></li><li><a href="#najczęstsze-pytania">Najczęstsze pytania</a></li></ol></nav>
@@ -315,7 +322,7 @@
 <p>Przy sprzedaży 186 000 zł i 4 650 paragonach średni rachunek wynosi 40 zł. Warto go oglądać osobno dla dni tygodnia i pór dnia, bo lunch w tygodniu i kolacja w sobotę to dwa różne biznesy.</p>
 <p>Druga poprawka to liczba dni otwarcia. Wrzesień ma 30 dni, a październik 31. Jeśli sprzedaż wzrosła ze 168 000 zł do 176 700 zł, to wzrost wynosi 5,2%. W przeliczeniu na dzień to jednak 5 600 zł wobec 5 700 zł, czyli tylko 1,8%. Większość wzrostu dał dodatkowy dzień w kalendarzu.</p>
 <h2 id="sprzedaż-według-kategorii">Sprzedaż według kategorii</h2>
-<p>Oprócz pojedynczych pozycji warto co miesiąc spojrzeć na udział kategorii: dań głównych, zup, deserów, napojów i alkoholu. Zmiana struktury mówi więcej niż zmiana pojedynczego dania. Rosnący udział napojów zwykle poprawia marżę całego lokalu, bo bar ma niższy koszt surowca niż kuchnia (<a href="/blog/beverage-cost-restauracja">beverage cost</a>). Spadający udział dań głównych przy rosnącym udziale przekąsek może z kolei oznaczać, że goście oszczędzają.</p>
+<p>Oprócz pojedynczych pozycji warto co miesiąc spojrzeć na udział kategorii: dań głównych, zup, deserów, napojów i alkoholu. Zmiana struktury mówi więcej niż zmiana pojedynczego dania. Rosnący udział napojów zwykle poprawia marżę całego lokalu, bo bar ma niższy koszt surowca niż kuchnia (więcej w artykule <a href="/blog/beverage-cost-restauracja">czym jest beverage cost</a>). Spadający udział dań głównych przy rosnącym udziale przekąsek może z kolei oznaczać, że goście oszczędzają.</p>
 <h2 id="sezonowość-porównuj-rok-do-roku">Sezonowość: porównuj rok do roku</h2>
 <p>Porównanie miesiąc do miesiąca zawsze miesza wynik z sezonem. Grudzień z imprezami firmowymi, lato z ogródkiem, styczeń po świętach. Najuczciwsze porównanie to ten sam miesiąc rok wcześniej, przeliczony na dzień otwarcia. Jeśli lokal działa krócej niż rok, porównuj tygodnie z tymi samymi dniami tygodnia i zapisuj wydarzenia, które zmieniały ruch, na przykład remont ulicy albo koncert w okolicy.</p>
 <h2 id="checklista-na-15-minut-w-miesiącu">Checklista na 15 minut w miesiącu</h2>

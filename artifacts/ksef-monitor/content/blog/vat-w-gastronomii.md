@@ -16,7 +16,7 @@ W restauracji VAT pojawia się w dwóch miejscach jednocześnie:
 - **na sprzedaży** — doliczasz go do ceny dania, którą widzi gość (cena w karcie to zawsze brutto),
 - **na zakupach** — płacisz go dostawcom, ale jako czynny podatnik VAT zwykle go **odliczasz**, więc realnym kosztem surowca jest kwota **netto**.
 
-Z tego wynika żelazna zasada kalkulacji: **koszty liczysz w netto, ceny sprzedaży podajesz w brutto**, a przy porównywaniu jednego z drugim musisz sprowadzić je do wspólnego mianownika. Pomylenie tych dwóch światów potrafi zawyżyć lub zaniżyć [food cost](/blog/jak-liczyc-food-cost) o kilkanaście procent — i doprowadzić do wyceny dania, które w rzeczywistości nie zarabia.
+Z tego wynika żelazna zasada kalkulacji: **koszty liczysz w netto, ceny sprzedaży podajesz w brutto**, a przy porównywaniu jednego z drugim musisz sprowadzić je do wspólnego mianownika. Pomylenie tych dwóch światów potrafi zawyżyć lub zaniżyć food cost o kilkanaście procent — i doprowadzić do wyceny dania, które w rzeczywistości nie zarabia. Poprawną kolejność pokazujemy w artykule [jak obliczyć food cost](/blog/jak-liczyc-food-cost).
 
 ## Kilka stawek naraz — na jednej fakturze i w jednym menu
 
