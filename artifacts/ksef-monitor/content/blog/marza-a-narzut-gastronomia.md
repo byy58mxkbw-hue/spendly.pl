@@ -1,6 +1,7 @@
 ---
 slug: marza-a-narzut-gastronomia
-title: Marża a narzut w gastronomii — różnica, wzory i przykłady
+title: Marża a narzut w gastronomii — wzory i przykłady
+h1: Marża a narzut w gastronomii — różnica, wzory i przykłady
 description: Marża a narzut w gastronomii: różnica, wzory, przykłady i przeliczanie jednego na drugie. Jak nie zaniżyć zysku przy wycenie dań.
 date: 2026-07-14
 updated: 2026-10-05

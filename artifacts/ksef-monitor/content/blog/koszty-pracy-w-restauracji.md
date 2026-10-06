@@ -1,7 +1,8 @@
 ---
 slug: koszty-pracy-w-restauracji
-title: Koszty pracy w restauracji — jak liczyć labor cost i utrzymać go pod kontrolą
-description: Koszty pracy w restauracji: jak liczyć labor cost, jaki poziom jest bezpieczny dla Twojego lokalu i co realnie obniża koszt pracy.
+title: Koszty pracy w restauracji — jak liczyć labor cost
+h1: Koszty pracy w restauracji — jak liczyć labor cost i utrzymać go pod kontrolą
+description: Wzór na labor cost, bezpieczny poziom kosztów pracy w restauracji (zwykle 25–35% przychodu) i co realnie go obniża bez psucia obsługi.
 date: 2026-08-02
 updated: 2026-10-05
 category: Finanse

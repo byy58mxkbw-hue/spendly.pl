@@ -1,7 +1,8 @@
 ---
 slug: ksef-dla-restauracji-od-kiedy-obowiazkowy
-title: KSeF dla restauracji — od kiedy obowiązkowy? Przewodnik 2026
-description: Od kiedy KSeF jest obowiązkowy dla restauracji? Terminy wdrożenia w 2026 roku, co zmienia Krajowy System e-Faktur i jak przygotować lokal.
+title: KSeF od kiedy obowiązkowy? Terminy dla restauracji
+h1: KSeF dla restauracji — od kiedy obowiązkowy? Przewodnik 2026
+description: Większość restauracji ma obowiązek KSeF od 1 kwietnia 2026, najmniejsi od 1 stycznia 2027. Terminy, co się zmienia i jak przygotować lokal.
 date: 2026-07-12
 updated: 2026-10-05
 category: KSeF

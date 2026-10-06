@@ -1,7 +1,8 @@
 ---
 slug: beverage-cost-restauracja
-title: Czym jest beverage cost — wzór, normy i jak go liczyć
-description: Czym jest beverage cost i jak go liczyć. Wzór, normy dla piwa, wina i alkoholi mocnych oraz najczęstsze przyczyny zawyżonego kosztu napojów.
+title: Beverage cost — co to jest, wzór i normy
+h1: Czym jest beverage cost — wzór, normy i jak go liczyć
+description: Beverage cost: wzór, normy dla piwa (18–28%), wina (25–35%) i alkoholi mocnych (15–20%), przykład liczenia baru i koszt jednego drinka.
 date: 2026-09-04
 updated: 2026-10-05
 category: Finanse
