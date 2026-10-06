@@ -4,7 +4,7 @@ title: Jak obliczyć food cost — wzór i przykład
 h1: Jak obliczyć food cost w restauracji — wzór, przykłady i błędy
 description: Jak obliczyć food cost: wzór dla dania i całej restauracji, przykład burgera krok po kroku, normy 28–35% i darmowy kalkulator food cost.
 date: 2026-07-14
-updated: 2026-10-05
+updated: 2026-10-07
 category: Food cost
 keywords: jak liczyć food cost, food cost wzór, food cost restauracja, food cost procentowy, koszt talerza
 lead: Food cost to najważniejszy wskaźnik rentowności w gastronomii. Pokazujemy, jak policzyć go poprawnie — od wzoru, przez przykłady, po błędy, które cicho zjadają marżę.
@@ -13,6 +13,8 @@ lead: Food cost to najważniejszy wskaźnik rentowności w gastronomii. Pokazuje
 ## Czym jest food cost?
 
 Food cost to udział kosztu surowców w przychodach ze sprzedaży. Mówiąc prościej: ile z każdej złotówki utargu wraca do dostawców za produkty. Jeśli sprzedajesz danie za 40 zł, a składniki kosztują 12 zł, food cost tego dania wynosi 30%.
+
+> **W skrócie:** food cost dania = koszt składników netto ÷ cena dania netto × 100. Dla całej restauracji w miesiącu: (stan początkowy + zakupy − stan końcowy) ÷ przychód netto z jedzenia × 100. Większość restauracji celuje w 28–35%. Licz zawsze w netto i na aktualnych cenach z faktur.
 
 To jeden wskaźnik, który natychmiast mówi Ci, czy restauracja zarabia, czy tylko się kręci. Zbyt wysoki food cost oznacza, że marża topnieje — nawet przy pełnej sali.
 
@@ -23,6 +25,8 @@ To jeden wskaźnik, który natychmiast mówi Ci, czy restauracja zarabia, czy ty
 3. **Podziel koszt przez cenę netto i pomnóż przez 100.** Wynik to food cost dania w procentach.
 
 Przykład: składniki kosztują 12 zł, danie kosztuje w karcie 43,20 zł, czyli 40 zł netto. Food cost = 12 / 40 × 100 = **30%**. Te same liczby możesz od razu wpisać w [kalkulator food cost](/kalkulatory/kalkulator-food-cost).
+
+Uwaga na stawki: 8% VAT obejmuje usługi gastronomiczne, czyli dania. Kawa, herbata, woda, napoje i alkohol zawsze mają 23% ([zestawienie stawek VAT w gastronomii, GoPOS](https://gopos.pl/blog/2026/04/27/stawki-vat-uslugi-gastronomiczne-cateringowe-sciagawka-dla-restauratorow/)). Dlatego napoje liczy się osobno, jako [beverage cost](/blog/beverage-cost-restauracja).
 
 ## Wzór na food cost
 
@@ -83,7 +87,9 @@ To zdrowy wynik dla burgera. Gdyby wołowina podrożała o 20% (do 40,80 zł/kg)
 
 ## Ile powinien wynosić food cost
 
-Dla większości restauracji zdrowy food cost mieści się w przedziale **28–35%** przychodu netto z jedzenia. Pizzerie, kawiarnie i lokale z dużą sprzedażą zup czy makaronów schodzą niżej, a steakhouse'y i restauracje rybne bywają wyżej. Normy dla różnych typów lokali i sposób na wyliczenie własnego celu opisujemy w artykule [ile powinien wynosić food cost](/blog/ile-powinien-wynosic-food-cost).
+Dla większości restauracji zdrowy food cost mieści się w przedziale **28–35%** przychodu netto z jedzenia. Taki cel dla restauracji z pełną obsługą podaje [meez, platforma do receptur dla kuchni](https://www.getmeez.com/blog/how-to-calculate-food-cost). Polski [Restaumatic](https://www.restaumatic.com/blog/food-cost-co-to-jest-i-jak-jego-obliczenie-pomoze-obnizyc-koszty/) wskazuje węższe 25–30%. Pizzerie, kawiarnie i lokale z dużą sprzedażą zup czy makaronów schodzą niżej, a steakhouse'y i restauracje rybne bywają wyżej. Normy dla różnych typów lokali i sposób na wyliczenie własnego celu opisujemy w artykule [ile powinien wynosić food cost](/blog/ile-powinien-wynosic-food-cost).
+
+Wyższy wskaźnik bywa świadomą decyzją. Brian Smith, współzałożyciel nowojorskiej lodziarni Ample Hills Creamery, opowiadał meez: „Celem zawsze było około 30%. Ale często dochodziliśmy do 35%, bo kupowaliśmy najlepsze składniki: najlepszą śmietankę, najlepsze jajka” (tłumaczenie własne). Ważne, żeby taka decyzja była policzona, a nie przypadkowa.
 
 ## Najczęstsze błędy przy liczeniu food cost
 
@@ -96,6 +102,8 @@ Dla większości restauracji zdrowy food cost mieści się w przedziale **28–3
 ## Jak liczyć food cost bez arkuszy Excel
 
 Ręczne liczenie food cost ma jedną wadę: jest aktualne w dniu, w którym je zrobisz, i nieaktualne dzień później. Ceny surowców zmieniają się z każdą fakturą.
+
+Średnie z rynku tu nie pomogą. Według [GUS](https://ssgk.stat.gov.pl/Ceny_towarow_i_uslug_konsumpcyjnych.html) w sierpniu 2026 r. ceny żywności i napojów bezalkoholowych były o 0,9% niższe niż rok wcześniej, a ceny w restauracjach i usługach zakwaterowania wyższe o 4,2%. To jednak średnie ceny detaliczne dla całego kraju. Pojedynczy produkt u Twojego dostawcy potrafi w tym samym czasie podrożeć o kilkanaście procent, więc food cost trzeba liczyć z własnych faktur.
 
 Dlatego warto oprzeć food cost na **realnych fakturach zakupowych**, a nie na wpisywanych ręcznie cenach. [Spendly](/food-cost) pobiera faktury z [KSeF](/ksef), rozpoznaje pozycje i automatycznie aktualizuje ceny surowców — a następnie przelicza food cost Twoich dań i alarmuje, gdy któryś składnik drożeje. Zamiast liczyć raz w miesiącu, masz aktualny food cost każdego dnia.
 

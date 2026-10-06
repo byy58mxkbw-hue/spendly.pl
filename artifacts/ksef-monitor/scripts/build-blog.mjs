@@ -64,23 +64,28 @@ function parseFrontmatter(rawIn) {
 // ── Minimalny Markdown → HTML (zakres pod artykuły; treść kontrolujemy sami) ──
 function inline(text) {
   let t = esc(text);
+  // Gotowe znaczniki (kod, obrazy, <a ...>) chowamy pod placeholdery, zanim
+  // ruszy obróbka *kursywy*/_kursywy_. Inaczej podkreślniki w URL-ach i w
+  // target="_blank" zamieniały się w <em> i psuły linki zewnętrzne (2026-10-07).
+  const keep = [];
+  const stash = (html) => `\u0000${keep.push(html) - 1}\u0000`;
   // `kod`
-  t = t.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
+  t = t.replace(/`([^`]+)`/g, (_, c) => stash(`<code>${c}</code>`));
   // ![alt](src) — obraz z tekstem alternatywnym (przed linkami, bo składnia się pokrywa)
   t = t.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_, alt, src) =>
-    `<img src="${escAttr(src)}" alt="${escAttr(alt)}" loading="lazy" />`);
-  // [tekst](url)
+    stash(`<img src="${escAttr(src)}" alt="${escAttr(alt)}" loading="lazy" />`));
+  // [tekst](url) — tekst linku dalej może mieć **pogrubienie**
   t = t.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, txt, url) => {
     const ext = /^https?:\/\//.test(url) && !url.includes("spendly.pl");
     const attrs = ext ? ' target="_blank" rel="noopener noreferrer"' : "";
-    return `<a href="${escAttr(url)}"${attrs}>${txt}</a>`;
+    return `${stash(`<a href="${escAttr(url)}"${attrs}>`)}${txt}${stash("</a>")}`;
   });
   // **bold**
   t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  // *italic* / _italic_
+  // *italic* / _italic_ (podkreślnik tylko na granicy słowa, nie w snake_case)
   t = t.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
-  t = t.replace(/_([^_]+)_/g, "<em>$1</em>");
-  return t;
+  t = t.replace(/(^|[^\p{L}\p{N}_])_([^_]+)_(?![\p{L}\p{N}_])/gu, "$1<em>$2</em>");
+  return t.replace(/\u0000(\d+)\u0000/g, (_, i) => keep[Number(i)]);
 }
 
 function mdToHtml(md) {

@@ -24,6 +24,22 @@ Spendly helps restaurant owners track price changes across their supply chain by
 - [Blog](https://www.spendly.pl/blog): 30+ Polish-language guides on food cost, KSeF, pricing, staff costs, and restaurant profitability
 - [Pricing](https://www.spendly.pl/cennik): Start plan free forever (1 location, unlimited KSeF invoices, 50 OCR receipts/month); Pro plan 150 PLN/month (up to 3 locations, unlimited OCR, supplier comparison, food cost, AI assistant), 30-day free Pro trial with no credit card required; custom quote for multi-location chains
 
+## Key guides (Polish)
+
+- [Jak obliczyć food cost](https://www.spendly.pl/blog/jak-liczyc-food-cost): food cost formula for a single dish and for a whole restaurant, worked burger example, net vs gross (VAT 8% food, 23% drinks), yield and waste, theoretical vs actual food cost
+- [Ile powinien wynosić food cost](https://www.spendly.pl/blog/ile-powinien-wynosic-food-cost): target food cost ranges by restaurant type and how to derive your own target from fixed costs and labor
+- [Czym jest beverage cost](https://www.spendly.pl/blog/beverage-cost-restauracja): beverage cost formula and norms for beer, wine and spirits, cost of a single drink, wine-by-the-glass losses
+- [Marża a narzut w gastronomii](https://www.spendly.pl/blog/marza-a-narzut-gastronomia): margin vs markup, formulas and conversion
+- [Prime cost](https://www.spendly.pl/blog/prime-cost-restauracja): food + beverage + labor cost as share of revenue
+- [KSeF dla restauracji](https://www.spendly.pl/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy): Poland's mandatory e-invoicing (KSeF) deadlines for restaurants in 2026–2027
+
+## Free calculators (Polish, no sign-up)
+
+- [Kalkulator food cost](https://www.spendly.pl/kalkulatory/kalkulator-food-cost): dish food cost from ingredient cost and menu price, plus price for a target food cost
+- [Kalkulator marży i narzutu](https://www.spendly.pl/kalkulatory/kalkulator-marzy-i-narzutu): margin and markup conversion for menu pricing
+- [Kalkulator beverage cost](https://www.spendly.pl/kalkulatory/kalkulator-beverage-cost): cost per drink or pour
+- [Kalkulator progu rentowności](https://www.spendly.pl/kalkulatory/kalkulator-progu-rentownosci): restaurant break-even revenue
+
 ## Out of scope
 
 - [Sign in](https://www.spendly.pl/sign-in): authentication page, no useful content for AI retrieval
