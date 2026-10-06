@@ -62,6 +62,12 @@ export function usePageMeta({
   path: string;
   image?: string;
 }) {
+  // Prerender przy buildzie (scripts/prerender-marketing.mjs) renderuje stronę
+  // bez DOM-u — useEffect się nie odpala, więc meta oddajemy przez globalThis,
+  // a skrypt wpisuje je do <head> statycznego pliku HTML.
+  if (typeof document === "undefined") {
+    (globalThis as { __SPENDLY_PAGE_META__?: unknown }).__SPENDLY_PAGE_META__ = { title, description, path, image };
+  }
   useEffect(() => {
     const url = path === "/" ? `${SITE}/` : `${SITE}${path}`;
     document.title = title;

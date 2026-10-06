@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts --host 0.0.0.0",
-    "build": "node scripts/build-blog.mjs && vite build --config vite.config.ts",
+    "build": "node scripts/build-blog.mjs && vite build --config vite.config.ts && node scripts/prerender-marketing.mjs",
     "build:blog": "node scripts/build-blog.mjs",
     "build:og": "node scripts/build-og.mjs",
     "build:mobile": "vite build --config vite.config.ts --mode mobile && cap sync android",
