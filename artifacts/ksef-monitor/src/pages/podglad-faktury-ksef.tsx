@@ -220,7 +220,7 @@ function ToolLanding({ c, error, onFiles }: { c: MarketingPalette; error: string
           <div style={{ maxWidth: 620 }}>
             <h2 style={{ fontSize: "clamp(1.5rem, 3vw, 2.1rem)", fontWeight: 700, margin: "0 0 10px", color: "#F0E9DB" }}>Faktury z KSeF mogą spływać same.</h2>
             <p style={{ fontSize: 15, color: "#C9BEA9", lineHeight: 1.6, margin: 0 }}>
-              Podłącz KSeF raz, a Spendly co dzień pobierze nowe faktury, rozpisze ceny produktów i powie, gdy dostawca podniesie cenę.
+              Podłącz KSeF i włącz automatyczną synchronizację, a Spendly sam pobierze nowe faktury, rozpisze ceny produktów i powie, gdy dostawca podniesie cenę.
             </p>
           </div>
           <Link href="/sign-up">

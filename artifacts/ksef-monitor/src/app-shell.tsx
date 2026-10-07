@@ -1,4 +1,7 @@
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { readPendingInvoice } from "@/lib/pending-invoice";
+import { readInvoiceXml } from "@/lib/ksef-viewer";
+import { PendingInvoiceAside } from "@/components/pending-invoice-aside";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
@@ -32,6 +35,7 @@ const AdminAnalytics = lazy(() => import("@/pages/admin-analytics"));
 const SettingsCostCenters = lazy(() => import("@/pages/settings-cost-centers"));
 const SettingsGopos = lazy(() => import("@/pages/settings-gopos"));
 const Sprzedaz = lazy(() => import("@/pages/sprzedaz"));
+const StartImport = lazy(() => import("@/pages/start-import"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -108,35 +112,85 @@ const clerkAppearance = {
   },
 };
 
+// Faktura z publicznego podglądu XML czekająca na rejestrację/logowanie (lib/pending-invoice).
+// Gdy jest: obok formularza Clerka lewa kolumna „Twoja faktura czeka”, a po zalogowaniu
+// przekierowanie na /start (import) zamiast /dashboard. Bez niej — wszystko jak dotąd.
+function usePendingInvoice() {
+  const [pending] = useState(() => {
+    const p = readPendingInvoice();
+    if (!p) return null;
+    const r = readInvoiceXml(p.xml, p.fileName);
+    return r.ok ? r.invoice : null;
+  });
+  return pending;
+}
+
+function AuthLayout({ mode, children }: { mode: "sign-up" | "sign-in"; children: React.ReactNode }) {
+  const pending = usePendingInvoice();
+  if (!pending) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center px-4" style={{ background: "#17130E" }}>
+        {children}
+      </div>
+    );
+  }
+  return (
+    <div className="min-h-[100dvh] grid md:grid-cols-2" style={{ background: "#17130E" }}>
+      <PendingInvoiceAside invoice={pending} mode={mode} />
+      <div className="flex flex-col items-center justify-center px-4 py-10">
+        {children}
+        <p className="mt-4 max-w-[440px] text-xs leading-relaxed" style={{ color: "#9C8F79" }}>
+          {mode === "sign-up" ? "Masz już konto? " : "Nie masz konta? "}
+          <a href={`${basePath}/${mode === "sign-up" ? "sign-in" : "sign-up"}`} style={{ color: "#E06A3C" }}>
+            {mode === "sign-up" ? "Zaloguj się" : "Załóż darmowe konto"}
+          </a>
+          {" — faktura też się zaimportuje. Ceny z Twoich faktur zasilają anonimową medianę rynku; możesz to wyłączyć w aplikacji. "}
+          <a href={`${basePath}/polityka-prywatnosci`} style={{ color: "#E06A3C" }}>Polityka prywatności</a>.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function SignInPage() {
+  const pending = usePendingInvoice();
+  const after = pending ? "/start?z=podglad" : "/dashboard";
   return (
     <>
       {/* Zalogowany user na /sign-in nie może utknąć na ekranie Clerka "jesteś już
           zalogowany" — od razu wpuszczamy go do apki. Niezalogowany widzi formularz. */}
-      <Show when="signed-in"><Redirect to="/dashboard" /></Show>
+      <Show when="signed-in"><Redirect to={after} /></Show>
       <Show when="signed-out">
-        <div
-          className="flex min-h-[100dvh] items-center justify-center px-4"
-          style={{ background: "#17130E" }}
-        >
-          <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} fallbackRedirectUrl={`${basePath}/dashboard`} />
-        </div>
+        <AuthLayout mode="sign-in">
+          <SignIn
+            routing="path"
+            path={`${basePath}/sign-in`}
+            signUpUrl={`${basePath}/sign-up`}
+            fallbackRedirectUrl={`${basePath}/dashboard`}
+            {...(pending ? { forceRedirectUrl: `${basePath}${after}` } : {})}
+          />
+        </AuthLayout>
       </Show>
     </>
   );
 }
 
 function SignUpPage() {
+  const pending = usePendingInvoice();
+  const after = pending ? "/start?z=podglad" : "/dashboard";
   return (
     <>
-      <Show when="signed-in"><Redirect to="/dashboard" /></Show>
+      <Show when="signed-in"><Redirect to={after} /></Show>
       <Show when="signed-out">
-        <div
-          className="flex min-h-[100dvh] items-center justify-center px-4"
-          style={{ background: "#17130E" }}
-        >
-          <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} fallbackRedirectUrl={`${basePath}/dashboard`} />
-        </div>
+        <AuthLayout mode="sign-up">
+          <SignUp
+            routing="path"
+            path={`${basePath}/sign-up`}
+            signInUrl={`${basePath}/sign-in`}
+            fallbackRedirectUrl={`${basePath}/dashboard`}
+            {...(pending ? { forceRedirectUrl: `${basePath}${after}` } : {})}
+          />
+        </AuthLayout>
       </Show>
     </>
   );
@@ -288,6 +342,9 @@ export default function AppShell() {
               </Route>
               <Route path="/sign-in/*?" component={SignInPage} />
               <Route path="/sign-up/*?" component={SignUpPage} />
+              <Route path="/start">
+                <ProtectedRoute><StartImport /></ProtectedRoute>
+              </Route>
               <Route path="/dashboard">
                 <ProtectedRoute><Dashboard /></ProtectedRoute>
               </Route>

@@ -6,7 +6,7 @@ export default function PolitykaPrywatnosci() {
       title="Polityka prywatności"
       description="Jak Spendly przetwarza i chroni dane użytkowników — faktury, tokeny KSeF i dane konta, zgodnie z RODO."
       path="/polityka-prywatnosci"
-      updated="28 sierpnia 2026"
+      updated="7 października 2026"
     >
       {(c) => {
         const B = ({ children }: { children: React.ReactNode }) => (
@@ -85,13 +85,30 @@ export default function PolitykaPrywatnosci() {
               i rozwoju Serwisu. Możesz wnieść sprzeciw wobec tego przetwarzania, pisząc na kontakt@spendly.pl.</p>
             </LegalSection>
 
-            <LegalSection n="9" title="Pliki cookies i pamięć lokalna" c={c}>
+            <LegalSection n="9" title="Anonimowe porównanie cen (mediana rynku)" c={c}>
+              <p style={{ marginBottom: 10 }}>Funkcja porównania cen pokazuje, jak ceny z Twoich faktur zakupowych wypadają na tle
+              innych restauracji. W tym celu <B>ceny jednostkowe netto produktów z faktur</B> wszystkich uczestniczących
+              Użytkowników łączymy w zbiorcze statystyki (mediana i zakres środkowej połowy cen) dla danego produktu
+              i miesiąca.</p>
+              <p style={{ marginBottom: 10 }}>Wynik dla produktu pokazujemy dopiero wtedy, gdy ceny pochodzą od <B>kilku różnych
+              restauracji</B>. Statystyki nie zawierają identyfikatorów kont, nazw ani NIP-ów dostawców, numerów faktur
+              ani pojedynczych cen — nikt nie zobaczy cen ani dostawców konkretnego lokalu.</p>
+              <p>Udział jest domyślnie włączony. Możesz go w każdej chwili wyłączyć przełącznikiem na stronie „Porównanie cen” w aplikacji —
+              wtedy Twoje ceny przestają zasilać statystyki, a Ty przestajesz widzieć porównanie. Podstawą przetwarzania
+              jest nasz prawnie uzasadniony interes polegający na dostarczaniu tej funkcji Użytkownikom.</p>
+            </LegalSection>
+
+            <LegalSection n="10" title="Pliki cookies i pamięć lokalna" c={c}>
               <p>Serwis wykorzystuje pliki cookies oraz pamięć lokalną przeglądarki w celu utrzymania sesji
               logowania i zapamiętania preferencji (np. wybranego motywu kolorystycznego). Cookies dostawcy
               uwierzytelniania są niezbędne do działania Serwisu.</p>
+              <p style={{ marginTop: 10 }}>Plik faktury wczytany w publicznym podglądzie faktury KSeF (przed założeniem konta)
+              jest odczytywany wyłącznie w Twojej przeglądarce i zapisywany w jej pamięci lokalnej na
+              <B> najwyżej godzinę</B>, żeby po rejestracji mógł trafić na Twoje konto. Do tego momentu nie
+              wysyłamy go na nasz serwer.</p>
             </LegalSection>
 
-            <LegalSection n="10" title="Zmiany polityki" c={c}>
+            <LegalSection n="11" title="Zmiany polityki" c={c}>
               <p>Polityka może być aktualizowana. O istotnych zmianach poinformujemy Użytkowników. Aktualna
               wersja jest zawsze dostępna w Serwisie.</p>
             </LegalSection>
