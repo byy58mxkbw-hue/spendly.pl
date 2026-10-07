@@ -1,9 +1,10 @@
 ---
 slug: ile-powinien-wynosic-food-cost
-title: Ile powinien wynosić food cost? Idealny wskaźnik dla restauracji
-description: Ile powinien wynosić food cost? Zdrowe widełki dla restauracji, pizzerii, baru i kawiarni oraz sposoby na obniżenie kosztu bez utraty jakości.
+title: Ile powinien wynosić food cost? Normy i widełki
+h1: Ile powinien wynosić food cost? Idealny wskaźnik dla restauracji
+description: Ile powinien wynosić food cost? Zwykle 28–35% przychodu netto. Normy dla restauracji, pizzerii, kawiarni i barów oraz jak wyliczyć własny cel.
 date: 2026-07-13
-updated: 2026-10-05
+updated: 2026-10-07
 category: Food cost
 keywords: ile powinien wynosić food cost, idealny food cost, food cost restauracja procent, dobry food cost, jak obniżyć food cost
 lead: „Trzydzieści procent" to popularna odpowiedź, ale nie dla każdego lokalu prawdziwa. Zobacz realne widełki food cost dla różnych typów gastronomii i jak zejść z kosztami bez psucia jakości.
@@ -13,11 +14,13 @@ lead: „Trzydzieści procent" to popularna odpowiedź, ale nie dla każdego lok
 
 Dla większości restauracji zdrowy food cost mieści się w przedziale **28–35%**. To znaczy, że koszt surowców powinien pochłaniać najwyżej jedną trzecią ceny dania. Ale „idealny" food cost zależy od typu lokalu, modelu i struktury pozostałych kosztów.
 
+Ten przedział nie jest naszym wymysłem. Cel 28–35% dla restauracji z pełną obsługą podaje [meez](https://www.getmeez.com/blog/how-to-calculate-food-cost), platforma do receptur dla kuchni. Polski [Restaumatic](https://www.restaumatic.com/blog/food-cost-co-to-jest-i-jak-jego-obliczenie-pomoze-obnizyc-koszty/) wskazuje węższe 25–30% i zaznacza, że lokale z kartą opartą na mięsie dochodzą do 35%.
+
 <figure class="diagram">
 <svg role="img" aria-labelledby="fgT fgD" viewBox="0 0 560 96">
 <title id="fgT">Zdrowy zakres food cost dla restauracji</title>
 <desc id="fgD">Na skali od 0 do 50 procent zdrowy food cost dla większości restauracji mieści się w przedziale od 28 do 35 procent.</desc>
-<rect x="0" y="42" width="560" height="16" rx="8" fill="#2a3542"/>
+<rect x="0" y="42" width="560" height="16" rx="8" fill="#E2D8C6"/>
 <rect x="314" y="42" width="78" height="16" rx="8" fill="#E06A3C"/>
 <text x="0" y="30" fill="#8A7C63" font-family="sans-serif" font-size="12">0%</text>
 <text x="540" y="30" fill="#8A7C63" font-family="sans-serif" font-size="12">50%</text>
@@ -28,7 +31,7 @@ Dla większości restauracji zdrowy food cost mieści się w przedziale **28–3
 <figcaption>Dla większości lokali celuj w food cost 28–35%. Poniżej — bardzo dobrze; powyżej — sygnał do reakcji.</figcaption>
 </figure>
 
-Jeśli nie wiesz, jak w ogóle policzyć swój wskaźnik, zacznij od: [Jak liczyć food cost](/blog/jak-liczyc-food-cost).
+Jeśli nie wiesz, jak w ogóle policzyć swój wskaźnik, zacznij od artykułu [jak obliczyć food cost](/blog/jak-liczyc-food-cost) albo od [kalkulatora food cost](/kalkulatory/kalkulator-food-cost).
 
 ## Widełki food cost według typu lokalu
 
@@ -117,6 +120,8 @@ Steki i ryby z wyższym food costem równoważą zupy i makarony z niższym. Lic
 ## Sezonowe wahania food costu
 
 Food cost zmienia się w ciągu roku nawet przy tej samej karcie. Warzywa i owoce drożeją poza sezonem, ceny mięsa i nabiału potrafią skakać w ciągu kilku tygodni, a alkohol drożeje skokowo przy zmianie akcyzy. Dlatego porównuj food cost z tym samym miesiącem rok wcześniej i miej w karcie dania sezonowe, które pozwalają korzystać z tańszych w danym okresie surowców.
+
+Ogólne dane o cenach pokazują, że trzeba patrzeć na własne faktury. Według [GUS](https://ssgk.stat.gov.pl/Ceny_towarow_i_uslug_konsumpcyjnych.html) w sierpniu 2026 r. żywność i napoje bezalkoholowe w sklepach były o 0,9% tańsze niż rok wcześniej, a ceny w restauracjach i usługach zakwaterowania wyższe o 4,2%. Średnia krajowa nie mówi jednak nic o cenach u Twojego dostawcy.
 
 ## Jak często sprawdzać food cost
 

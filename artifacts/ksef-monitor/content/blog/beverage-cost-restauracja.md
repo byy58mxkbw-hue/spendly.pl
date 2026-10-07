@@ -1,10 +1,10 @@
 ---
 slug: beverage-cost-restauracja
-title: Beverage cost — co to jest, wzór i normy
+title: Czym jest beverage cost — wzór i normy
 h1: Czym jest beverage cost — wzór, normy i jak go liczyć
 description: Beverage cost: wzór, normy dla piwa (18–28%), wina (25–35%) i alkoholi mocnych (15–20%), przykład liczenia baru i koszt jednego drinka.
 date: 2026-09-04
-updated: 2026-10-05
+updated: 2026-10-07
 category: Finanse
 keywords: beverage cost, czym jest beverage cost, beverage cost co to, jak liczyć beverage cost, koszt napojów restauracja, food cost a beverage cost
 lead: Bar potrafi być najbardziej rentowną częścią lokalu i jednocześnie tą, w której najłatwiej gubi się pieniądze. Beverage cost jest wskaźnikiem, który to pokazuje.
@@ -13,6 +13,8 @@ lead: Bar potrafi być najbardziej rentowną częścią lokalu i jednocześnie t
 ## Czym jest beverage cost
 
 **Beverage cost** (koszt napojów) to udział kosztu zakupu napojów w przychodzie z ich sprzedaży, wyrażony w procentach. Jest dokładnym odpowiednikiem [food costu](/blog/jak-liczyc-food-cost), tylko liczonym osobno dla baru: piwa, wina, alkoholi mocnych, napojów bezalkoholowych, kawy i herbaty.
+
+> **W skrócie:** beverage cost = koszt sprzedanych napojów netto ÷ przychód netto z napojów × 100. Dla całego baru to zwykle 18–24%, ale normy kategorii są różne: alkohole mocne 15–20%, piwo 18–28%, wino 25–35%. Licz osobno dla każdej kategorii i zawsze w netto, bo napoje mają VAT 23%.
 
 Rozdzielenie tych dwóch wskaźników ma sens, bo kuchnia i bar rządzą się zupełnie inną ekonomią. Bar ma znacznie niższy koszt surowca i znacznie wyższą marżę — ale też nieporównanie większą podatność na straty, których nie widać w żadnym raporcie.
 
@@ -45,6 +47,8 @@ Beverage cost liczony łącznie mieści się zwykle w przedziale **18–24%**. S
 
 Dlatego zbiorczy wskaźnik potrafi wprowadzić w błąd. Lokal, w którym beverage cost wzrósł z 20% do 24%, mógł nie mieć żadnego problemu z kosztami — mógł po prostu sprzedać więcej wina, a mniej wódki. To zmiana struktury sprzedaży, nie strata.
 
+Podobne liczby podaje [BevSpot](https://bevspot.com/blog/whats-average-pour-cost-bar-industry/), amerykańska firma od oprogramowania do zarządzania barem. Według jej analizy typowy bar ma beverage cost 18–24%, a mediana to nieco ponad 20%. Mediany kategorii to 24% dla piwa, 15% dla alkoholi mocnych i 28% dla wina. To dane z 2016 roku z rynku USA, więc traktuj je jako punkt odniesienia, a nie polską normę.
+
 Wniosek praktyczny: **licz beverage cost per kategoria**, a zbiorczy traktuj tylko jako sygnał, że warto zajrzeć głębiej.
 
 ## Skąd bierze się zawyżony beverage cost
@@ -57,7 +61,7 @@ W kuchni nadwyżka kosztu bierze się głównie z odpadu i porcjowania. W barze 
 
 **Poczęstunki i degustacje nieujęte w raporcie.** Drink na koszt lokalu jest w porządku, dopóki jest zarejestrowany. Nieewidencjonowany zmienia się w koszt bez przychodu i psuje wskaźnik, którego potem nikt nie umie wytłumaczyć.
 
-**Nieaktualne ceny w kalkulacji.** Alkohole drożeją skokowo, często razem ze zmianą akcyzy. Karta drinków wyceniona pół roku temu potrafi mieć dziś marżę niższą o kilka złotych na pozycji ([monitorowanie cen](/blog/monitorowanie-cen-surowcow)).
+**Nieaktualne ceny w kalkulacji.** Alkohole drożeją skokowo, często razem ze zmianą akcyzy. Od 1 stycznia 2026 r. akcyza na alkohol wzrosła o 5% ([Bankier](https://www.bankier.pl/wiadomosc/Wzrosla-akcyza-na-wyroby-alkoholowe-i-papierosy-9062927.html)), a według [GUS](https://ssgk.stat.gov.pl/Ceny_towarow_i_uslug_konsumpcyjnych.html) w sierpniu 2026 r. napoje alkoholowe i wyroby tytoniowe były o 6,6% droższe niż rok wcześniej. Karta drinków wyceniona pół roku temu potrafi mieć dziś marżę niższą o kilka złotych na pozycji ([monitorowanie cen](/blog/monitorowanie-cen-surowcow)).
 
 **Kradzież.** Nieprzyjemna, ale realna. Bar jest miejscem, gdzie towar jest drogi, mały i łatwy do wyniesienia. Regularna inwentaryzacja nie zapobiega kradzieży, ale sprawia, że wychodzi ona na jaw w tygodniach, a nie w latach.
 

@@ -34,7 +34,7 @@ Pominięcie składek pracodawcy albo własnej pracy to najczęstszy błąd — w
 <svg role="img" aria-labelledby="lcT lcD" viewBox="0 0 560 96">
 <title id="lcT">Typowy poziom kosztów pracy w gastronomii</title>
 <desc id="lcD">Na skali od 0 do 50 procent przychodu koszt pracy w restauracji mieści się zwykle w przedziale od 25 do 35 procent.</desc>
-<rect x="0" y="42" width="560" height="16" rx="8" fill="#2a3542"/>
+<rect x="0" y="42" width="560" height="16" rx="8" fill="#211B12"/>
 <rect x="280" y="42" width="112" height="16" rx="8" fill="#E06A3C"/>
 <text x="0" y="30" fill="#8A7C63" font-family="sans-serif" font-size="12">0%</text>
 <text x="530" y="30" fill="#8A7C63" font-family="sans-serif" font-size="12">50%</text>
