@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../lib/ai-plan.js";
 import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers, sendAiUpdateAnnouncementToAllUsers } from "../services/admin-broadcast.js";
-import { backfillTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "../services/subscriptions.js";
+import { backfillTrialForAllUsers, extendTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "../services/subscriptions.js";
 import { runMarketBenchmarkJob } from "../services/market-benchmark-job.js";
 import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
 
@@ -374,6 +374,21 @@ router.post("/admin/backfill-trial", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err: String(err) }, "backfill-trial failed");
     res.status(500).json({ error: "Nie udało się nadać triala." });
+  }
+});
+
+// Przedłuża trial WSZYSTKIM (poza adminami) o 30 dni — także wygasłe triale i userom bez
+// subskrypcji. Płatnych planów nie rusza. Ponowne kliknięcie w ciągu doby to no-op (patrz
+// extendTrialForAllUsers: pomija trial z >= 29 dniami do końca).
+router.post("/admin/extend-trial", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+
+  try {
+    const result = await extendTrialForAllUsers(req.log, 30);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err: String(err) }, "extend-trial failed");
+    res.status(500).json({ error: "Nie udało się przedłużyć triala." });
   }
 });
 

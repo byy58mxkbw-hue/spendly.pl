@@ -14,12 +14,12 @@ vi.mock("../routes/admin.js", () => ({
   ADMIN_IDS: ["user_admin"],
 }));
 
-import { startTrialForUser, getEffectivePlanStatus, backfillTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "./subscriptions";
+import { startTrialForUser, getEffectivePlanStatus, backfillTrialForAllUsers, extendTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "./subscriptions";
 
 const noopLog = { info: vi.fn(), warn: vi.fn(), error: vi.fn() } as unknown as import("pino").Logger;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const U = "test_subscriptions_user";
-const USERS = [U, "test_subscriptions_b", "user_admin"];
+const USERS = [U, "test_subscriptions_b", "test_subscriptions_c", "user_admin"];
 
 function clerkUser(id: string) {
   return {
@@ -117,6 +117,49 @@ describe.skipIf(!RUN_DB)("subscriptions (trial)", () => {
 
       const [adminRow] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, "user_admin"));
       expect(adminRow).toBeUndefined();
+    });
+  });
+
+  describe("extendTrialForAllUsers", () => {
+    it("przesuwa trwający trial, wznawia wygasły, daje nowy bez subskrypcji, pomija admina; drugi przebieg = no-op", async () => {
+      patchClerkPublicMetadataMock.mockReset();
+      patchClerkPublicMetadataMock.mockResolvedValue(true);
+      const runningEnds = new Date(Date.now() + 5 * DAY_MS);
+      await db.insert(subscriptionsTable).values([
+        { userId: U, status: "trialing", plan: "pro", trialEndsAt: runningEnds },
+        { userId: "test_subscriptions_b", status: "canceled", plan: "pro", trialEndsAt: new Date(Date.now() - 3 * DAY_MS) },
+      ]);
+      fetchAllClerkUsersMock.mockResolvedValue({
+        data: [clerkUser(U), clerkUser("test_subscriptions_b"), clerkUser("test_subscriptions_c"), clerkUser("user_admin")],
+        totalCount: 4,
+      });
+
+      const first = await extendTrialForAllUsers(noopLog, 30);
+      expect(first).toEqual({ totalUsers: 4, extended: 1, reactivated: 1, started: 1, skipped: 0, clerkFailed: 0 });
+
+      const [a] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, U));
+      expect(a.trialEndsAt!.getTime()).toBe(runningEnds.getTime() + 30 * DAY_MS);
+      const [b] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, "test_subscriptions_b"));
+      expect(b.status).toBe("trialing");
+      expect(b.trialEndsAt!.getTime()).toBeGreaterThan(Date.now() + 29 * DAY_MS);
+      expect(patchClerkPublicMetadataMock).toHaveBeenCalledWith("test_subscriptions_b", { plan: "pro" }, noopLog);
+      const [adminRow] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, "user_admin"));
+      expect(adminRow).toBeUndefined();
+
+      const second = await extendTrialForAllUsers(noopLog, 30);
+      expect(second).toMatchObject({ extended: 0, reactivated: 0, started: 0, skipped: 3 });
+      const [a2] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, U));
+      expect(a2.trialEndsAt!.getTime()).toBe(a.trialEndsAt!.getTime());
+    });
+
+    it("nie rusza płatnej subskrypcji", async () => {
+      patchClerkPublicMetadataMock.mockReset();
+      patchClerkPublicMetadataMock.mockResolvedValue(true);
+      await db.insert(subscriptionsTable).values({ userId: U, status: "active", plan: "pro", provider: "tpay" });
+      fetchAllClerkUsersMock.mockResolvedValue({ data: [clerkUser(U)], totalCount: 1 });
+      const result = await extendTrialForAllUsers(noopLog, 30);
+      expect(result).toMatchObject({ extended: 0, reactivated: 0, started: 0, skipped: 1 });
+      expect(patchClerkPublicMetadataMock).not.toHaveBeenCalled();
     });
   });
 

@@ -5,8 +5,10 @@ import type { Server } from "node:http";
 // Test wyłącznie bramki isAdmin + przekazania wyniku serwisu — sama logika
 // ma własne testy w subscriptions.test.ts / admin-broadcast.test.ts (DB-gated).
 const backfillTrialForAllUsersMock = vi.fn();
+const extendTrialForAllUsersMock = vi.fn();
 vi.mock("../services/subscriptions.js", () => ({
   backfillTrialForAllUsers: (...args: unknown[]) => backfillTrialForAllUsersMock(...args),
+  extendTrialForAllUsers: (...args: unknown[]) => extendTrialForAllUsersMock(...args),
 }));
 
 const sendFeedbackRequestToAllUsersMock = vi.fn();
@@ -54,6 +56,23 @@ describe("POST /api/admin/backfill-trial + /api/admin/announce-trial", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { totalUsers: number; started: number; alreadyHadSubscription: number };
     expect(body).toEqual({ totalUsers: 5, started: 4, alreadyHadSubscription: 1 });
+  });
+
+  it("extend-trial: nie-admin → 403, serwis nie wywołany", async () => {
+    authState.userId = "user_not_admin";
+    const res = await fetch(`${baseUrl}/api/admin/extend-trial`, { method: "POST" });
+    expect(res.status).toBe(403);
+    expect(extendTrialForAllUsersMock).not.toHaveBeenCalled();
+  });
+
+  it("extend-trial: admin → 200 z podsumowaniem, 30 dni", async () => {
+    authState.userId = "user_the_admin";
+    const summary = { totalUsers: 5, extended: 2, reactivated: 1, started: 1, skipped: 0, clerkFailed: 0 };
+    extendTrialForAllUsersMock.mockResolvedValueOnce(summary);
+    const res = await fetch(`${baseUrl}/api/admin/extend-trial`, { method: "POST" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(summary);
+    expect(extendTrialForAllUsersMock.mock.calls[0][1]).toBe(30);
   });
 
   it("announce-trial: nie-admin → 403, serwis nie wywołany", async () => {

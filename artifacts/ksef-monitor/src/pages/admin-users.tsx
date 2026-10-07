@@ -234,6 +234,26 @@ function useAnnounceAiUpdate() {
   });
 }
 
+type TrialExtendResult = {
+  totalUsers: number;
+  extended: number;
+  reactivated: number;
+  started: number;
+  skipped: number;
+  clerkFailed: number;
+};
+
+function useExtendTrial() {
+  const { session } = useClerk();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await authFetch(session, "/api/admin/extend-trial", { method: "POST" });
+      if (!res.ok) throw new Error("Błąd przedłużania triala");
+      return res.json() as Promise<TrialExtendResult>;
+    },
+  });
+}
+
 type ClerkResyncResult = { totalSubscriptions: number; synced: number; failed: number };
 
 function useResyncClerkPlan() {
@@ -473,6 +493,8 @@ export default function AdminUsers() {
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [feedbackConfirmOpen, setFeedbackConfirmOpen] = useState(false);
   const [backfillTrialConfirmOpen, setBackfillTrialConfirmOpen] = useState(false);
+  const [extendTrialConfirmOpen, setExtendTrialConfirmOpen] = useState(false);
+  const extendTrial = useExtendTrial();
   const [announceTrialConfirmOpen, setAnnounceTrialConfirmOpen] = useState(false);
   const [announceAiUpdateConfirmOpen, setAnnounceAiUpdateConfirmOpen] = useState(false);
   const [sortCol, setSortCol] = useState<SortColumn>("createdAt");
@@ -559,6 +581,20 @@ export default function AdminUsers() {
     }
   }
 
+  async function handleExtendTrial() {
+    setExtendTrialConfirmOpen(false);
+    try {
+      const r = await extendTrial.mutateAsync();
+      toast({
+        title: "Trial przedłużony o 30 dni",
+        description: `Przedłużono: ${r.extended}, wznowiono wygasłe: ${r.reactivated}, nowe triale: ${r.started}, pominięto: ${r.skipped}${r.clerkFailed ? `, błędy synchronizacji: ${r.clerkFailed} (kliknij „Zsynchronizuj plany”)` : ""}.`,
+      });
+      void qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    } catch {
+      toast({ title: "Błąd", description: "Nie udało się przedłużyć triala.", variant: "destructive" });
+    }
+  }
+
   async function handleAnnounceTrial() {
     setAnnounceTrialConfirmOpen(false);
     try {
@@ -622,6 +658,16 @@ export default function AdminUsers() {
               >
                 <Clock className="w-3.5 h-3.5" />
                 Nadaj trial wszystkim
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setExtendTrialConfirmOpen(true)}
+                disabled={extendTrial.isPending}
+                className="gap-2"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                {extendTrial.isPending ? "Przedłużam…" : "Przedłuż trial o 30 dni"}
               </Button>
               <Button
                 variant="outline"
@@ -951,6 +997,25 @@ export default function AdminUsers() {
             <AlertDialogCancel>Anuluj</AlertDialogCancel>
             <AlertDialogAction onClick={handleSendFeedbackBroadcast}>
               Wyślij
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={extendTrialConfirmOpen} onOpenChange={setExtendTrialConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Przedłużyć trial wszystkim o 30 dni?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Każdy użytkownik (poza kontami administratorów) dostanie 30 dni planu Pro więcej. Trwający trial
+              przesunie się o 30 dni, wygasły wznowi się na 30 dni od dziś, a konta bez triala dostaną nowy.
+              Płatnych planów to nie dotyczy. Ponowne kliknięcie tego samego dnia nie doda kolejnych dni.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={handleExtendTrial}>
+              Przedłuż trial
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
