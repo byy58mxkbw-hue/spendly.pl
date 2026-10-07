@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseKSeFXml } from "./invoice-xml-parse";
+import { parseKSeFXml } from "./import-parse";
 
 // FA(3) z przestrzenią nazw + jedna pozycja.
 const FA3 = `<?xml version="1.0" encoding="UTF-8"?>

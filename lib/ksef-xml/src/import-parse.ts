@@ -1,6 +1,6 @@
 // Regexowy parser faktury KSeF FA (import ręczny). BEZ DOM — nie rozwija encji
 // (XXE-safe by design); guard na DOCTYPE/ENTITY i tak jest w route importu (rule 23).
-// Wydzielony z routes/invoices.ts — ciała 1:1, zero zmiany zachowania.
+// Wydzielony z routes/invoices.ts, od 2026-10-07 we wspólnym pakiecie @workspace/ksef-xml.
 
 export type ParsedInvoiceItem = {
   productName: string;

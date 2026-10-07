@@ -1,11 +1,7 @@
-export class KsefError extends Error {
-  override name: string = "KsefError";
-  readonly cause?: unknown;
-  constructor(message: string, cause?: unknown) {
-    super(message);
-    this.cause = cause;
-  }
-}
+// KsefError i KsefParseError mieszkają w @workspace/ksef-xml (parser współdzielony z
+// przeglądarką) — tu re-eksport TYCH SAMYCH klas, żeby instanceof działał wszędzie.
+import { KsefError, KsefParseError } from "@workspace/ksef-xml";
+export { KsefError, KsefParseError };
 
 export class KsefAuthError extends KsefError {
   override name = "KsefAuthError";
@@ -37,9 +33,3 @@ export class KsefNetworkError extends KsefError {
   }
 }
 
-export class KsefParseError extends KsefError {
-  override name = "KsefParseError";
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}

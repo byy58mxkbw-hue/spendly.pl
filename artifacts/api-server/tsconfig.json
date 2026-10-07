@@ -3,10 +3,16 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src"],
-  "exclude": ["**/*.test.ts"],
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "**/*.test.ts"
+  ],
   "references": [
     {
       "path": "../../lib/db"
@@ -22,6 +28,9 @@
     },
     {
       "path": "../../lib/integrations-openai-ai-server"
+    },
+    {
+      "path": "../../lib/ksef-xml"
     }
   ]
 }

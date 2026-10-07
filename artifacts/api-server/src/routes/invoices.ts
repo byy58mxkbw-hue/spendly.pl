@@ -18,7 +18,7 @@ import { scheduleAlertsCheck } from "../services/queue";
 import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-openai-ai-server";
 import { encryptSecret } from "../lib/encryption";
 import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
-import { parseKSeFXml } from "../lib/invoice-xml-parse";
+import { parseKSeFXml } from "@workspace/ksef-xml";
 import { isAdvanceSettlementLine, excludeNonSpendInvoiceTypes, spendInvoicesFilter, isSpendInvoice } from "../lib/invoice-line-classify.js";
 import { findSupplierMatch, isValidNip } from "../lib/supplier-match.js";
 

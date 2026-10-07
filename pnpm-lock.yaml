@@ -226,6 +226,9 @@ importers:
       '@workspace/ksef-client':
         specifier: workspace:*
         version: link:../../lib/ksef-client
+      '@workspace/ksef-xml':
+        specifier: workspace:*
+        version: link:../../lib/ksef-xml
       compression:
         specifier: ^1.8.1
         version: 1.8.1
@@ -350,6 +353,9 @@ importers:
       '@sentry/react':
         specifier: ^10.64.0
         version: 10.64.0(react@19.1.0)
+      '@workspace/ksef-xml':
+        specifier: workspace:*
+        version: link:../../lib/ksef-xml
       pdfjs-dist:
         specifier: ^6.1.200
         version: 6.1.200
@@ -948,6 +954,9 @@ importers:
 
   lib/ksef-client:
     dependencies:
+      '@workspace/ksef-xml':
+        specifier: workspace:*
+        version: link:../ksef-xml
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
@@ -958,6 +967,12 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.3
+
+  lib/ksef-xml:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
 
   scripts:
     dependencies:
