@@ -1395,7 +1395,7 @@ export const ScanReceiptResponse = zod.object({
  * @summary Import invoice from KSeF XML
  */
 export const ImportInvoiceBody = zod.object({
-  "supplierId": zod.number(),
+  "supplierId": zod.number().optional(),
   "xmlContent": zod.string().optional(),
   "invoiceNumber": zod.string().optional(),
   "invoiceDate": zod.string(),

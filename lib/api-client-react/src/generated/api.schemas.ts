@@ -404,7 +404,7 @@ export const ImportInvoiceBodySource = {
 } as const;
 
 export interface ImportInvoiceBody {
-  supplierId: number;
+  supplierId?: number;
   xmlContent?: string;
   invoiceNumber?: string;
   invoiceDate: string;

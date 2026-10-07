@@ -143,28 +143,55 @@ export async function findOrCreateProductByName(
   return created.id;
 }
 
+type SupplierRef = { id: number; name: string; defaultCostCenterId: number | null; defaultCategory: string | null };
+
+/** Dostawca usera po NIP (porównanie samych cyfr — NIP bywa zapisany z myślnikami). */
+export async function findSupplierByNip(userId: string, nip: string): Promise<SupplierRef | null> {
+  const cleaned = nip.replace(/\D/g, "");
+  if (!cleaned) return null;
+  const [s] = await db
+    .select({
+      id: suppliersTable.id,
+      name: suppliersTable.name,
+      defaultCostCenterId: suppliersTable.defaultCostCenterId,
+      defaultCategory: suppliersTable.defaultCategory,
+    })
+    .from(suppliersTable)
+    .where(
+      and(
+        eq(suppliersTable.userId, userId),
+        sql`regexp_replace(${suppliersTable.taxId}, '[^0-9]', '', 'g') = ${cleaned}`,
+      ),
+    )
+    .limit(1);
+  return s ?? null;
+}
+
+/**
+ * Dla importu z publicznego podglądu XML (nowe konto nie ma jeszcze dostawców):
+ * dostawca po NIP sprzedawcy z faktury, a gdy go nie ma — tworzony z nazwy i NIP-u
+ * z XML. Synchronizacja KSeF świadomie NIE tworzy dostawców sama (nieznany trafia
+ * do „Do przeglądu”), ale tu user sam wgrał ten konkretny plik po rejestracji.
+ */
+export async function findOrCreateSupplierFromInvoice(userId: string, sellerNip: string, sellerName: string | null): Promise<SupplierRef> {
+  const existing = await findSupplierByNip(userId, sellerNip);
+  if (existing) return existing;
+  const cleaned = sellerNip.replace(/\D/g, "");
+  const [created] = await db
+    .insert(suppliersTable)
+    .values({ userId, name: sellerName?.trim() || `Dostawca NIP ${cleaned}`, taxId: cleaned })
+    .returning({
+      id: suppliersTable.id,
+      name: suppliersTable.name,
+      defaultCostCenterId: suppliersTable.defaultCostCenterId,
+      defaultCategory: suppliersTable.defaultCategory,
+    });
+  return created;
+}
+
 export async function tryMatch(userId: string, parsed: ParsedFa3): Promise<MatchResult> {
   const sellerNip = parsed.header.sellerNip ?? "";
-  let supplier: { id: number; name: string; defaultCostCenterId: number | null; defaultCategory: string | null } | null = null;
-  if (sellerNip) {
-    const cleaned = sellerNip.replace(/\D/g, "");
-    const [s] = await db
-      .select({
-        id: suppliersTable.id,
-        name: suppliersTable.name,
-        defaultCostCenterId: suppliersTable.defaultCostCenterId,
-        defaultCategory: suppliersTable.defaultCategory,
-      })
-      .from(suppliersTable)
-      .where(
-        and(
-          eq(suppliersTable.userId, userId),
-          sql`regexp_replace(${suppliersTable.taxId}, '[^0-9]', '', 'g') = ${cleaned}`,
-        ),
-      )
-      .limit(1);
-    if (s) supplier = s;
-  }
+  const supplier: SupplierRef | null = sellerNip ? await findSupplierByNip(userId, sellerNip) : null;
 
   const itemProductIds: Array<number | null> = [];
   const missing: string[] = [];

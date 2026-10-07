@@ -18,7 +18,8 @@ import { scheduleAlertsCheck } from "../services/queue";
 import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-openai-ai-server";
 import { encryptSecret } from "../lib/encryption";
 import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
-import { parseKSeFXml } from "@workspace/ksef-xml";
+import { parseKSeFXml, parseFA3Xml } from "@workspace/ksef-xml";
+import { findOrCreateSupplierFromInvoice } from "../services/ksef-ingest";
 import { isAdvanceSettlementLine, excludeNonSpendInvoiceTypes, spendInvoicesFilter, isSpendInvoice } from "../lib/invoice-line-classify.js";
 import { findSupplierMatch, isValidNip } from "../lib/supplier-match.js";
 
@@ -765,7 +766,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, xmlContent, invoiceNumber, invoiceDate, force, items: manualItems, paymentMethod, paymentDueDate, correctedInvoiceNumber: manualCorrectedNumber, source } = parsed.data;
+  const { supplierId: requestedSupplierId, xmlContent, invoiceNumber, invoiceDate, force, items: manualItems, paymentMethod, paymentDueDate, correctedInvoiceNumber: manualCorrectedNumber, source } = parsed.data;
 
   // Bezpieczeństwo (XXE / entity-bomb): przesłany XML nie może zawierać deklaracji
   // DTD/encji. Parser jest regexowy (nie rozwija encji), ale to defense-in-depth —
@@ -775,15 +776,39 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     return;
   }
 
+  // Bez supplierId (import z publicznego podglądu XML po rejestracji): dostawca po NIP
+  // sprzedawcy z faktury, a gdy nowe konto go nie ma — tworzony z danych z XML.
+  let resolvedSupplierId = requestedSupplierId;
+  if (resolvedSupplierId == null) {
+    if (!xmlContent) {
+      res.status(400).json({ error: "Wybierz dostawcę." });
+      return;
+    }
+    let sellerNip: string | null = null;
+    let sellerName: string | null = null;
+    try {
+      ({ sellerNip, sellerName } = parseFA3Xml(xmlContent).header);
+    } catch {
+      res.status(400).json({ error: "Nie udało się odczytać faktury z pliku XML." });
+      return;
+    }
+    if (!sellerNip) {
+      res.status(400).json({ error: "W pliku XML brakuje NIP-u sprzedawcy." });
+      return;
+    }
+    resolvedSupplierId = (await findOrCreateSupplierFromInvoice(userId, sellerNip, sellerName)).id;
+  }
+
   const [supplier] = await db
     .select()
     .from(suppliersTable)
-    .where(and(eq(suppliersTable.id, supplierId), eq(suppliersTable.userId, userId)));
+    .where(and(eq(suppliersTable.id, resolvedSupplierId), eq(suppliersTable.userId, userId)));
 
   if (!supplier) {
     res.status(404).json({ error: "Supplier not found" });
     return;
   }
+  const supplierId = supplier.id;
 
   const parsed2 = xmlContent ? parseKSeFXml(xmlContent) : null;
   const MAX_INVOICE_ITEMS = 200;
@@ -990,7 +1015,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     });
   }
 
-  captureServer(userId, "invoice_imported", { source: "manual", items: insertedItems.length });
+  captureServer(userId, "invoice_imported", { source: source ?? "manual", items: insertedItems.length });
 
   res.status(201).json({
     ...invoice,

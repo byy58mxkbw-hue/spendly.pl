@@ -145,6 +145,47 @@ describe.skipIf(!RUN_DB)("POST /api/invoices/import — ścieżki krytyczne", ()
     expect(body.items[0].totalPrice).toBeLessThan(0);
   });
 
+  it("import z podglądu bez supplierId: dostawca tworzony z NIP-u sprzedawcy, source=viewer, ponowny import → 409", async () => {
+    const seller = (nip: string, name: string) =>
+      `<Podmiot1><DaneIdentyfikacyjne><NIP>${nip}</NIP><Nazwa>${name}</Nazwa></DaneIdentyfikacyjne></Podmiot1>`;
+    const xml = FA3("FV/PODGLAD/1").replace("<Fa>", `${seller("555-666-77-78", "Zielony Rynek test")}<Fa>`);
+
+    const res = await postImport({ xmlContent: xml, invoiceDate: "2026-07-10", source: "viewer" });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { id: number; supplierName: string };
+    expect(body.supplierName).toBe("Zielony Rynek test");
+
+    const [inv] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, body.id));
+    expect(inv.source).toBe("viewer");
+    const created = await db.select().from(suppliersTable)
+      .where(and(eq(suppliersTable.userId, IMP_R), eq(suppliersTable.taxId, "5556667778")));
+    expect(created).toHaveLength(1);
+
+    // Ta sama faktura drugi raz: duplikat (409 z existingInvoiceId), bez drugiego dostawcy.
+    const again = await postImport({ xmlContent: xml, invoiceDate: "2026-07-10", source: "viewer" });
+    expect(again.status).toBe(409);
+    expect(((await again.json()) as { existingInvoiceId: number }).existingInvoiceId).toBe(body.id);
+    const stillOne = await db.select().from(suppliersTable)
+      .where(and(eq(suppliersTable.userId, IMP_R), eq(suppliersTable.taxId, "5556667778")));
+    expect(stillOne).toHaveLength(1);
+  });
+
+  it("import bez supplierId: istniejący dostawca dopasowany po NIP (z myślnikami w bazie bez)", async () => {
+    const xml = FA3("FV/PODGLAD/2").replace(
+      "<Fa>",
+      `<Podmiot1><DaneIdentyfikacyjne><NIP>111-222-33-34</NIP><Nazwa>Inna nazwa</Nazwa></DaneIdentyfikacyjne></Podmiot1><Fa>`,
+    );
+    const res = await postImport({ xmlContent: xml, invoiceDate: "2026-07-10", force: true });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { supplierId: number };
+    expect(body.supplierId).toBe(supplierId);
+  });
+
+  it("import bez supplierId i bez XML → 400", async () => {
+    const res = await postImport({ invoiceDate: "2026-07-10", items: [{ productName: "x", quantity: 1, unit: "szt", unitPrice: 1, totalPrice: 1 }] });
+    expect(res.status).toBe(400);
+  });
+
   it("limit pozycji: > 200 → 400", async () => {
     const items = Array.from({ length: 201 }, (_, i) => ({
       productName: `Prod ${i}`, quantity: 1, unit: "szt", unitPrice: 1, totalPrice: 1,
