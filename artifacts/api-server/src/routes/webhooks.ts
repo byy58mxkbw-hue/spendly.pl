@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
 import { Webhook } from "svix";
 import { sendWelcomeEmailIfNeeded } from "../services/email-service.js";
+import { startTrialForUser } from "../services/subscriptions.js";
+import { ADMIN_IDS } from "./admin.js";
 
 // Webhook Clerk (zdarzenia konta: user.created). PUBLICZNY — Clerk woła go bez
 // sesji użytkownika, autoryzacja to podpis Svix (CLERK_WEBHOOK_SECRET), nie
@@ -67,6 +69,13 @@ router.post("/webhooks/clerk", async (req, res): Promise<void> => {
   if (event.type === "user.created") {
     const { id: userId, first_name: firstName } = event.data;
     const email = primaryEmail(event.data);
+    // Trial 30 dni planu Pro od rejestracji (obietnica z cennika). Idempotentny, więc
+    // retry webhooka albo fallback w getEffectivePlanStatus nie nadadzą go drugi raz.
+    if (!ADMIN_IDS.includes(userId)) {
+      startTrialForUser(userId, req.log).catch((err) => {
+        req.log.error({ userId, err: String(err) }, "Webhook Clerk: start triala nie powiódł się");
+      });
+    }
     sendWelcomeEmailIfNeeded(userId, email, firstName ?? null, req.log).catch((err) => {
       req.log.error({ userId, err: String(err) }, "Webhook Clerk: mail powitalny nie powiódł się");
     });

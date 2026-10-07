@@ -47,7 +47,17 @@ export type EffectivePlanStatus = {
 // requireUser.ts (koszt zapytania do DB na KAŻDY request nie ma dziś uzasadnienia,
 // skoro nic jeszcze nie płaci; pełne, niezależne od logowania sprzątanie to Faza B).
 export async function getEffectivePlanStatus(userId: string, log: Logger): Promise<EffectivePlanStatus> {
-  const [row] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+  let [row] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+  // Fallback startu triala (2026-10-07): cennik obiecuje „30 dni od rejestracji”, a do
+  // tej pory trial nadawał tylko ręczny backfill — nowi userzy od 15.09 nie mieli nic.
+  // Główna ścieżka to webhook user.created; tu łapiemy przypadek, gdy webhook zawiódł
+  // albo nie był skonfigurowany. Idempotentne (startTrialForUser = onConflictDoNothing).
+  if (!row && !ADMIN_IDS.includes(userId)) {
+    if (await startTrialForUser(userId, log)) {
+      log.info({ userId }, "Trial nadany przy pierwszym odczycie statusu (brak subskrypcji)");
+    }
+    [row] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+  }
   if (!row) return { plan: "free", status: "none", trialEndsAt: null, daysLeft: null };
 
   const now = Date.now();

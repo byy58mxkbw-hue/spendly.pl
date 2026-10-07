@@ -72,9 +72,21 @@ describe.skipIf(!RUN_DB)("subscriptions (trial)", () => {
   });
 
   describe("getEffectivePlanStatus", () => {
-    it("brak subskrypcji → free/none", async () => {
+    it("brak subskrypcji → nadaje trial 30 dni (fallback, gdy webhook nie zadziałał)", async () => {
+      patchClerkPublicMetadataMock.mockReset();
+      patchClerkPublicMetadataMock.mockResolvedValue(true);
       const status = await getEffectivePlanStatus(U, noopLog);
+      expect(status.plan).toBe("pro");
+      expect(status.status).toBe("trialing");
+      expect(status.daysLeft).toBe(30);
+      expect(patchClerkPublicMetadataMock).toHaveBeenCalledWith(U, { plan: "pro" }, noopLog);
+    });
+
+    it("admin bez subskrypcji → free/none, bez nadawania triala", async () => {
+      const status = await getEffectivePlanStatus("user_admin", noopLog);
       expect(status).toEqual({ plan: "free", status: "none", trialEndsAt: null, daysLeft: null });
+      const [row] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, "user_admin"));
+      expect(row).toBeUndefined();
     });
 
     it("trial aktywny → trialing + poprawna liczba dni", async () => {

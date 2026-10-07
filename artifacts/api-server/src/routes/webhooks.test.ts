@@ -10,7 +10,12 @@ vi.mock("../services/email-service.js", () => ({
   sendWelcomeEmailIfNeeded: (...args: unknown[]) => sendWelcomeEmailIfNeededMock(...args),
 }));
 
-const TEST_SECRET = "whsec_" + Buffer.from("test-secret-dla-webhooka-01234567").toString("base64");
+const startTrialForUserMock = vi.fn().mockResolvedValue(true);
+vi.mock("../services/subscriptions.js", () => ({
+  startTrialForUser: (...args: unknown[]) => startTrialForUserMock(...args),
+}));
+
+const TEST_SECRET ="whsec_" + Buffer.from("test-secret-dla-webhooka-01234567").toString("base64");
 
 function signedHeaders(payload: string, secret: string): Record<string, string> {
   const wh = new Webhook(secret);
@@ -43,6 +48,7 @@ describe("POST /api/webhooks/clerk", () => {
 
   beforeEach(() => {
     sendWelcomeEmailIfNeededMock.mockClear();
+    startTrialForUserMock.mockClear();
   });
 
   const userCreatedPayload = JSON.stringify({
@@ -62,6 +68,8 @@ describe("POST /api/webhooks/clerk", () => {
     // Handler odpowiada 200 i dopiero potem (fire-and-forget) woła serwis — dajemy mu chwilę.
     await new Promise((r) => setTimeout(r, 20));
     expect(sendWelcomeEmailIfNeededMock).toHaveBeenCalledWith("user_abc123", "kasia@example.com", "Kasia", expect.anything());
+    // Trial 30 dni od rejestracji (obietnica z cennika) startuje w tym samym webhooku.
+    expect(startTrialForUserMock).toHaveBeenCalledWith("user_abc123", expect.anything());
   });
 
   it("nieprawidłowy podpis → 400, serwis nie wywołany", async () => {
