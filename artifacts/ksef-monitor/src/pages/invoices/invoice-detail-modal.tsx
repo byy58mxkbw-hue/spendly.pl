@@ -24,6 +24,8 @@ import { CheckCircle2, ChevronRight, Copy, Download, FileText, LineChart, Loader
 import { formatPrice, formatDate } from "@/lib/format";
 import { PriceHistoryModal } from "../products";
 import { useToast } from "@/hooks/use-toast";
+import { getInvoiceXml } from "@workspace/api-client-react";
+import { downloadKsefPdf } from "@/lib/ksef-pdf";
 
 export function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invoiceId: number; onClose: () => void; onOpenInvoice?: (id: number) => void }) {
   const qc = useQueryClient();
@@ -35,6 +37,25 @@ export function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invo
   const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
   const [historyProduct, setHistoryProduct] = useState<{ id: number; name: string } | null>(null);
   const markPaidMut = useMarkInvoicePaid();
+
+  const [pdfBusy, setPdfBusy] = useState(false);
+  // PDF według wzoru MF z oryginalnego XML (generator ładowany leniwie, ~1 MB).
+  async function downloadOfficialPdf() {
+    setPdfBusy(true);
+    try {
+      const res = await getInvoiceXml(invoiceId);
+      await downloadKsefPdf(res.xml, { fileName: res.invoiceNumber || `faktura-${invoiceId}`, ksefNumber: res.ksefNumber });
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      toast({
+        variant: "destructive",
+        title: "Nie udało się przygotować PDF",
+        description: status === 404 ? "Ta faktura nie ma pliku XML (np. dodana ze zdjęcia) — użyj „Drukuj / PDF”." : "Spróbuj ponownie za chwilę.",
+      });
+    } finally {
+      setPdfBusy(false);
+    }
+  }
 
   function copyNumber() {
     if (!data?.invoiceNumber) return;
@@ -147,6 +168,15 @@ export function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invo
               >
                 <Download className="w-3.5 h-3.5" />
                 Drukuj / PDF
+              </button>
+              <button
+                onClick={downloadOfficialPdf}
+                disabled={pdfBusy}
+                title="Wizualizacja faktury według wzoru Ministerstwa Finansów (generator KSeF), z pliku XML"
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+              >
+                {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+                PDF w układzie KSeF
               </button>
             </div>
             {data.items.length > 0 ? (

@@ -236,11 +236,15 @@ export default function Benchmark() {
   const invoiceScope = scope === "invoice" && invoiceId != null;
   const viewerImport = fromViewer ? readViewerImport() : null;
 
-  useEffect(() => {
-    track("benchmark_view", { from: fromViewer ? "podglad" : "menu" });
-  }, [fromViewer]);
-
   const { data, isLoading, isError } = useGetBenchmarks(invoiceScope ? { invoiceId: invoiceId! } : {});
+
+  // Raz po pierwszym załadowaniu danych — z liczbą produktów z medianą (bez nazw/cen).
+  const [viewTracked, setViewTracked] = useState(false);
+  useEffect(() => {
+    if (viewTracked || !data) return;
+    setViewTracked(true);
+    track("benchmark_view", { from: fromViewer ? "podglad" : "menu", matched_count: data.items.filter((i) => !i.insufficientData).length });
+  }, [data, fromViewer, viewTracked]);
   const updateOptIn = useUpdateBenchmarkOptIn();
 
   function setOptIn(optedIn: boolean) {

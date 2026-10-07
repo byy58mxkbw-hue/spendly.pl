@@ -645,6 +645,13 @@ export interface BenchmarksResponse {
   yourPricePeriodTo?: string | null;
 }
 
+export interface InvoiceXml {
+  xml: string;
+  /** @nullable */
+  ksefNumber: string | null;
+  invoiceNumber: string;
+}
+
 export interface WelcomeStatus {
   seen: boolean;
 }

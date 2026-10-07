@@ -1972,6 +1972,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/BenchmarksResponse"
 
+  /invoices/{id}/xml:
+    get:
+      operationId: getInvoiceXml
+      tags: [invoices]
+      summary: Plik XML faktury (do PDF w układzie KSeF generowanego w przeglądarce)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: XML faktury
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceXml"
+        "404":
+          description: Faktura nie istnieje, nie należy do użytkownika albo nie ma XML
+
   /onboarding/welcome:
     get:
       operationId: getWelcomeStatus
@@ -3746,6 +3767,17 @@ components:
         - optedIn
         - items
         - summary
+
+    InvoiceXml:
+      type: object
+      properties:
+        xml:
+          type: string
+        ksefNumber:
+          type: ["string", "null"]
+        invoiceNumber:
+          type: string
+      required: [xml, ksefNumber, invoiceNumber]
 
     WelcomeStatus:
       type: object

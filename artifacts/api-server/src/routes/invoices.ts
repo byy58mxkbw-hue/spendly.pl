@@ -16,7 +16,7 @@ import {
 import { categorizeProductWithAI, getUserCategories, type ClassificationResult } from "../lib/categorize-ai.js";
 import { scheduleAlertsCheck } from "../services/queue";
 import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-openai-ai-server";
-import { encryptSecret } from "../lib/encryption";
+import { encryptSecret, decryptSecret } from "../lib/encryption";
 import { suggestCostCenterId } from "../lib/cost-center-suggest.js";
 import { parseKSeFXml, parseFA3Xml } from "@workspace/ksef-xml";
 import { findOrCreateSupplierFromInvoice } from "../services/ksef-ingest";
@@ -1029,6 +1029,40 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
   if (parsedItems.length > 0) {
     scheduleAlertsCheck(userId, req.log);
   }
+});
+
+// XML faktury (do PDF w układzie KSeF generowanego w przeglądarce — oficjalny
+// generator MF, lazy). Tylko właściciel; treść nie trafia do logów. 404 gdy faktura
+// nie ma XML (np. OCR) albo nie da się go odszyfrować (stary klucz).
+router.get("/invoices/:id/xml", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Nieprawidłowy identyfikator faktury." });
+    return;
+  }
+  const [inv] = await db
+    .select({ xmlContent: invoicesTable.xmlContent, ksefNumber: invoicesTable.ksefNumber, invoiceNumber: invoicesTable.invoiceNumber })
+    .from(invoicesTable)
+    .where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, userId)))
+    .limit(1);
+  if (!inv) {
+    res.status(404).json({ error: "Nie znaleziono faktury." });
+    return;
+  }
+  if (!inv.xmlContent) {
+    res.status(404).json({ error: "Ta faktura nie ma pliku XML (np. dodana ze zdjęcia)." });
+    return;
+  }
+  let xml: string;
+  try {
+    xml = decryptSecret(inv.xmlContent);
+  } catch {
+    res.status(404).json({ error: "Nie udało się odczytać pliku XML tej faktury." });
+    return;
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ xml, ksefNumber: inv.ksefNumber, invoiceNumber: inv.invoiceNumber });
 });
 
 router.get("/invoices/:id", async (req, res): Promise<void> => {

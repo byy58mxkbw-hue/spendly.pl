@@ -89,6 +89,7 @@ import type {
   InvoiceCalendarResponse,
   InvoiceTimelineResponse,
   InvoiceWithItems,
+  InvoiceXml,
   KsefConfigView,
   KsefPendingInvoiceDetail,
   KsefPendingInvoiceSummary,
@@ -6202,6 +6203,83 @@ export function useGetBenchmarks<TData = Awaited<ReturnType<typeof getBenchmarks
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetBenchmarksQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetInvoiceXmlUrl = (id: number,) => {
+
+
+
+
+  return `/api/invoices/${id}/xml`
+}
+
+/**
+ * @summary Plik XML faktury (do PDF w układzie KSeF generowanego w przeglądarce)
+ */
+export const getInvoiceXml = async (id: number, options?: RequestInit): Promise<InvoiceXml> => {
+
+  return customFetch<InvoiceXml>(getGetInvoiceXmlUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetInvoiceXmlQueryKey = (id: number,) => {
+    return [
+    `/api/invoices/${id}/xml`
+    ] as const;
+    }
+
+
+export const getGetInvoiceXmlQueryOptions = <TData = Awaited<ReturnType<typeof getInvoiceXml>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvoiceXml>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInvoiceXmlQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInvoiceXml>>> = ({ signal }) => getInvoiceXml(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInvoiceXml>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetInvoiceXmlQueryResult = NonNullable<Awaited<ReturnType<typeof getInvoiceXml>>>
+export type GetInvoiceXmlQueryError = ErrorType<void>
+
+
+/**
+ * @summary Plik XML faktury (do PDF w układzie KSeF generowanego w przeglądarce)
+ */
+
+export function useGetInvoiceXml<TData = Awaited<ReturnType<typeof getInvoiceXml>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvoiceXml>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetInvoiceXmlQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

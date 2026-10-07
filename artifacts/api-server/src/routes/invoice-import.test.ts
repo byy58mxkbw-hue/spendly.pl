@@ -170,6 +170,22 @@ describe.skipIf(!RUN_DB)("POST /api/invoices/import — ścieżki krytyczne", ()
     expect(stillOne).toHaveLength(1);
   });
 
+  it("GET /invoices/:id/xml: właściciel dostaje odszyfrowany XML, inne konto 404", async () => {
+    const xml = FA3("FV/XML/1");
+    const res = await postImport({ supplierId, xmlContent: xml, invoiceDate: "2026-07-11", force: true });
+    expect(res.status).toBe(201);
+    const { id } = (await res.json()) as { id: number };
+
+    authState.userId = IMP_R;
+    const own = await fetch(`${baseUrl}/api/invoices/${id}/xml`);
+    expect(own.status).toBe(200);
+    expect(((await own.json()) as { xml: string }).xml).toBe(xml);
+
+    authState.userId = IMP_OTHER;
+    const foreign = await fetch(`${baseUrl}/api/invoices/${id}/xml`);
+    expect(foreign.status).toBe(404);
+  });
+
   it("import bez supplierId: istniejący dostawca dopasowany po NIP (z myślnikami w bazie bez)", async () => {
     const xml = FA3("FV/PODGLAD/2").replace(
       "<Fa>",

@@ -1861,6 +1861,20 @@ export const GetBenchmarksResponse = zod.object({
 
 
 /**
+ * @summary Plik XML faktury (do PDF w układzie KSeF generowanego w przeglądarce)
+ */
+export const GetInvoiceXmlParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetInvoiceXmlResponse = zod.object({
+  "xml": zod.string(),
+  "ksefNumber": zod.string().nullable(),
+  "invoiceNumber": zod.string()
+})
+
+
+/**
  * @summary Czy użytkownik widział już powitanie po założeniu konta
  */
 export const GetWelcomeStatusResponse = zod.object({
