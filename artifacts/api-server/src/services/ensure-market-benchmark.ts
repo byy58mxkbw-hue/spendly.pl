@@ -17,6 +17,11 @@ export async function ensureMarketBenchmarkExtensions(log: Logger): Promise<void
       CREATE INDEX IF NOT EXISTS products_canonical_name_trgm_idx
       ON products USING gin (canonical_name gin_trgm_ops)
     `);
+    // Dopasowanie w locie w GET /benchmarks dla nazw bez aliasu (operator `%`).
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS mpa_canonical_name_trgm_idx
+      ON market_product_aliases USING gin (canonical_name gin_trgm_ops)
+    `);
     log.info("benchmark rynkowy: pg_trgm + indeks GIN gotowe");
   } catch (err) {
     log.error({ err: String(err) }, "benchmark rynkowy: nie udało się zapewnić pg_trgm/indeksu");

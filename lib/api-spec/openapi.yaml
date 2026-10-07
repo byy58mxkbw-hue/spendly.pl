@@ -1958,6 +1958,12 @@ paths:
           required: false
           schema:
             type: string
+        - name: invoiceId
+          in: query
+          required: false
+          description: Porównanie tylko dla pozycji z tej faktury (np. zaimportowanej z podglądu XML).
+          schema:
+            type: integer
       responses:
         "200":
           description: Benchmark rynkowy — Twoje ceny na tle anonimowej mediany
@@ -3648,6 +3654,10 @@ components:
           type: integer
         savingsPerMonth:
           type: number
+        matchedBy:
+          type: string
+          enum: [alias, fuzzy]
+          description: "alias = dopasowanie z dziennego matchera; fuzzy = dopasowanie w locie (pg_trgm), gdy nazwa nie ma jeszcze aliasu"
         history:
           type: array
           items:
@@ -3693,6 +3703,16 @@ components:
           allOf:
             - $ref: "#/components/schemas/BenchmarkSummary"
           nullable: true
+        scope:
+          type: string
+          enum: [recent, latestMonth, invoice]
+          description: "recent = ostatnie 3 miesiące; latestMonth = brak zakupów w 3 mies., użyto najnowszego miesiąca z zakupami; invoice = tylko wskazana faktura"
+        yourPricePeriodFrom:
+          type: ["string", "null"]
+          description: Miesiąc (YYYY-MM) początku okresu, z którego liczona jest „Twoja cena”.
+        yourPricePeriodTo:
+          type: ["string", "null"]
+          description: Miesiąc (YYYY-MM) końca okresu, z którego liczona jest „Twoja cena”.
       required:
         - optedIn
         - items

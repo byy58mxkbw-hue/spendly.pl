@@ -181,11 +181,16 @@ describe.skipIf(!RUN_DB)("subscriptions (trial)", () => {
         { userId: U, status: "trialing", plan: "pro", trialEndsAt: new Date(Date.now() + DAY_MS) },
         { userId: "test_subscriptions_b", status: "canceled", plan: "pro" },
       ]);
+      // Wynik po userId, nie po kolejności wywołań: inne pliki testów (admin-broadcast)
+      // równolegle wstawiają własne wiersze subscriptions, więc liczenie „wszystkich”
+      // dawało niestabilny wynik w pełnym przebiegu.
       patchClerkPublicMetadataMock.mockReset();
-      patchClerkPublicMetadataMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+      patchClerkPublicMetadataMock.mockImplementation(async (id: string) => id !== "test_subscriptions_b");
 
       const result = await resyncClerkPlanForAllSubscriptions(noopLog);
-      expect(result).toEqual({ totalSubscriptions: 2, synced: 1, failed: 1 });
+      expect(result.totalSubscriptions).toBeGreaterThanOrEqual(2);
+      expect(result.failed).toBe(1);
+      expect(result.synced).toBe(result.totalSubscriptions - 1);
       expect(patchClerkPublicMetadataMock).toHaveBeenCalledWith(U, { plan: "pro" }, noopLog);
       expect(patchClerkPublicMetadataMock).toHaveBeenCalledWith("test_subscriptions_b", { plan: "free" }, noopLog);
     });

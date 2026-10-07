@@ -1818,7 +1818,8 @@ export const DismissPriceAlertResponse = zod.object({
  * @summary Get market price benchmark for your own recently purchased products
  */
 export const GetBenchmarksQueryParams = zod.object({
-  "category": zod.coerce.string().optional()
+  "category": zod.coerce.string().optional(),
+  "invoiceId": zod.coerce.number().optional().describe('Porównanie tylko dla pozycji z tej faktury (np. zaimportowanej z podglądu XML).')
 })
 
 export const GetBenchmarksResponse = zod.object({
@@ -1839,6 +1840,7 @@ export const GetBenchmarksResponse = zod.object({
   "deltaPercent": zod.number().optional(),
   "sampleRowCount": zod.number().optional(),
   "savingsPerMonth": zod.number().optional(),
+  "matchedBy": zod.enum(['alias', 'fuzzy']).optional().describe('alias = dopasowanie z dziennego matchera; fuzzy = dopasowanie w locie (pg_trgm), gdy nazwa nie ma jeszcze aliasu'),
   "history": zod.array(zod.object({
   "month": zod.string(),
   "median": zod.number()
@@ -1850,7 +1852,10 @@ export const GetBenchmarksResponse = zod.object({
   "benchmarkedCount": zod.number(),
   "totalCount": zod.number(),
   "contributionCount": zod.number()
-}).nullable()
+}).nullable(),
+  "scope": zod.enum(['recent', 'latestMonth', 'invoice']).optional().describe('recent = ostatnie 3 miesiące; latestMonth = brak zakupów w 3 mies., użyto najnowszego miesiąca z zakupami; invoice = tylko wskazana faktura'),
+  "yourPricePeriodFrom": zod.string().nullish().describe('Miesiąc (YYYY-MM) początku okresu, z którego liczona jest „Twoja cena”.'),
+  "yourPricePeriodTo": zod.string().nullish().describe('Miesiąc (YYYY-MM) końca okresu, z którego liczona jest „Twoja cena”.')
 })
 
 

@@ -559,6 +559,17 @@ export interface BenchmarkHistoryPoint {
   median: number;
 }
 
+/**
+ * alias = dopasowanie z dziennego matchera; fuzzy = dopasowanie w locie (pg_trgm), gdy nazwa nie ma jeszcze aliasu
+ */
+export type BenchmarkItemMatchedBy = typeof BenchmarkItemMatchedBy[keyof typeof BenchmarkItemMatchedBy];
+
+
+export const BenchmarkItemMatchedBy = {
+  alias: 'alias',
+  fuzzy: 'fuzzy',
+} as const;
+
 export interface BenchmarkItem {
   productName: string;
   unit: string;
@@ -578,6 +589,8 @@ export interface BenchmarkItem {
   deltaPercent?: number;
   sampleRowCount?: number;
   savingsPerMonth?: number;
+  /** alias = dopasowanie z dziennego matchera; fuzzy = dopasowanie w locie (pg_trgm), gdy nazwa nie ma jeszcze aliasu */
+  matchedBy?: BenchmarkItemMatchedBy;
   history?: BenchmarkHistoryPoint[];
 }
 
@@ -589,10 +602,34 @@ export interface BenchmarkSummary {
   contributionCount: number;
 }
 
+/**
+ * recent = ostatnie 3 miesiące; latestMonth = brak zakupów w 3 mies., użyto najnowszego miesiąca z zakupami; invoice = tylko wskazana faktura
+ */
+export type BenchmarksResponseScope = typeof BenchmarksResponseScope[keyof typeof BenchmarksResponseScope];
+
+
+export const BenchmarksResponseScope = {
+  recent: 'recent',
+  latestMonth: 'latestMonth',
+  invoice: 'invoice',
+} as const;
+
 export interface BenchmarksResponse {
   optedIn: boolean;
   items: BenchmarkItem[];
   summary: BenchmarkSummary | null;
+  /** recent = ostatnie 3 miesiące; latestMonth = brak zakupów w 3 mies., użyto najnowszego miesiąca z zakupami; invoice = tylko wskazana faktura */
+  scope?: BenchmarksResponseScope;
+  /**
+     * Miesiąc (YYYY-MM) początku okresu, z którego liczona jest „Twoja cena”.
+     * @nullable
+     */
+  yourPricePeriodFrom?: string | null;
+  /**
+     * Miesiąc (YYYY-MM) końca okresu, z którego liczona jest „Twoja cena”.
+     * @nullable
+     */
+  yourPricePeriodTo?: string | null;
 }
 
 export interface UpdateBenchmarkOptInBody {
@@ -1798,6 +1835,10 @@ export type ToggleInvoiceExcluded200 = {
 
 export type GetBenchmarksParams = {
 category?: string;
+/**
+ * Porównanie tylko dla pozycji z tej faktury (np. zaimportowanej z podglądu XML).
+ */
+invoiceId?: number;
 };
 
 export type UpdateBenchmarkOptIn200 = {

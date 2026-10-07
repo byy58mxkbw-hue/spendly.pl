@@ -3,6 +3,9 @@ import { sql } from "drizzle-orm";
 import { db, marketPriceBenchmarksTable } from "@workspace/db";
 import { runMarketProductMatcher } from "../lib/market-product-matcher.js";
 import { normalizedUnitSql } from "../lib/units.js";
+// Mediana liczona tylko z wydatków: bez excluded i bez KOR/ROZ (korekty różnic cen
+// mają kwoty ujemne, rozliczenia zaliczek dublują towar) — ta sama definicja co ekrany.
+import { spendInvoicesFilter } from "../lib/invoice-line-classify.js";
 
 // Batch dzienny — NIE live query. Wzorowany na ksef-scheduler.ts (setInterval).
 // Liczy jedną cenę na usera na okres (żeby duży klient z wieloma fakturami tego
@@ -75,7 +78,7 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
         ON mpa.canonical_name = p.canonical_name AND mpa.unit = ${normalizedUnitSql(sql`p.unit`)}
       LEFT JOIN user_settings us ON us.user_id = i.user_id
       WHERE p.canonical_name IS NOT NULL
-        AND i.excluded = false
+        ${spendInvoicesFilter("i")}
         AND COALESCE(us.benchmark_opt_in, true) = true
       GROUP BY mpa.market_group_key, mpa.unit, mpa.category, period_month, i.user_id, i.supplier_id
     )
