@@ -38,6 +38,7 @@ type AggregatedBenchmarkRow = {
   p25_price: string | null;
   p75_price: string | null;
   distinct_user_count: number;
+  verified_user_count: number;
   distinct_supplier_count: number;
   sample_row_count: number;
 };
@@ -70,7 +71,9 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
         SUBSTRING(i.invoice_date, 1, 7) AS period_month,
         i.user_id,
         i.supplier_id,
-        AVG(ii.unit_price::numeric) AS avg_price
+        AVG(ii.unit_price::numeric) AS avg_price,
+        -- Czy user ma choć jedną fakturę pobraną z KSeF (patrz verified_user_count niżej).
+        EXISTS (SELECT 1 FROM invoices k WHERE k.user_id = i.user_id AND k.source = 'ksef_sync') AS has_ksef
       FROM invoice_items ii
       JOIN invoices i ON i.id = ii.invoice_id
       JOIN products p ON p.id = ii.product_id
@@ -88,6 +91,7 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
       percentile_cont(0.25) WITHIN GROUP (ORDER BY avg_price)::text AS p25_price,
       percentile_cont(0.75) WITHIN GROUP (ORDER BY avg_price)::text AS p75_price,
       COUNT(DISTINCT user_id)::int AS distinct_user_count,
+      COUNT(DISTINCT user_id) FILTER (WHERE has_ksef)::int AS verified_user_count,
       COUNT(DISTINCT supplier_id)::int AS distinct_supplier_count,
       COUNT(*)::int AS sample_row_count
     FROM per_user_price
@@ -97,7 +101,11 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
   const aggRows = aggResult.rows;
   let published = 0;
   for (const row of aggRows) {
-    const isPublished = row.distinct_user_count >= MIN_USERS && row.sample_row_count >= MIN_ROWS;
+    // Ochrona przed fałszywymi kontami (2026-10-07): ktoś mógłby założyć kilka kont,
+    // wgrać ręcznie spreparowane pliki i sam „otworzyć” publikację mediany. Do progu k
+    // liczą się tylko userzy z co najmniej jedną fakturą z KSeF (trudna do podrobienia);
+    // pozostali nadal zasilają medianę, ale nie mogą sami spełnić progu.
+    const isPublished = row.verified_user_count >= MIN_USERS && row.sample_row_count >= MIN_ROWS;
     if (isPublished) published++;
     await db
       .insert(marketPriceBenchmarksTable)

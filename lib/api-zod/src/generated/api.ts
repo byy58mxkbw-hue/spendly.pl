@@ -1409,7 +1409,8 @@ export const ImportInvoiceBody = zod.object({
 })).optional().describe('Manual item list from OCR scan. Used instead of xmlContent when provided.'),
   "paymentMethod": zod.string().optional().describe('Payment method: gotowka, karta, przelew'),
   "paymentDueDate": zod.string().optional().describe('Payment due date in YYYY-MM-DD format (for bank transfers)'),
-  "correctedInvoiceNumber": zod.string().optional().describe('Invoice number being corrected (for KOR invoices — read from XML or entered manually)')
+  "correctedInvoiceNumber": zod.string().optional().describe('Invoice number being corrected (for KOR invoices — read from XML or entered manually)'),
+  "source": zod.enum(['manual', 'viewer']).optional().describe('Skąd plik: manual (import ręczny\/OCR, domyślnie) albo viewer (publiczny podgląd faktury KSeF po rejestracji). Wartość ksef_sync nadaje wyłącznie synchronizacja KSeF.')
 })
 
 export const ImportInvoiceResponse = zod.object({

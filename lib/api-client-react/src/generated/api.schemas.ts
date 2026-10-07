@@ -392,6 +392,17 @@ export interface ManualInvoiceItem {
   totalPrice: number;
 }
 
+/**
+ * Skąd plik: manual (import ręczny/OCR, domyślnie) albo viewer (publiczny podgląd faktury KSeF po rejestracji). Wartość ksef_sync nadaje wyłącznie synchronizacja KSeF.
+ */
+export type ImportInvoiceBodySource = typeof ImportInvoiceBodySource[keyof typeof ImportInvoiceBodySource];
+
+
+export const ImportInvoiceBodySource = {
+  manual: 'manual',
+  viewer: 'viewer',
+} as const;
+
 export interface ImportInvoiceBody {
   supplierId: number;
   xmlContent?: string;
@@ -407,6 +418,8 @@ export interface ImportInvoiceBody {
   paymentDueDate?: string;
   /** Invoice number being corrected (for KOR invoices — read from XML or entered manually) */
   correctedInvoiceNumber?: string;
+  /** Skąd plik: manual (import ręczny/OCR, domyślnie) albo viewer (publiczny podgląd faktury KSeF po rejestracji). Wartość ksef_sync nadaje wyłącznie synchronizacja KSeF. */
+  source?: ImportInvoiceBodySource;
 }
 
 export interface InvoiceTimelineDayCategory {

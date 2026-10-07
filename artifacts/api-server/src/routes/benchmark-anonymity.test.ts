@@ -46,7 +46,7 @@ async function seedPurchase(
   unit: string,
   category: string,
   unitPrice: number,
-  opts: { invoiceDate?: string; invoiceType?: string; invoiceNumber?: string } = {},
+  opts: { invoiceDate?: string; invoiceType?: string; invoiceNumber?: string; source?: "ksef_sync" | "manual" | "viewer" } = {},
 ): Promise<number> {
   const [supplier] = await db
     .insert(suppliersTable)
@@ -69,6 +69,8 @@ async function seedPurchase(
       invoiceDate: opts.invoiceDate ?? today,
       totalAmount: unitPrice.toFixed(2),
       excluded: false,
+      // Domyślnie jak z KSeF — tylko takie konta liczą się do progu k (job benchmarku).
+      source: opts.source ?? "ksef_sync",
       ...(opts.invoiceType ? { invoiceType: opts.invoiceType } : {}),
     })
     .returning({ id: invoicesTable.id });
@@ -124,6 +126,7 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
     await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "pomidor anon test"));
     await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "karkowka anon test"));
     await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "karkowka anon testowa"));
+    await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "cytryna anon manual"));
     server?.close();
   });
 
@@ -223,6 +226,22 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
 
     const foreign = await getBenchmarks(`?invoiceId=${createdInvoiceIds[0]}`);
     expect(foreign.status).toBe(404);
+  });
+
+  it("konta wyłącznie z importem ręcznym/podglądem nie publikują mediany (nawet 8 kont ≥ progu)", async () => {
+    const MANUAL_USERS = Array.from({ length: 8 }, (_, n) => `anon_manual_${n}`);
+    ALL_USERS.push(...MANUAL_USERS);
+    for (const [n, u] of MANUAL_USERS.entries()) {
+      await seedPurchase(u, "cytryna anon manual", "kg", "warzywa", 9 + n / 10, { source: n % 2 ? "viewer" : "manual" });
+    }
+    const { runMarketBenchmarkJob } = await import("../services/market-benchmark-job");
+    await runMarketBenchmarkJob(log);
+
+    authState.userId = MANUAL_USERS[0]!;
+    const row = itemsOf((await getBenchmarks()).body).find((i) => i.productName === "cytryna anon manual");
+    expect(row).toBeDefined();
+    expect(row!.insufficientData).toBe(true);
+    expect(row).not.toHaveProperty("medianPrice");
   });
 
   it("opt-out (benchmark_opt_in=false) działa w obie strony: user nie widzi benchmarku i nie zasila go dla innych", async () => {

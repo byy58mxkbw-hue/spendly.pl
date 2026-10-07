@@ -3272,6 +3272,10 @@ components:
         correctedInvoiceNumber:
           type: string
           description: "Invoice number being corrected (for KOR invoices — read from XML or entered manually)"
+        source:
+          type: string
+          enum: [manual, viewer]
+          description: "Skąd plik: manual (import ręczny/OCR, domyślnie) albo viewer (publiczny podgląd faktury KSeF po rejestracji). Wartość ksef_sync nadaje wyłącznie synchronizacja KSeF."
       required:
         - supplierId
         - invoiceDate

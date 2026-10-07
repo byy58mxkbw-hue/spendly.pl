@@ -355,6 +355,7 @@ export async function importMatchedInvoice(
         totalAmount: totalAmount.toFixed(2),
         xmlContent: encryptXml(rawXml),
         ksefNumber,
+        source: "ksef_sync",
         invoiceType: parsed.header.invoiceType,
         paymentMethod: payMethod,
         paymentDueDate: payDue,

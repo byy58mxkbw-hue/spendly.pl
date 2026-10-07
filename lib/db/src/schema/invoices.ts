@@ -26,6 +26,11 @@ export const invoicesTable = pgTable("invoices", {
   invoiceType: text("invoice_type"),
   parentInvoiceId: integer("parent_invoice_id").references((): AnyPgColumn => invoicesTable.id, { onDelete: "set null" }),
   correctedInvoiceNumber: text("corrected_invoice_number"),
+  // Skąd faktura trafiła do bazy: 'ksef_sync' (pobrana z KSeF API) | 'manual' (import
+  // ręczny/OCR) | 'viewer' (import z publicznego podglądu XML po rejestracji).
+  // Benchmark rynkowy liczy do progu k-anonimowości tylko userów z fakturą 'ksef_sync'
+  // — konta z samymi ręcznymi plikami nie mogą same „otworzyć” publikacji mediany.
+  source: text("source").notNull().default("manual"),
 }, (t) => [
   index("invoices_user_id_idx").on(t.userId),
   uniqueIndex("invoices_user_ksef_number_uniq").on(t.userId, t.ksefNumber),

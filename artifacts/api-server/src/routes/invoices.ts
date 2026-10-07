@@ -765,7 +765,7 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
     return;
   }
 
-  const { supplierId, xmlContent, invoiceNumber, invoiceDate, force, items: manualItems, paymentMethod, paymentDueDate, correctedInvoiceNumber: manualCorrectedNumber } = parsed.data;
+  const { supplierId, xmlContent, invoiceNumber, invoiceDate, force, items: manualItems, paymentMethod, paymentDueDate, correctedInvoiceNumber: manualCorrectedNumber, source } = parsed.data;
 
   // Bezpieczeństwo (XXE / entity-bomb): przesłany XML nie może zawierać deklaracji
   // DTD/encji. Parser jest regexowy (nie rozwija encji), ale to defense-in-depth —
@@ -943,6 +943,8 @@ router.post("/invoices/import", async (req, res): Promise<void> => {
       invoiceType: finalInvoiceType,
       parentInvoiceId,
       correctedInvoiceNumber: finalCorrectedNumber,
+      // Nigdy 'ksef_sync' z tej ścieżki — enum w API dopuszcza tylko manual/viewer.
+      source: source ?? "manual",
     })
     .returning();
 
