@@ -63,10 +63,19 @@ html { scroll-behavior: smooth; }
 .spendly-site .nav-links{display:flex;gap:6px;margin-left:14px;}
 .spendly-site .nav-links a{font-size:14px;font-weight:500;color:var(--muted);padding:8px 12px;border-radius:var(--r);transition:all .14s;}
 .spendly-site .nav-links a:hover{color:var(--text);background:var(--brd-soft);}
+/* 8 linków (od 2026-10-07 z „Podgląd faktury”) — bez łamania w dwie linie i bez
+   ściskania logo; poniżej 1240px linki chowają się do menu (burger), przyciski zostają. */
+.spendly-site .nav-links a{white-space:nowrap;}
+.spendly-site .nav-in > :first-child{flex-shrink:0;}
 .spendly-site .nav-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
 .spendly-site .nav-burger{display:none;align-items:center;justify-content:center;width:38px;height:38px;border-radius:var(--r);border:1px solid var(--brd);background:transparent;color:var(--text);cursor:pointer;transition:background .14s;}
 .spendly-site .nav-burger:hover{background:var(--brd-soft);}
 .spendly-site .nav-burger svg{width:20px;height:20px;}
+/* Po bazowej regule .nav-burger{display:none} — inaczej ona wygrywa kolejnością. */
+@media(max-width:1240px){
+  .spendly-site .nav-links{display:none;}
+  .spendly-site .nav-burger{display:inline-flex;}
+}
 .spendly-site .nav-mobile{max-width:1180px;margin:8px auto 0;padding:14px 18px;border-radius:var(--r);display:flex;flex-direction:column;gap:4px;}
 .spendly-site .nav-mobile a{font-size:15px;font-weight:500;color:var(--muted);padding:11px 12px;border-radius:var(--r);transition:all .14s;}
 .spendly-site .nav-mobile a:hover{color:var(--text);background:var(--brd-soft);}
@@ -97,6 +106,9 @@ html { scroll-behavior: smooth; }
 .spendly-site h1 .g{color:var(--acc-text);}
 .spendly-site .lead{font-size:clamp(16px,2.2vw,20px);color:var(--muted);line-height:1.6;max-width:620px;margin:0 auto 34px;font-weight:400;}
 .spendly-site .hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.spendly-site .hero-tool{display:inline-flex;align-items:center;gap:6px;margin-top:18px;font-size:14px;font-weight:600;color:var(--acc-text);border-bottom:1px solid currentColor;padding-bottom:2px;}
+.spendly-site .hero-tool svg{width:15px;height:15px;}
+.spendly-site .hero-tool:hover{opacity:.8;}
 .spendly-site .microcopy{font-size:13px;color:var(--faint);display:flex;gap:18px;flex-wrap:wrap;}
 .spendly-site .microcopy span{display:inline-flex;align-items:center;gap:6px;}
 .spendly-site .microcopy svg{width:14px;height:14px;color:var(--acc);}

@@ -390,6 +390,11 @@ ${h.nav()}
           <p>${h.esc(t.description)}</p>
         </a>`,
       ).join("")}
+        <a class="card" href="/podglad-faktury-ksef">
+          <span class="k">Narzędzie</span>
+          <h2>Podgląd faktury KSeF</h2>
+          <p>Otwórz fakturę z pliku XML z KSeF, pobierz czytelny PDF i sprawdź, czy nie przepłacasz za produkty. Darmowe konto, bez karty.</p>
+        </a>
       </section>
     </main>
 ${h.footer()}

@@ -129,6 +129,7 @@ export default function Home() {
             <a href="#cennik">Cennik</a>
             <a href="/blog">Blog</a>
             <a href="/kalkulatory">Kalkulatory</a>
+            <a href="/podglad-faktury-ksef" onClick={go("/podglad-faktury-ksef")}>Podgląd faktury</a>
             <a href="#faq">FAQ</a>
           </div>
           <div className="nav-right">
@@ -156,6 +157,7 @@ export default function Home() {
             <a href="#cennik" onClick={() => setMenuOpen(false)}>Cennik</a>
             <a href="/blog">Blog</a>
             <a href="/kalkulatory">Kalkulatory</a>
+            <a href="/podglad-faktury-ksef" onClick={(e) => { setMenuOpen(false); go("/podglad-faktury-ksef")(e); }}>Podgląd faktury KSeF</a>
             <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
             <div className="nav-mobile-cta">
               <a className="btn btn-ghost" href="/sign-in" onClick={(e) => { setMenuOpen(false); go("/sign-in")(e); }}>Zaloguj się</a>
@@ -184,6 +186,11 @@ export default function Home() {
           <span><Check />Bez karty</span>
           <span><Check />Konfiguracja w 10 minut</span>
         </div>
+        {/* Wejście do darmowego narzędzia (lejek „Podgląd faktury KSeF”). Ten sam link jest
+            w prerenderze index.html — reguła 26, pierwszy ekran musi się zgadzać. */}
+        <a className="hero-tool" href="/podglad-faktury-ksef" onClick={go("/podglad-faktury-ksef")}>
+          Masz plik XML z KSeF? Otwórz go za darmo <ArrowRight />
+        </a>
 
         {/* dashboard mock */}
         <div className="mock glass">
@@ -457,6 +464,7 @@ export default function Home() {
             <p className="foot-h">Zasoby</p>
             <a href="/blog">Blog</a>
             <a href="/kalkulatory">Kalkulatory</a>
+            <a href="/podglad-faktury-ksef" onClick={go("/podglad-faktury-ksef")}>Podgląd faktury KSeF</a>
             <a href="mailto:kontakt@spendly.pl">Pomoc</a>
             <a href="/polityka-prywatnosci" onClick={go("/polityka-prywatnosci")}>Polityka prywatności</a>
             <a href="/regulamin" onClick={go("/regulamin")}>Regulamin</a>
