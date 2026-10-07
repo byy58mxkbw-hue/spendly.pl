@@ -23,6 +23,7 @@ const SITE = "https://www.spendly.pl";
 const PAGES = [
   { file: "porownanie-cen", module: "/src/pages/porownanie-cen.tsx", crumb: "Porównanie cen" },
   { file: "dla-kogo", module: "/src/pages/dla-kogo.tsx", crumb: "Dla kogo" },
+  { file: "podglad-faktury-ksef", module: "/src/pages/podglad-faktury-ksef.tsx", crumb: "Podgląd faktury KSeF" },
   { file: "regulamin", module: "/src/pages/regulamin.tsx", crumb: "Regulamin" },
   { file: "polityka-prywatnosci", module: "/src/pages/polityka-prywatnosci.tsx", crumb: "Polityka prywatności" },
 ];
@@ -35,7 +36,7 @@ function setTag(html, re, replacement, label) {
   return html.replace(re, replacement);
 }
 
-function buildHead(template, meta, crumb) {
+function buildHead(template, meta, crumb, faq) {
   const url = meta.path === "/" ? `${SITE}/` : `${SITE}${meta.path}`;
   let h = template;
   h = setTag(h, /<title>[\s\S]*?<\/title>/, `<title>${escText(meta.title)}</title>`, "title");
@@ -64,6 +65,14 @@ function buildHead(template, meta, crumb) {
       },
     ],
   };
+  // Strona eksportująca FAQ (np. podgląd faktury KSeF) dostaje FAQPage — pytania są
+  // też widoczne w treści, jak wymaga Google.
+  if (Array.isArray(faq) && faq.length > 0) {
+    ld["@graph"].push({
+      "@type": "FAQPage",
+      mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+    });
+  }
   h = h.replace("</head>", `    <script type="application/ld+json">${JSON.stringify(ld)}</script>\n  </head>`);
   return h;
 }
@@ -103,7 +112,7 @@ try {
     );
     const meta = globalThis.__SPENDLY_PAGE_META__;
     if (!meta) throw new Error(`[prerender] ${page.file}: strona nie wywołała usePageMeta`);
-    const html = replaceRoot(buildHead(template, meta, page.crumb), body);
+    const html = replaceRoot(buildHead(template, meta, page.crumb, mod.FAQ), body);
     fs.writeFileSync(path.join(DIST, `${page.file}.html`), html);
     console.log(`[prerender] /${page.file} → ${page.file}.html (${Math.round(html.length / 1024)} KB, "${meta.title}")`);
   }

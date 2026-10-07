@@ -17,6 +17,8 @@ export const ParsedFa3HeaderSchema = z.object({
   sellerNip: z.string().nullable(),
   sellerName: z.string().nullable(),
   buyerNip: z.string().nullable(),
+  // Nazwa nabywcy (Podmiot2) — do podglądu faktury w przeglądarce.
+  buyerName: z.string().nullable().default(null),
   invoiceNumber: z.string().nullable(),
   invoiceDate: z.string().nullable(),
   totalNet: z.number().nullable(),
@@ -114,6 +116,7 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
     const sellerNip = (extractTag(podmiot1, "NIP") ?? extractTag(stripped, "NIP"))?.replace(/\D/g, "") || null;
     const sellerName = extractTag(podmiot1, "Nazwa") ?? extractTag(podmiot1, "PelnaNazwa") ?? null;
     const buyerNip = extractTag(podmiot2, "NIP")?.replace(/\D/g, "") || null;
+    const buyerName = extractTag(podmiot2, "Nazwa") ?? extractTag(podmiot2, "PelnaNazwa") ?? null;
 
     const invoiceNumber = extractTag(stripped, "P_2") ?? extractTag(stripped, "NrFa");
     const invoiceDate = normalizeDate(extractTag(stripped, "P_1") ?? extractTag(stripped, "DataWystawienia"));
@@ -265,6 +268,7 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
         sellerNip,
         sellerName,
         buyerNip,
+        buyerName,
         invoiceNumber: invoiceNumber?.trim() ?? null,
         invoiceDate,
         totalNet,

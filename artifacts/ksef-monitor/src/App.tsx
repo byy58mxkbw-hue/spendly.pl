@@ -17,6 +17,7 @@ const OcrFakturPage = lazy(() => import("@/pages/ocr-faktur"));
 const FoodCostMarketingPage = lazy(() => import("@/pages/food-cost-marketing"));
 const PorownanieCenPage = lazy(() => import("@/pages/porownanie-cen"));
 const DlaKogoPage = lazy(() => import("@/pages/dla-kogo"));
+const PodgladFakturyKsefPage = lazy(() => import("@/pages/podglad-faktury-ksef"));
 const CennikPage = lazy(() => import("@/pages/cennik"));
 const RegulaminPage = lazy(() => import("@/pages/regulamin"));
 const PolitykaPrywatnosciPage = lazy(() => import("@/pages/polityka-prywatnosci"));
@@ -34,6 +35,7 @@ function App() {
               <Route path="/food-cost" component={FoodCostMarketingPage} />
               <Route path="/porownanie-cen" component={PorownanieCenPage} />
               <Route path="/dla-kogo" component={DlaKogoPage} />
+              <Route path="/podglad-faktury-ksef" component={PodgladFakturyKsefPage} />
               <Route path="/cennik" component={CennikPage} />
               <Route path="/regulamin" component={RegulaminPage} />
               <Route path="/polityka-prywatnosci" component={PolitykaPrywatnosciPage} />
