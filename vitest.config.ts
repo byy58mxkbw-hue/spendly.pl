@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import path from "node:path";
 
 // Monorepo: osobne projekty dla API (node) i frontu (jsdom).
 // Testy kolokowane jako *.test.ts / *.test.tsx obok kodu; wykluczone z produkcyjnego tsc.
@@ -30,7 +31,10 @@ export default defineConfig({
       },
       {
         publicDir: false,
-        resolve: { conditions: ["workspace"] },
+        // JSX jak w buildzie Vite (automatic runtime) — bez tego testy komponentów wymagają `import React`.
+        esbuild: { jsx: "automatic" },
+        // Alias @/ jak w artifacts/ksef-monitor/vite.config.ts — testy komponentów frontu.
+        resolve: { conditions: ["workspace"], alias: { "@": path.resolve(import.meta.dirname, "artifacts/ksef-monitor/src") } },
         test: {
           name: "web",
           environment: "jsdom",

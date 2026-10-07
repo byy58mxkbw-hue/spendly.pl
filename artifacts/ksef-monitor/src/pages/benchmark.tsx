@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import { useGetBenchmarks, useUpdateBenchmarkOptIn, getGetBenchmarksQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import {
   Trophy,
   ArrowRight,
   ShieldOff,
+  Check,
 } from "@/lib/icons";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -23,7 +24,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice, formatPercent } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
+import { BenchmarkInvoiceView } from "@/components/benchmark-invoice-view";
+import { readViewerImport } from "@/lib/viewer-import";
+import { track } from "@/lib/posthog";
 import { CATEGORIES } from "@/lib/categories";
 import type { BenchmarkItem } from "@workspace/api-client-react";
 
@@ -202,13 +206,41 @@ function BenchmarkRow({ item }: { item: BenchmarkItem }) {
   );
 }
 
+const MONTHS_GEN = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
+const monthLabel = (ym: string) => {
+  const [y, m] = ym.split("-").map(Number);
+  return m ? `${MONTHS_GEN[m - 1]} ${y}` : ym;
+};
+
+/** Podpis okresu „Twojej ceny” z API (scope + yourPricePeriodFrom/To). */
+function periodCaption(scope: string | undefined, from: string | null | undefined, to: string | null | undefined): string {
+  if (!from || !to) return "Ceny netto";
+  if (scope === "invoice") return `Ceny netto · na podstawie faktury z ${monthLabel(from)}`;
+  if (scope === "latestMonth") return `Ceny netto · na podstawie zakupów z ${monthLabel(from)}`;
+  return "Ceny netto · Twoje zakupy z ostatnich 3 miesięcy";
+}
+
 export default function Benchmark() {
   const queryClient = useQueryClient();
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sort, setSort] = useState<SortMode>("delta_desc");
   const [showInsufficient, setShowInsufficient] = useState(false);
 
-  const { data, isLoading, isError } = useGetBenchmarks({});
+  // ?z=podglad&inv=ID — wejście z powitania po imporcie faktury z podglądu XML.
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const invParam = Number(params.get("inv"));
+  const invoiceId = Number.isInteger(invParam) && invParam > 0 ? invParam : null;
+  const fromViewer = params.get("z") === "podglad";
+  const [scope, setScope] = useState<"invoice" | "all">(invoiceId ? "invoice" : "all");
+  const invoiceScope = scope === "invoice" && invoiceId != null;
+  const viewerImport = fromViewer ? readViewerImport() : null;
+
+  useEffect(() => {
+    track("benchmark_view", { from: fromViewer ? "podglad" : "menu" });
+  }, [fromViewer]);
+
+  const { data, isLoading, isError } = useGetBenchmarks(invoiceScope ? { invoiceId: invoiceId! } : {});
   const updateOptIn = useUpdateBenchmarkOptIn();
 
   function setOptIn(optedIn: boolean) {
@@ -266,12 +298,39 @@ export default function Benchmark() {
   return (
     <Layout>
       <div className="px-4 py-5 md:px-8 md:py-8 max-w-4xl">
-        <PageHeader
-          title="Porównanie cen"
-          subtitle="Twoje ceny na tle anonimowej mediany rynkowej — bez pokazywania danych innej restauracji czy dostawcy"
-        />
+        {viewerImport && invoiceId === viewerImport.invoiceId && (
+          <div className="flex items-start gap-3 border border-positive/30 bg-positive/10 px-4 py-3 mb-5 text-sm">
+            <Check className="w-4 h-4 shrink-0 mt-0.5 text-positive" />
+            <p className="flex-1">
+              <b>Faktura {viewerImport.invoiceNumber} {viewerImport.duplicate ? "jest już na Twoim koncie" : "zaimportowana"}.</b>{" "}
+              {viewerImport.itemsCount} pozycji od {viewerImport.supplierName}. Poniżej porównanie z medianą cen innych restauracji
+              {data?.yourPricePeriodFrom ? ` z ${monthLabel(data.yourPricePeriodFrom)}` : ""}.
+            </p>
+            <Link href="/invoices"><span className="text-primary font-semibold cursor-pointer whitespace-nowrap">Zobacz fakturę</span></Link>
+          </div>
+        )}
 
-        {isLoading ? (
+        <div className="flex items-end justify-between gap-4 flex-wrap mb-5">
+          <div>
+            <p className="label-caps text-muted-foreground" data-testid="benchmark-period">
+              {periodCaption(data?.scope, data?.yourPricePeriodFrom, data?.yourPricePeriodTo)}
+            </p>
+            <PageHeader
+              title={invoiceScope ? "Twoje ceny na tle rynku" : "Porównanie cen"}
+              subtitle="Twoje ceny na tle anonimowej mediany rynkowej — bez pokazywania danych innej restauracji czy dostawcy"
+            />
+          </div>
+          {invoiceId != null && (
+            <div className="flex border border-border text-sm" role="group" aria-label="Zakres porównania">
+              <button className={cn("px-3.5 py-2", invoiceScope ? "bg-foreground text-background" : "bg-card")} onClick={() => setScope("invoice")}>Z tej faktury</button>
+              <button className={cn("px-3.5 py-2", !invoiceScope ? "bg-foreground text-background" : "bg-card")} onClick={() => setScope("all")}>Wszystkie produkty</button>
+            </div>
+          )}
+        </div>
+
+        {invoiceScope && !isLoading && !isError && data?.optedIn !== false ? (
+          <BenchmarkInvoiceView items={data?.items ?? []} />
+        ) : isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-24 w-full" />
             <Skeleton className="h-16 w-full" />
@@ -303,7 +362,7 @@ export default function Benchmark() {
             <Trophy className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-foreground font-medium mb-1">Jeszcze brak danych</p>
             <p className="text-sm text-muted-foreground">
-              Zaimportuj więcej faktur — porównanie policzy się dla produktów kupowanych w ostatnich 3 miesiącach.
+              Zaimportuj fakturę albo podłącz KSeF — porównanie policzy się dla produktów z Twoich faktur zakupowych.
             </p>
           </div>
         ) : (
@@ -341,7 +400,7 @@ export default function Benchmark() {
                 <p className="font-semibold text-sm mb-1">Pełna anonimowość — z założenia, nie jako opcja</p>
                 <p className="text-xs text-background/70 leading-relaxed">
                   Widzisz wyłącznie medianę i zakres rynkowy (25–75 percentyl), nigdy cenę konkretnego dostawcy ani
-                  restauracji. Porównanie liczy się dopiero przy min. 5 różnych restauracjach w danych — poniżej progu
+                  restauracji. Porównanie liczy się dopiero, gdy ceny podało kilka różnych restauracji — poniżej progu
                   widzisz „za mało danych", nie przybliżoną wartość.
                 </p>
               </div>
