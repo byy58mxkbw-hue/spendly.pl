@@ -1,10 +1,11 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentProps } from "react";
 import { readPendingInvoice } from "@/lib/pending-invoice";
 import { readInvoiceXml } from "@/lib/ksef-viewer";
 import { PendingInvoiceAside } from "@/components/pending-invoice-aside";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
+import { plPL } from "@clerk/localizations";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiUrl } from "@/lib/api-base";
@@ -312,20 +313,29 @@ export default function AppShell() {
       signUpUrl={`${basePath}/sign-up`}
       signInFallbackRedirectUrl={`${basePath}/dashboard`}
       signUpFallbackRedirectUrl={`${basePath}/dashboard`}
+      // Oficjalne polskie tłumaczenie Clerka (pola, przyciski, błędy) + nasze nagłówki.
+      // Wcześniej tylko nagłówki były po polsku, a formularz po angielsku. Rzutowanie:
+      // @clerk/localizations ciągnie nowszy @clerk/shared niż @clerk/react 6.10 i typy
+      // kluczy minimalnie się rozjeżdżają; w runtime to zwykłe teksty.
       localization={{
+        ...plPL,
         signIn: {
+          ...plPL.signIn,
           start: {
+            ...plPL.signIn?.start,
             title: "Witaj ponownie",
             subtitle: "Zaloguj się do swojego konta",
           },
         },
         signUp: {
+          ...plPL.signUp,
           start: {
+            ...plPL.signUp?.start,
             title: "Utwórz konto",
             subtitle: "Zacznij monitorować ceny surowców",
           },
         },
-      }}
+      } as unknown as ComponentProps<typeof ClerkProvider>["localization"]}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >

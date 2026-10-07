@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { useListCostCenters } from "@workspace/api-client-react";
+import { useListCostCenters, getListCostCentersQueryKey } from "@workspace/api-client-react";
+import { useAuth } from "@clerk/react";
 
 export type CostCenter = {
   id: number;
@@ -21,7 +22,10 @@ const CostCenterContext = createContext<CostCenterContextValue | null>(null);
 const LS_KEY = "spendly_cost_center_id";
 
 export function CostCenterProvider({ children }: { children: ReactNode }) {
-  const { data: costCenters = [], isLoading } = useListCostCenters();
+  // Provider owija też strony logowania/rejestracji — bez `enabled` każdy niezalogowany
+  // gość dostawał 401 z /api/cost-centers (widoczne w konsoli na /sign-up).
+  const { isSignedIn } = useAuth();
+  const { data: costCenters = [], isLoading } = useListCostCenters({ query: { enabled: !!isSignedIn, queryKey: getListCostCentersQueryKey() } });
 
   const [selectedId, setSelectedIdState] = useState<number | null>(() => {
     try {
