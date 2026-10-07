@@ -157,7 +157,8 @@ import type {
   UpdateKsefSyncFromDateBody,
   UpdatePriceAlertBody,
   UpdateProductBody,
-  UpdateSupplierBody
+  UpdateSupplierBody,
+  WelcomeStatus
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -6212,6 +6213,153 @@ export function useGetBenchmarks<TData = Awaited<ReturnType<typeof getBenchmarks
 
 
 
+
+export const getGetWelcomeStatusUrl = () => {
+
+
+
+
+  return `/api/onboarding/welcome`
+}
+
+/**
+ * @summary Czy użytkownik widział już powitanie po założeniu konta
+ */
+export const getWelcomeStatus = async ( options?: RequestInit): Promise<WelcomeStatus> => {
+
+  return customFetch<WelcomeStatus>(getGetWelcomeStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWelcomeStatusQueryKey = () => {
+    return [
+    `/api/onboarding/welcome`
+    ] as const;
+    }
+
+
+export const getGetWelcomeStatusQueryOptions = <TData = Awaited<ReturnType<typeof getWelcomeStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWelcomeStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWelcomeStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWelcomeStatus>>> = ({ signal }) => getWelcomeStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWelcomeStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWelcomeStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getWelcomeStatus>>>
+export type GetWelcomeStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Czy użytkownik widział już powitanie po założeniu konta
+ */
+
+export function useGetWelcomeStatus<TData = Awaited<ReturnType<typeof getWelcomeStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWelcomeStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWelcomeStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getMarkWelcomeSeenUrl = () => {
+
+
+
+
+  return `/api/onboarding/welcome/seen`
+}
+
+/**
+ * @summary Zapisuje, że użytkownik zamknął powitanie (raz na konto)
+ */
+export const markWelcomeSeen = async ( options?: RequestInit): Promise<WelcomeStatus> => {
+
+  return customFetch<WelcomeStatus>(getMarkWelcomeSeenUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getMarkWelcomeSeenMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markWelcomeSeen>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markWelcomeSeen>>, TError,void, TContext> => {
+
+const mutationKey = ['markWelcomeSeen'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markWelcomeSeen>>, void> = () => {
+
+
+          return  markWelcomeSeen(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkWelcomeSeenMutationResult = NonNullable<Awaited<ReturnType<typeof markWelcomeSeen>>>
+
+    export type MarkWelcomeSeenMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Zapisuje, że użytkownik zamknął powitanie (raz na konto)
+ */
+export const useMarkWelcomeSeen = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markWelcomeSeen>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markWelcomeSeen>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getMarkWelcomeSeenMutationOptions(options));
+    }
 
 export const getUpdateBenchmarkOptInUrl = () => {
 

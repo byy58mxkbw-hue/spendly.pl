@@ -1972,6 +1972,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/BenchmarksResponse"
 
+  /onboarding/welcome:
+    get:
+      operationId: getWelcomeStatus
+      tags: [onboarding]
+      summary: Czy użytkownik widział już powitanie po założeniu konta
+      responses:
+        "200":
+          description: Stan powitania
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WelcomeStatus"
+
+  /onboarding/welcome/seen:
+    post:
+      operationId: markWelcomeSeen
+      tags: [onboarding]
+      summary: Zapisuje, że użytkownik zamknął powitanie (raz na konto)
+      responses:
+        "200":
+          description: Zapisano
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WelcomeStatus"
+
   /benchmarks/opt-in:
     patch:
       operationId: updateBenchmarkOptIn
@@ -3720,6 +3746,13 @@ components:
         - optedIn
         - items
         - summary
+
+    WelcomeStatus:
+      type: object
+      properties:
+        seen:
+          type: boolean
+      required: [seen]
 
     UpdateBenchmarkOptInBody:
       type: object

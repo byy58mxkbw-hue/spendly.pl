@@ -10,6 +10,9 @@ export const userSettingsTable = pgTable("user_settings", {
   // sam nie wyłączy w Ustawieniach -> Prywatność. Wyłączenie działa w OBIE strony —
   // patrz market-benchmark-job.ts (WHERE) i routes/benchmarks.ts (guard w GET).
   benchmarkOptIn: boolean("benchmark_opt_in").notNull().default(true),
+  // Kiedy user zamknął powitanie po założeniu konta. W bazie, nie w localStorage —
+  // inaczej powitanie wracałoby na każdym nowym urządzeniu/przeglądarce.
+  welcomeSeenAt: timestamp("welcome_seen_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
   uniqueIndex("user_settings_user_id_uniq").on(t.userId),

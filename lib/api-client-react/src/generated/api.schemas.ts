@@ -645,6 +645,10 @@ export interface BenchmarksResponse {
   yourPricePeriodTo?: string | null;
 }
 
+export interface WelcomeStatus {
+  seen: boolean;
+}
+
 export interface UpdateBenchmarkOptInBody {
   optedIn: boolean;
 }

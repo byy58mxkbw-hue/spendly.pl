@@ -1861,6 +1861,22 @@ export const GetBenchmarksResponse = zod.object({
 
 
 /**
+ * @summary Czy użytkownik widział już powitanie po założeniu konta
+ */
+export const GetWelcomeStatusResponse = zod.object({
+  "seen": zod.boolean()
+})
+
+
+/**
+ * @summary Zapisuje, że użytkownik zamknął powitanie (raz na konto)
+ */
+export const MarkWelcomeSeenResponse = zod.object({
+  "seen": zod.boolean()
+})
+
+
+/**
  * @summary Toggle whether your (anonymized) prices contribute to and are shown the market benchmark
  */
 export const UpdateBenchmarkOptInBody = zod.object({

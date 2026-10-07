@@ -64,4 +64,7 @@ router.use(goposRouter);
 import subscriptionRouter from "./subscription";
 router.use(subscriptionRouter);
 
+import onboardingRouter from "./onboarding";
+router.use(onboardingRouter);
+
 export default router;

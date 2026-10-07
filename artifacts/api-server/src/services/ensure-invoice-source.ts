@@ -9,6 +9,16 @@ import { db } from "@workspace/db";
  * ksef_number), reszta zostaje 'manual'. Jednorazowość ma znaczenie — przy każdym
  * starcie nadpisywalibyśmy ręcznie ustawione wartości.
  */
+/**
+ * Kolumny, które Drizzle wymienia w zapytaniach od razu po deployu, więc muszą istnieć
+ * przed app.listen (patrz index.ts). Idempotentne.
+ */
+export async function ensurePreListenColumns(log: Logger): Promise<void> {
+  await ensureInvoiceSourceColumn(log);
+  // Powitanie po założeniu konta — flaga per konto (2026-10-07).
+  await db.execute(sql`ALTER TABLE IF EXISTS user_settings ADD COLUMN IF NOT EXISTS welcome_seen_at timestamptz`);
+}
+
 export async function ensureInvoiceSourceColumn(log: Logger): Promise<void> {
   const existing = await db.execute<{ exists: boolean }>(sql`
     SELECT EXISTS (

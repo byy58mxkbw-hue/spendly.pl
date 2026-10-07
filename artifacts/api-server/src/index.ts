@@ -15,7 +15,7 @@ import { ensureEmailLogTable } from "./services/ensure-email.js";
 import { ensureSubscriptionsTables } from "./services/ensure-subscriptions.js";
 import { startQueue } from "./services/queue.js";
 import { ensureMarketBenchmarkExtensions } from "./services/ensure-market-benchmark.js";
-import { ensureInvoiceSourceColumn } from "./services/ensure-invoice-source.js";
+import { ensurePreListenColumns } from "./services/ensure-invoice-source.js";
 import { startMarketBenchmarkScheduler } from "./services/market-benchmark-job.js";
 import { startGoposAutoSyncScheduler } from "./services/gopos-scheduler.js";
 
@@ -60,8 +60,8 @@ const port = validateEnv();
 // każdym select()/insert() na invoicesTable wymienia wszystkie kolumny schematu, więc
 // bez niej padałyby zapytania o faktury. ADD COLUMN ze stałym DEFAULT to w Postgresie
 // operacja na metadanych (ułamek sekundy), a błąd migracji nie blokuje startu.
-ensureInvoiceSourceColumn(logger)
-  .catch((err) => logger.error({ err }, "invoices.source: migracja nieudana"))
+ensurePreListenColumns(logger)
+  .catch((err) => logger.error({ err }, "kolumny przed startem (invoices.source, user_settings.welcome_seen_at): migracja nieudana"))
   .finally(startServer);
 
 function startServer(): void {
