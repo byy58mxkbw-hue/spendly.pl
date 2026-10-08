@@ -94,6 +94,10 @@ router.get("/public/market-prices", async (_req, res): Promise<void> => {
       // Tylko czyste nazwy bazowe ze słownika — surowe nazwy z faktur nie idą publicznie.
       const g = genericProduct(r.name);
       if (!g || g.label !== r.name || r.median == null) continue;
+      // Publicznie tylko jednostki jednoznaczne (kg, l). „szt”/„opak” na fakturach hurtowni to
+      // często karton/worek/skrzynka („Cytryna 23,99 zł/szt” = skrzynka) — jako „za sztukę”
+      // wprowadzałoby w błąd. Zalogowani porównują i tak we własnej jednostce (routes/benchmarks.ts).
+      if (r.unit !== "kg" && r.unit !== "l") continue;
       const k = `${r.name}::${r.unit}`;
       const prev = best.get(k);
       if (!prev || (prev.src === "month" && r.src === "12m")) best.set(k, r);
