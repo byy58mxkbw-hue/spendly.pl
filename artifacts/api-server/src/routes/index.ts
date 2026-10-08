@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import webhooksRouter from "./webhooks";
+import publicMarketRouter from "./public-market";
 import suppliersRouter from "./suppliers";
 import productsRouter from "./products";
 import invoicesRouter from "./invoices";
@@ -21,6 +22,8 @@ const router: IRouter = Router();
 router.use(healthRouter);
 // Webhook Clerk — bez sesji użytkownika, autoryzacja to podpis Svix (nie Clerk auth).
 router.use(webhooksRouter);
+// Publiczna lista produktów z opublikowaną medianą rynku (bez cen) — podgląd faktury KSeF.
+router.use(publicMarketRouter);
 
 // Everything below requires an authenticated user and is scoped to req.userId
 router.use(requireUser);

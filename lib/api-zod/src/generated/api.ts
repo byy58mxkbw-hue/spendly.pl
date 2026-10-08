@@ -1875,6 +1875,20 @@ export const GetInvoiceXmlResponse = zod.object({
 
 
 /**
+ * @summary PUBLICZNE (bez logowania): produkty z opublikowaną medianą rynku, bez cen i liczby źródeł
+ */
+export const GetPublicMarketGroupsResponse = zod.object({
+  "groups": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "category": zod.string().nullable()
+})),
+  "count": zod.number(),
+  "latestMonth": zod.string().nullable()
+})
+
+
+/**
  * @summary Czy użytkownik widział już powitanie po założeniu konta
  */
 export const GetWelcomeStatusResponse = zod.object({

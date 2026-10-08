@@ -136,6 +136,17 @@ const ksefLimiter = rateLimit({
 
 app.use(limiter);
 
+// Publiczne dane rynkowe (bez logowania) — ostrzejszy limit niż globalny, żeby nikt nie
+// odpytywał ich masowo. Odpowiedź i tak jest cache'owana 1 h.
+const publicLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Za dużo żądań. Spróbuj ponownie za chwilę." },
+});
+app.use("/api/public", publicLimiter);
+
 // Limity per-endpoint (przed głównym routerem). Ścieżki zawierają prefiks /api.
 app.use("/api/ai-cfo/chat", aiLimiter);
 app.use("/api/invoices/scan-receipt", aiLimiter);

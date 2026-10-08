@@ -121,6 +121,7 @@ import type {
   PriceHistoryEntry,
   Product,
   ProductQuantityTrendRow,
+  PublicMarketGroups,
   RecentPurchase,
   RepriceDish200,
   ResetDishes200,
@@ -6280,6 +6281,83 @@ export function useGetInvoiceXml<TData = Awaited<ReturnType<typeof getInvoiceXml
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetInvoiceXmlQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPublicMarketGroupsUrl = () => {
+
+
+
+
+  return `/api/public/market-groups`
+}
+
+/**
+ * @summary PUBLICZNE (bez logowania): produkty z opublikowaną medianą rynku, bez cen i liczby źródeł
+ */
+export const getPublicMarketGroups = async ( options?: RequestInit): Promise<PublicMarketGroups> => {
+
+  return customFetch<PublicMarketGroups>(getGetPublicMarketGroupsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicMarketGroupsQueryKey = () => {
+    return [
+    `/api/public/market-groups`
+    ] as const;
+    }
+
+
+export const getGetPublicMarketGroupsQueryOptions = <TData = Awaited<ReturnType<typeof getPublicMarketGroups>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicMarketGroups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicMarketGroupsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicMarketGroups>>> = ({ signal }) => getPublicMarketGroups({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicMarketGroups>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicMarketGroupsQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicMarketGroups>>>
+export type GetPublicMarketGroupsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary PUBLICZNE (bez logowania): produkty z opublikowaną medianą rynku, bez cen i liczby źródeł
+ */
+
+export function useGetPublicMarketGroups<TData = Awaited<ReturnType<typeof getPublicMarketGroups>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicMarketGroups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicMarketGroupsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

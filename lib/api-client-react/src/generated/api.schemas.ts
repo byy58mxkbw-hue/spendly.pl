@@ -652,6 +652,20 @@ export interface InvoiceXml {
   invoiceNumber: string;
 }
 
+export type PublicMarketGroupsGroupsItem = {
+  name: string;
+  unit: string;
+  /** @nullable */
+  category: string | null;
+};
+
+export interface PublicMarketGroups {
+  groups: PublicMarketGroupsGroupsItem[];
+  count: number;
+  /** @nullable */
+  latestMonth: string | null;
+}
+
 export interface WelcomeStatus {
   seen: boolean;
 }

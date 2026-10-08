@@ -1993,6 +1993,20 @@ paths:
         "404":
           description: Faktura nie istnieje, nie należy do użytkownika albo nie ma XML
 
+  /public/market-groups:
+    get:
+      operationId: getPublicMarketGroups
+      tags: [benchmarks]
+      summary: "PUBLICZNE (bez logowania): produkty z opublikowaną medianą rynku, bez cen i liczby źródeł"
+      security: []
+      responses:
+        "200":
+          description: Lista grup produktów
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicMarketGroups"
+
   /onboarding/welcome:
     get:
       operationId: getWelcomeStatus
@@ -3778,6 +3792,27 @@ components:
         invoiceNumber:
           type: string
       required: [xml, ksefNumber, invoiceNumber]
+
+    PublicMarketGroups:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              unit:
+                type: string
+              category:
+                type: ["string", "null"]
+            required: [name, unit, category]
+        count:
+          type: integer
+        latestMonth:
+          type: ["string", "null"]
+      required: [groups, count, latestMonth]
 
     WelcomeStatus:
       type: object
