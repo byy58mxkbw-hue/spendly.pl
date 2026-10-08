@@ -1,6 +1,6 @@
 import type { Logger } from "pino";
-import { sql } from "drizzle-orm";
-import { db, marketPriceBenchmarksTable } from "@workspace/db";
+import { sql, eq } from "drizzle-orm";
+import { db, marketPriceBenchmarksTable, marketPriceRangesTable } from "@workspace/db";
 import { runMarketProductMatcher } from "../lib/market-product-matcher.js";
 import { normalizedUnitSql } from "../lib/units.js";
 // Mediana liczona tylko z wydatków: bez excluded i bez KOR/ROZ (korekty różnic cen
@@ -138,12 +138,106 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
       });
   }
 
+  const ranges = await computeRollingRanges(RANGE_WINDOW_MONTHS, MIN_USERS, MIN_ROWS);
+
   log.info(
-    { grupy: matcherResult.groups, wierszeBenchmarku: aggRows.length, opublikowane: published, minUsers: MIN_USERS, minRows: MIN_ROWS },
+    { grupy: matcherResult.groups, wierszeBenchmarku: aggRows.length, opublikowane: published, okno12m: ranges, minUsers: MIN_USERS, minRows: MIN_ROWS },
     "benchmark rynkowy: job zakończony",
   );
 
   return { groups: matcherResult.groups, benchmarkRows: aggRows.length, published };
+}
+
+export const RANGE_WINDOW_MONTHS = 12;
+
+type RangeRow = {
+  market_group_key: string;
+  unit: string;
+  category: string | null;
+  median_price: string | null;
+  p25_price: string | null;
+  p75_price: string | null;
+  distinct_user_count: number;
+  verified_user_count: number;
+  sample_row_count: number;
+  from_month: string;
+  to_month: string;
+};
+
+/**
+ * Mediana z okna kroczącego (domyślnie 12 mies.) → market_price_ranges. Jedna cena na
+ * (user, dostawca) z CAŁEGO okna, więc produkt kupowany przez różne lokale w różnych
+ * miesiącach też dostaje medianę (miesięczna rzadko przekracza próg przy małej bazie).
+ * Te same filtry co mediana miesięczna: tylko wydatki, opt-in, próg liczy konta z KSeF.
+ * Tabela jest mała — przeliczana w całości w transakcji.
+ */
+export async function computeRollingRanges(windowMonths: number, minUsersN: number, minRowsN: number): Promise<{ rows: number; published: number }> {
+  const result = await db.execute<RangeRow>(sql`
+    WITH per_user_price AS (
+      SELECT
+        mpa.market_group_key,
+        mpa.unit,
+        mpa.category,
+        i.user_id,
+        i.supplier_id,
+        AVG(ii.unit_price::numeric) AS avg_price,
+        MIN(SUBSTRING(i.invoice_date, 1, 7)) AS min_month,
+        MAX(SUBSTRING(i.invoice_date, 1, 7)) AS max_month,
+        EXISTS (SELECT 1 FROM invoices k WHERE k.user_id = i.user_id AND k.source = 'ksef_sync') AS has_ksef
+      FROM invoice_items ii
+      JOIN invoices i ON i.id = ii.invoice_id
+      JOIN products p ON p.id = ii.product_id
+      JOIN market_product_aliases mpa
+        ON mpa.canonical_name = p.canonical_name AND mpa.unit = ${normalizedUnitSql(sql`p.unit`)}
+      LEFT JOIN user_settings us ON us.user_id = i.user_id
+      WHERE p.canonical_name IS NOT NULL
+        ${spendInvoicesFilter("i")}
+        AND COALESCE(us.benchmark_opt_in, true) = true
+        AND i.invoice_date >= to_char(current_date - make_interval(months => ${windowMonths}), 'YYYY-MM-DD')
+      GROUP BY 1, 2, 3, 4, 5
+    )
+    SELECT
+      market_group_key, unit, category,
+      percentile_cont(0.5) WITHIN GROUP (ORDER BY avg_price)::text AS median_price,
+      percentile_cont(0.25) WITHIN GROUP (ORDER BY avg_price)::text AS p25_price,
+      percentile_cont(0.75) WITHIN GROUP (ORDER BY avg_price)::text AS p75_price,
+      COUNT(DISTINCT user_id)::int AS distinct_user_count,
+      COUNT(DISTINCT user_id) FILTER (WHERE has_ksef)::int AS verified_user_count,
+      COUNT(*)::int AS sample_row_count,
+      MIN(min_month) AS from_month,
+      MAX(max_month) AS to_month
+    FROM per_user_price
+    GROUP BY 1, 2, 3
+  `);
+  const rows = result.rows;
+  let published = 0;
+  await db.transaction(async (tx) => {
+    await tx.delete(marketPriceRangesTable).where(eq(marketPriceRangesTable.windowMonths, windowMonths));
+    for (const r of rows) {
+      const isPublished = r.verified_user_count >= minUsersN && r.sample_row_count >= minRowsN;
+      if (isPublished) published++;
+      await tx
+        .insert(marketPriceRangesTable)
+        .values({
+          marketGroupKey: r.market_group_key,
+          unit: r.unit,
+          category: r.category,
+          windowMonths,
+          fromMonth: r.from_month,
+          toMonth: r.to_month,
+          medianPrice: r.median_price,
+          p25Price: r.p25_price,
+          p75Price: r.p75_price,
+          distinctUserCount: r.distinct_user_count,
+          verifiedUserCount: r.verified_user_count,
+          sampleRowCount: r.sample_row_count,
+          isPublished,
+        })
+        // Ta sama grupa w dwóch kategoriach (alias przepisany między kategoriami) — zostaje pierwsza.
+        .onConflictDoNothing({ target: [marketPriceRangesTable.marketGroupKey, marketPriceRangesTable.unit, marketPriceRangesTable.windowMonths] });
+    }
+  });
+  return { rows: rows.length, published };
 }
 
 const TICK_MS = 24 * 60 * 60 * 1000; // raz dziennie — dane nie wymagają świeżości co do minuty

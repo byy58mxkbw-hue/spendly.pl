@@ -177,7 +177,9 @@ function BenchmarkRow({ item }: { item: BenchmarkItem }) {
         <div className="flex-1">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Twoja cena: <b className="text-foreground num">{formatPrice(item.yourPrice)}</b></span>
-            <span>Mediana: <b className="text-foreground num">{formatPrice(median)}</b></span>
+            <span>
+              Mediana{item.medianWindow === "12m" ? " z 12 mies." : ""}: <b className="text-foreground num">{formatPrice(median)}</b>
+            </span>
           </div>
           <PriceTrack p25={item.p25Price ?? null} p75={item.p75Price ?? null} median={median} yourPrice={item.yourPrice} />
         </div>

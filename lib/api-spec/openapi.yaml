@@ -3718,6 +3718,14 @@ components:
           type: integer
         savingsPerMonth:
           type: number
+        medianWindow:
+          type: string
+          enum: [month, 12m]
+          description: "month = mediana z jednego miesiąca; 12m = mediana z ostatnich 12 miesięcy (zapas, gdy miesięczna nie ma progu)"
+        medianFromMonth:
+          type: string
+        medianToMonth:
+          type: string
         matchedBy:
           type: string
           enum: [alias, fuzzy]

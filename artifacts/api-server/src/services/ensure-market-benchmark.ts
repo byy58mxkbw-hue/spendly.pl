@@ -17,6 +17,30 @@ export async function ensureMarketBenchmarkExtensions(log: Logger): Promise<void
       CREATE INDEX IF NOT EXISTS products_canonical_name_trgm_idx
       ON products USING gin (canonical_name gin_trgm_ops)
     `);
+    // Mediana z okna kroczącego (np. 12 mies.) — patrz lib/db schema market-price-ranges.ts.
+    // Tworzona tutaj (deploy nie robi drizzle push), PRZED startem harmonogramu joba.
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS market_price_ranges (
+        id serial PRIMARY KEY,
+        market_group_key text NOT NULL,
+        unit text NOT NULL,
+        category text,
+        window_months integer NOT NULL,
+        from_month text NOT NULL,
+        to_month text NOT NULL,
+        median_price numeric(12,4),
+        p25_price numeric(12,4),
+        p75_price numeric(12,4),
+        distinct_user_count integer NOT NULL,
+        verified_user_count integer NOT NULL,
+        sample_row_count integer NOT NULL,
+        is_published boolean NOT NULL DEFAULT false,
+        computed_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS mpr_key_uniq ON market_price_ranges (market_group_key, unit, window_months)
+    `);
     // Dopasowanie w locie w GET /benchmarks dla nazw bez aliasu (operator `%`).
     await db.execute(sql`
       CREATE INDEX IF NOT EXISTS mpa_canonical_name_trgm_idx

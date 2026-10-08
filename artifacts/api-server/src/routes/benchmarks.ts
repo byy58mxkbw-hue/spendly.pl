@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { sql, type SQL } from "drizzle-orm";
 import { db, userSettingsTable } from "@workspace/db";
-import { DEFAULT_MIN_USERS, DEFAULT_MIN_ROWS } from "../services/market-benchmark-job.js";
+import { DEFAULT_MIN_USERS, DEFAULT_MIN_ROWS, RANGE_WINDOW_MONTHS } from "../services/market-benchmark-job.js";
 import { normalizedUnitSql } from "../lib/units.js";
 import { EXCLUDED_BENCHMARK_CATEGORIES, FUZZY_SIMILARITY_THRESHOLD, MIN_FUZZY_LENGTH } from "../lib/market-product-matcher.js";
 import { spendInvoicesFilter } from "../lib/invoice-line-classify.js";
@@ -238,8 +238,29 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
   const MIN_USERS = minUsers();
   const MIN_ROWS = minRows();
 
+  // Zapas: gdy grupa nie ma opublikowanej mediany MIESIĘCZNEJ, bierzemy medianę z okna
+  // 12 mies. (market_price_ranges, te same progi k-anonimowości). Przy małej liczbie kont
+  // to ona daje większość porównań. Front podpisuje taki wiersz „mediana z 12 mies.”.
+  type RangeRow = { market_group_key: string; unit: string; median_price: number | null; p25_price: number | null; p75_price: number | null; distinct_user_count: number; sample_row_count: number; from_month: string; to_month: string };
+  const rangeByKey = new Map<string, RangeRow>();
+  const needRange = benchRows.filter((r) => !r.is_published);
+  if (needRange.length > 0) {
+    const rangeResult = await db.execute<RangeRow>(sql`
+      SELECT market_group_key, unit, median_price::float AS median_price, p25_price::float AS p25_price, p75_price::float AS p75_price,
+             distinct_user_count, sample_row_count, from_month, to_month
+      FROM market_price_ranges
+      WHERE is_published = true AND window_months = ${RANGE_WINDOW_MONTHS}
+        AND (market_group_key, unit) IN (${sql.join(needRange.map((r) => sql`(${r.market_group_key}, ${r.unit})`), sql`, `)})
+    `);
+    for (const r of rangeResult.rows) rangeByKey.set(uid(r.market_group_key, r.unit), r);
+  }
+
   const items = yourPrices.map((yp) => {
-    const bench = benchByKey.get(uid(yp.canonical_name, yp.unit));
+    const monthly = benchByKey.get(uid(yp.canonical_name, yp.unit));
+    const range = monthly && !monthly.is_published ? rangeByKey.get(uid(monthly.market_group_key, monthly.unit)) : undefined;
+    const bench = range && monthly
+      ? { ...monthly, ...range, is_published: true, period_month: range.to_month }
+      : monthly;
     const base = {
       productName: yp.product_name,
       unit: yp.unit,
@@ -270,6 +291,9 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
       sampleRowCount: bench.sample_row_count,
       savingsPerMonth,
       matchedBy: fuzzyKeys.has(uid(yp.canonical_name, yp.unit)) ? ("fuzzy" as const) : ("alias" as const),
+      medianWindow: range ? ("12m" as const) : ("month" as const),
+      medianFromMonth: range ? range.from_month : bench.period_month,
+      medianToMonth: range ? range.to_month : bench.period_month,
       history: historyByKey.get(uid(bench.market_group_key, bench.unit)) ?? [],
     };
   });

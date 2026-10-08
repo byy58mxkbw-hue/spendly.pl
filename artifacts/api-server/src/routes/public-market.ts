@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { EXCLUDED_BENCHMARK_CATEGORIES } from "../lib/market-product-matcher.js";
+import { RANGE_WINDOW_MONTHS } from "../services/market-benchmark-job.js";
 
 const router: IRouter = Router();
 
@@ -20,15 +21,25 @@ let cache: { at: number; payload: Payload } | null = null;
  */
 router.get("/public/market-groups", async (_req, res): Promise<void> => {
   if (!cache || Date.now() - cache.at > TTL_MS) {
+    // Opublikowane mediany miesięczne ORAZ z okna 12 mies. (market_price_ranges) — druga
+    // daje dużo więcej produktów przy małej liczbie kont. Dedup po (nazwa, jednostka).
+    const excluded = sql.join(EXCLUDED_BENCHMARK_CATEGORIES.map((c) => sql`${c}`), sql`, `);
     const result = await db.execute<GroupRow>(sql`
-      SELECT DISTINCT ON (market_group_key, unit)
-        market_group_key AS name, unit, category, period_month
+      SELECT market_group_key AS name, unit, category, period_month
       FROM market_price_benchmarks
-      WHERE is_published = true
-        AND (category IS NULL OR category NOT IN (${sql.join(EXCLUDED_BENCHMARK_CATEGORIES.map((c) => sql`${c}`), sql`, `)}))
-      ORDER BY market_group_key, unit, period_month DESC
+      WHERE is_published = true AND (category IS NULL OR category NOT IN (${excluded}))
+      UNION ALL
+      SELECT market_group_key AS name, unit, category, to_month AS period_month
+      FROM market_price_ranges
+      WHERE is_published = true AND window_months = ${RANGE_WINDOW_MONTHS} AND (category IS NULL OR category NOT IN (${excluded}))
     `);
-    const rows = result.rows;
+    const byKey = new Map<string, GroupRow>();
+    for (const r of result.rows) {
+      const k = `${r.name}::${r.unit}`;
+      const prev = byKey.get(k);
+      if (!prev || r.period_month > prev.period_month) byKey.set(k, r);
+    }
+    const rows = [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name, "pl"));
     cache = {
       at: Date.now(),
       payload: {

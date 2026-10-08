@@ -127,6 +127,7 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
     await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "karkowka anon test"));
     await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "karkowka anon testowa"));
     await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "cytryna anon manual"));
+    await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "pieczarki rolling test"));
     server?.close();
   });
 
@@ -182,7 +183,7 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
     const OLD_USER = "anon_old_user";
     ALL_USERS.push(OLD_USER);
     const old = new Date();
-    old.setMonth(old.getMonth() - 5);
+    old.setMonth(old.getMonth() - 14); // poza oknem 12 mies. — nie zasila mediany kroczącej
     const oldDate = old.toISOString().slice(0, 10);
     await seedPurchase(OLD_USER, "karkowka anon test", "kg", "mieso", 27, { invoiceDate: oldDate });
 
@@ -226,6 +227,31 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
 
     const foreign = await getBenchmarks(`?invoiceId=${createdInvoiceIds[0]}`);
     expect(foreign.status).toBe(404);
+  });
+
+  it("mediana z 12 mies.: 8 kont kupujących w RÓŻNYCH miesiącach → brak mediany miesięcznej, jest 12m (route + publiczna lista)", async () => {
+    const ROLL_USERS = Array.from({ length: 8 }, (_, n) => `anon_roll_${n}`);
+    ALL_USERS.push(...ROLL_USERS);
+    for (const [n, u] of ROLL_USERS.entries()) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - n); // każdy w innym miesiącu, najstarszy 7 mies. temu
+      await seedPurchase(u, "pieczarki rolling test", "kg", "warzywa", 10 + n, { invoiceDate: d.toISOString().slice(0, 10) });
+    }
+    const { runMarketBenchmarkJob } = await import("../services/market-benchmark-job");
+    await runMarketBenchmarkJob(log);
+
+    authState.userId = ROLL_USERS[0]!;
+    const row = itemsOf((await getBenchmarks()).body).find((i) => i.productName === "pieczarki rolling test");
+    expect(row).toBeDefined();
+    expect(row!.insufficientData).toBe(false);
+    expect(row!.medianWindow).toBe("12m");
+    expect(row!.medianPrice).toBeCloseTo(13.5, 5);
+
+    const { __resetPublicMarketCache } = await import("./public-market");
+    __resetPublicMarketCache();
+    const pub = (await (await fetch(`${baseUrl}/api/public/market-groups`)).json()) as { groups: Array<{ name: string }> };
+    expect(pub.groups.map((g) => g.name)).toContain("pieczarki rolling test");
   });
 
   it("konta wyłącznie z importem ręcznym/podglądem nie publikują mediany (nawet 8 kont ≥ progu)", async () => {

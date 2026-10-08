@@ -104,7 +104,7 @@ export function BenchmarkInvoiceView({ items }: { items: BenchmarkItem[] }) {
                     <td className="px-5 py-3.5">
                       <p className="font-semibold">{i.productName}</p>
                       <p className="text-xs text-muted-foreground num">
-                        za {i.unit}{i.p25Price != null && i.p75Price != null ? ` · rynek: ${formatPrice(i.p25Price)}–${formatPrice(i.p75Price)}` : ""}
+                        za {i.unit}{i.p25Price != null && i.p75Price != null ? ` · rynek: ${formatPrice(i.p25Price)}–${formatPrice(i.p75Price)}` : ""}{i.medianWindow === "12m" ? " · mediana z 12 mies." : ""}
                       </p>
                     </td>
                     <td className="px-3 py-3.5 text-right num font-semibold">{formatPrice(i.yourPrice)}</td>

@@ -573,6 +573,17 @@ export interface BenchmarkHistoryPoint {
 }
 
 /**
+ * month = mediana z jednego miesiąca; 12m = mediana z ostatnich 12 miesięcy (zapas, gdy miesięczna nie ma progu)
+ */
+export type BenchmarkItemMedianWindow = typeof BenchmarkItemMedianWindow[keyof typeof BenchmarkItemMedianWindow];
+
+
+export const BenchmarkItemMedianWindow = {
+  month: 'month',
+  '12m': '12m',
+} as const;
+
+/**
  * alias = dopasowanie z dziennego matchera; fuzzy = dopasowanie w locie (pg_trgm), gdy nazwa nie ma jeszcze aliasu
  */
 export type BenchmarkItemMatchedBy = typeof BenchmarkItemMatchedBy[keyof typeof BenchmarkItemMatchedBy];
@@ -602,6 +613,10 @@ export interface BenchmarkItem {
   deltaPercent?: number;
   sampleRowCount?: number;
   savingsPerMonth?: number;
+  /** month = mediana z jednego miesiąca; 12m = mediana z ostatnich 12 miesięcy (zapas, gdy miesięczna nie ma progu) */
+  medianWindow?: BenchmarkItemMedianWindow;
+  medianFromMonth?: string;
+  medianToMonth?: string;
   /** alias = dopasowanie z dziennego matchera; fuzzy = dopasowanie w locie (pg_trgm), gdy nazwa nie ma jeszcze aliasu */
   matchedBy?: BenchmarkItemMatchedBy;
   history?: BenchmarkHistoryPoint[];

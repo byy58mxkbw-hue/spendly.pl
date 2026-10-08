@@ -1841,6 +1841,9 @@ export const GetBenchmarksResponse = zod.object({
   "deltaPercent": zod.number().optional(),
   "sampleRowCount": zod.number().optional(),
   "savingsPerMonth": zod.number().optional(),
+  "medianWindow": zod.enum(['month', '12m']).optional().describe('month = mediana z jednego miesiąca; 12m = mediana z ostatnich 12 miesięcy (zapas, gdy miesięczna nie ma progu)'),
+  "medianFromMonth": zod.string().optional(),
+  "medianToMonth": zod.string().optional(),
   "matchedBy": zod.enum(['alias', 'fuzzy']).optional().describe('alias = dopasowanie z dziennego matchera; fuzzy = dopasowanie w locie (pg_trgm), gdy nazwa nie ma jeszcze aliasu'),
   "history": zod.array(zod.object({
   "month": zod.string(),
