@@ -37,7 +37,8 @@ function App() {
               <Route path="/porownanie-cen" component={PorownanieCenPage} />
               <Route path="/dla-kogo" component={DlaKogoPage} />
               <Route path="/podglad-faktury-ksef" component={PodgladFakturyKsefPage} />
-              <Route path="/ceny-rynkowe" component={CenyRynkowePage} />
+              <Route path="/ceny-rynkowe">{() => <CenyRynkowePage />}</Route>
+              <Route path="/ceny-rynkowe/:slug">{(params) => <CenyRynkowePage slug={params.slug} />}</Route>
               <Route path="/cennik" component={CennikPage} />
               <Route path="/regulamin" component={RegulaminPage} />
               <Route path="/polityka-prywatnosci" component={PolitykaPrywatnosciPage} />

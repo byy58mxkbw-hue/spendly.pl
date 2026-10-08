@@ -108,7 +108,11 @@ router.get("/public/market-prices", async (_req, res): Promise<void> => {
         window: r.src, fromMonth: r.from_month, toMonth: r.to_month,
       }))
       .sort((a, b) => a.group.localeCompare(b.group, "pl") || a.name.localeCompare(b.name, "pl") || a.unit.localeCompare(b.unit));
-    pricesCache = { at: Date.now(), payload: { items, updatedAt: new Date().toISOString() } };
+    // Data ostatniego przeliczenia median (job wstawia zakresy od nowa przy każdym przebiegu),
+    // nie chwila odpowiedzi — strona pokazuje ją jako „zaktualizowano”.
+    const upd = await db.execute<{ at: string | null }>(sql`SELECT max(computed_at)::text AS at FROM market_price_ranges WHERE is_published = true`);
+    const at = upd.rows[0]?.at;
+    pricesCache = { at: Date.now(), payload: { items, updatedAt: at ? new Date(at).toISOString() : new Date().toISOString() } };
   }
   res.setHeader("Cache-Control", "public, max-age=3600");
   res.json(pricesCache.payload);

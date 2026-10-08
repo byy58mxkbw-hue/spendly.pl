@@ -6,6 +6,7 @@ import { MarketingNavBar, MarketingFooter } from "@/components/marketing-shell";
 import { usePageMeta } from "@/lib/use-page-meta";
 import { readInvoiceFile, type ViewerResult } from "@/lib/ksef-viewer";
 import { savePendingInvoice, readPendingInvoice } from "@/lib/pending-invoice";
+import { unlockMarket } from "@/lib/market-unlock";
 import { track } from "@/lib/posthog";
 import { fetchMarketKeys, countComparable } from "@/lib/market-match";
 
@@ -80,6 +81,7 @@ export default function PodgladFakturyKsefPage() {
       return;
     }
     savePendingInvoice(r.xml, r.fileName);
+    unlockMarket();
     track("ksef_viewer_file_loaded", { schema: r.schema, items_count: r.invoice.items.length });
     setLoaded(r);
     if (list.length > 1) setError("Na razie wczytujemy jeden plik naraz. Pokazujemy pierwszy z wybranych.");

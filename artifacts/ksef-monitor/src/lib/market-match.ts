@@ -32,3 +32,8 @@ export async function fetchMarketKeys(): Promise<Set<string>> {
 export function countComparable(items: Array<{ name: string; unit: string }>, keys: Set<string>): number {
   return items.filter((it) => keys.has(`${nameKey(it.name)}::${unitKey(it.unit)}`)).length;
 }
+
+/** Klucz produktu rynkowego (nazwa bazowa + jednostka) — ten sam co w liczniku wyżej. */
+export function marketKeyOf(name: string, unit: string): string {
+  return `${nameKey(name)}::${unitKey(unit)}`;
+}

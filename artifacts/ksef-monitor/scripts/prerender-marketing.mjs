@@ -28,9 +28,12 @@ const PAGES = [
     file: "ceny-rynkowe",
     module: "/src/pages/ceny-rynkowe.tsx",
     crumb: "Ceny rynkowe",
-    // Ceny w statycznym HTML (Google je widzi) + w bloku JSON, z którego strona startuje
-    // bez migania pustą tabelą. Gdy API niedostępne przy buildzie — strona i tak działa
-    // (pobierze ceny w przeglądarce).
+    // Publiczny wycinek cen (nazwy + przykłady, `publicSnapshot` ze strony) w statycznym
+    // HTML i w bloku JSON, z którego strona startuje bez migania pustą tabelą. Ten sam
+    // wycinek widzi Google i człowiek bez faktury (bez cloakingu). Gdy API niedostępne
+    // przy buildzie — strona i tak działa (pobierze ceny w przeglądarce).
+    // `subpages`: podstrona SEO na każdy produkt → <file>/<slug>.html + sitemap.
+    subpages: true,
     data: { path: "/api/public/market-prices", global: "__SPENDLY_MARKET_PRICES__", scriptId: "market-prices-data", pick: "items" },
   },
   { file: "regulamin", module: "/src/pages/regulamin.tsx", crumb: "Regulamin" },
@@ -45,7 +48,7 @@ function setTag(html, re, replacement, label) {
   return html.replace(re, replacement);
 }
 
-function buildHead(template, meta, crumb, faq) {
+function buildHead(template, meta, crumbs, faq, extraLd = []) {
   const url = meta.path === "/" ? `${SITE}/` : `${SITE}${meta.path}`;
   let h = template;
   h = setTag(h, /<title>[\s\S]*?<\/title>/, `<title>${escText(meta.title)}</title>`, "title");
@@ -67,10 +70,12 @@ function buildHead(template, meta, crumb, faq) {
       { "@type": "WebPage", "@id": url, url, name: meta.title, description: meta.description, inLanguage: "pl-PL", isPartOf: { "@id": `${SITE}/#website` } },
       {
         "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Strona główna", item: `${SITE}/` },
-          { "@type": "ListItem", position: 2, name: crumb, item: url },
-        ],
+        itemListElement: [{ name: "Strona główna", path: "/" }, ...crumbs].map((cr, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          name: cr.name,
+          item: cr.path === "/" ? `${SITE}/` : `${SITE}${cr.path}`,
+        })),
       },
     ],
   };
@@ -82,6 +87,7 @@ function buildHead(template, meta, crumb, faq) {
       mainEntity: faq.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
     });
   }
+  ld["@graph"].push(...extraLd);
   h = h.replace("</head>", `    <script type="application/ld+json">${JSON.stringify(ld)}</script>\n  </head>`);
   return h;
 }
@@ -115,8 +121,11 @@ try {
   const { Router } = await import("wouter");
   const env = loadEnv("production", ROOT, "VITE_");
   const apiBase = (env.VITE_API_BASE_URL || process.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+  const sitemapUrls = [];
   for (const page of PAGES) {
+    const mod = await vite.ssrLoadModule(page.module);
     let dataJson = null;
+    let items = null;
     if (page.data) {
       globalThis[page.data.global] = undefined;
       if (/^https?:\/\//.test(apiBase)) {
@@ -125,10 +134,13 @@ try {
           const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
           if (res.ok) {
             const body = await res.json();
-            globalThis[page.data.global] = body[page.data.pick];
+            // Strona może wystawić `publicSnapshot(body)` — to, co wolno pokazać publicznie (cały payload).
+            const snap = typeof mod.publicSnapshot === "function" ? mod.publicSnapshot(body) : body[page.data.pick];
+            items = Array.isArray(snap) ? snap : snap?.[page.data.pick] ?? null;
+            globalThis[page.data.global] = snap;
             // „<” zapisany jako sekwencja \u003c — treść JSON nie może zamknąć tagu <script>.
-            dataJson = JSON.stringify(body[page.data.pick]).replace(/</g, "\\u003c");
-            console.log(`[prerender] /${page.file}: dane z API (${body[page.data.pick]?.length ?? 0} pozycji)`);
+            dataJson = JSON.stringify(snap).replace(/</g, "\\u003c");
+            console.log(`[prerender] /${page.file}: dane z API (${items?.length ?? 0} pozycji)`);
           } else {
             console.warn(`[prerender] /${page.file}: API zwróciło ${res.status} — bez danych w HTML`);
           }
@@ -137,20 +149,61 @@ try {
         }
       }
     }
-    const mod = await vite.ssrLoadModule(page.module);
-    globalThis.__SPENDLY_PAGE_META__ = undefined;
-    const body = renderToString(
-      React.createElement(Router, { ssrPath: `/${page.file}` }, React.createElement(mod.default)),
-    );
-    const meta = globalThis.__SPENDLY_PAGE_META__;
-    if (!meta) throw new Error(`[prerender] ${page.file}: strona nie wywołała usePageMeta`);
-    let html = replaceRoot(buildHead(template, meta, page.crumb, mod.FAQ), body);
-    if (dataJson) {
-      html = html.replace("</body>", `<script type="application/json" id="${page.data.scriptId}">${dataJson}</script>
+    const render = (routePath, props, crumbs, faq, outFile, extraLd = []) => {
+      globalThis.__SPENDLY_PAGE_META__ = undefined;
+      const body = renderToString(
+        React.createElement(Router, { ssrPath: routePath }, React.createElement(mod.default, props)),
+      );
+      const meta = globalThis.__SPENDLY_PAGE_META__;
+      if (!meta) throw new Error(`[prerender] ${routePath}: strona nie wywołała usePageMeta`);
+      let html = replaceRoot(buildHead(template, meta, crumbs, faq, extraLd), body);
+      if (dataJson) {
+        html = html.replace("</body>", `<script type="application/json" id="${page.data.scriptId}">${dataJson}</script>
 </body>`);
+      }
+      fs.mkdirSync(path.dirname(outFile), { recursive: true });
+      fs.writeFileSync(outFile, html);
+      console.log(`[prerender] ${routePath} → ${path.relative(DIST, outFile)} (${Math.round(html.length / 1024)} KB, "${meta.title}")`);
+    };
+    const crumbs = [{ name: page.crumb, path: `/${page.file}` }];
+    const hasSub = page.subpages && Array.isArray(items) && typeof mod.marketSlug === "function";
+    // Lista podstron produktów jako ItemList — Google widzi strukturę sekcji.
+    const itemList = hasSub
+      ? [{
+          "@type": "ItemList",
+          name: page.crumb,
+          itemListElement: items.map((it, i) => ({ "@type": "ListItem", position: i + 1, name: it.name, url: `${SITE}/${page.file}/${mod.marketSlug(it, items)}` })),
+        }]
+      : [];
+    render(`/${page.file}`, {}, crumbs, mod.FAQ, path.join(DIST, `${page.file}.html`), itemList);
+    if (hasSub) {
+      for (const it of items) {
+        const slug = mod.marketSlug(it, items);
+        const routePath = `/${page.file}/${slug}`;
+        // FAQ ogólne jest widoczne także na podstronie, ale FAQPage zostaje tylko na
+        // stronie głównej sekcji — te same pytania na 20 adresach to duplikat.
+        render(routePath, { slug }, [...crumbs, { name: it.name, path: routePath }], null, path.join(DIST, page.file, `${slug}.html`));
+        sitemapUrls.push(routePath);
+      }
     }
-    fs.writeFileSync(path.join(DIST, `${page.file}.html`), html);
-    console.log(`[prerender] /${page.file} → ${page.file}.html (${Math.round(html.length / 1024)} KB, "${meta.title}")`);
+  }
+  // Podstrony produktów zależą od danych w chwili buildu — dopisujemy je do sitemapy
+  // skopiowanej przez Vite (public/sitemap.xml generuje build-blog bez dostępu do API).
+  if (sitemapUrls.length > 0) {
+    const smPath = path.join(DIST, "sitemap.xml");
+    if (fs.existsSync(smPath)) {
+      const entries = sitemapUrls
+        .map((u) => `  <url>
+    <loc>${SITE}${u}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+`)
+        .join("");
+      const sm = fs.readFileSync(smPath, "utf8").replace("</urlset>", `${entries}</urlset>`);
+      fs.writeFileSync(smPath, sm);
+      console.log(`[prerender] sitemap: +${sitemapUrls.length} podstron produktów`);
+    }
   }
 } finally {
   await vite.close();
