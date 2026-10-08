@@ -122,6 +122,7 @@ import type {
   Product,
   ProductQuantityTrendRow,
   PublicMarketGroups,
+  PublicMarketPrices,
   RecentPurchase,
   RepriceDish200,
   ResetDishes200,
@@ -6358,6 +6359,83 @@ export function useGetPublicMarketGroups<TData = Awaited<ReturnType<typeof getPu
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPublicMarketGroupsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPublicMarketPricesUrl = () => {
+
+
+
+
+  return `/api/public/market-prices`
+}
+
+/**
+ * @summary PUBLICZNE: mediana i środkowa połowa cen netto produktów bazowych (tylko opublikowane, bez liczby źródeł)
+ */
+export const getPublicMarketPrices = async ( options?: RequestInit): Promise<PublicMarketPrices> => {
+
+  return customFetch<PublicMarketPrices>(getGetPublicMarketPricesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicMarketPricesQueryKey = () => {
+    return [
+    `/api/public/market-prices`
+    ] as const;
+    }
+
+
+export const getGetPublicMarketPricesQueryOptions = <TData = Awaited<ReturnType<typeof getPublicMarketPrices>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicMarketPrices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicMarketPricesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicMarketPrices>>> = ({ signal }) => getPublicMarketPrices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicMarketPrices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicMarketPricesQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicMarketPrices>>>
+export type GetPublicMarketPricesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary PUBLICZNE: mediana i środkowa połowa cen netto produktów bazowych (tylko opublikowane, bez liczby źródeł)
+ */
+
+export function useGetPublicMarketPrices<TData = Awaited<ReturnType<typeof getPublicMarketPrices>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicMarketPrices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicMarketPricesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

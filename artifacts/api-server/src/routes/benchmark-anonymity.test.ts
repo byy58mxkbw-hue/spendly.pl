@@ -272,6 +272,20 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
     }
     const aliases = await db.select().from(marketProductAliasesTable).where(inArray(marketProductAliasesTable.canonicalName, ["cytryna luz", "cytryny argentyna kl.i"]));
     expect(new Set(aliases.map((a) => a.marketGroupKey))).toEqual(new Set(["Cytryna"]));
+
+    // Publiczne ceny: czysta nazwa bazowa z medianą, bez surowych nazw i liczników źródeł.
+    const { __resetPublicMarketCache } = await import("./public-market");
+    __resetPublicMarketCache();
+    const res = await fetch(`${baseUrl}/api/public/market-prices`);
+    expect(res.status).toBe(200);
+    const raw = await res.text();
+    const items = (JSON.parse(raw) as { items: Array<{ name: string; unit: string; group: string; median: number }> }).items;
+    const lemon = items.find((i) => i.name === "Cytryna" && i.unit === "kg");
+    expect(lemon?.group).toBe("Owoce");
+    expect(typeof lemon?.median).toBe("number");
+    for (const forbidden of ["cytryna luz", "argentyna", "distinctUserCount", "sampleRowCount", "verified", "anon_"]) {
+      expect(raw.toLowerCase()).not.toContain(forbidden.toLowerCase());
+    }
   });
 
   it("publiczna lista (bez logowania): tylko opublikowane grupy, bez cen i liczników źródeł", async () => {

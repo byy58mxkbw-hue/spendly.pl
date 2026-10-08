@@ -1892,6 +1892,25 @@ export const GetPublicMarketGroupsResponse = zod.object({
 
 
 /**
+ * @summary PUBLICZNE: mediana i środkowa połowa cen netto produktów bazowych (tylko opublikowane, bez liczby źródeł)
+ */
+export const GetPublicMarketPricesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "name": zod.string(),
+  "unit": zod.string(),
+  "group": zod.string(),
+  "median": zod.number(),
+  "p25": zod.number().nullable(),
+  "p75": zod.number().nullable(),
+  "window": zod.enum(['12m', 'month']),
+  "fromMonth": zod.string(),
+  "toMonth": zod.string()
+})),
+  "updatedAt": zod.string()
+})
+
+
+/**
  * @summary Czy użytkownik widział już powitanie po założeniu konta
  */
 export const GetWelcomeStatusResponse = zod.object({

@@ -2007,6 +2007,20 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicMarketGroups"
 
+  /public/market-prices:
+    get:
+      operationId: getPublicMarketPrices
+      tags: [benchmarks]
+      summary: "PUBLICZNE: mediana i środkowa połowa cen netto produktów bazowych (tylko opublikowane, bez liczby źródeł)"
+      security: []
+      responses:
+        "200":
+          description: Ceny rynkowe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicMarketPrices"
+
   /onboarding/welcome:
     get:
       operationId: getWelcomeStatus
@@ -3821,6 +3835,27 @@ components:
         latestMonth:
           type: ["string", "null"]
       required: [groups, count, latestMonth]
+
+    PublicMarketPrices:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              unit: { type: string }
+              group: { type: string }
+              median: { type: number }
+              p25: { type: ["number", "null"] }
+              p75: { type: ["number", "null"] }
+              window: { type: string, enum: [12m, month] }
+              fromMonth: { type: string }
+              toMonth: { type: string }
+            required: [name, unit, group, median, p25, p75, window, fromMonth, toMonth]
+        updatedAt: { type: string }
+      required: [items, updatedAt]
 
     WelcomeStatus:
       type: object

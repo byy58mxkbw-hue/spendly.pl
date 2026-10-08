@@ -681,6 +681,33 @@ export interface PublicMarketGroups {
   latestMonth: string | null;
 }
 
+export type PublicMarketPricesItemsItemWindow = typeof PublicMarketPricesItemsItemWindow[keyof typeof PublicMarketPricesItemsItemWindow];
+
+
+export const PublicMarketPricesItemsItemWindow = {
+  '12m': '12m',
+  month: 'month',
+} as const;
+
+export type PublicMarketPricesItemsItem = {
+  name: string;
+  unit: string;
+  group: string;
+  median: number;
+  /** @nullable */
+  p25: number | null;
+  /** @nullable */
+  p75: number | null;
+  window: PublicMarketPricesItemsItemWindow;
+  fromMonth: string;
+  toMonth: string;
+};
+
+export interface PublicMarketPrices {
+  items: PublicMarketPricesItemsItem[];
+  updatedAt: string;
+}
+
 export interface WelcomeStatus {
   seen: boolean;
 }

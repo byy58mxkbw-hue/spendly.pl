@@ -59,3 +59,13 @@ describe("genericProduct — produkt bazowy z nazwy z faktury", () => {
     expect(keys[0]).toBe("cytryna");
   });
 });
+
+describe("groupOf — grupy do prezentacji", () => {
+  it("ze słownika, nie z kategorii użytkowników", () => {
+    expect(genericProduct("Karkówka bez kości")?.group).toBe("Mięso i ryby");
+    expect(genericProduct("Mięta cięta")?.group).toBe("Zioła");
+    expect(genericProduct("Cytryny")?.group).toBe("Owoce");
+    expect(genericProduct("Pieczarki")?.group).toBe("Warzywa");
+    expect(genericProduct("Ryż basmati 5kg")?.group).toBe("Spiżarnia");
+  });
+});

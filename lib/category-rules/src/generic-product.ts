@@ -16,7 +16,8 @@ import { normalizeForMatch } from "./text-normalize.js";
  *    przed ogólnymi („pomidor”).
  * Jednostki nie łączymy tutaj — robi to wywołujący (cena za kg ≠ za sztukę).
  */
-export type GenericProduct = { key: string; label: string };
+export type GenericProductGroup = "Owoce" | "Warzywa" | "Zioła" | "Mięso i ryby" | "Nabiał" | "Spiżarnia";
+export type GenericProduct = { key: string; label: string; group: GenericProductGroup };
 
 type Entry = { label: string; match: string[]; exclude?: string[] };
 
@@ -140,6 +141,22 @@ const ENTRIES: Entry[] = [
   { label: "Oliwki", match: ["oliwk"] },
 ];
 
+const HERBS = new Set(["Mięta", "Bazylia", "Koperek", "Szczypiorek", "Kolendra", "Rozmaryn", "Tymianek", "Natka pietruszki"]);
+const FRUITS = new Set(["Cytryna", "Limonka", "Pomarańcza", "Grejpfrut", "Mandarynka", "Jabłko", "Gruszka", "Banan", "Truskawka", "Borówka", "Malina", "Winogrono", "Arbuz", "Ananas", "Mango", "Awokado", "Kiwi"]);
+const MEAT_FISH = new Set(["Filet z kurczaka", "Udo z kurczaka", "Skrzydełka z kurczaka", "Filet z indyka", "Polędwica wołowa", "Wołowina mielona", "Antrykot", "Rostbef", "Polędwiczka wieprzowa", "Karkówka", "Łopatka wieprzowa", "Schab", "Żeberka", "Boczek wędzony", "Boczek", "Kaczka", "Łosoś wędzony", "Łosoś", "Dorsz", "Krewetki"]);
+const DAIRY = new Set(["Masło", "Mleko", "Śmietana 36%", "Śmietana 30%", "Śmietana 18%", "Śmietana 12%", "Jogurt naturalny", "Twaróg", "Mozzarella", "Mascarpone", "Feta", "Jaja"]);
+const PANTRY = new Set(["Mąka pszenna", "Cukier puder", "Cukier", "Sól", "Ryż", "Olej rzepakowy", "Oliwa z oliwek", "Oliwki"]);
+
+/** Grupa do prezentacji (np. publiczna strona cen) — jawnie ze słownika, nie z kategorii userów. */
+export function groupOf(label: string): GenericProductGroup {
+  if (HERBS.has(label)) return "Zioła";
+  if (FRUITS.has(label)) return "Owoce";
+  if (MEAT_FISH.has(label)) return "Mięso i ryby";
+  if (DAIRY.has(label)) return "Nabiał";
+  if (PANTRY.has(label)) return "Spiżarnia";
+  return "Warzywa";
+}
+
 function tokenize(name: string): string[] {
   return normalizeForMatch(name)
     .replace(/[^a-z0-9%]+/g, " ")
@@ -166,7 +183,7 @@ export function genericProduct(name: string): GenericProduct | null {
   for (const e of ENTRIES) {
     if (!e.match.every((s) => hasStem(tokens, s))) continue;
     if (e.exclude?.some((x) => hasStem(tokens, x))) continue;
-    return { key: keyOf(e.label), label: e.label };
+    return { key: keyOf(e.label), label: e.label, group: groupOf(e.label) };
   }
   return null;
 }
