@@ -18,6 +18,9 @@ export function normalizeUnit(u: string | null | undefined): string {
     gram: "g",
     gramy: "g",
     szt: "szt",
+    // „st” = sztuka w fakturach hurtowni (np. Makro) — bez tego „Mięta (st)” i „Mięta (szt)”
+    // były osobnymi produktami w porównaniu cen i historii (2026-10-08).
+    st: "szt",
     sztuk: "szt",
     sztuka: "szt",
     sztuki: "szt",
@@ -46,7 +49,7 @@ export function normalizedUnitSql(unitColumn: SQL): SQL {
   return sql`(CASE ${cleaned}
     WHEN 'kg' THEN 'kg' WHEN 'kilogram' THEN 'kg' WHEN 'kilogramy' THEN 'kg'
     WHEN 'g' THEN 'g' WHEN 'gram' THEN 'g' WHEN 'gramy' THEN 'g'
-    WHEN 'szt' THEN 'szt' WHEN 'sztuk' THEN 'szt' WHEN 'sztuka' THEN 'szt' WHEN 'sztuki' THEN 'szt'
+    WHEN 'szt' THEN 'szt' WHEN 'st' THEN 'szt' WHEN 'sztuk' THEN 'szt' WHEN 'sztuka' THEN 'szt' WHEN 'sztuki' THEN 'szt'
     WHEN 'l' THEN 'l' WHEN 'litr' THEN 'l' WHEN 'litry' THEN 'l'
     WHEN 'ml' THEN 'ml' WHEN 'mililitr' THEN 'ml'
     WHEN 'opak' THEN 'opak' WHEN 'op' THEN 'opak' WHEN 'opakowanie' THEN 'opak' WHEN 'opakowania' THEN 'opak'

@@ -14,6 +14,7 @@ describe("normalizeUnit", () => {
     expect(normalizeUnit("szt.")).toBe("szt");
     expect(normalizeUnit("sztuka")).toBe("szt");
     expect(normalizeUnit("SZTUKI")).toBe("szt");
+    expect(normalizeUnit("ST")).toBe("szt"); // skrót z faktur hurtowni
   });
 
   it("normalizuje litry i mililitry osobno", () => {
