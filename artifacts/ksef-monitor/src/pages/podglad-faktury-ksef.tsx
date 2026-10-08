@@ -7,6 +7,7 @@ import { usePageMeta } from "@/lib/use-page-meta";
 import { readInvoiceFile, type ViewerResult } from "@/lib/ksef-viewer";
 import { savePendingInvoice, readPendingInvoice } from "@/lib/pending-invoice";
 import { track } from "@/lib/posthog";
+import { fetchMarketKeys, countComparable } from "@/lib/market-match";
 
 /**
  * Publiczne narzędzie SEO: podgląd faktury KSeF z pliku XML (spec „Podgląd faktury
@@ -351,6 +352,15 @@ function GatedResult({ c, loaded, notice, onReset }: { c: MarketingPalette; load
     </div>
   );
   const track_cta = () => track("ksef_viewer_gate_cta", { method: "email" });
+  // Ile pozycji ma medianę rynku (publiczna lista bez cen; nic z faktury nie wychodzi).
+  const [comparable, setComparable] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetchMarketKeys()
+      .then((keys) => { if (alive) setComparable(countComparable(items, keys)); })
+      .catch(() => { /* brak licznika — zostaje kwota brutto */ });
+    return () => { alive = false; };
+  }, [items]);
 
   return (
     <section style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px 64px" }}>
@@ -411,7 +421,7 @@ function GatedResult({ c, loaded, notice, onReset }: { c: MarketingPalette; load
             Załóż darmowe konto, żeby zobaczyć fakturę i porównanie cen
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: c.border, border: `1px solid ${c.border}`, marginBottom: 18 }}>
-            {[["Rozpoznane pozycje", String(items.length)], ["Kwota brutto", zl(h.totalGross)]].map(([k, v]) => (
+            {[["Rozpoznane pozycje", String(items.length)], comparable != null && comparable > 0 ? ["Z medianą rynku", String(comparable)] : ["Kwota brutto", zl(h.totalGross)]].map(([k, v]) => (
               <div key={k} style={{ background: c.bg, padding: "14px 16px" }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: c.muted }}>{k}</div>
                 <div className="num" style={{ fontSize: 24, fontWeight: 700, marginTop: 6, color: c.text }}>{v}</div>
