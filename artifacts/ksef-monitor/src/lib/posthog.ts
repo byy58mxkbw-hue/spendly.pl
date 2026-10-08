@@ -44,6 +44,11 @@ export function initAnalytics(): void {
         defaults: "2025-05-24", // sensowne domyślne: m.in. pageview na zmianę trasy (SPA)
         person_profiles: "identified_only",
         opt_out_capturing_by_default: true,
+        // Bez zgody (domyślny opt-out lub odmowa) liczymy odwiedziny BEZ cookies i bez
+        // pamięci lokalnej — tożsamość to dzienny hash po stronie PostHog (projekt ma
+        // włączone cookieless_server_hash_mode). Po zgodzie Cookiebota zwykły tryb z cookies.
+        // Bez tego PostHog widział tylko osoby, które kliknęły „akceptuj” (prawie nikogo).
+        cookieless_mode: "on_reject",
       });
       ph = posthog;
       wireConsent(posthog);

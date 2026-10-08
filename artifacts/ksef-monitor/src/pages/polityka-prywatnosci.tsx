@@ -106,6 +106,14 @@ export default function PolitykaPrywatnosci() {
               jest odczytywany wyłącznie w Twojej przeglądarce i zapisywany w jej pamięci lokalnej na
               <B> najwyżej godzinę</B>, żeby po rejestracji mógł trafić na Twoje konto. Do tego momentu nie
               wysyłamy go na nasz serwer.</p>
+              <p style={{ marginTop: 10 }}>Na stronie z cenami rynkowymi zapamiętujemy w pamięci lokalnej wyłącznie
+              informację, że tabela została odblokowana (na <B>30 dni</B>) — bez treści pliku.</p>
+              <p style={{ marginTop: 10 }}><B>Statystyki odwiedzin bez cookies.</B> Jeśli nie wyrazisz zgody na pliki
+              cookies statystyczne, PostHog liczy odwiedziny w trybie bez cookies: nie zapisuje niczego na Twoim
+              urządzeniu, nie przechowuje adresu IP, a wizyty z tego samego dnia łączy wyłącznie przez
+              jednorazowy skrót (hash) obliczany po stronie serwera, którego nie da się powiązać z Twoją osobą
+              ani z kolejnymi dniami. Nie nagrywamy wtedy sesji. Podstawą jest nasz prawnie uzasadniony interes —
+              wiedza, które strony Serwisu są odwiedzane. Pełną analitykę (z cookies) włączamy dopiero po Twojej zgodzie.</p>
             </LegalSection>
 
             <LegalSection n="11" title="Zmiany polityki" c={c}>

@@ -1,7 +1,8 @@
 ---
 slug: koszty-energii-w-restauracji
-title: Koszty energii w restauracji — dlaczego rosną szybciej niż food cost i co z tym zrobić
-description: Koszty energii w restauracji: co zużywa najwięcej prądu w kuchni i jak obniżyć rachunki, także bez inwestycji w nowy sprzęt.
+title: Koszty energii w restauracji: co zużywa najwięcej
+h1: Koszty energii w restauracji — dlaczego rosną szybciej niż food cost i co z tym zrobić
+description: Najwięcej prądu w restauracji zjada chłodnictwo, nie kuchenki. Cztery zmiany bez inwestycji, które obniżają rachunek, i kiedy wymiana sprzętu się zwraca.
 date: 2026-09-24
 updated: 2026-10-05
 category: Finanse

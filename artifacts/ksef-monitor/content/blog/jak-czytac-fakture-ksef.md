@@ -1,8 +1,8 @@
 ---
 slug: jak-czytac-fakture-ksef
-title: Jak czytać fakturę KSeF (FA(3)) — pola po kolei
+title: Jak czytać fakturę KSeF FA(3) — pola krok po kroku
 h1: Jak czytać fakturę z KSeF — pola FA(3) krok po kroku
-description: Faktura z KSeF to plik XML w formacie FA(3). Zobacz, gdzie są sprzedawca, pozycje, stawki VAT i kwoty oraz które pola sprawdzać przy kosztach.
+description: Dostałeś fakturę XML z KSeF i nie wiesz, gdzie co jest? Sprzedawca, pozycje, stawki VAT i kwoty w FA(3) po kolei oraz pola, które warto sprawdzać przy kosztach.
 date: 2026-07-14
 updated: 2026-10-05
 category: KSeF

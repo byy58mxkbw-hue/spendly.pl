@@ -40,7 +40,7 @@ const STATIC_URLS = [
   { loc: "/blog", changefreq: "weekly", priority: "0.7", lastmod: null },
   { loc: "/kalkulatory", changefreq: "monthly", priority: "0.8", lastmod: "2026-10-05" },
   { loc: "/regulamin", changefreq: "yearly", priority: "0.3", lastmod: "2026-10-06" },
-  { loc: "/polityka-prywatnosci", changefreq: "yearly", priority: "0.3", lastmod: "2026-10-06" },
+  { loc: "/polityka-prywatnosci", changefreq: "yearly", priority: "0.3", lastmod: "2026-10-08" },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

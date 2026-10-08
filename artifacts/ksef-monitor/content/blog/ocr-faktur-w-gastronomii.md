@@ -1,7 +1,8 @@
 ---
 slug: ocr-faktur-w-gastronomii
-title: OCR faktur w gastronomii — jak działa automatyczne odczytywanie faktur od dostawców
-description: OCR faktur w gastronomii: jak zdjęcie lub PDF faktury zamienia się w dane o kosztach bez przepisywania i kiedy uzupełnia KSeF.
+title: OCR faktur — odczyt faktury ze zdjęcia i PDF
+h1: OCR faktur w gastronomii — jak działa automatyczne odczytywanie faktur od dostawców
+description: Zrób zdjęcie faktury od dostawcy, a OCR odczyta pozycje, ilości i ceny bez przepisywania. Jak działa odczyt faktur i co zrobić, gdy coś się nie zgadza.
 date: 2026-09-27
 updated: 2026-10-05
 category: Operacje

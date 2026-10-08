@@ -1,7 +1,8 @@
 ---
 slug: amortyzacja-sprzetu-gastronomicznego
-title: Amortyzacja sprzętu gastronomicznego — jak to policzyć i dlaczego wpływa na realną rentowność
-description: Jak policzyć amortyzację sprzętu gastronomicznego i ile lat działa piec, chłodnia czy zmywarka. Realny miesięczny koszt sprzętu w restauracji.
+title: Amortyzacja sprzętu w gastronomii — okresy i wzór
+h1: Amortyzacja sprzętu gastronomicznego — jak to policzyć i dlaczego wpływa na realną rentowność
+description: Piec konwekcyjny za 40 000 zł to 417 zł kosztu miesięcznie. Okresy użytkowania pieców, chłodni, zmywarek i POS oraz prosty wzór na realny koszt sprzętu.
 date: 2026-09-24
 updated: 2026-10-05
 category: Finanse
