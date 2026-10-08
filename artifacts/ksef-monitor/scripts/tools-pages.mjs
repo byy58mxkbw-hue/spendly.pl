@@ -397,8 +397,8 @@ ${h.nav()}
         </a>
         <a class="card" href="/ceny-rynkowe">
           <span class="k">Ceny rynkowe</span>
-          <h2>Ile za warzywa płacą inne restauracje</h2>
-          <p>Mediana cen netto cytryn, pomidorów, schabu i innych produktów z faktur restauracji. Aktualizowana codziennie.</p>
+          <h2>Ceny, których dostawca Ci nie pokaże</h2>
+          <p>Ile inne restauracje płacą za mięso, warzywa, nabiał i resztę zakupów. Mediana cen netto z prawdziwych faktur, aktualizowana codziennie.</p>
         </a>
       </section>
     </main>

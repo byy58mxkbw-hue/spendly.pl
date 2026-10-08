@@ -68,9 +68,9 @@ function initialPrices(): MarketPrice[] | null {
 
 export default function CenyRynkowePage() {
   usePageMeta({
-    title: "Ceny warzyw i produktów dla gastronomii | Spendly",
+    title: "Ceny produktów w gastronomii — ile płacą restauracje | Spendly",
     description:
-      "Ile za cytryny, pomidory, schab czy masło płacą inne restauracje? Mediana cen netto z faktur restauracji, aktualizowana codziennie. Sprawdź, czy przepłacasz.",
+      "Ceny, których dostawca Ci nie pokaże: ile inne restauracje płacą za mięso, warzywa, nabiał i resztę zakupów. Mediana z prawdziwych faktur, codziennie.",
     path: "/ceny-rynkowe",
   });
   const { theme, c, toggle } = useMarketingTheme();
@@ -109,14 +109,14 @@ export default function CenyRynkowePage() {
           </p>
           <p style={label}>Ceny rynkowe{latest ? ` · dane do ${monthLabel(latest)}` : ""}</p>
           <h1 style={{ fontSize: "clamp(2rem, 6vw, 3.4rem)", fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.05, margin: "0 0 18px", maxWidth: 820 }}>
-            Zobacz, ile za warzywa płacą inne restauracje
+            Ceny, których dostawca Ci nie pokaże
           </h1>
           <p style={{ fontSize: 17, color: c.muted, lineHeight: 1.65, margin: "0 0 24px", maxWidth: 680 }}>
-            Mediana cen netto z faktur restauracji, które korzystają ze Spendly. Porównaj ze swoją fakturą — jeśli płacisz powyżej środkowej połowy cen, przepłacasz.
+            Ile inne restauracje płacą za mięso, warzywa, nabiał i resztę zakupów. Mediana cen netto z prawdziwych faktur, aktualizowana codziennie. Jeśli płacisz powyżej środkowej połowy cen — przepłacasz.
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link href="/podglad-faktury-ksef">
-              <button style={btn(c)}><Upload size={16} /> Wgraj fakturę i porównaj swoje ceny</button>
+              <button style={btn(c)}><Upload size={16} /> Sprawdź, czy przepłacasz — wgraj fakturę</button>
             </Link>
             <Link href="/sign-up">
               <button style={{ ...btn(c), background: "none", color: c.text, border: `1px solid ${c.border}` }}>Załóż darmowe konto</button>
@@ -178,7 +178,7 @@ export default function CenyRynkowePage() {
         <section style={{ background: "#211B12", color: "#F0E9DB" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 24px", display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ maxWidth: 640 }}>
-              <h2 style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 700, margin: "0 0 8px" }}>Sprawdź, ile przepłacasz na swojej fakturze</h2>
+              <h2 style={{ fontSize: "clamp(1.4rem, 3vw, 2rem)", fontWeight: 700, margin: "0 0 8px" }}>Dostawca zna ceny wszystkich swoich klientów. Teraz Ty też.</h2>
               <p style={{ fontSize: 15, color: "#C9BEA9", lineHeight: 1.6, margin: 0 }}>
                 Wgraj plik XML z KSeF. Każdą pozycję porównamy z medianą rynku i pokażemy, ile możesz odzyskać na jednej dostawie.
               </p>

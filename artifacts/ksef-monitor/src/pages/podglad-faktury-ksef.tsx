@@ -169,7 +169,7 @@ function ToolLanding({ c, error, onFiles }: { c: MarketingPalette; error: string
                 <button style={btnPrimary(c)}>Sprawdź swoje ceny za darmo</button>
               </Link>
               <Link href="/ceny-rynkowe">
-                <span style={{ fontSize: 14, fontWeight: 600, color: c.text, cursor: "pointer" }}>Zobacz prawdziwe ceny rynkowe →</span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: c.text, cursor: "pointer" }}>Ceny, których dostawca Ci nie pokaże →</span>
               </Link>
             </div>
             <p style={{ fontSize: 12, color: c.muted, margin: "16px 0 0", lineHeight: 1.6 }}>
