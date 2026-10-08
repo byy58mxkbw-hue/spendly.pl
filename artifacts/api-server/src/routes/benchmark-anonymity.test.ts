@@ -126,8 +126,9 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
     await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "pomidor anon test"));
     await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "karkowka anon test"));
     await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "karkowka anon testowa"));
-    await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "cytryna anon manual"));
+    await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "egzotyk anon manual"));
     await db.delete(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "pieczarki rolling test"));
+    await db.delete(marketProductAliasesTable).where(inArray(marketProductAliasesTable.canonicalName, ["cytryna luz", "cytryny argentyna kl.i"]));
     server?.close();
   });
 
@@ -251,20 +252,62 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
     const { __resetPublicMarketCache } = await import("./public-market");
     __resetPublicMarketCache();
     const pub = (await (await fetch(`${baseUrl}/api/public/market-groups`)).json()) as { groups: Array<{ name: string }> };
-    expect(pub.groups.map((g) => g.name)).toContain("pieczarki rolling test");
+    expect(pub.groups.map((g) => g.name)).toContain("Pieczarki"); // nazwa bazowa ze słownika
+  });
+
+  it("różne nazwy tego samego produktu („CYTRYNY ARGENTYNA KL.I”, „Cytryna luz”) → jedna mediana „Cytryna”", async () => {
+    const LEMON_USERS = Array.from({ length: 8 }, (_, n) => `anon_lemon_${n}`);
+    ALL_USERS.push(...LEMON_USERS);
+    for (const [n, u] of LEMON_USERS.entries()) {
+      await seedPurchase(u, n % 2 ? "cytryny argentyna kl.i" : "cytryna luz", "kg", n % 2 ? "owoce" : "warzywa", 8 + n / 10);
+    }
+    const { runMarketBenchmarkJob } = await import("../services/market-benchmark-job");
+    await runMarketBenchmarkJob(log);
+
+    for (const [u, name] of [[LEMON_USERS[0]!, "cytryna luz"], [LEMON_USERS[1]!, "cytryny argentyna kl.i"]] as const) {
+      authState.userId = u;
+      const row = itemsOf((await getBenchmarks()).body).find((i) => i.productName === name);
+      expect(row?.insufficientData).toBe(false);
+      expect(typeof row?.medianPrice).toBe("number");
+    }
+    const aliases = await db.select().from(marketProductAliasesTable).where(inArray(marketProductAliasesTable.canonicalName, ["cytryna luz", "cytryny argentyna kl.i"]));
+    expect(new Set(aliases.map((a) => a.marketGroupKey))).toEqual(new Set(["Cytryna"]));
+  });
+
+  it("publiczna lista (bez logowania): tylko opublikowane grupy, bez cen i liczników źródeł", async () => {
+    // W tym pliku (sekwencyjnie), bo job z innych testów czyści tabele benchmarku.
+    const KEYS = ["pubtest cytryna", "pubtest tajne"];
+    await db.delete(marketPriceBenchmarksTable).where(inArray(marketPriceBenchmarksTable.marketGroupKey, KEYS));
+    await db.insert(marketPriceBenchmarksTable).values([
+      { marketGroupKey: KEYS[0]!, unit: "kg", category: "warzywa", periodMonth: "2026-09", medianPrice: "7.80", p25Price: "7.20", p75Price: "8.60", distinctUserCount: 5, distinctSupplierCount: 4, sampleRowCount: 9, isPublished: true },
+      { marketGroupKey: KEYS[1]!, unit: "kg", category: "warzywa", periodMonth: "2026-09", medianPrice: "99.99", p25Price: "90", p75Price: "110", distinctUserCount: 1, distinctSupplierCount: 1, sampleRowCount: 1, isPublished: false },
+    ]);
+    const { __resetPublicMarketCache } = await import("./public-market");
+    __resetPublicMarketCache();
+    const res = await fetch(`${baseUrl}/api/public/market-groups`);
+    expect(res.status).toBe(200);
+    const raw = await res.text();
+    const names = (JSON.parse(raw) as { groups: Array<{ name: string }> }).groups.map((g) => g.name);
+    expect(names).toContain("pubtest cytryna");
+    expect(names).not.toContain("pubtest tajne");
+    for (const forbidden of ["7.8", "7.20", "8.60", "medianPrice", "distinctUserCount", "sampleRowCount", "p25", "p75"]) {
+      expect(raw).not.toContain(forbidden);
+    }
+    expect(res.headers.get("cache-control")).toContain("max-age=3600");
+    await db.delete(marketPriceBenchmarksTable).where(inArray(marketPriceBenchmarksTable.marketGroupKey, KEYS));
   });
 
   it("konta wyłącznie z importem ręcznym/podglądem nie publikują mediany (nawet 8 kont ≥ progu)", async () => {
     const MANUAL_USERS = Array.from({ length: 8 }, (_, n) => `anon_manual_${n}`);
     ALL_USERS.push(...MANUAL_USERS);
     for (const [n, u] of MANUAL_USERS.entries()) {
-      await seedPurchase(u, "cytryna anon manual", "kg", "warzywa", 9 + n / 10, { source: n % 2 ? "viewer" : "manual" });
+      await seedPurchase(u, "egzotyk anon manual", "kg", "warzywa", 9 + n / 10, { source: n % 2 ? "viewer" : "manual" });
     }
     const { runMarketBenchmarkJob } = await import("../services/market-benchmark-job");
     await runMarketBenchmarkJob(log);
 
     authState.userId = MANUAL_USERS[0]!;
-    const row = itemsOf((await getBenchmarks()).body).find((i) => i.productName === "cytryna anon manual");
+    const row = itemsOf((await getBenchmarks()).body).find((i) => i.productName === "egzotyk anon manual");
     expect(row).toBeDefined();
     expect(row!.insufficientData).toBe(true);
     expect(row).not.toHaveProperty("medianPrice");

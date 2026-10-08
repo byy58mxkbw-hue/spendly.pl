@@ -138,6 +138,14 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
       });
   }
 
+  // Grupy, których już nie ma (np. po przejściu na nazwy bazowe ze słownika „Cytryna”
+  // zamiast surowych z faktur) — inaczej stare wiersze zostawałyby opublikowane jako
+  // duplikaty. Historia nie ginie: job i tak przelicza wszystkie miesiące z faktur.
+  await db.execute(sql`
+    DELETE FROM market_price_benchmarks mpb
+    WHERE NOT EXISTS (SELECT 1 FROM market_product_aliases mpa WHERE mpa.market_group_key = mpb.market_group_key AND mpa.unit = mpb.unit)
+  `);
+
   const ranges = await computeRollingRanges(RANGE_WINDOW_MONTHS, MIN_USERS, MIN_ROWS);
 
   log.info(
