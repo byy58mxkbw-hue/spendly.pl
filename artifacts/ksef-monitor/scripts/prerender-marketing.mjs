@@ -14,7 +14,7 @@
 // tak samo jak /ksef → ksef.html. Po starcie React podmienia treść #root.
 import fs from "node:fs";
 import path from "node:path";
-import { createServer } from "vite";
+import { createServer, loadEnv } from "vite";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const DIST = path.join(ROOT, "dist/public");
@@ -24,6 +24,15 @@ const PAGES = [
   { file: "porownanie-cen", module: "/src/pages/porownanie-cen.tsx", crumb: "Porównanie cen" },
   { file: "dla-kogo", module: "/src/pages/dla-kogo.tsx", crumb: "Dla kogo" },
   { file: "podglad-faktury-ksef", module: "/src/pages/podglad-faktury-ksef.tsx", crumb: "Podgląd faktury KSeF" },
+  {
+    file: "ceny-rynkowe",
+    module: "/src/pages/ceny-rynkowe.tsx",
+    crumb: "Ceny rynkowe",
+    // Ceny w statycznym HTML (Google je widzi) + w bloku JSON, z którego strona startuje
+    // bez migania pustą tabelą. Gdy API niedostępne przy buildzie — strona i tak działa
+    // (pobierze ceny w przeglądarce).
+    data: { path: "/api/public/market-prices", global: "__SPENDLY_MARKET_PRICES__", scriptId: "market-prices-data", pick: "items" },
+  },
   { file: "regulamin", module: "/src/pages/regulamin.tsx", crumb: "Regulamin" },
   { file: "polityka-prywatnosci", module: "/src/pages/polityka-prywatnosci.tsx", crumb: "Polityka prywatności" },
 ];
@@ -104,7 +113,30 @@ try {
   const React = (await import("react")).default;
   const { renderToString } = await import("react-dom/server");
   const { Router } = await import("wouter");
+  const env = loadEnv("production", ROOT, "VITE_");
+  const apiBase = (env.VITE_API_BASE_URL || process.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
   for (const page of PAGES) {
+    let dataJson = null;
+    if (page.data) {
+      globalThis[page.data.global] = undefined;
+      if (/^https?:\/\//.test(apiBase)) {
+        try {
+          const url = apiBase.endsWith("/api") ? apiBase + page.data.path.replace(/^\/api/, "") : apiBase + page.data.path;
+          const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+          if (res.ok) {
+            const body = await res.json();
+            globalThis[page.data.global] = body[page.data.pick];
+            // „<” zapisany jako sekwencja \u003c — treść JSON nie może zamknąć tagu <script>.
+            dataJson = JSON.stringify(body[page.data.pick]).replace(/</g, "\\u003c");
+            console.log(`[prerender] /${page.file}: dane z API (${body[page.data.pick]?.length ?? 0} pozycji)`);
+          } else {
+            console.warn(`[prerender] /${page.file}: API zwróciło ${res.status} — bez danych w HTML`);
+          }
+        } catch (err) {
+          console.warn(`[prerender] /${page.file}: brak danych z API (${err.message}) — bez danych w HTML`);
+        }
+      }
+    }
     const mod = await vite.ssrLoadModule(page.module);
     globalThis.__SPENDLY_PAGE_META__ = undefined;
     const body = renderToString(
@@ -112,7 +144,11 @@ try {
     );
     const meta = globalThis.__SPENDLY_PAGE_META__;
     if (!meta) throw new Error(`[prerender] ${page.file}: strona nie wywołała usePageMeta`);
-    const html = replaceRoot(buildHead(template, meta, page.crumb, mod.FAQ), body);
+    let html = replaceRoot(buildHead(template, meta, page.crumb, mod.FAQ), body);
+    if (dataJson) {
+      html = html.replace("</body>", `<script type="application/json" id="${page.data.scriptId}">${dataJson}</script>
+</body>`);
+    }
     fs.writeFileSync(path.join(DIST, `${page.file}.html`), html);
     console.log(`[prerender] /${page.file} → ${page.file}.html (${Math.round(html.length / 1024)} KB, "${meta.title}")`);
   }

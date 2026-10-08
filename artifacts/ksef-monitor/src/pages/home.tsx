@@ -465,6 +465,7 @@ export default function Home() {
             <a href="/blog">Blog</a>
             <a href="/kalkulatory">Kalkulatory</a>
             <a href="/podglad-faktury-ksef" onClick={go("/podglad-faktury-ksef")}>Podgląd faktury KSeF</a>
+            <a href="/ceny-rynkowe" onClick={go("/ceny-rynkowe")}>Ceny rynkowe</a>
             <a href="mailto:kontakt@spendly.pl">Pomoc</a>
             <a href="/polityka-prywatnosci" onClick={go("/polityka-prywatnosci")}>Polityka prywatności</a>
             <a href="/regulamin" onClick={go("/regulamin")}>Regulamin</a>

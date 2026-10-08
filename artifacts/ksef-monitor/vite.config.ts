@@ -61,7 +61,7 @@ function collectInlineScriptHashes(outDir: string): string[] {
       const html = readFileSync(full, "utf8");
       for (const [, attrs, body] of html.matchAll(scriptRe)) {
         if (/\bsrc=/i.test(attrs)) continue; // zewnętrzny — pokrywa go 'self'
-        if (/application\/ld\+json/i.test(attrs)) continue; // dane, nie kod
+        if (/application\/(ld\+)?json/i.test(attrs)) continue; // dane, nie kod (JSON-LD i bloki danych, np. ceny rynkowe)
         if (!body) continue;
         const hash = createHash("sha256").update(body, "utf8").digest("base64");
         hashes.add(`'sha256-${hash}'`);
