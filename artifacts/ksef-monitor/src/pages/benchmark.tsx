@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import { useGetBenchmarks, useUpdateBenchmarkOptIn, getGetBenchmarksQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,6 +28,9 @@ import { Link, useSearch } from "wouter";
 import { BenchmarkInvoiceView } from "@/components/benchmark-invoice-view";
 import { readViewerImport } from "@/lib/viewer-import";
 import { track } from "@/lib/posthog";
+
+// Modal historii ceny ładowany leniwie — to Twoi dostawcy i faktury źródłowe produktu.
+const PriceHistoryModal = lazy(() => import("./products/price-history-modal").then((m) => ({ default: m.PriceHistoryModal })));
 import { CATEGORIES } from "@/lib/categories";
 import type { BenchmarkItem } from "@workspace/api-client-react";
 
@@ -128,6 +131,7 @@ function StatTile({ label, value, valueClass, foot }: { label: string; value: st
 }
 
 function BenchmarkRow({ item }: { item: BenchmarkItem }) {
+  const [historyOpen, setHistoryOpen] = useState(false);
   if (item.insufficientData) {
     return (
       <div className="bg-card border border-border p-4 opacity-60" data-testid={`benchmark-row-${item.productName}`}>
@@ -142,8 +146,17 @@ function BenchmarkRow({ item }: { item: BenchmarkItem }) {
           </span>
         </div>
         <p className="text-xs text-muted-foreground mt-2 border border-dashed border-border rounded-md px-3 py-2 inline-flex items-center gap-1.5">
-          Za mało danych, by pokazać porównanie anonimowo — potrzeba min. {item.minUsers} restauracji w danych
-          (obecnie: {item.distinctUserCount ?? 0}).
+          {item.notComparableReason === "price_outlier" ? (
+            <>
+              Twoja cena różni się od rynku ponad 2,5× — to zwykle inne opakowanie (np. karton zamiast sztuki)
+              albo inny produkt pod podobną nazwą. Nie liczymy tej pozycji do oszczędności.
+            </>
+          ) : (
+            <>
+              Za mało danych, by pokazać porównanie anonimowo — potrzeba min. {item.minUsers} restauracji w danych
+              (obecnie: {item.distinctUserCount ?? 0}).
+            </>
+          )}
         </p>
       </div>
     );
@@ -195,15 +208,35 @@ function BenchmarkRow({ item }: { item: BenchmarkItem }) {
         <span className="num">{item.distinctUserCount} restauracji w danych</span>
         {over && savings > 0 ? (
           <span>
-            Potencjalna oszczędność: <b className="num text-negative">{formatPrice(savings)}/mies.</b>{" "}
-            <Link href="/reports" className="text-primary font-medium inline-flex items-center gap-0.5 hover:underline">
-              zobacz tańszych dostawców <ArrowRight className="w-3 h-3" />
-            </Link>
+            Potencjalna oszczędność: <b className="num text-negative">{formatPrice(savings)}/mies.</b>
           </span>
         ) : item.p25Price != null && item.p75Price != null ? (
           <span>Zakres: {formatPrice(item.p25Price)}–{formatPrice(item.p75Price)}</span>
         ) : null}
+        {/* Cudzych dostawców nie pokażemy (anonimowość) — dajemy to, co realnie pomaga:
+            historię ceny u WŁASNYCH dostawców (najtańszy z nich) i argument do negocjacji. */}
+        <span className="inline-flex items-center gap-3">
+          {item.productId != null && (
+            <button
+              type="button"
+              onClick={() => { setHistoryOpen(true); track("benchmark_price_history_open"); }}
+              className="text-primary font-medium inline-flex items-center gap-0.5 hover:underline"
+            >
+              Historia ceny i Twoi dostawcy <ArrowRight className="w-3 h-3" />
+            </button>
+          )}
+          {over && (
+            <a href="/blog/jak-negocjowac-ceny-z-dostawcami" className="hover:underline">
+              Jak negocjować cenę
+            </a>
+          )}
+        </span>
       </div>
+      {historyOpen && item.productId != null && (
+        <Suspense fallback={null}>
+          <PriceHistoryModal productId={item.productId} productName={item.productName} onClose={() => setHistoryOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

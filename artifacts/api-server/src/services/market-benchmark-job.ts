@@ -98,53 +98,44 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
     GROUP BY market_group_key, unit, category, period_month
   `);
 
-  const aggRows = aggResult.rows;
+  // Ta sama (grupa, jednostka, miesiąc) bywa w dwóch kategoriach — zostaje wiersz z większą próbą.
+  const aggRows = [...aggResult.rows].sort((a, b) => b.sample_row_count - a.sample_row_count);
   let published = 0;
-  for (const row of aggRows) {
+  const values = aggRows.map((row) => {
     // Ochrona przed fałszywymi kontami (2026-10-07): ktoś mógłby założyć kilka kont,
     // wgrać ręcznie spreparowane pliki i sam „otworzyć” publikację mediany. Do progu k
     // liczą się tylko userzy z co najmniej jedną fakturą z KSeF (trudna do podrobienia);
     // pozostali nadal zasilają medianę, ale nie mogą sami spełnić progu.
     const isPublished = row.verified_user_count >= MIN_USERS && row.sample_row_count >= MIN_ROWS;
     if (isPublished) published++;
-    await db
-      .insert(marketPriceBenchmarksTable)
-      .values({
-        marketGroupKey: row.market_group_key,
-        unit: row.unit,
-        category: row.category,
-        periodMonth: row.period_month,
-        medianPrice: row.median_price,
-        p25Price: row.p25_price,
-        p75Price: row.p75_price,
-        distinctUserCount: row.distinct_user_count,
-        distinctSupplierCount: row.distinct_supplier_count,
-        sampleRowCount: row.sample_row_count,
-        isPublished,
-      })
-      .onConflictDoUpdate({
-        target: [marketPriceBenchmarksTable.marketGroupKey, marketPriceBenchmarksTable.unit, marketPriceBenchmarksTable.periodMonth],
-        set: {
-          category: row.category,
-          medianPrice: row.median_price,
-          p25Price: row.p25_price,
-          p75Price: row.p75_price,
-          distinctUserCount: row.distinct_user_count,
-          distinctSupplierCount: row.distinct_supplier_count,
-          sampleRowCount: row.sample_row_count,
-          isPublished,
-          computedAt: new Date(),
-        },
-      });
-  }
+    return {
+      marketGroupKey: row.market_group_key,
+      unit: row.unit,
+      category: row.category,
+      periodMonth: row.period_month,
+      medianPrice: row.median_price,
+      p25Price: row.p25_price,
+      p75Price: row.p75_price,
+      distinctUserCount: row.distinct_user_count,
+      distinctSupplierCount: row.distinct_supplier_count,
+      sampleRowCount: row.sample_row_count,
+      isPublished,
+    };
+  });
 
-  // Grupy, których już nie ma (np. po przejściu na nazwy bazowe ze słownika „Cytryna”
-  // zamiast surowych z faktur) — inaczej stare wiersze zostawałyby opublikowane jako
-  // duplikaty. Historia nie ginie: job i tak przelicza wszystkie miesiące z faktur.
-  await db.execute(sql`
-    DELETE FROM market_price_benchmarks mpb
-    WHERE NOT EXISTS (SELECT 1 FROM market_product_aliases mpa WHERE mpa.market_group_key = mpb.market_group_key AND mpa.unit = mpb.unit)
-  `);
+  // Przeliczenie OD ZERA w jednej transakcji (2026-10-11). Wcześniej upsert zostawiał stare
+  // wiersze miesięcy, których nowe grupowanie już nie dotyka — „Malina/szt” po wyrzuceniu
+  // sorbetu dalej pokazywała medianę liczoną z sorbetem. Historia nie ginie: agregacja wyżej
+  // liczy wszystkie miesiące z faktur.
+  await db.transaction(async (tx) => {
+    await tx.delete(marketPriceBenchmarksTable);
+    for (const batch of chunk(values, 500)) {
+      await tx
+        .insert(marketPriceBenchmarksTable)
+        .values(batch)
+        .onConflictDoNothing({ target: [marketPriceBenchmarksTable.marketGroupKey, marketPriceBenchmarksTable.unit, marketPriceBenchmarksTable.periodMonth] });
+    }
+  });
 
   const ranges = await computeRollingRanges(RANGE_WINDOW_MONTHS, MIN_USERS, MIN_ROWS);
 
@@ -261,4 +252,10 @@ export function startMarketBenchmarkScheduler(log: Logger): void {
   const timer = setInterval(runSafely, TICK_MS);
   if (typeof timer.unref === "function") timer.unref();
   log.info("Harmonogram benchmarku rynkowego uruchomiony (tik co 24h)");
+}
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
 }

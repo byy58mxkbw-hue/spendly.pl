@@ -1826,7 +1826,9 @@ export const GetBenchmarksQueryParams = zod.object({
 export const GetBenchmarksResponse = zod.object({
   "optedIn": zod.boolean(),
   "items": zod.array(zod.object({
+  "productId": zod.number().optional().describe('Id produktu TEGO usera (do historii ceny i jego dostawców) — nigdy dane innych lokali'),
   "productName": zod.string(),
+  "notComparableReason": zod.enum(['insufficient_data', 'price_outlier']).optional().describe('Gdy insufficientData=true: insufficient_data = za mało restauracji; price_outlier = cena >2,5× od mediany (zwykle inne opakowanie), nie liczona do oszczędności'),
   "unit": zod.string(),
   "category": zod.string().nullable(),
   "yourPrice": zod.number(),

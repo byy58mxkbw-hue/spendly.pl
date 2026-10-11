@@ -21,12 +21,13 @@ function minRows(): number {
 
 const uid = (name: string, unit: string) => `${name}::${unit}`;
 /** Powyżej tej krotności różnicy względem mediany uznajemy porównanie za błędne dopasowanie. */
-const MAX_PRICE_RATIO = 4;
+const MAX_PRICE_RATIO = 2.5;
 
 type YourPriceRow = {
   canonical_name: string;
   unit: string;
   product_name: string;
+  product_id: number;
   your_price: number;
   monthly_quantity: number;
 };
@@ -146,6 +147,7 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
       p.canonical_name,
       ${normalizedUnitSql(sql`p.unit`)} AS unit,
       MAX(p.name) AS product_name,
+      MAX(p.id)::int AS product_id,
       AVG(ii.unit_price::numeric)::float AS your_price,
       (SUM(ii.quantity::numeric) / ${quantityDivisor})::float AS monthly_quantity
     FROM invoice_items ii
@@ -273,6 +275,7 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
       ? { ...monthly, ...range, is_published: true, period_month: range.to_month }
       : monthly;
     const base = {
+      productId: yp.product_id,
       productName: yp.product_name,
       unit: yp.unit,
       category: bench?.category ?? null,
@@ -283,17 +286,25 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
       return {
         ...base,
         insufficientData: true,
+        notComparableReason: "insufficient_data" as const,
         distinctUserCount: bench?.distinct_user_count ?? 0,
         minUsers: MIN_USERS,
         minRows: MIN_ROWS,
       };
     }
     const median = bench.median_price ?? 0;
-    // Bezpiecznik: cena 4× wyższa albo 4× niższa od mediany tego samego produktu to prawie
+    // Bezpiecznik: cena 2,5× wyższa albo 2,5× niższa od mediany tego samego produktu to prawie
     // zawsze inna rzecz (karton zamiast sztuki, granulat zamiast świeżego) — nie pokazujemy
     // „+1400% powyżej mediany” ani fikcyjnej oszczędności, tylko brak porównania.
     if (median > 0 && (yp.your_price > median * MAX_PRICE_RATIO || yp.your_price < median / MAX_PRICE_RATIO)) {
-      return { ...base, insufficientData: true, distinctUserCount: 0, minUsers: MIN_USERS, minRows: MIN_ROWS };
+      return {
+        ...base,
+        insufficientData: true,
+        notComparableReason: "price_outlier" as const,
+        distinctUserCount: bench.distinct_user_count,
+        minUsers: MIN_USERS,
+        minRows: MIN_ROWS,
+      };
     }
     const deltaPercent = median > 0 ? ((yp.your_price - median) / median) * 100 : 0;
     const savingsPerMonth = yp.your_price > median ? (yp.your_price - median) * yp.monthly_quantity : 0;

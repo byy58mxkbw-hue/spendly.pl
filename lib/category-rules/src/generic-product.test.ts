@@ -102,3 +102,19 @@ describe("packSignature / packKeyFor — gramatura opakowania", () => {
     expect(packKeyFor("Czosnek", "szt")).toBe("");
   });
 });
+
+describe("drugi przegląd porównania cen (2026-10-11)", () => {
+  it.each([
+    ["Cebulki całe w occie balsamicznym 860g Ginos", "Cebula"],
+    ["MALINA GRYS 2,5KG [4SZT] {ABEL}", "Malina"],
+    ["ANTRYKOT B/K DOJRZEWAJĄCY PREMIUM STEK", "Antrykot"],
+    ["Filet z kurczaka panierowany", "Filet z kurczaka"],
+  ])("„%s” nie jest produktem bazowym %s", (name, wrong) => {
+    expect(genericProduct(name)?.label).not.toBe(wrong);
+  });
+  it("zwykłe elementy mięsa nadal działają", () => {
+    expect(genericProduct("Antrykot b/k")?.label).toBe("Antrykot");
+    expect(genericProduct("Filet z piersi kurczaka")?.label).toBe("Filet z kurczaka");
+    expect(genericProduct("Mozzarella mini kulki 750g")?.label).toBe("Mozzarella");
+  });
+});

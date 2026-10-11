@@ -573,6 +573,17 @@ export interface BenchmarkHistoryPoint {
 }
 
 /**
+ * Gdy insufficientData=true: insufficient_data = za mało restauracji; price_outlier = cena >2,5× od mediany (zwykle inne opakowanie), nie liczona do oszczędności
+ */
+export type BenchmarkItemNotComparableReason = typeof BenchmarkItemNotComparableReason[keyof typeof BenchmarkItemNotComparableReason];
+
+
+export const BenchmarkItemNotComparableReason = {
+  insufficient_data: 'insufficient_data',
+  price_outlier: 'price_outlier',
+} as const;
+
+/**
  * month = mediana z jednego miesiąca; 12m = mediana z ostatnich 12 miesięcy (zapas, gdy miesięczna nie ma progu)
  */
 export type BenchmarkItemMedianWindow = typeof BenchmarkItemMedianWindow[keyof typeof BenchmarkItemMedianWindow];
@@ -595,7 +606,11 @@ export const BenchmarkItemMatchedBy = {
 } as const;
 
 export interface BenchmarkItem {
+  /** Id produktu TEGO usera (do historii ceny i jego dostawców) — nigdy dane innych lokali */
+  productId?: number;
   productName: string;
+  /** Gdy insufficientData=true: insufficient_data = za mało restauracji; price_outlier = cena >2,5× od mediany (zwykle inne opakowanie), nie liczona do oszczędności */
+  notComparableReason?: BenchmarkItemNotComparableReason;
   unit: string;
   /** @nullable */
   category: string | null;

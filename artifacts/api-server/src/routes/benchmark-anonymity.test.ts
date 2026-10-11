@@ -296,6 +296,12 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
     await seedPurchase(BUYER, "czosnek granulowany 1,05kg pet", "szt", "warzywa", 44.8, { invoiceNumber: "G-1" });
     await seedPurchase(BUYER, "czosnek polski 1kg", "szt", "warzywa", 30, { invoiceNumber: "G-2" });
     await seedPurchase(BUYER, "czosnek fioletowy", "szt", "warzywa", 20, { invoiceNumber: "G-3" });
+    await seedPurchase(BUYER, "czosnek biały", "szt", "warzywa", 3.2, { invoiceNumber: "G-4" });
+    // Stary wiersz mediany z miesiąca, którego nowe przeliczenie nie dotyka — musi zniknąć.
+    await db.insert(marketPriceBenchmarksTable).values({
+      marketGroupKey: "Czosnek", unit: "szt", category: "warzywa", periodMonth: "2020-01", medianPrice: "99",
+      p25Price: "99", p75Price: "99", distinctUserCount: 9, distinctSupplierCount: 9, sampleRowCount: 9, isPublished: true,
+    });
     const { runMarketBenchmarkJob } = await import("../services/market-benchmark-job");
     await runMarketBenchmarkJob(log);
 
@@ -312,6 +318,16 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
       expect(row?.insufficientData, name).toBe(true);
       expect(row?.medianPrice, name).toBeUndefined();
     }
+    // Cena 7× od mediany: uczciwy powód, nie „za mało danych”.
+    expect(items.find((i) => i.productName === "czosnek fioletowy")?.notComparableReason).toBe("price_outlier");
+    const normal = items.find((i) => i.productName === "czosnek biały");
+    expect(normal?.insufficientData).toBe(false);
+    // productId to produkt TEGO usera (do historii ceny), nie cudzy.
+    const [own] = await db.select({ userId: productsTable.userId }).from(productsTable).where(eq(productsTable.id, Number(normal!.productId)));
+    expect(own?.userId).toBe(BUYER);
+
+    const stale = await db.select().from(marketPriceBenchmarksTable).where(eq(marketPriceBenchmarksTable.periodMonth, "2020-01"));
+    expect(stale).toHaveLength(0);
   });
 
   it("publiczna lista (bez logowania): tylko opublikowane grupy, bez cen i liczników źródeł", async () => {

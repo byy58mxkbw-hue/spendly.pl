@@ -3702,8 +3702,15 @@ components:
     BenchmarkItem:
       type: object
       properties:
+        productId:
+          type: integer
+          description: "Id produktu TEGO usera (do historii ceny i jego dostawców) — nigdy dane innych lokali"
         productName:
           type: string
+        notComparableReason:
+          type: string
+          enum: [insufficient_data, price_outlier]
+          description: "Gdy insufficientData=true: insufficient_data = za mało restauracji; price_outlier = cena >2,5× od mediany (zwykle inne opakowanie), nie liczona do oszczędności"
         unit:
           type: string
         category:

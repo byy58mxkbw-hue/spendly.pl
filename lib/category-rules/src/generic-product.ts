@@ -29,7 +29,14 @@ const PROCESSED = [
   // 2026-10-11: „CZOSNEK GRANULOWANY 1KG” (granulat), „OLIWA Z OLIWEK CZOSNEK I CHILLI”, „KUWETA SORBET
   // MALINOWY 5L” trafiały do świeżego czosnku/maliny i pokazywały +1400% „powyżej mediany”.
   "oliw", "olej", "sorbet", "lody", "lod$", "deser", "kuwet", "jogurt", "napar", "herbat", "likier", "piwo", "wino$",
+  // 2026-10-11 (drugi przegląd): „Cebulki w occie balsamicznym 860g”, „Malina grys 2,5kg” (mrożona kruszonka).
+  "occ", "ocet", "balsam", "marynat", "glazur", "grys", "pulp", "nadzien", "krem$",
 ];
+
+// Mięso premium/przetworzone to inny produkt niż zwykły element („Antrykot dojrzewający
+// premium stek” za 164 zł/kg vs zwykły antrykot 60 zł/kg — realny przypadek 2026-10-11).
+const MEAT_EX = ["dojrzew", "sezonow", "wagyu", "angus", "marynow", "marynat", "panier", "wedzon", "gotowan", "pieczon", "sous", "kebab", "nugget", "burger"];
+const MEAT = (label: string, match: string[], extra: string[] = []): Entry => ({ label, match, exclude: [...MEAT_EX, ...extra] });
 
 const FRESH = (label: string, match: string[], extra: string[] = []): Entry => ({ label, match, exclude: [...PROCESSED, ...extra] });
 
@@ -98,28 +105,28 @@ const ENTRIES: Entry[] = [
   FRESH("Rozmaryn", ["rozmaryn"]),
   FRESH("Tymianek", ["tymian"]),
   // ── Mięso i ryby (szczegółowe przed ogólnymi) ──
-  { label: "Filet z kurczaka", match: ["filet", "kurcz"] },
-  { label: "Filet z kurczaka", match: ["piers", "kurcz"] },
-  { label: "Udo z kurczaka", match: ["ud", "kurcz"] },
-  { label: "Skrzydełka z kurczaka", match: ["skrzyd", "kurcz"] },
-  { label: "Filet z indyka", match: ["filet", "indy"] },
-  { label: "Filet z indyka", match: ["piers", "indy"] },
-  { label: "Polędwica wołowa", match: ["poledwic", "wolow"] },
-  { label: "Wołowina mielona", match: ["wolow", "miel"] },
-  { label: "Antrykot", match: ["antrykot"] },
-  { label: "Rostbef", match: ["rostbef"] },
-  { label: "Polędwiczka wieprzowa", match: ["poledwicz", "wiep"] },
-  { label: "Karkówka", match: ["karkow"] },
-  { label: "Łopatka wieprzowa", match: ["lopatk", "wiep"] },
-  { label: "Schab", match: ["schab"] },
-  { label: "Żeberka", match: ["zeber"] },
+  MEAT("Filet z kurczaka", ["filet", "kurcz"]),
+  MEAT("Filet z kurczaka", ["piers", "kurcz"]),
+  MEAT("Udo z kurczaka", ["ud", "kurcz"]),
+  MEAT("Skrzydełka z kurczaka", ["skrzyd", "kurcz"]),
+  MEAT("Filet z indyka", ["filet", "indy"]),
+  MEAT("Filet z indyka", ["piers", "indy"]),
+  MEAT("Polędwica wołowa", ["poledwic", "wolow"]),
+  MEAT("Wołowina mielona", ["wolow", "miel"]),
+  MEAT("Antrykot", ["antrykot"]),
+  MEAT("Rostbef", ["rostbef"]),
+  MEAT("Polędwiczka wieprzowa", ["poledwicz", "wiep"]),
+  MEAT("Karkówka", ["karkow"]),
+  MEAT("Łopatka wieprzowa", ["lopatk", "wiep"]),
+  MEAT("Schab", ["schab"]),
+  MEAT("Żeberka", ["zeber"]),
   { label: "Boczek wędzony", match: ["boczek", "wedz"] },
   { label: "Boczek", match: ["boczek"] },
-  { label: "Kaczka", match: ["kacz"] },
+  MEAT("Kaczka", ["kacz"]),
   { label: "Łosoś wędzony", match: ["losos", "wedz"] },
   { label: "Łosoś", match: ["losos"], exclude: ["pasta", "puszk", "sos$"] },
-  { label: "Dorsz", match: ["dorsz"] },
-  { label: "Krewetki", match: ["krewet"] },
+  MEAT("Dorsz", ["dorsz"]),
+  MEAT("Krewetki", ["krewet"]),
   // ── Nabiał ──
   { label: "Masło", match: ["masl"], exclude: ["maslank", "orzech", "klarow", "czosnk", "zio", "kakao", "shea"] },
   { label: "Mleko", match: ["mlek"], exclude: ["kokos", "zageszcz", "proszk", "skondens", "owsian", "sojow", "migdal", "ryzow", "czekolad"] },
