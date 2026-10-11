@@ -2,7 +2,7 @@ import type { Logger } from "pino";
 import { sql } from "drizzle-orm";
 import { db, marketProductAliasesTable } from "@workspace/db";
 import { normalizedUnitSql } from "./units.js";
-import { genericProduct, type GenericProduct } from "@workspace/category-rules";
+import { genericProduct, packKeyFor, type GenericProduct } from "@workspace/category-rules";
 
 // Dopasowanie rozmyte nazw produktów TYLKO dla benchmarku rynkowego (market-benchmark-job.ts).
 // Nie ruszamy istniejącej normalizeProductName() (categorize-ai.ts) — to inny, dodatkowy
@@ -190,6 +190,11 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
   // „CYTRYNY ARGENTYNA KL.I” i „Cytryna luz” to jedna „Cytryna” — łączymy je niezależnie od
   // podobieństwa liter i od kategorii (lokale kategoryzują różnie), ale ZAWSZE w tej samej
   // jednostce (cena za kg ≠ za sztukę). Grupa dostaje czystą nazwę bazową jako klucz.
+  // Gramatura opakowania przy jednostkach „na sztuki” (packKeyFor): „Czosnek granulowany 1kg”
+  // za 44,80 zł/szt i główka czosnku za 2,86 zł/szt to ta sama jednostka, ale inny towar —
+  // łączymy tylko warianty o tej samej sygnaturze opakowania (realny błąd 2026-10-11).
+  const packOf = new Map<string, string>();
+  for (const r of rows) packOf.set(uid(r.canonicalName, r.unit), packKeyFor(r.canonicalName, r.unit));
   const genericOf = new Map<string, GenericProduct>();
   const byGeneric = new Map<string, string[]>();
   for (const r of rows) {
@@ -197,7 +202,7 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
     if (!g) continue;
     const id = uid(r.canonicalName, r.unit);
     genericOf.set(id, g);
-    const k = uid(g.key, r.unit);
+    const k = `${uid(g.key, r.unit)}::${packOf.get(id)}`;
     const arr = byGeneric.get(k) ?? [];
     arr.push(id);
     byGeneric.set(k, arr);
@@ -250,6 +255,7 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
         const ga = genericOf.get(uid(va.canonicalName, va.unit));
         const gb = genericOf.get(uid(vb.canonicalName, vb.unit));
         if (ga && gb && ga.key !== gb.key) continue;
+        if (packOf.get(uid(va.canonicalName, va.unit)) !== packOf.get(uid(vb.canonicalName, vb.unit))) continue;
         uf.union(uid(va.canonicalName, va.unit), uid(vb.canonicalName, vb.unit));
         mergedPairCount++;
         mergeLog.push({ a: p.name_a, b: p.name_b, sim: Number(p.sim) });
@@ -273,7 +279,11 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
       .map((v) => ({ g: genericOf.get(uid(v.canonicalName, v.unit)), users: v.userCount }))
       .filter((x): x is { g: GenericProduct; users: number } => !!x.g)
       .sort((a, b) => b.users - a.users || a.g.label.localeCompare(b.g.label));
-    const groupKey = generics[0]?.g.label ?? pickGroupKey(variants);
+    // Paczkowany wariant produktu bazowego dostaje klucz z gramaturą („Czosnek · 1kg”), żeby
+    // nie zlał się z grupą „Czosnek” (klucz grupy + jednostka identyfikują medianę). Publiczne
+    // ceny pokazują tylko czyste nazwy bazowe, więc takie grupy tam nie trafiają.
+    const pack = packOf.get(uid(variants[0]!.canonicalName, variants[0]!.unit)) ?? "";
+    const groupKey = generics[0] ? (pack ? `${generics[0].g.label} · ${pack}` : generics[0].g.label) : pickGroupKey(variants);
     const groupCat = modalCategory(variants);
     for (const v of variants) {
       // Kategoria GRUPY (modalna), nie wariantu: job liczy medianę per (grupa, jednostka,

@@ -25,7 +25,10 @@ type Entry = { label: string; match: string[]; exclude?: string[] };
 const PROCESSED = [
   "sok$", "soku$", "soki$", "puree", "pure$", "syrop", "susz", "mroz", "konfitur", "dzem", "pasta", "sos$", "sosu", "koncentrat",
   "przecier", "marynow", "konserw", "puszk", "chips", "aromat", "ekstrakt", "lemoniad", "napoj", "nektar",
-  "czips", "frytk", "skrobi", "liofil", "kandyz", "granulat", "proszk", "mielon", "wedzon", "przypraw", "kremow", "skork", "zest$",
+  "czips", "frytk", "skrobi", "liofil", "kandyz", "granul", "proszk", "mielon", "wedzon", "przypraw", "kremow", "skork", "zest$",
+  // 2026-10-11: „CZOSNEK GRANULOWANY 1KG” (granulat), „OLIWA Z OLIWEK CZOSNEK I CHILLI”, „KUWETA SORBET
+  // MALINOWY 5L” trafiały do świeżego czosnku/maliny i pokazywały +1400% „powyżej mediany”.
+  "oliw", "olej", "sorbet", "lody", "lod$", "deser", "kuwet", "jogurt", "napar", "herbat", "likier", "piwo", "wino$",
 ];
 
 const FRESH = (label: string, match: string[], extra: string[] = []): Entry => ({ label, match, exclude: [...PROCESSED, ...extra] });
@@ -133,7 +136,7 @@ const ENTRIES: Entry[] = [
   // ── Sucha spiżarnia ──
   { label: "Mąka pszenna", match: ["maka$", "pszen"] },
   { label: "Cukier puder", match: ["cukier", "puder"] },
-  { label: "Cukier", match: ["cukier"], exclude: ["trzcin", "wanili", "zel", "syrop", "kostk"] },
+  { label: "Cukier", match: ["cukier"], exclude: ["trzcin", "wanili", "zel", "syrop", "kostk", "paluszk", "saszet", "porcj", "stick"] },
   { label: "Sól", match: ["sol$"], exclude: ["solon", "solank"] },
   { label: "Ryż", match: ["ryz$"], exclude: ["wafl", "mak", "papier"] },
   { label: "Olej rzepakowy", match: ["olej", "rzepak"] },
@@ -190,3 +193,34 @@ export function genericProduct(name: string): GenericProduct | null {
 
 /** Liczba różnych produktów bazowych w słowniku (informacyjnie, np. w testach). */
 export const GENERIC_PRODUCT_COUNT = new Set(ENTRIES.map((e) => e.label)).size;
+
+// ── Gramatura opakowania w nazwie ────────────────────────────────────────────
+const AMOUNT_RE = /(\d+(?:[.,]\d+)?)\s*(kg|dag|g|l|cl|ml|szt|sztuk|x)(?![a-z])/g;
+
+/**
+ * Sygnatura opakowania z nazwy („1,05KG PET” → "1.05kg", „1KG [6SZT]” → "1kg+6szt",
+ * „1000 SZT x 5g” → "1000szt+5g") albo "" gdy nazwa nie podaje ilości.
+ *
+ * Po co: przy jednostce „szt”/„opak” cena jest za OPAKOWANIE. „Czosnek granulowany 1kg” za
+ * 44,80 zł/szt i główka czosnku za 2,86 zł/szt mają tę samą jednostkę, ale nie są porównywalne
+ * (realny błąd 2026-10-11: +1466% „powyżej mediany”). Porównujemy tylko pozycje o tej samej
+ * sygnaturze. Przy kg/l gramatura w nazwie nie ma znaczenia — cena i tak jest za kilogram/litr.
+ */
+export function packSignature(name: string): string {
+  const n = normalizeForMatch(name);
+  const parts: string[] = [];
+  for (const m of n.matchAll(AMOUNT_RE)) {
+    const num = Number(m[1]!.replace(",", "."));
+    if (!Number.isFinite(num) || num <= 0) continue;
+    const unit = m[2] === "sztuk" || m[2] === "x" ? "szt" : m[2]!;
+    parts.push(`${num}${unit}`);
+  }
+  return [...new Set(parts)].sort().join("+");
+}
+
+const MEASURED_UNITS = new Set(["kg", "g", "l", "ml"]);
+
+/** Sygnatura opakowania istotna dla porównania cen: tylko dla jednostek „na sztuki”. */
+export function packKeyFor(name: string, normalizedUnit: string): string {
+  return MEASURED_UNITS.has(normalizedUnit) ? "" : packSignature(name);
+}

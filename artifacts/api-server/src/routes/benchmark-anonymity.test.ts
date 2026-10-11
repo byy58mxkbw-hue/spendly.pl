@@ -288,6 +288,32 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
     }
   });
 
+  it("paczka „1kg” za sztukę, granulat i cena 7× wyższa nie porównują się z główką czosnku (realny błąd +1466%)", async () => {
+    const GARLIC_USERS = Array.from({ length: 8 }, (_, n) => `anon_garlic_${n}`);
+    const BUYER = "anon_garlic_buyer";
+    ALL_USERS.push(...GARLIC_USERS, BUYER);
+    for (const [n, u] of GARLIC_USERS.entries()) await seedPurchase(u, "czosnek polski", "szt", "warzywa", 2.8 + n / 100);
+    await seedPurchase(BUYER, "czosnek granulowany 1,05kg pet", "szt", "warzywa", 44.8, { invoiceNumber: "G-1" });
+    await seedPurchase(BUYER, "czosnek polski 1kg", "szt", "warzywa", 30, { invoiceNumber: "G-2" });
+    await seedPurchase(BUYER, "czosnek fioletowy", "szt", "warzywa", 20, { invoiceNumber: "G-3" });
+    const { runMarketBenchmarkJob } = await import("../services/market-benchmark-job");
+    await runMarketBenchmarkJob(log);
+
+    const aliases = await db.select().from(marketProductAliasesTable).where(inArray(marketProductAliasesTable.canonicalName, ["czosnek polski", "czosnek polski 1kg", "czosnek granulowany 1,05kg pet"]));
+    const keyOf = (n: string) => aliases.find((a) => a.canonicalName === n)?.marketGroupKey;
+    expect(keyOf("czosnek polski")).toBe("Czosnek");
+    expect(keyOf("czosnek polski 1kg")).toBe("Czosnek · 1kg");
+    expect(keyOf("czosnek granulowany 1,05kg pet")).not.toBe("Czosnek");
+
+    authState.userId = BUYER;
+    const items = itemsOf((await getBenchmarks()).body);
+    for (const name of ["czosnek granulowany 1,05kg pet", "czosnek polski 1kg", "czosnek fioletowy"]) {
+      const row = items.find((i) => i.productName === name);
+      expect(row?.insufficientData, name).toBe(true);
+      expect(row?.medianPrice, name).toBeUndefined();
+    }
+  });
+
   it("publiczna lista (bez logowania): tylko opublikowane grupy, bez cen i liczników źródeł", async () => {
     // W tym pliku (sekwencyjnie), bo job z innych testów czyści tabele benchmarku.
     const KEYS = ["pubtest cytryna", "pubtest tajne"];

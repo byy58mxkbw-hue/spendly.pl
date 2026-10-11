@@ -6,6 +6,7 @@ import { normalizedUnitSql } from "../lib/units.js";
 import { EXCLUDED_BENCHMARK_CATEGORIES, FUZZY_SIMILARITY_THRESHOLD, MIN_FUZZY_LENGTH } from "../lib/market-product-matcher.js";
 import { spendInvoicesFilter } from "../lib/invoice-line-classify.js";
 import { UpdateBenchmarkOptInBody } from "@workspace/api-zod";
+import { genericProduct, packKeyFor } from "@workspace/category-rules";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,8 @@ function minRows(): number {
 }
 
 const uid = (name: string, unit: string) => `${name}::${unit}`;
+/** Powyżej tej krotności różnicy względem mediany uznajemy porównanie za błędne dopasowanie. */
+const MAX_PRICE_RATIO = 4;
 
 type YourPriceRow = {
   canonical_name: string;
@@ -193,9 +196,12 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     (yp) => !benchByKey.has(uid(yp.canonical_name, yp.unit)) && yp.canonical_name.length >= MIN_FUZZY_LENGTH,
   );
   if (unmatched.length > 0) {
-    const fuzzyResult = await db.execute<BenchmarkRow>(sql`
-      SELECT DISTINCT ON (q.name, q.unit)
+    // Bez DISTINCT ON: najlepsze trafienie wybieramy w TS, odrzucając kandydatów z innym
+    // produktem bazowym albo inną gramaturą opakowania (te same reguły co matcher).
+    const fuzzyResult = await db.execute<BenchmarkRow & { alias_name: string }>(sql`
+      SELECT
         q.name AS canonical_name,
+        mpa.canonical_name AS alias_name,
         mpb.market_group_key, mpb.unit, mpb.category, mpb.period_month,
         mpb.median_price::float AS median_price, mpb.p25_price::float AS p25_price, mpb.p75_price::float AS p75_price,
         mpb.distinct_user_count, mpb.sample_row_count, mpb.is_published
@@ -209,6 +215,11 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     `);
     for (const r of fuzzyResult.rows) {
       const k = uid(r.canonical_name, r.unit);
+      if (benchByKey.has(k)) continue; // wiersze posortowane od najlepszego — pierwszy poprawny wygrywa
+      const gq = genericProduct(r.canonical_name);
+      const ga = genericProduct(r.alias_name);
+      if (gq && ga && gq.key !== ga.key) continue;
+      if (packKeyFor(r.canonical_name, r.unit) !== packKeyFor(r.alias_name, r.unit)) continue;
       benchByKey.set(k, r);
       benchRows.push(r);
       fuzzyKeys.add(k);
@@ -278,6 +289,12 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
       };
     }
     const median = bench.median_price ?? 0;
+    // Bezpiecznik: cena 4× wyższa albo 4× niższa od mediany tego samego produktu to prawie
+    // zawsze inna rzecz (karton zamiast sztuki, granulat zamiast świeżego) — nie pokazujemy
+    // „+1400% powyżej mediany” ani fikcyjnej oszczędności, tylko brak porównania.
+    if (median > 0 && (yp.your_price > median * MAX_PRICE_RATIO || yp.your_price < median / MAX_PRICE_RATIO)) {
+      return { ...base, insufficientData: true, distinctUserCount: 0, minUsers: MIN_USERS, minRows: MIN_ROWS };
+    }
     const deltaPercent = median > 0 ? ((yp.your_price - median) / median) * 100 : 0;
     const savingsPerMonth = yp.your_price > median ? (yp.your_price - median) * yp.monthly_quantity : 0;
     return {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { genericProduct } from "./generic-product";
+import { genericProduct, packSignature, packKeyFor } from "./generic-product";
 
 const label = (n: string) => genericProduct(n)?.label ?? null;
 
@@ -67,5 +67,38 @@ describe("groupOf — grupy do prezentacji", () => {
     expect(genericProduct("Cytryny")?.group).toBe("Owoce");
     expect(genericProduct("Pieczarki")?.group).toBe("Warzywa");
     expect(genericProduct("Ryż basmati 5kg")?.group).toBe("Spiżarnia");
+  });
+});
+
+describe("przetworzone produkty z prawdziwych faktur (2026-10-11)", () => {
+  it.each([
+    ["[PRYMAT] CZOSNEK GRANULOWANY 1,05KG PET", "Czosnek"],
+    ["[JARBAB] CZOSNEK GRANULOWANY 1KG", "Czosnek"],
+    ["OLIWA Z OLIWEK CZOSNEK I CHILLI 250ML [6SZT] {MONINI}", "Czosnek"],
+    ["[SCHOLLER] KUWETA SORBET MALINOWY 5L", "Malina"],
+    ["CUKIER MK CAFE PALUSZKI 1000 SZT x 5g", "Cukier"],
+  ])("„%s” nie jest produktem bazowym %s", (name, wrong) => {
+    expect(genericProduct(name)?.label).not.toBe(wrong);
+  });
+
+  it("świeże nadal działają", () => {
+    expect(genericProduct("Czosnek polski")?.label).toBe("Czosnek");
+    expect(genericProduct("Sałata lodowa")?.label).toBe("Sałata lodowa");
+    expect(genericProduct("Winogrono białe")?.label).toBe("Winogrono");
+    expect(genericProduct("Cukier biały 1kg")?.label).toBe("Cukier");
+  });
+});
+
+describe("packSignature / packKeyFor — gramatura opakowania", () => {
+  it("wyciąga ilości z nazwy", () => {
+    expect(packSignature("CZOSNEK GRANULOWANY 1,05KG PET")).toBe("1.05kg");
+    expect(packSignature("SER CHEDDAR PLASTRY 1KG [6SZT]")).toBe("1kg+6szt");
+    expect(packSignature("CUKIER MK CAFE PALUSZKI 1000 SZT x 5g")).toBe("1000szt+5g");
+    expect(packSignature("Czosnek polski")).toBe("");
+  });
+  it("liczy się tylko przy jednostkach na sztuki", () => {
+    expect(packKeyFor("Cytryna 5kg", "kg")).toBe("");
+    expect(packKeyFor("Cytryna 5kg", "szt")).toBe("5kg");
+    expect(packKeyFor("Czosnek", "szt")).toBe("");
   });
 });
