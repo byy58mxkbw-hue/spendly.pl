@@ -66,12 +66,12 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
     WITH per_user_price AS (
       SELECT
         mpa.market_group_key,
-        mpa.unit,
+        COALESCE(mpa.compare_unit, mpa.unit) AS unit,
         mpa.category,
         SUBSTRING(i.invoice_date, 1, 7) AS period_month,
         i.user_id,
         i.supplier_id,
-        AVG(ii.unit_price::numeric) AS avg_price,
+        AVG(ii.unit_price::numeric * mpa.price_factor::numeric) AS avg_price,
         -- Czy user ma choć jedną fakturę pobraną z KSeF (patrz verified_user_count niżej).
         EXISTS (SELECT 1 FROM invoices k WHERE k.user_id = i.user_id AND k.source = 'ksef_sync') AS has_ksef
       FROM invoice_items ii
@@ -83,7 +83,7 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
       WHERE p.canonical_name IS NOT NULL
         ${spendInvoicesFilter("i")}
         AND COALESCE(us.benchmark_opt_in, true) = true
-      GROUP BY mpa.market_group_key, mpa.unit, mpa.category, period_month, i.user_id, i.supplier_id
+      GROUP BY 1, 2, 3, 4, 5, 6
     )
     SELECT
       market_group_key, unit, category, period_month,
@@ -175,11 +175,11 @@ export async function computeRollingRanges(windowMonths: number, minUsersN: numb
     WITH per_user_price AS (
       SELECT
         mpa.market_group_key,
-        mpa.unit,
+        COALESCE(mpa.compare_unit, mpa.unit) AS unit,
         mpa.category,
         i.user_id,
         i.supplier_id,
-        AVG(ii.unit_price::numeric) AS avg_price,
+        AVG(ii.unit_price::numeric * mpa.price_factor::numeric) AS avg_price,
         MIN(SUBSTRING(i.invoice_date, 1, 7)) AS min_month,
         MAX(SUBSTRING(i.invoice_date, 1, 7)) AS max_month,
         EXISTS (SELECT 1 FROM invoices k WHERE k.user_id = i.user_id AND k.source = 'ksef_sync') AS has_ksef

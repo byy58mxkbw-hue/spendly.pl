@@ -405,6 +405,7 @@ export async function importMatchedInvoice(
         unitPrice: item.unitPrice.toString(),
         totalPrice: item.net.toString(),
         vatRate: item.vatRate != null ? item.vatRate.toString() : null,
+        gtin: item.gtin ?? null,
       });
     }
     return true;

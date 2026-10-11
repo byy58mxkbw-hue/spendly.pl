@@ -308,7 +308,11 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
     const aliases = await db.select().from(marketProductAliasesTable).where(inArray(marketProductAliasesTable.canonicalName, ["czosnek polski", "czosnek polski 1kg", "czosnek granulowany 1,05kg pet"]));
     const keyOf = (n: string) => aliases.find((a) => a.canonicalName === n)?.marketGroupKey;
     expect(keyOf("czosnek polski")).toBe("Czosnek");
-    expect(keyOf("czosnek polski 1kg")).toBe("Czosnek · 1kg");
+    // Paczka 1 kg za sztukę → ta sama grupa „Czosnek”, ale porównywana za kg (30 zł/kg),
+    // nigdy z główką za sztukę.
+    const pack = aliases.find((a) => a.canonicalName === "czosnek polski 1kg");
+    expect(pack?.marketGroupKey).toBe("Czosnek");
+    expect(pack?.compareUnit).toBe("kg");
     expect(keyOf("czosnek granulowany 1,05kg pet")).not.toBe("Czosnek");
 
     authState.userId = BUYER;
@@ -328,6 +332,31 @@ describe.skipIf(!RUN_DB)("anonimowość benchmarku rynkowego: GET /api/benchmark
 
     const stale = await db.select().from(marketPriceBenchmarksTable).where(eq(marketPriceBenchmarksTable.periodMonth, "2020-01"));
     expect(stale).toHaveLength(0);
+  });
+
+  it("karton „5kg” za sztukę porównuje się z ceną za kg; płyn do naczyń „mięta” nie trafia do mięty", async () => {
+    const KG_USERS = Array.from({ length: 8 }, (_, n) => `anon_kg_${n}`);
+    const BUYER = "anon_kg_buyer";
+    ALL_USERS.push(...KG_USERS, BUYER);
+    for (const [n, u] of KG_USERS.entries()) {
+      await seedPurchase(u, "pomarancza luz", "kg", "owoce", 6 + n / 10);
+      await seedPurchase(u, "mieta swieza", "szt", "warzywa", 4 + n / 10, { invoiceNumber: `M-${n}` });
+    }
+    await seedPurchase(BUYER, "pomarancze skrzynka 10kg", "szt", "owoce", 70, { invoiceNumber: "K-1" });
+    await seedPurchase(BUYER, "gar kubus pl.d/naczyn 5l mieta karnister", "szt", "chemia", 8.5, { invoiceNumber: "K-2" });
+    const { runMarketBenchmarkJob } = await import("../services/market-benchmark-job");
+    await runMarketBenchmarkJob(log);
+
+    authState.userId = BUYER;
+    const items = itemsOf((await getBenchmarks()).body);
+    const box = items.find((i) => i.productName === "pomarancze skrzynka 10kg");
+    expect(box?.insufficientData).toBe(false);
+    expect(box?.unit).toBe("kg");
+    expect(Number(box?.yourPrice)).toBeCloseTo(7, 5); // 70 zł / 10 kg
+    const soap = items.find((i) => i.productName === "gar kubus pl.d/naczyn 5l mieta karnister");
+    expect(soap?.medianPrice).toBeUndefined();
+    const [alias] = await db.select().from(marketProductAliasesTable).where(eq(marketProductAliasesTable.canonicalName, "gar kubus pl.d/naczyn 5l mieta karnister"));
+    expect(alias?.marketGroupKey).not.toBe("Mięta");
   });
 
   it("publiczna lista (bez logowania): tylko opublikowane grupy, bez cen i liczników źródeł", async () => {

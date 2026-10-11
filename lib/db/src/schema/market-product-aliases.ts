@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, uniqueIndex, doublePrecision } from "drizzle-orm/pg-core";
 
 // Grupowanie nazw produktów odpornych na literówki/liczbę mnogą/błędy OCR (pg_trgm,
 // liczone w market-product-matcher.ts), TYLKO dla joba benchmarku — nie ruszamy
@@ -12,6 +12,10 @@ export const marketProductAliasesTable = pgTable("market_product_aliases", {
   unit: text("unit").notNull(),
   category: text("category"),
   marketGroupKey: text("market_group_key").notNull(),
+  // Jednostka porównania (kg/l, gdy cenę za opakowanie da się przeliczyć z gramatury w nazwie)
+  // i mnożnik: cena porównywalna = unit_price × price_factor (patrz category-rules priceBasis).
+  compareUnit: text("compare_unit"),
+  priceFactor: doublePrecision("price_factor").notNull().default(1),
   computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   uniqueIndex("mpa_canonical_unit_uniq").on(t.canonicalName, t.unit),

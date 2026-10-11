@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { genericProduct, packSignature, packKeyFor } from "./generic-product";
+import { genericProduct, packSignature, parsePack, priceBasis, isNonFood } from "./generic-product";
 
 const label = (n: string) => genericProduct(n)?.label ?? null;
 
@@ -96,10 +96,29 @@ describe("packSignature / packKeyFor — gramatura opakowania", () => {
     expect(packSignature("CUKIER MK CAFE PALUSZKI 1000 SZT x 5g")).toBe("1000szt+5g");
     expect(packSignature("Czosnek polski")).toBe("");
   });
-  it("liczy się tylko przy jednostkach na sztuki", () => {
-    expect(packKeyFor("Cytryna 5kg", "kg")).toBe("");
-    expect(packKeyFor("Cytryna 5kg", "szt")).toBe("5kg");
-    expect(packKeyFor("Czosnek", "szt")).toBe("");
+  it("cena za opakowanie → cena za kg/l", () => {
+    expect(priceBasis("Cytryna 5kg", "kg")).toEqual({ compareUnit: "kg", factor: 1, packKey: "" });
+    expect(priceBasis("Cytryna 5kg", "szt")).toEqual({ compareUnit: "kg", factor: 0.2, packKey: "" });
+    expect(priceBasis("Czosnek", "szt")).toEqual({ compareUnit: "szt", factor: 1, packKey: "" });
+    expect(priceBasis("Czosnek 3 szt", "opak")).toEqual({ compareUnit: "opak", factor: 1, packKey: "3szt" });
+    expect(priceBasis("Pieczarki", "g").compareUnit).toBe("kg");
+  });
+  it.each([
+    ["[PRYMAT] CZOSNEK GRANULOWANY 1,05KG PET", 1.05, "kg"],
+    ["CUKIER MK CAFE PALUSZKI 1000 SZT x 5g", 5, "kg"],
+    ["MALINA GRYS 2,5KG [4SZT] {ABEL}", 2.5, "kg"],
+    ["OLIWA Z OLIWEK CZOSNEK I CHILLI 250ML [6SZT] {MONINI}", 0.25, "l"],
+    ["SER CHEDDAR PLASTRY 1KG [6SZT] {MLEKOVITA}", 1, "kg"],
+    ["Mleko UHT 6x1l", 6, "l"],
+    ["[SCHOLLER] KUWETA SORBET MALINOWY 5L", 5, "l"],
+  ])("parsePack(„%s”) = %s %s", (name, total, base) => {
+    const p = parsePack(name);
+    expect(p?.base).toBe(base);
+    expect(p?.total).toBeCloseTo(total as number, 5);
+  });
+  it("bez gramatury albo nierealna → null", () => {
+    expect(parsePack("Awokado zielone Hiszpania")).toBeNull();
+    expect(parsePack("Worki 120l 10 szt")).toBeNull(); // 120 l to nie opakowanie towaru — poza zakresem
   });
 });
 
@@ -116,5 +135,21 @@ describe("drugi przegląd porównania cen (2026-10-11)", () => {
     expect(genericProduct("Antrykot b/k")?.label).toBe("Antrykot");
     expect(genericProduct("Filet z piersi kurczaka")?.label).toBe("Filet z kurczaka");
     expect(genericProduct("Mozzarella mini kulki 750g")?.label).toBe("Mozzarella");
+  });
+});
+
+describe("nie-żywność i kwasek (2026-10-11, trzeci zrzut)", () => {
+  it.each([
+    ["GAR KUBUŚ PŁ.D/NACZYŃ 5L MIĘTA KARNISTER", "Mięta"],
+    ["[JARBAB] KWASEK CYTRYNOWY 1KG", "Cytryna"],
+  ])("„%s” nie jest %s", (name, wrong) => {
+    expect(genericProduct(name)?.label).not.toBe(wrong);
+  });
+  it("chemia i opakowania to nie żywność", () => {
+    expect(isNonFood("GAR KUBUŚ PŁ.D/NACZYŃ 5L MIĘTA KARNISTER")).toBe(true);
+    expect(isNonFood("Worki na śmieci 120l")).toBe(true);
+    expect(isNonFood("Rękawice nitrylowe M")).toBe(true);
+    expect(isNonFood("Mięta świeża")).toBe(false);
+    expect(isNonFood("Pomidor LIMA II PL")).toBe(false);
   });
 });

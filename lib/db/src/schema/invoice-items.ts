@@ -14,6 +14,8 @@ export const invoiceItemsTable = pgTable("invoice_items", {
   unitPrice: numeric("unit_price", { precision: 12, scale: 4 }).notNull(),
   totalPrice: numeric("total_price", { precision: 12, scale: 2 }).notNull(),
   vatRate: numeric("vat_rate", { precision: 5, scale: 2 }),
+  // Kod GTIN/EAN z KSeF (FaWiersz/GTIN) — ta sama GTIN u różnych lokali = ten sam towar (benchmark).
+  gtin: text("gtin"),
 }, (t) => [
   index("invoice_items_invoice_id_idx").on(t.invoiceId),
   index("invoice_items_product_id_idx").on(t.productId),

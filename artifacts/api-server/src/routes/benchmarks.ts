@@ -3,10 +3,10 @@ import { sql, type SQL } from "drizzle-orm";
 import { db, userSettingsTable } from "@workspace/db";
 import { DEFAULT_MIN_USERS, DEFAULT_MIN_ROWS, RANGE_WINDOW_MONTHS } from "../services/market-benchmark-job.js";
 import { normalizedUnitSql } from "../lib/units.js";
-import { EXCLUDED_BENCHMARK_CATEGORIES, FUZZY_SIMILARITY_THRESHOLD, MIN_FUZZY_LENGTH } from "../lib/market-product-matcher.js";
+import { EXCLUDED_BENCHMARK_CATEGORIES } from "../lib/market-product-matcher.js";
 import { spendInvoicesFilter } from "../lib/invoice-line-classify.js";
 import { UpdateBenchmarkOptInBody } from "@workspace/api-zod";
-import { genericProduct, packKeyFor } from "@workspace/category-rules";
+import { genericProduct, priceBasis } from "@workspace/category-rules";
 
 const router: IRouter = Router();
 
@@ -164,67 +164,70 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     return;
   }
 
-  // market_group_key dla każdego (canonical_name, unit) usera + NAJNOWSZY OPUBLIKOWANY
-  // wiersz benchmarku dla tej grupy (is_published DESC przed period_month DESC — bieżący
-  // miesiąc regularnie ma jeszcze mniej niż próg userów, więc branie zwyczajnie najnowszego
-  // wiersza co miesiąc "gasiło" właśnie opublikowany poprzedni miesiąc, mimo że wciąż jest
-  // aktualny i ważny; realny bug znaleziony po deployu — 15 dopasowań usera, 0 widocznych).
-  // Tylko gdy DANA grupa nigdy się nie opublikowała, bierzemy najnowszy nieopublikowany
-  // wiersz wyłącznie do komunikatu "za mało danych" (nigdy do mediany).
-  const benchResult = await db.execute<BenchmarkRow>(sql`
+  // market_group_key + jednostka porównania + mnożnik ceny dla każdego (canonical_name, unit)
+  // usera i NAJNOWSZY OPUBLIKOWANY wiersz benchmarku dla tej grupy (is_published DESC przed
+  // period_month DESC — bieżący miesiąc regularnie ma mniej niż próg userów, a poprzedni,
+  // opublikowany, wciąż jest aktualny). Tylko gdy grupa nigdy się nie opublikowała, bierzemy
+  // najnowszy nieopublikowany wiersz wyłącznie do komunikatu „za mało danych”.
+  const benchResult = await db.execute<BenchmarkRow & { price_factor: number }>(sql`
     SELECT DISTINCT ON (mpa.canonical_name, mpa.unit)
       mpa.canonical_name,
+      mpa.unit AS invoice_unit,
+      mpa.price_factor::float AS price_factor,
       mpb.market_group_key, mpb.unit, mpb.category, mpb.period_month,
       mpb.median_price::float AS median_price, mpb.p25_price::float AS p25_price, mpb.p75_price::float AS p75_price,
       mpb.distinct_user_count, mpb.sample_row_count, mpb.is_published
     FROM market_product_aliases mpa
-    JOIN market_price_benchmarks mpb ON mpb.market_group_key = mpa.market_group_key AND mpb.unit = mpa.unit
+    JOIN market_price_benchmarks mpb
+      ON mpb.market_group_key = mpa.market_group_key AND mpb.unit = COALESCE(mpa.compare_unit, mpa.unit)
     WHERE (mpa.canonical_name, mpa.unit) IN (
       ${sql.join(yourPrices.map((r) => sql`(${r.canonical_name}, ${r.unit})`), sql`, `)}
     )
     ORDER BY mpa.canonical_name, mpa.unit, mpb.is_published DESC, mpb.period_month DESC
   `);
-  const benchRows = benchResult.rows;
+  const benchRows: BenchmarkRow[] = [];
   const benchByKey = new Map<string, BenchmarkRow>();
-  for (const r of benchRows) benchByKey.set(uid(r.canonical_name, r.unit), r);
+  const factorByKey = new Map<string, number>();
+  for (const r of benchResult.rows) {
+    const k = uid(r.canonical_name, (r as unknown as { invoice_unit: string }).invoice_unit);
+    benchByKey.set(k, r);
+    factorByKey.set(k, r.price_factor);
+    benchRows.push(r);
+  }
 
-  // Dopasowanie zapasowe w locie dla nazw bez aliasu: matcher liczy aliasy raz na dobę,
-  // więc nowy user z „Cytryny luz” do jutra widziałby zero porównań. Ten sam próg
-  // podobieństwa (pg_trgm) i minimalna długość co w market-product-matcher.ts, ta sama
-  // jednostka, najlepsze trafienie. Bez AI. Operator `%` korzysta z indeksu GIN
-  // (mpa_canonical_name_trgm_idx), similarity() >= próg dokłada właściwy filtr.
-  const fuzzyKeys = new Set<string>();
-  const unmatched = yourPrices.filter(
-    (yp) => !benchByKey.has(uid(yp.canonical_name, yp.unit)) && yp.canonical_name.length >= MIN_FUZZY_LENGTH,
-  );
-  if (unmatched.length > 0) {
-    // Bez DISTINCT ON: najlepsze trafienie wybieramy w TS, odrzucając kandydatów z innym
-    // produktem bazowym albo inną gramaturą opakowania (te same reguły co matcher).
-    const fuzzyResult = await db.execute<BenchmarkRow & { alias_name: string }>(sql`
-      SELECT
-        q.name AS canonical_name,
-        mpa.canonical_name AS alias_name,
-        mpb.market_group_key, mpb.unit, mpb.category, mpb.period_month,
-        mpb.median_price::float AS median_price, mpb.p25_price::float AS p25_price, mpb.p75_price::float AS p75_price,
-        mpb.distinct_user_count, mpb.sample_row_count, mpb.is_published
-      FROM (VALUES ${sql.join(unmatched.map((r) => sql`(${r.canonical_name}::text, ${r.unit}::text)`), sql`, `)}) AS q(name, unit)
-      JOIN market_product_aliases mpa
-        ON mpa.unit = q.unit
-       AND mpa.canonical_name % q.name
-       AND similarity(mpa.canonical_name, q.name) >= ${FUZZY_SIMILARITY_THRESHOLD}
-      JOIN market_price_benchmarks mpb ON mpb.market_group_key = mpa.market_group_key AND mpb.unit = mpa.unit
-      ORDER BY q.name, q.unit, similarity(mpa.canonical_name, q.name) DESC, mpb.is_published DESC, mpb.period_month DESC
+  // Nazwa bez aliasu (matcher liczy aliasy raz na dobę — nowy user do jutra nie miałby
+  // porównań): ta sama karta co w matcherze, policzona w locie — produkt bazowy ze słownika
+  // + jednostka porównania + mnożnik ceny. Deterministycznie, bez podobieństwa liter, bez AI.
+  const derivedKeys = new Set<string>();
+  const wanted = new Map<string, { group: string; unit: string; factor: number }>();
+  for (const yp of yourPrices) {
+    const k = uid(yp.canonical_name, yp.unit);
+    if (benchByKey.has(k)) continue;
+    const g = genericProduct(yp.canonical_name);
+    if (!g) continue;
+    const basis = priceBasis(yp.canonical_name, yp.unit);
+    wanted.set(k, { group: basis.packKey ? `${g.label} · ${basis.packKey}` : g.label, unit: basis.compareUnit, factor: basis.factor });
+  }
+  if (wanted.size > 0) {
+    const pairs = [...new Set([...wanted.values()].map((w) => uid(w.group, w.unit)))].map((p) => p.split("::") as [string, string]);
+    const derived = await db.execute<BenchmarkRow>(sql`
+      SELECT DISTINCT ON (market_group_key, unit)
+        market_group_key, unit, category, period_month,
+        median_price::float AS median_price, p25_price::float AS p25_price, p75_price::float AS p75_price,
+        distinct_user_count, sample_row_count, is_published
+      FROM market_price_benchmarks
+      WHERE (market_group_key, unit) IN (${sql.join(pairs.map(([g, u]) => sql`(${g}, ${u})`), sql`, `)})
+      ORDER BY market_group_key, unit, is_published DESC, period_month DESC
     `);
-    for (const r of fuzzyResult.rows) {
-      const k = uid(r.canonical_name, r.unit);
-      if (benchByKey.has(k)) continue; // wiersze posortowane od najlepszego — pierwszy poprawny wygrywa
-      const gq = genericProduct(r.canonical_name);
-      const ga = genericProduct(r.alias_name);
-      if (gq && ga && gq.key !== ga.key) continue;
-      if (packKeyFor(r.canonical_name, r.unit) !== packKeyFor(r.alias_name, r.unit)) continue;
-      benchByKey.set(k, r);
-      benchRows.push(r);
-      fuzzyKeys.add(k);
+    const byGroup = new Map(derived.rows.map((r) => [uid(r.market_group_key, r.unit), r]));
+    for (const [k, w] of wanted) {
+      const r = byGroup.get(uid(w.group, w.unit));
+      if (!r) continue;
+      const row = { ...r, canonical_name: k.split("::")[0]! };
+      benchByKey.set(k, row);
+      factorByKey.set(k, w.factor);
+      benchRows.push(row);
+      derivedKeys.add(k);
     }
   }
 
@@ -269,7 +272,13 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
   }
 
   const items = yourPrices.map((yp) => {
-    const monthly = benchByKey.get(uid(yp.canonical_name, yp.unit));
+    const key = uid(yp.canonical_name, yp.unit);
+    const monthly = benchByKey.get(key);
+    // Cena i ilość w jednostce porównania (np. paczka 1,05 kg po 44,80 zł/szt → 42,67 zł/kg),
+    // tak samo jak mediana rynku liczona w jobie.
+    const factor = factorByKey.get(key) ?? 1;
+    const yourPrice = yp.your_price * factor;
+    const monthlyQuantity = factor > 0 ? yp.monthly_quantity / factor : yp.monthly_quantity;
     const range = monthly && !monthly.is_published ? rangeByKey.get(uid(monthly.market_group_key, monthly.unit)) : undefined;
     const bench = range && monthly
       ? { ...monthly, ...range, is_published: true, period_month: range.to_month }
@@ -277,10 +286,10 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     const base = {
       productId: yp.product_id,
       productName: yp.product_name,
-      unit: yp.unit,
+      unit: bench?.unit ?? yp.unit,
       category: bench?.category ?? null,
-      yourPrice: yp.your_price,
-      monthlyQuantity: yp.monthly_quantity,
+      yourPrice,
+      monthlyQuantity,
     };
     if (!bench || !bench.is_published) {
       return {
@@ -296,7 +305,7 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     // Bezpiecznik: cena 2,5× wyższa albo 2,5× niższa od mediany tego samego produktu to prawie
     // zawsze inna rzecz (karton zamiast sztuki, granulat zamiast świeżego) — nie pokazujemy
     // „+1400% powyżej mediany” ani fikcyjnej oszczędności, tylko brak porównania.
-    if (median > 0 && (yp.your_price > median * MAX_PRICE_RATIO || yp.your_price < median / MAX_PRICE_RATIO)) {
+    if (median > 0 && (yourPrice > median * MAX_PRICE_RATIO || yourPrice < median / MAX_PRICE_RATIO)) {
       return {
         ...base,
         insufficientData: true,
@@ -306,8 +315,8 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
         minRows: MIN_ROWS,
       };
     }
-    const deltaPercent = median > 0 ? ((yp.your_price - median) / median) * 100 : 0;
-    const savingsPerMonth = yp.your_price > median ? (yp.your_price - median) * yp.monthly_quantity : 0;
+    const deltaPercent = median > 0 ? ((yourPrice - median) / median) * 100 : 0;
+    const savingsPerMonth = yourPrice > median ? (yourPrice - median) * monthlyQuantity : 0;
     return {
       ...base,
       insufficientData: false,
@@ -318,7 +327,7 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
       distinctUserCount: bench.distinct_user_count,
       sampleRowCount: bench.sample_row_count,
       savingsPerMonth,
-      matchedBy: fuzzyKeys.has(uid(yp.canonical_name, yp.unit)) ? ("fuzzy" as const) : ("alias" as const),
+      matchedBy: derivedKeys.has(key) ? ("fuzzy" as const) : ("alias" as const),
       medianWindow: range ? ("12m" as const) : ("month" as const),
       medianFromMonth: range ? range.from_month : bench.period_month,
       medianToMonth: range ? range.to_month : bench.period_month,

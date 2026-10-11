@@ -2,12 +2,11 @@ import type { Logger } from "pino";
 import { sql } from "drizzle-orm";
 import { db, marketProductAliasesTable } from "@workspace/db";
 import { normalizedUnitSql } from "./units.js";
-import { genericProduct, packKeyFor, type GenericProduct } from "@workspace/category-rules";
+import { genericProduct, priceBasis, type GenericProduct, type PriceBasis } from "@workspace/category-rules";
 
-// Dopasowanie rozmyte nazw produktów TYLKO dla benchmarku rynkowego (market-benchmark-job.ts).
-// Nie ruszamy istniejącej normalizeProductName() (categorize-ai.ts) — to inny, dodatkowy
-// krok grupowania, liczony raz dziennie w batchu. Zero AI: diakrytyki + pg_trgm (wbudowane
-// rozszerzenie Postgresa), zero kosztu tokenów.
+// Grupowanie nazw produktów TYLKO dla benchmarku rynkowego (market-benchmark-job.ts), liczone
+// raz dziennie w batchu. Nie ruszamy normalizeProductName() (categorize-ai.ts). Zero AI:
+// słownik produktów bazowych + przeliczenie ceny na kg/l + GTIN (patrz runMarketProductMatcher).
 
 const DIACRITICS: Record<string, string> = {
   ą: "a", ć: "c", ę: "e", ł: "l", ń: "n", ó: "o", ś: "s", ź: "z", ż: "z",
@@ -28,9 +27,6 @@ export function bucketKey(canonicalName: string): string {
   return base;
 }
 
-/** Nazwy krótsze niż to wymagają dokładnego dopasowania — fuzzy na krótkich słowach jest niebezpieczne. */
-export const MIN_FUZZY_LENGTH = 4;
-export const FUZZY_SIMILARITY_THRESHOLD = 0.6;
 
 // Kategorie wykluczone z benchmarku rynkowego — nie są cenami produktów, które
 // da się "kupić gdzie indziej taniej": koszty stałe (czynsz, media, prowizje
@@ -118,36 +114,34 @@ type CategoryVoteRow = {
   cnt: number;
 };
 
-type SimilarityPair = {
-  name_a: string;
-  name_b: string;
-  sim: number;
-}
 
 const uid = (name: string, unit: string) => `${name}::${unit}`;
 
 /**
- * Uruchamia dopasowanie rozmyte i przelicza market_product_aliases od zera
- * (tabela to widok pochodny, bezpiecznie ją nadpisać przy każdym uruchomieniu).
- * Wywoływane z market-benchmark-job.ts przed liczeniem agregatów cenowych.
+ * Przelicza market_product_aliases od zera (tabela to widok pochodny). Wywoływane z
+ * market-benchmark-job.ts przed liczeniem agregatów cenowych.
+ *
+ * Normalizacja (2026-10-11, przebudowa po błędnych porównaniach z produkcji): każda nazwa
+ * z faktury dostaje „kartę” — produkt bazowy ze słownika (genericProduct), jednostkę
+ * porównania i mnożnik ceny (priceBasis: paczka 1,05 kg za 44,80 zł/szt → 42,67 zł/kg) oraz
+ * GTIN z KSeF, jeśli jest. Grupujemy tylko pozycje o tej samej karcie. Podobieństwo liter
+ * (pg_trgm) NIE łączy już różnych nazw — dawało „sorbet malinowy” = „malina”, „płyn do
+ * naczyń mięta” = „mięta”. Nazwy spoza słownika porównują się wyłącznie z identyczną nazwą
+ * (albo przez wspólny GTIN). Bez zapytań similarity() w pętli — O(n) na mapach.
  */
 export async function runMarketProductMatcher(log: Logger): Promise<{ groups: number; namesProcessed: number }> {
   const notExcludedCategory = sql`(category IS NULL OR category NOT IN (${sql.join(EXCLUDED_BENCHMARK_CATEGORIES.map((c) => sql`${c}`), sql`, `)}))`;
 
-  // Krok 1: zdystyluj (canonical_name, unit) -> liczba różnych userów. Jednostka
-  // znormalizowana (normalizedUnitSql, jak w reports.ts) — inaczej "kg"/"Kg"/"KG"
-  // dzielą jeden produkt na osobne, sztucznie rozdrobnione grupy (realny bug
-  // znaleziony po pierwszym uruchomieniu joba na produkcji: unit_count=1 wszędzie).
+  // (canonical_name, jednostka znormalizowana) -> liczba różnych userów. Jednostka przez
+  // normalizedUnitSql — inaczej „kg”/„Kg”/„KG” rozdrabniały ten sam produkt.
   const aggResult = await db.execute<AggregatedRow>(sql`
     SELECT canonical_name, ${normalizedUnitSql(sql`unit`)} AS unit, COUNT(DISTINCT user_id)::int AS user_count
     FROM products
     WHERE canonical_name IS NOT NULL AND canonical_name <> '' AND ${notExcludedCategory}
     GROUP BY canonical_name, ${normalizedUnitSql(sql`unit`)}
   `);
-  const aggRows = aggResult.rows;
 
-  // Kategoria per (canonical_name, unit znormalizowany) — modalna (nazwa bywa zapisana
-  // z inną kategorią u różnych userów, grupowanie nie może na tym pękać).
+  // Kategoria modalna per wariant (nazwa bywa zapisana z inną kategorią u różnych userów).
   const catResult = await db.execute<CategoryVoteRow>(sql`
     SELECT canonical_name, ${normalizedUnitSql(sql`unit`)} AS unit, category, COUNT(*)::int AS cnt
     FROM products
@@ -161,7 +155,22 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
     if (!current || r.cnt > current.cnt) categoryVotes.set(key, { category: r.category, cnt: r.cnt });
   }
 
-  const rows: NameVariant[] = aggRows.map((r) => ({
+  // Najczęstszy GTIN per wariant (z pozycji faktur KSeF).
+  const gtinResult = await db.execute<{ canonical_name: string; unit: string; gtin: string; cnt: number }>(sql`
+    SELECT p.canonical_name, ${normalizedUnitSql(sql`p.unit`)} AS unit, btrim(ii.gtin) AS gtin, COUNT(*)::int AS cnt
+    FROM invoice_items ii
+    JOIN products p ON p.id = ii.product_id
+    WHERE ii.gtin IS NOT NULL AND btrim(ii.gtin) <> '' AND p.canonical_name IS NOT NULL
+    GROUP BY 1, 2, 3
+  `);
+  const gtinOf = new Map<string, { gtin: string; cnt: number }>();
+  for (const r of gtinResult.rows) {
+    const key = uid(r.canonical_name, r.unit);
+    const current = gtinOf.get(key);
+    if (!current || r.cnt > current.cnt) gtinOf.set(key, { gtin: r.gtin, cnt: r.cnt });
+  }
+
+  const rows: NameVariant[] = aggResult.rows.map((r) => ({
     canonicalName: r.canonical_name,
     unit: r.unit,
     category: categoryVotes.get(uid(r.canonical_name, r.unit))?.category ?? null,
@@ -173,97 +182,42 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
     return { groups: 0, namesProcessed: 0 };
   }
 
-  // Krok 2: koszyki (kategoria, unit) — nigdy nie łącz między kategoriami/jednostkami,
-  // to jedyna ochrona przed absurdalnymi połączeniami krótkich słów.
-  const bySameBucket = new Map<string, NameVariant[]>();
-  for (const r of rows) {
-    const k = `${r.category ?? ""}::${r.unit}`;
-    const arr = bySameBucket.get(k) ?? [];
-    arr.push(r);
-    bySameBucket.set(k, arr);
-  }
-
   const uf = new UnionFind();
-  for (const r of rows) uf.find(uid(r.canonicalName, r.unit)); // zarejestruj wszystkie, nawet singletony
-
-  // Krok 1b (2026-10-08): produkt BAZOWY ze słownika (@workspace/category-rules genericProduct).
-  // „CYTRYNY ARGENTYNA KL.I” i „Cytryna luz” to jedna „Cytryna” — łączymy je niezależnie od
-  // podobieństwa liter i od kategorii (lokale kategoryzują różnie), ale ZAWSZE w tej samej
-  // jednostce (cena za kg ≠ za sztukę). Grupa dostaje czystą nazwę bazową jako klucz.
-  // Gramatura opakowania przy jednostkach „na sztuki” (packKeyFor): „Czosnek granulowany 1kg”
-  // za 44,80 zł/szt i główka czosnku za 2,86 zł/szt to ta sama jednostka, ale inny towar —
-  // łączymy tylko warianty o tej samej sygnaturze opakowania (realny błąd 2026-10-11).
-  const packOf = new Map<string, string>();
-  for (const r of rows) packOf.set(uid(r.canonicalName, r.unit), packKeyFor(r.canonicalName, r.unit));
+  const basisOf = new Map<string, PriceBasis>();
   const genericOf = new Map<string, GenericProduct>();
-  const byGeneric = new Map<string, string[]>();
+  const byCard = new Map<string, string>();
+  const byGtin = new Map<string, string>();
+  let genericCount = 0;
+  let gtinUnions = 0;
   for (const r of rows) {
-    const g = genericProduct(r.canonicalName);
-    if (!g) continue;
     const id = uid(r.canonicalName, r.unit);
-    genericOf.set(id, g);
-    const k = `${uid(g.key, r.unit)}::${packOf.get(id)}`;
-    const arr = byGeneric.get(k) ?? [];
-    arr.push(id);
-    byGeneric.set(k, arr);
-  }
-  for (const [, ids] of byGeneric) for (const id of ids.slice(1)) uf.union(ids[0]!, id);
-
-  let mergedPairCount = 0;
-  const mergeLog: Array<{ a: string; b: string; sim: number }> = [];
-
-  for (const [, bucket] of bySameBucket) {
-    if (bucket.length < 2) continue;
-
-    // Wstępny koszyk kandydatów (diakrytyki + lowercase + obcięcie liczby mnogiej) —
-    // ogranicza liczbę par sprawdzanych similarity() do sensownych kandydatów.
-    const byPrefilter = new Map<string, NameVariant[]>();
-    for (const v of bucket) {
-      const k = bucketKey(v.canonicalName);
-      const arr = byPrefilter.get(k) ?? [];
-      arr.push(v);
-      byPrefilter.set(k, arr);
+    uf.find(id);
+    const basis = priceBasis(r.canonicalName, r.unit);
+    basisOf.set(id, basis);
+    const g = genericProduct(r.canonicalName);
+    if (g) {
+      genericOf.set(id, g);
+      genericCount++;
     }
+    // Ta sama karta = ten sam towar: produkt bazowy (albo dokładnie ta sama nazwa) + jednostka
+    // porównania + nieprzeliczalna gramatura. Nigdy nie łączymy kg ze sztuką.
+    const card = `${g ? `g:${g.key}` : `n:${r.canonicalName}`}::${basis.compareUnit}::${basis.packKey}`;
+    const first = byCard.get(card);
+    if (first) uf.union(first, id);
+    else byCard.set(card, id);
 
-    for (const [, candidates] of byPrefilter) {
-      const longEnough = candidates.filter((c) => c.canonicalName.length >= MIN_FUZZY_LENGTH);
-      const names = [...new Set(longEnough.map((c) => c.canonicalName))];
-      if (names.length < 2) continue;
-
-      // Realny trigram similarity liczony przez Postgres (pg_trgm) — nie reimplementujemy
-      // algorytmu w JS, żeby wynik był identyczny z tym, na czym stoi indeks GIN.
-      //
-      // UWAGA: interpolacja JS-owej tablicy (${names}) w sql`` drizzle-orm nie tworzy
-      // jednego bindowania text[] — rozwija się do tuple ($1, $2, ...), co Postgres
-      // odczytuje jako RECORD i wywala "cannot cast type record to text[]" (złapane
-      // na produkcji przy pierwszym uruchomieniu joba — zob. run-benchmark-once.ts).
-      // ARRAY[$1, $2, ...]::text[] budowany przez sql.join to jedyny poprawny sposób.
-      const namesArray = sql`ARRAY[${sql.join(names.map((n) => sql`${n}`), sql`, `)}]::text[]`;
-      const pairs = await db.execute<SimilarityPair>(sql`
-        SELECT a.name AS name_a, b.name AS name_b, similarity(a.name, b.name) AS sim
-        FROM unnest(${namesArray}) a(name)
-        CROSS JOIN unnest(${namesArray}) b(name)
-        WHERE a.name < b.name AND similarity(a.name, b.name) >= ${FUZZY_SIMILARITY_THRESHOLD}
-      `);
-
-      for (const p of pairs.rows) {
-        const va = bucket.find((v) => v.canonicalName === p.name_a);
-        const vb = bucket.find((v) => v.canonicalName === p.name_b);
-        if (!va || !vb) continue;
-        // Dwa RÓŻNE produkty bazowe („Pomidor” vs „Pomidor malinowy”) nigdy nie łączymy
-        // dopasowaniem rozmytym — słownik jest tu ważniejszy niż podobieństwo liter.
-        const ga = genericOf.get(uid(va.canonicalName, va.unit));
-        const gb = genericOf.get(uid(vb.canonicalName, vb.unit));
-        if (ga && gb && ga.key !== gb.key) continue;
-        if (packOf.get(uid(va.canonicalName, va.unit)) !== packOf.get(uid(vb.canonicalName, vb.unit))) continue;
-        uf.union(uid(va.canonicalName, va.unit), uid(vb.canonicalName, vb.unit));
-        mergedPairCount++;
-        mergeLog.push({ a: p.name_a, b: p.name_b, sim: Number(p.sim) });
-      }
+    // Wspólny GTIN (kod kreskowy z KSeF) = ten sam towar, nawet przy innych nazwach.
+    const gt = gtinOf.get(id);
+    if (gt) {
+      const gk = `${gt.gtin}::${basis.compareUnit}`;
+      const firstG = byGtin.get(gk);
+      if (firstG) {
+        if (uf.find(firstG) !== uf.find(id)) gtinUnions++;
+        uf.union(firstG, id);
+      } else byGtin.set(gk, id);
     }
   }
 
-  // Krok 3: zbuduj finalne grupy z union-find, wybierz market_group_key.
   const groupsByRoot = new Map<string, NameVariant[]>();
   for (const r of rows) {
     const root = uf.find(uid(r.canonicalName, r.unit));
@@ -272,40 +226,49 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
     groupsByRoot.set(root, arr);
   }
 
-  const aliasRows: Array<{ canonicalName: string; unit: string; category: string | null; marketGroupKey: string }> = [];
+  const aliasRows: Array<{ canonicalName: string; unit: string; category: string | null; marketGroupKey: string; compareUnit: string; priceFactor: number }> = [];
   for (const [, variants] of groupsByRoot) {
-    // Grupa z produktem bazowym dostaje jego czystą nazwę („Cytryna”), nie surową z faktury.
+    // Grupa z produktem bazowym dostaje jego czystą nazwę („Cytryna”), nie surową z faktury;
+    // nieprzeliczalna gramatura dopisywana do klucza („Czosnek · 3szt”), żeby się nie zlała.
     const generics = variants
       .map((v) => ({ g: genericOf.get(uid(v.canonicalName, v.unit)), users: v.userCount }))
       .filter((x): x is { g: GenericProduct; users: number } => !!x.g)
       .sort((a, b) => b.users - a.users || a.g.label.localeCompare(b.g.label));
-    // Paczkowany wariant produktu bazowego dostaje klucz z gramaturą („Czosnek · 1kg”), żeby
-    // nie zlał się z grupą „Czosnek” (klucz grupy + jednostka identyfikują medianę). Publiczne
-    // ceny pokazują tylko czyste nazwy bazowe, więc takie grupy tam nie trafiają.
-    const pack = packOf.get(uid(variants[0]!.canonicalName, variants[0]!.unit)) ?? "";
-    const groupKey = generics[0] ? (pack ? `${generics[0].g.label} · ${pack}` : generics[0].g.label) : pickGroupKey(variants);
+    const firstBasis = basisOf.get(uid(variants[0]!.canonicalName, variants[0]!.unit))!;
+    const groupKey = generics[0]
+      ? (firstBasis.packKey ? `${generics[0].g.label} · ${firstBasis.packKey}` : generics[0].g.label)
+      : pickGroupKey(variants);
+    // Kategoria GRUPY (modalna), nie wariantu: job liczy medianę per (grupa, jednostka,
+    // kategoria) — różnie skategoryzowana „Cytryna” dzieliłaby się na dwie mediany.
     const groupCat = modalCategory(variants);
     for (const v of variants) {
-      // Kategoria GRUPY (modalna), nie wariantu: job liczy medianę per (grupa, jednostka,
-      // kategoria) — „Cytryna” zapisana przez jeden lokal jako owoce, a przez inny jako
-      // warzywa dzieliłaby się na dwie mediany, każdą poniżej progu (złapane testem).
-      aliasRows.push({ canonicalName: v.canonicalName, unit: v.unit, category: groupCat ?? v.category, marketGroupKey: groupKey });
+      const b = basisOf.get(uid(v.canonicalName, v.unit))!;
+      aliasRows.push({
+        canonicalName: v.canonicalName,
+        unit: v.unit,
+        category: groupCat ?? v.category,
+        marketGroupKey: groupKey,
+        compareUnit: b.compareUnit,
+        priceFactor: b.factor,
+      });
     }
   }
 
-  // Tabela to widok pochodny — bezpiecznie przeliczyć od zera przy każdym uruchomieniu.
   await db.transaction(async (tx) => {
     await tx.execute(sql`DELETE FROM market_product_aliases`);
-    for (const batch of chunk(aliasRows, 500)) {
-      await tx.insert(marketProductAliasesTable).values(
-        batch.map((b) => ({ canonicalName: b.canonicalName, unit: b.unit, category: b.category, marketGroupKey: b.marketGroupKey })),
-      );
-    }
+    for (const batch of chunk(aliasRows, 500)) await tx.insert(marketProductAliasesTable).values(batch);
   });
 
   log.info(
-    { grupy: groupsByRoot.size, nazwy: rows.length, polaczeniaPar: mergedPairCount, przyklady: mergeLog.slice(0, 20) },
-    "benchmark: matcher — grupowanie market_product_aliases przeliczone",
+    {
+      grupy: groupsByRoot.size,
+      nazwy: rows.length,
+      zeSlownika: genericCount,
+      pokrycieSlownikaProc: Math.round((genericCount / rows.length) * 100),
+      polaczeniaGtin: gtinUnions,
+      przeliczoneNaKgL: aliasRows.filter((a) => a.compareUnit !== a.unit).length,
+    },
+    "benchmark: matcher — karty produktów przeliczone",
   );
 
   return { groups: groupsByRoot.size, namesProcessed: rows.length };

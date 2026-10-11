@@ -783,6 +783,7 @@ async function runSync(
                 unitPrice: item.unitPrice.toString(),
                 totalPrice: item.net.toString(),
                 vatRate: item.vatRate != null ? item.vatRate.toString() : null,
+                gtin: item.gtin ?? null,
               });
             }
           }
@@ -983,6 +984,7 @@ router.post("/ksef/pending/retry", async (req, res): Promise<void> => {
                 unitPrice: item.unitPrice.toString(),
                 totalPrice: item.net.toString(),
                 vatRate: item.vatRate != null ? item.vatRate.toString() : null,
+                gtin: item.gtin ?? null,
               });
             }
           }
@@ -1255,6 +1257,7 @@ router.post("/ksef/pending/:id/accept", async (req, res): Promise<void> => {
           unitPrice: item.unitPrice.toString(),
           totalPrice: item.net.toString(),
           vatRate: item.vatRate != null ? item.vatRate.toString() : null,
+          gtin: item.gtin ?? null,
         })
         .returning();
       items.push(inserted);

@@ -31,6 +31,8 @@ const PROCESSED = [
   "oliw", "olej", "sorbet", "lody", "lod$", "deser", "kuwet", "jogurt", "napar", "herbat", "likier", "piwo", "wino$",
   // 2026-10-11 (drugi przegląd): „Cebulki w occie balsamicznym 860g”, „Malina grys 2,5kg” (mrożona kruszonka).
   "occ", "ocet", "balsam", "marynat", "glazur", "grys", "pulp", "nadzien", "krem$",
+  // „KWASEK CYTRYNOWY 1KG” to nie cytryna.
+  "kwas",
 ];
 
 // Mięso premium/przetworzone to inny produkt niż zwykły element („Antrykot dojrzewający
@@ -186,10 +188,25 @@ function keyOf(label: string): string {
   return normalizeForMatch(label).replace(/[^a-z0-9%]+/g, " ").trim();
 }
 
+// Chemia, opakowania, jednorazówki — nigdy produkt spożywczy, choćby nazwa miała „miętę”
+// („GAR KUBUŚ PŁ. D/NACZYŃ 5L MIĘTA KARNISTER” trafiał do świeżej mięty, 2026-10-11).
+const NON_FOOD = [
+  "plyn", "naczyn", "karnister", "detergent", "srodek", "srodk", "worek", "worki", "workow", "foli", "rekawic", "papier",
+  "mydl", "zmywar", "recznik", "serwetk", "tack", "pojemnik", "kubk", "kubek", "slomk", "wykalacz", "gabk", "scierk",
+  "odtluszcz", "dezynf", "chlor", "tabletk", "nablyszcz", "odkam", "czyszcz", "wybiel", "plukank", "sztuc",
+];
+
+/** Czy nazwa z faktury to na pewno nie żywność (chemia, opakowania, jednorazówki). */
+export function isNonFood(name: string): boolean {
+  const tokens = tokenize(name);
+  return NON_FOOD.some((x) => hasStem(tokens, x));
+}
+
 /** Produkt bazowy z nazwy z faktury albo null, gdy nazwa nie pasuje do słownika. */
 export function genericProduct(name: string): GenericProduct | null {
   const tokens = tokenize(name);
   if (tokens.length === 0) return null;
+  if (NON_FOOD.some((x) => hasStem(tokens, x))) return null;
   for (const e of ENTRIES) {
     if (!e.match.every((s) => hasStem(tokens, s))) continue;
     if (e.exclude?.some((x) => hasStem(tokens, x))) continue;
@@ -225,9 +242,62 @@ export function packSignature(name: string): string {
   return [...new Set(parts)].sort().join("+");
 }
 
-const MEASURED_UNITS = new Set(["kg", "g", "l", "ml"]);
+// ── Cena porównywalna: za kg/l zamiast za opakowanie ─────────────────────────
+const TO_BASE: Record<string, { base: "kg" | "l"; mult: number }> = {
+  kg: { base: "kg", mult: 1 }, dag: { base: "kg", mult: 0.01 }, g: { base: "kg", mult: 0.001 },
+  l: { base: "l", mult: 1 }, cl: { base: "l", mult: 0.01 }, ml: { base: "l", mult: 0.001 },
+};
+const SIZE_RE = /(\d+(?:[.,]\d+)?)\s*(kg|dag|g|l|cl|ml)(?![a-z])/g;
+// „1000 SZT x 5g”, „6 x 1l”, „12x0,5l” — liczba sztuk wprost przed rozmiarem = mnożnik.
+const MULTI_RE = /(\d+)\s*(?:szt|sztuk)?\s*[x×*]\s*(\d+(?:[.,]\d+)?)\s*(kg|dag|g|l|cl|ml)(?![a-z])/;
+const num = (s: string) => Number(s.replace(",", "."));
 
-/** Sygnatura opakowania istotna dla porównania cen: tylko dla jednostek „na sztuki”. */
-export function packKeyFor(name: string, normalizedUnit: string): string {
-  return MEASURED_UNITS.has(normalizedUnit) ? "" : packSignature(name);
+/**
+ * Łączna ilość towaru w JEDNEJ pozycji fakturowanej „na sztuki”, z nazwy:
+ * „CZOSNEK 1,05KG” → 1.05 kg; „1000 SZT x 5g” → 5 kg; „MALINA 2,5KG [4SZT]” → 2.5 kg.
+ * Liczba w nawiasie („[4SZT]”, „[6SZT]”) to informacja o kartonie u hurtowni, a cena na
+ * fakturze jest za pojedyncze opakowanie — NIE mnożymy przez nią (sprawdzone na cenach:
+ * „Malina grys 2,5kg [4szt]” 59,80 zł = ~24 zł/kg, przez 4 wyszłoby nierealne 6 zł/kg).
+ * null, gdy nazwa nie podaje gramatury albo wychodzi nierealna wartość.
+ */
+export function parsePack(name: string): { total: number; base: "kg" | "l" } | null {
+  const n = normalizeForMatch(name).replace(/\[[^\]]*\]/g, " ");
+  const multi = n.match(MULTI_RE);
+  let best: { total: number; base: "kg" | "l" } | null = null;
+  if (multi) {
+    const b = TO_BASE[multi[3]!]!;
+    best = { total: num(multi[1]!) * num(multi[2]!) * b.mult, base: b.base };
+  } else {
+    for (const m of n.matchAll(SIZE_RE)) {
+      const b = TO_BASE[m[2]!]!;
+      const total = num(m[1]!) * b.mult;
+      // Największa podana ilość („Ser 1kg plastry 150g” → 1 kg); kg i l się nie mieszają.
+      if (!best || (b.base === best.base && total > best.total)) best = { total, base: b.base };
+    }
+  }
+  if (!best || !Number.isFinite(best.total) || best.total < 0.005 || best.total > 50) return null;
+  return best;
+}
+
+export type PriceBasis = {
+  /** Jednostka porównania: kg/l, gdy da się przeliczyć; inaczej jednostka z faktury. */
+  compareUnit: string;
+  /** Cena porównywalna = cena z faktury × factor (ilość porównywalna = ilość ÷ factor). */
+  factor: number;
+  /** Gramatura, której nie dało się przeliczyć (np. „3szt”) — rozdziela grupy. */
+  packKey: string;
+};
+
+/**
+ * Jak porównywać cenę pozycji: „Czosnek 1,05kg” po 44,80 zł/szt → 42,67 zł/kg, porównywalne
+ * z czosnkiem kupowanym na kilogramy. Tak robią to systemy zakupowe gastronomii — najpierw cena
+ * za kg/l, potem porównanie. Jednostka kg/l/g/ml z faktury: już jest „za ilość”.
+ */
+export function priceBasis(name: string, normalizedUnit: string): PriceBasis {
+  if (normalizedUnit === "kg" || normalizedUnit === "l") return { compareUnit: normalizedUnit, factor: 1, packKey: "" };
+  if (normalizedUnit === "g") return { compareUnit: "kg", factor: 1000, packKey: "" };
+  if (normalizedUnit === "ml") return { compareUnit: "l", factor: 1000, packKey: "" };
+  const pack = parsePack(name);
+  if (pack) return { compareUnit: pack.base, factor: 1 / pack.total, packKey: "" };
+  return { compareUnit: normalizedUnit, factor: 1, packKey: packSignature(name) };
 }

@@ -1,4 +1,4 @@
-import { genericProduct, normalizeForMatch } from "@workspace/category-rules";
+import { genericProduct, normalizeForMatch, priceBasis } from "@workspace/category-rules";
 import { apiUrl } from "@/lib/api-base";
 
 // Ile pozycji faktury da się porównać z medianą rynku — liczone W PRZEGLĄDARCE.
@@ -30,10 +30,13 @@ export async function fetchMarketKeys(): Promise<Set<string>> {
 }
 
 export function countComparable(items: Array<{ name: string; unit: string }>, keys: Set<string>): number {
-  return items.filter((it) => keys.has(`${nameKey(it.name)}::${unitKey(it.unit)}`)).length;
+  return items.filter((it) => keys.has(marketKeyOf(it.name, it.unit))).length;
 }
 
-/** Klucz produktu rynkowego (nazwa bazowa + jednostka) — ten sam co w liczniku wyżej. */
+/**
+ * Klucz produktu rynkowego (nazwa bazowa + jednostka porównania) — paczka „Czosnek 1kg”
+ * za sztukę liczy się jako cena za kg, jak na serwerze (priceBasis).
+ */
 export function marketKeyOf(name: string, unit: string): string {
-  return `${nameKey(name)}::${unitKey(unit)}`;
+  return `${nameKey(name)}::${priceBasis(name, unitKey(unit)).compareUnit}`;
 }

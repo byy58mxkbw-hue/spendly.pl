@@ -4,4 +4,4 @@ export { categorizeProduct, categoryHasStaticMatch } from "./categorize.js";
 export { buildKeywordMatcher, type KeywordMatcher } from "./keyword-matcher.js";
 export { foldDiacritics, normalizeForMatch } from "./text-normalize.js";
 export { significantTokens } from "./tokenize.js";
-export { genericProduct, groupOf, packSignature, packKeyFor, GENERIC_PRODUCT_COUNT, type GenericProduct, type GenericProductGroup } from "./generic-product.js";
+export { genericProduct, groupOf, packSignature, parsePack, priceBasis, isNonFood, type PriceBasis, GENERIC_PRODUCT_COUNT, type GenericProduct, type GenericProductGroup } from "./generic-product.js";
