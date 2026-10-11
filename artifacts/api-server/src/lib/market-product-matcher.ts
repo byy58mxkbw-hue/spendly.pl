@@ -170,6 +170,19 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
     if (!current || r.cnt > current.cnt) gtinOf.set(key, { gtin: r.gtin, cnt: r.cnt });
   }
 
+  // Warianty wyłączone z grup (etap 4): zgłoszone „To nie ten produkt” przez ≥ 2 różne
+  // restauracje i nieprzywrócone przez admina, albo wyłączone decyzją admina.
+  const excludedResult = await db.execute<{ canonical_name: string; unit: string }>(sql`
+    SELECT f.canonical_name, f.unit
+    FROM market_match_feedback f
+    LEFT JOIN market_match_review r ON r.canonical_name = f.canonical_name AND r.unit = f.unit
+    GROUP BY f.canonical_name, f.unit, r.decision
+    HAVING (COUNT(DISTINCT f.user_id) >= 2 AND COALESCE(r.decision, '') <> 'restored') OR r.decision = 'excluded'
+    UNION
+    SELECT canonical_name, unit FROM market_match_review WHERE decision = 'excluded'
+  `);
+  const excluded = new Set(excludedResult.rows.map((r) => uid(r.canonical_name, r.unit)));
+
   const rows: NameVariant[] = aggResult.rows.map((r) => ({
     canonicalName: r.canonical_name,
     unit: r.unit,
@@ -189,12 +202,14 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
   const byGtin = new Map<string, string>();
   let genericCount = 0;
   let gtinUnions = 0;
+  const gtinMatched = new Set<string>();
   for (const r of rows) {
     const id = uid(r.canonicalName, r.unit);
     uf.find(id);
     const basis = priceBasis(r.canonicalName, r.unit);
     basisOf.set(id, basis);
-    const g = genericProduct(r.canonicalName);
+    const isExcluded = excluded.has(id);
+    const g = isExcluded ? null : genericProduct(r.canonicalName);
     if (g) {
       genericOf.set(id, g);
       genericCount++;
@@ -207,13 +222,15 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
     else byCard.set(card, id);
 
     // Wspólny GTIN (kod kreskowy z KSeF) = ten sam towar, nawet przy innych nazwach.
-    const gt = gtinOf.get(id);
+    const gt = isExcluded ? undefined : gtinOf.get(id);
     if (gt) {
       const gk = `${gt.gtin}::${basis.compareUnit}`;
       const firstG = byGtin.get(gk);
       if (firstG) {
         if (uf.find(firstG) !== uf.find(id)) gtinUnions++;
         uf.union(firstG, id);
+        gtinMatched.add(firstG);
+        gtinMatched.add(id);
       } else byGtin.set(gk, id);
     }
   }
@@ -226,7 +243,7 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
     groupsByRoot.set(root, arr);
   }
 
-  const aliasRows: Array<{ canonicalName: string; unit: string; category: string | null; marketGroupKey: string; compareUnit: string; priceFactor: number }> = [];
+  const aliasRows: Array<{ canonicalName: string; unit: string; category: string | null; marketGroupKey: string; compareUnit: string; priceFactor: number; packTier: string; matchConfidence: string }> = [];
   for (const [, variants] of groupsByRoot) {
     // Grupa z produktem bazowym dostaje jego czystą nazwę („Cytryna”), nie surową z faktury;
     // nieprzeliczalna gramatura dopisywana do klucza („Czosnek · 3szt”), żeby się nie zlała.
@@ -242,7 +259,14 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
     // kategoria) — różnie skategoryzowana „Cytryna” dzieliłaby się na dwie mediany.
     const groupCat = modalCategory(variants);
     for (const v of variants) {
-      const b = basisOf.get(uid(v.canonicalName, v.unit))!;
+      const vid = uid(v.canonicalName, v.unit);
+      const b = basisOf.get(vid)!;
+      // Pewność dopasowania: wspólny GTIN > słownik + przeliczona gramatura > słownik > ta sama nazwa.
+      const matchConfidence = gtinMatched.has(vid)
+        ? "gtin"
+        : genericOf.has(vid)
+          ? (b.compareUnit !== v.unit ? "dictionary_pack" : "dictionary")
+          : "exact_name";
       aliasRows.push({
         canonicalName: v.canonicalName,
         unit: v.unit,
@@ -250,6 +274,8 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
         marketGroupKey: groupKey,
         compareUnit: b.compareUnit,
         priceFactor: b.factor,
+        packTier: b.packTier,
+        matchConfidence,
       });
     }
   }
@@ -266,6 +292,7 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
       zeSlownika: genericCount,
       pokrycieSlownikaProc: Math.round((genericCount / rows.length) * 100),
       polaczeniaGtin: gtinUnions,
+      wylaczoneZgloszeniami: excluded.size,
       przeliczoneNaKgL: aliasRows.filter((a) => a.compareUnit !== a.unit).length,
     },
     "benchmark: matcher — karty produktów przeliczone",

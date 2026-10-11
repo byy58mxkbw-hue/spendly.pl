@@ -33,11 +33,14 @@ const PROCESSED = [
   "occ", "ocet", "balsam", "marynat", "glazur", "grys", "pulp", "nadzien", "krem$",
   // „KWASEK CYTRYNOWY 1KG” to nie cytryna.
   "kwas",
+  // Spec benchmark v2 (2026-10-11): małosolne/kiszone, pelati/passata, krojone/kostka/brunoise/julienne,
+  // dania (burger, kotlet), mieszanki, roślinne zamienniki.
+  "malosol", "kiszon", "pelati", "passat", "krojon", "kostk", "brunois", "juli", "burger", "kotlet", "mieszank", "rosl",
 ];
 
 // Mięso premium/przetworzone to inny produkt niż zwykły element („Antrykot dojrzewający
 // premium stek” za 164 zł/kg vs zwykły antrykot 60 zł/kg — realny przypadek 2026-10-11).
-const MEAT_EX = ["dojrzew", "sezonow", "wagyu", "angus", "marynow", "marynat", "panier", "wedzon", "gotowan", "pieczon", "sous", "kebab", "nugget", "burger"];
+const MEAT_EX = ["mroz", "dojrzew", "sezonow", "wagyu", "angus", "marynow", "marynat", "panier", "wedzon", "gotowan", "pieczon", "sous", "kebab", "nugget", "burger"];
 const MEAT = (label: string, match: string[], extra: string[] = []): Entry => ({ label, match, exclude: [...MEAT_EX, ...extra] });
 
 const FRESH = (label: string, match: string[], extra: string[] = []): Entry => ({ label, match, exclude: [...PROCESSED, ...extra] });
@@ -69,6 +72,7 @@ const ENTRIES: Entry[] = [
   FRESH("Batat", ["batat"]),
   FRESH("Pomidor", ["pomidor"]),
   { label: "Ogórek kiszony", match: ["ogor", "kiszon"] },
+  { label: "Ogórek małosolny", match: ["ogor", "malosol"] },
   FRESH("Ogórek", ["ogor"], ["kiszon", "konserwow"]),
   FRESH("Cebula czerwona", ["cebul", "czerwon"]),
   FRESH("Cebula", ["cebul"], ["dymk", "smazon", "prazon"]),
@@ -130,7 +134,7 @@ const ENTRIES: Entry[] = [
   MEAT("Dorsz", ["dorsz"]),
   MEAT("Krewetki", ["krewet"]),
   // ── Nabiał ──
-  { label: "Masło", match: ["masl"], exclude: ["maslank", "orzech", "klarow", "czosnk", "zio", "kakao", "shea"] },
+  { label: "Masło", match: ["masl"], exclude: ["maslank", "orzech", "klarow", "czosnk", "zio", "kakao", "shea", "rosl"] },
   { label: "Mleko", match: ["mlek"], exclude: ["kokos", "zageszcz", "proszk", "skondens", "owsian", "sojow", "migdal", "ryzow", "czekolad"] },
   { label: "Śmietana 36%", match: ["smietan", "36"] },
   { label: "Śmietana 30%", match: ["smietan", "30"] },
@@ -138,7 +142,7 @@ const ENTRIES: Entry[] = [
   { label: "Śmietana 12%", match: ["smietan", "12"] },
   { label: "Jogurt naturalny", match: ["jogurt", "natur"] },
   { label: "Twaróg", match: ["twarog"] },
-  { label: "Mozzarella", match: ["mozzarel"] },
+  { label: "Mozzarella", match: ["mozzarel"], exclude: ["bufal", "tart"] },
   { label: "Mascarpone", match: ["mascarpon"] },
   { label: "Feta", match: ["feta$"] },
   { label: "Jaja", match: ["jaj"], exclude: ["makaron", "majonez", "jajeczn"] },
@@ -202,17 +206,61 @@ export function isNonFood(name: string): boolean {
   return NON_FOOD.some((x) => hasStem(tokens, x));
 }
 
+// ── Słowo główne ─────────────────────────────────────────────────────────────
+// „Vegeburger z kalafiora” i „Brunoise kalafior” zawierają kalafior, ale to nie kalafior.
+// Reguła: pierwszy ZNACZĄCY token nazwy (bez marki w [..]/{..}/(..), bez przymiotników
+// typu „świeży/polski/bio”, liczb i jednostek) musi pasować do PIERWSZEGO rdzenia wpisu.
+const INSIGNIFICANT = [
+  "swiez", "krajow", "polsk", "bio$", "eko$", "extra$", "premium$", "luz$", "kl$", "klasa$", "ser$", "sery$",
+  "kg$", "g$", "dag$", "l$", "ml$", "cl$", "szt$", "op$", "opak$", "x$",
+];
+
+function headToken(name: string): string | null {
+  const stripped = normalizeForMatch(name).replace(/\[[^\]]*\]|\{[^}]*\}|\([^)]*\)/g, " ");
+  for (const t of tokenize(stripped)) {
+    if (/^\d/.test(t) || t.length <= 2) continue; // liczby i prefiksy hurtowni („MC MIĘTA”)
+    if (INSIGNIFICANT.some((s) => hasStem([t], s))) continue;
+    return t;
+  }
+  return null;
+}
+
 /** Produkt bazowy z nazwy z faktury albo null, gdy nazwa nie pasuje do słownika. */
 export function genericProduct(name: string): GenericProduct | null {
   const tokens = tokenize(name);
   if (tokens.length === 0) return null;
   if (NON_FOOD.some((x) => hasStem(tokens, x))) return null;
+  const head = headToken(name);
+  if (!head) return null;
   for (const e of ENTRIES) {
     if (!e.match.every((s) => hasStem(tokens, s))) continue;
     if (e.exclude?.some((x) => hasStem(tokens, x))) continue;
+    if (!hasStem([head], e.match[0]!)) continue;
     return { key: keyOf(e.label), label: e.label, group: groupOf(e.label) };
   }
   return null;
+}
+
+export type SkipReason = "dish" | "processed" | "frozen" | "plant_based" | "non_food";
+
+const DISH = ["burger", "kotlet", "pierog", "zapiekank", "nalesnik", "pizz", "lasagn", "danie", "gotow", "krokiet", "tortill", "nuggets", "nugget"];
+const PLANT = ["rosl", "vege", "wegan", "wegetar"];
+
+/**
+ * Dlaczego nazwa NIE jest produktem bazowym, choć go przypomina („Vegeburger z kalafiora”
+ * → dish, „Masło roślinne” → plant_based). null, gdy nazwa w ogóle nie przypomina żadnego
+ * wpisu słownika (zwykły produkt spoza słownika — nie ma czego tłumaczyć).
+ */
+export function skipReason(name: string): SkipReason | null {
+  if (genericProduct(name)) return null;
+  const tokens = tokenize(name);
+  const resembles = ENTRIES.some((e) => e.match.every((s) => hasStem(tokens, s)));
+  if (!resembles) return null;
+  if (NON_FOOD.some((x) => hasStem(tokens, x))) return "non_food";
+  if (tokens.some((t) => DISH.some((d) => t.includes(d)))) return "dish";
+  if (tokens.some((t) => PLANT.some((d) => t.startsWith(d) || t.includes(d)))) return "plant_based";
+  if (hasStem(tokens, "mroz")) return "frozen";
+  return "processed";
 }
 
 /** Liczba różnych produktów bazowych w słowniku (informacyjnie, np. w testach). */
@@ -279,6 +327,22 @@ export function parsePack(name: string): { total: number; base: "kg" | "l" } | n
   return best;
 }
 
+/**
+ * Przedział opakowania — cena za kg zależy od wielkości (cukier 1 kg vs worek 25 kg):
+ * luz = faktura w kg/l/g/ml, S ≤ 1 kg/l, M ≤ 5, L > 5, szt = liczone na sztuki.
+ */
+export type PackTier = "luz" | "S" | "M" | "L" | "szt";
+/**
+ * Czy „luz” i „S” porównujemy razem. Przy małej liczbie restauracji osobne przedziały
+ * rzadko przekraczają próg; zakup na wagę i małe opakowania mają zbliżone ceny za kg.
+ * Zmień na false, gdy danych będzie dość.
+ */
+export const LUZ_JOINS_S = true;
+
+export function tierOfTotal(total: number): PackTier {
+  return total <= 1 ? "S" : total <= 5 ? "M" : "L";
+}
+
 export type PriceBasis = {
   /** Jednostka porównania: kg/l, gdy da się przeliczyć; inaczej jednostka z faktury. */
   compareUnit: string;
@@ -286,7 +350,11 @@ export type PriceBasis = {
   factor: number;
   /** Gramatura, której nie dało się przeliczyć (np. „3szt”) — rozdziela grupy. */
   packKey: string;
+  /** Przedział opakowania do porównania (z uwzględnieniem LUZ_JOINS_S). */
+  packTier: PackTier;
 };
+
+const PIECES_RE = /(?:^|[^a-z0-9])(\d+)\s*(?:szt|sztuk)(?![a-z])/;
 
 /**
  * Jak porównywać cenę pozycji: „Czosnek 1,05kg” po 44,80 zł/szt → 42,67 zł/kg, porównywalne
@@ -294,10 +362,16 @@ export type PriceBasis = {
  * za kg/l, potem porównanie. Jednostka kg/l/g/ml z faktury: już jest „za ilość”.
  */
 export function priceBasis(name: string, normalizedUnit: string): PriceBasis {
-  if (normalizedUnit === "kg" || normalizedUnit === "l") return { compareUnit: normalizedUnit, factor: 1, packKey: "" };
-  if (normalizedUnit === "g") return { compareUnit: "kg", factor: 1000, packKey: "" };
-  if (normalizedUnit === "ml") return { compareUnit: "l", factor: 1000, packKey: "" };
+  const luz: PackTier = LUZ_JOINS_S ? "S" : "luz";
+  if (normalizedUnit === "kg" || normalizedUnit === "l") return { compareUnit: normalizedUnit, factor: 1, packKey: "", packTier: luz };
+  if (normalizedUnit === "g") return { compareUnit: "kg", factor: 1000, packKey: "", packTier: luz };
+  if (normalizedUnit === "ml") return { compareUnit: "l", factor: 1000, packKey: "", packTier: luz };
   const pack = parsePack(name);
-  if (pack) return { compareUnit: pack.base, factor: 1 / pack.total, packKey: "" };
-  return { compareUnit: normalizedUnit, factor: 1, packKey: packSignature(name) };
+  if (pack) return { compareUnit: pack.base, factor: 1 / pack.total, packKey: "", packTier: tierOfTotal(pack.total) };
+  // „Jaja L 30 szt” za opakowanie → cena za sztukę (÷30). Liczba w nawiasie kwadratowym to
+  // karton hurtowni, nie zawartość pozycji — pomijamy ją jak w parsePack.
+  const pieces = normalizeForMatch(name).replace(/\[[^\]]*\]/g, " ").match(PIECES_RE);
+  const n = pieces ? Number(pieces[1]) : 0;
+  if (n >= 2 && n <= 1000) return { compareUnit: "szt", factor: 1 / n, packKey: "", packTier: "szt" };
+  return { compareUnit: normalizedUnit, factor: 1, packKey: packSignature(name), packTier: "szt" };
 }

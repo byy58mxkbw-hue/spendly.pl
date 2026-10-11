@@ -23,4 +23,5 @@ export * from "./subscriptions";
 export * from "./market-product-aliases";
 export * from "./market-price-benchmarks";
 export * from "./market-price-ranges";
+export * from "./market-user-prices";
 export * from "./user-settings";

@@ -572,8 +572,13 @@ export interface BenchmarkHistoryPoint {
   median: number;
 }
 
+export interface BenchmarkVariant {
+  canonicalName: string;
+  unit: string;
+}
+
 /**
- * Gdy insufficientData=true: insufficient_data = za mało restauracji; price_outlier = cena >2,5× od mediany (zwykle inne opakowanie), nie liczona do oszczędności
+ * Gdy insufficientData=true: insufficient_data = za mało innych restauracji; price_outlier = cena >2,5× od mediany (zwykle inne opakowanie), nie liczona do oszczędności
  */
 export type BenchmarkItemNotComparableReason = typeof BenchmarkItemNotComparableReason[keyof typeof BenchmarkItemNotComparableReason];
 
@@ -584,8 +589,51 @@ export const BenchmarkItemNotComparableReason = {
 } as const;
 
 /**
- * month = mediana z jednego miesiąca; 12m = mediana z ostatnich 12 miesięcy (zapas, gdy miesięczna nie ma progu)
+ * @nullable
  */
+export type BenchmarkItemPackTier = typeof BenchmarkItemPackTier[keyof typeof BenchmarkItemPackTier] | null;
+
+
+export const BenchmarkItemPackTier = {
+  luz: 'luz',
+  S: 'S',
+  M: 'M',
+  L: 'L',
+  szt: 'szt',
+} as const;
+
+/**
+ * @nullable
+ */
+export type BenchmarkItemMatchConfidence = typeof BenchmarkItemMatchConfidence[keyof typeof BenchmarkItemMatchConfidence] | null;
+
+
+export const BenchmarkItemMatchConfidence = {
+  gtin: 'gtin',
+  dictionary_pack: 'dictionary_pack',
+  dictionary: 'dictionary',
+  exact_name: 'exact_name',
+} as const;
+
+export type BenchmarkItemSourceBucket = typeof BenchmarkItemSourceBucket[keyof typeof BenchmarkItemSourceBucket];
+
+
+export const BenchmarkItemSourceBucket = {
+  '5-9': '5-9',
+  '10-19': '10-19',
+  '20+': '20+',
+} as const;
+
+/**
+ * @nullable
+ */
+export type BenchmarkItemPeriodFallback = typeof BenchmarkItemPeriodFallback[keyof typeof BenchmarkItemPeriodFallback] | null;
+
+
+export const BenchmarkItemPeriodFallback = {
+  R12: 'R12',
+} as const;
+
 export type BenchmarkItemMedianWindow = typeof BenchmarkItemMedianWindow[keyof typeof BenchmarkItemMedianWindow];
 
 
@@ -594,9 +642,6 @@ export const BenchmarkItemMedianWindow = {
   '12m': '12m',
 } as const;
 
-/**
- * alias = dopasowanie z dziennego matchera; fuzzy = dopasowanie w locie (pg_trgm), gdy nazwa nie ma jeszcze aliasu
- */
 export type BenchmarkItemMatchedBy = typeof BenchmarkItemMatchedBy[keyof typeof BenchmarkItemMatchedBy];
 
 
@@ -605,44 +650,130 @@ export const BenchmarkItemMatchedBy = {
   fuzzy: 'fuzzy',
 } as const;
 
+/**
+ * Pozycja porównania. Mediana liczona BEZ ceny oglądającego (leave-one-out), zaokrąglona do 10 gr; liczba restauracji tylko w przedziale (sourceBucket) — nigdy dokładnie.
+ */
 export interface BenchmarkItem {
   /** Id produktu TEGO usera (do historii ceny i jego dostawców) — nigdy dane innych lokali */
   productId?: number;
   productName: string;
-  /** Gdy insufficientData=true: insufficient_data = za mało restauracji; price_outlier = cena >2,5× od mediany (zwykle inne opakowanie), nie liczona do oszczędności */
+  /** Nazwy z faktur połączone w jedną kartę (ta sama grupa rynkowa i przedział opakowania) */
+  invoiceNames?: string[];
+  /** Warianty (nazwa kanoniczna + jednostka) — do zgłoszenia „To nie ten produkt” */
+  variants?: BenchmarkVariant[];
+  /**
+     * Produkt rynkowy, z którym porównujemy (null przy dopasowaniu po identycznej nazwie)
+     * @nullable
+     */
+  marketLabel?: string | null;
+  /** Gdy insufficientData=true: insufficient_data = za mało innych restauracji; price_outlier = cena >2,5× od mediany (zwykle inne opakowanie), nie liczona do oszczędności */
   notComparableReason?: BenchmarkItemNotComparableReason;
+  /** Jednostka porównania (kg/l/szt…) */
   unit: string;
+  invoiceUnit?: string;
+  /**
+     * Cena z faktury za jednostkę z faktury (do wiersza przeliczenia)
+     * @nullable
+     */
+  invoiceUnitPrice?: number | null;
+  /**
+     * Cena porównywalna = cena z faktury × priceFactor (null, gdy łączone pozycje mają różne mnożniki)
+     * @nullable
+     */
+  priceFactor?: number | null;
+  /** @nullable */
+  packTier?: BenchmarkItemPackTier;
+  /** @nullable */
+  matchConfidence?: BenchmarkItemMatchConfidence;
   /** @nullable */
   category: string | null;
   yourPrice: number;
   monthlyQuantity: number;
   insufficientData: boolean;
-  distinctUserCount?: number;
+  /** Ile INNYCH restauracji potrzeba do pokazania mediany */
   minUsers?: number;
-  minRows?: number;
   medianPrice?: number;
-  /** @nullable */
+  /**
+     * Tylko przy ≥ 8 innych restauracjach
+     * @nullable
+     */
   p25Price?: number | null;
   /** @nullable */
   p75Price?: number | null;
   deltaPercent?: number;
-  sampleRowCount?: number;
   savingsPerMonth?: number;
-  /** month = mediana z jednego miesiąca; 12m = mediana z ostatnich 12 miesięcy (zapas, gdy miesięczna nie ma progu) */
+  sourceBucket?: BenchmarkItemSourceBucket;
+  /** Miesiąc mediany (YYYY-MM) albo R12 = ostatnie 12 miesięcy */
+  medianPeriod?: string;
+  /** @nullable */
+  periodFallback?: BenchmarkItemPeriodFallback;
+  /** Porównanie ze wszystkimi wielkościami opakowań (we własnym przedziale za mało danych) */
+  tierFallback?: boolean;
+  /**
+     * Mediana dla większych opakowań, gdy co najmniej 10% niższa
+     * @nullable
+     */
+  largerPackMedian?: number | null;
   medianWindow?: BenchmarkItemMedianWindow;
-  medianFromMonth?: string;
-  medianToMonth?: string;
-  /** alias = dopasowanie z dziennego matchera; fuzzy = dopasowanie w locie (pg_trgm), gdy nazwa nie ma jeszcze aliasu */
   matchedBy?: BenchmarkItemMatchedBy;
-  history?: BenchmarkHistoryPoint[];
 }
 
+export type BenchmarkSkippedReason = typeof BenchmarkSkippedReason[keyof typeof BenchmarkSkippedReason];
+
+
+export const BenchmarkSkippedReason = {
+  dish: 'dish',
+  processed: 'processed',
+  frozen: 'frozen',
+  plant_based: 'plant_based',
+  non_food: 'non_food',
+} as const;
+
+export interface BenchmarkSkipped {
+  name: string;
+  reason: BenchmarkSkippedReason;
+}
+
+export type BenchmarkSummaryContributionBucket = typeof BenchmarkSummaryContributionBucket[keyof typeof BenchmarkSummaryContributionBucket];
+
+
+export const BenchmarkSummaryContributionBucket = {
+  '<5': '<5',
+  '5-9': '5-9',
+  '10+': '10+',
+} as const;
+
 export interface BenchmarkSummary {
+  /** Tylko z pewnych dopasowań (GTIN, słownik) i tej samej wielkości opakowań */
   savingsPotentialTotal: number;
+  /** Średnia ważona wartością zakupów */
   avgDeltaPercent: number;
   benchmarkedCount: number;
   totalCount: number;
-  contributionCount: number;
+  skippedCount: number;
+  contributionBucket: BenchmarkSummaryContributionBucket;
+  /** @nullable */
+  computedAt?: string | null;
+}
+
+export type BenchmarkFeedbackBodyReason = typeof BenchmarkFeedbackBodyReason[keyof typeof BenchmarkFeedbackBodyReason];
+
+
+export const BenchmarkFeedbackBodyReason = {
+  other_product: 'other_product',
+  wrong_pack: 'wrong_pack',
+  different_quality: 'different_quality',
+} as const;
+
+export interface BenchmarkFeedbackBody {
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  variants: BenchmarkVariant[];
+  /** @nullable */
+  marketGroupKey?: string | null;
+  reason: BenchmarkFeedbackBodyReason;
 }
 
 /**
@@ -660,6 +791,8 @@ export const BenchmarksResponseScope = {
 export interface BenchmarksResponse {
   optedIn: boolean;
   items: BenchmarkItem[];
+  /** Pozycje, które przypominają produkt rynkowy, ale nim nie są (danie, przetwór, mrożonka…) */
+  skipped?: BenchmarkSkipped[];
   summary: BenchmarkSummary | null;
   /** recent = ostatnie 3 miesiące; latestMonth = brak zakupów w 3 mies., użyto najnowszego miesiąca z zakupami; invoice = tylko wskazana faktura */
   scope?: BenchmarksResponseScope;
@@ -1934,6 +2067,10 @@ category?: string;
  * Porównanie tylko dla pozycji z tej faktury (np. zaimportowanej z podglądu XML).
  */
 invoiceId?: number;
+};
+
+export type SubmitBenchmarkFeedback200 = {
+  ok: boolean;
 };
 
 export type UpdateBenchmarkOptIn200 = {

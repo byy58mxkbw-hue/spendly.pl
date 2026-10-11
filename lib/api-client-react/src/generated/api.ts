@@ -27,6 +27,7 @@ import type {
   AiCfoChatBody,
   AiCfoChatResponse,
   ApplyCostCenterSuggestions200,
+  BenchmarkFeedbackBody,
   BenchmarksResponse,
   BulkAssignCostCenter200,
   BulkVerifyProducts200,
@@ -141,6 +142,7 @@ import type {
   SetSupplierDefaultCategoryBody,
   SetSupplierDefaultCostCenterBody,
   SpendBridge,
+  SubmitBenchmarkFeedback200,
   Supplier,
   SupplierComparison,
   SupplierCostCenterSuggestion,
@@ -6593,6 +6595,76 @@ export const useMarkWelcomeSeen = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getMarkWelcomeSeenMutationOptions(options));
+    }
+
+export const getSubmitBenchmarkFeedbackUrl = () => {
+
+
+
+
+  return `/api/benchmarks/feedback`
+}
+
+/**
+ * @summary „To nie ten produkt” — wyłącza pozycję z porównania zgłaszającego; zgłoszenia ≥ 2 restauracji trafiają do przeglądu
+ */
+export const submitBenchmarkFeedback = async (benchmarkFeedbackBody: BenchmarkFeedbackBody, options?: RequestInit): Promise<SubmitBenchmarkFeedback200> => {
+
+  return customFetch<SubmitBenchmarkFeedback200>(getSubmitBenchmarkFeedbackUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(benchmarkFeedbackBody)
+  }
+);}
+
+
+
+
+export const getSubmitBenchmarkFeedbackMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitBenchmarkFeedback>>, TError,{data: BodyType<BenchmarkFeedbackBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitBenchmarkFeedback>>, TError,{data: BodyType<BenchmarkFeedbackBody>}, TContext> => {
+
+const mutationKey = ['submitBenchmarkFeedback'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitBenchmarkFeedback>>, {data: BodyType<BenchmarkFeedbackBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitBenchmarkFeedback(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitBenchmarkFeedbackMutationResult = NonNullable<Awaited<ReturnType<typeof submitBenchmarkFeedback>>>
+    export type SubmitBenchmarkFeedbackMutationBody = BodyType<BenchmarkFeedbackBody>
+    export type SubmitBenchmarkFeedbackMutationError = ErrorType<unknown>
+
+    /**
+ * @summary „To nie ten produkt” — wyłącza pozycję z porównania zgłaszającego; zgłoszenia ≥ 2 restauracji trafiają do przeglądu
+ */
+export const useSubmitBenchmarkFeedback = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitBenchmarkFeedback>>, TError,{data: BodyType<BenchmarkFeedbackBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitBenchmarkFeedback>>,
+        TError,
+        {data: BodyType<BenchmarkFeedbackBody>},
+        TContext
+      > => {
+      return useMutation(getSubmitBenchmarkFeedbackMutationOptions(options));
     }
 
 export const getUpdateBenchmarkOptInUrl = () => {

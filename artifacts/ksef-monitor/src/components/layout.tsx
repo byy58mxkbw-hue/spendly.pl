@@ -461,6 +461,13 @@ function SidebarContent({
               onNavigate={onNavigate}
             />
             <NavLink
+              path="/admin/dopasowania"
+              label="Dopasowania cen"
+              icon={ShieldCheck}
+              location={location}
+              onNavigate={onNavigate}
+            />
+            <NavLink
               path="/admin/gopos"
               label="GoPOS"
               icon={Store}

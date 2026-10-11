@@ -151,6 +151,17 @@ app.use("/api/public", publicLimiter);
 app.use("/api/ai-cfo/chat", aiLimiter);
 app.use("/api/invoices/scan-receipt", aiLimiter);
 app.use("/api/ksef/sync", ksefLimiter);
+// Zgłoszenia „To nie ten produkt” — wpływają na grupowanie dla wszystkich, więc z limitem.
+app.use(
+  "/api/benchmarks/feedback",
+  rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 60,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Za dużo zgłoszeń. Spróbuj ponownie za godzinę." },
+  }),
+);
 
 // ── Timeout na długich operacjach ────────────────────────────────────────────
 // Po 30s zwracamy 504 zamiast wisieć w nieskończoność.

@@ -21,6 +21,49 @@ export async function ensurePreListenColumns(log: Logger): Promise<void> {
   await db.execute(sql`ALTER TABLE IF EXISTS invoice_items ADD COLUMN IF NOT EXISTS gtin text`);
   await db.execute(sql`ALTER TABLE IF EXISTS market_product_aliases ADD COLUMN IF NOT EXISTS compare_unit text`);
   await db.execute(sql`ALTER TABLE IF EXISTS market_product_aliases ADD COLUMN IF NOT EXISTS price_factor double precision NOT NULL DEFAULT 1`);
+  // Benchmark v2: przedział opakowania, pewność dopasowania, ceny per lokal (leave-one-out), zgłoszenia.
+  await db.execute(sql`ALTER TABLE IF EXISTS market_product_aliases ADD COLUMN IF NOT EXISTS pack_tier text`);
+  await db.execute(sql`ALTER TABLE IF EXISTS market_product_aliases ADD COLUMN IF NOT EXISTS match_confidence text`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS market_user_prices (
+      id serial PRIMARY KEY,
+      market_group_key text NOT NULL,
+      compare_unit text NOT NULL,
+      pack_tier text NOT NULL,
+      period_month text NOT NULL,
+      user_id text NOT NULL,
+      price_per_unit numeric(14,4) NOT NULL,
+      quantity numeric(16,4) NOT NULL,
+      has_ksef boolean NOT NULL,
+      category text,
+      computed_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS mup_key_uniq ON market_user_prices (market_group_key, compare_unit, pack_tier, period_month, user_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS mup_group_idx ON market_user_prices (market_group_key, compare_unit, pack_tier, period_month)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS market_match_feedback (
+      id serial PRIMARY KEY,
+      user_id text NOT NULL,
+      canonical_name text NOT NULL,
+      unit text NOT NULL,
+      market_group_key text,
+      reason text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS mmf_user_variant_uniq ON market_match_feedback (user_id, canonical_name, unit)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS mmf_variant_idx ON market_match_feedback (canonical_name, unit)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS market_match_review (
+      id serial PRIMARY KEY,
+      canonical_name text NOT NULL,
+      unit text NOT NULL,
+      decision text NOT NULL,
+      decided_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS mmr_variant_uniq ON market_match_review (canonical_name, unit)`);
 }
 
 export async function ensureInvoiceSourceColumn(log: Logger): Promise<void> {

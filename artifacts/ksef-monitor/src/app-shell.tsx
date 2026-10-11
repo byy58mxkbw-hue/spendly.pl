@@ -33,6 +33,7 @@ const PendingInvoices = lazy(() => import("@/pages/pending-invoices"));
 const SettingsKsef = lazy(() => import("@/pages/settings-ksef"));
 const AdminUsers = lazy(() => import("@/pages/admin-users"));
 const AdminAnalytics = lazy(() => import("@/pages/admin-analytics"));
+const AdminBenchmarkFeedback = lazy(() => import("@/pages/admin-benchmark-feedback"));
 const SettingsCostCenters = lazy(() => import("@/pages/settings-cost-centers"));
 const SettingsGopos = lazy(() => import("@/pages/settings-gopos"));
 const Sprzedaz = lazy(() => import("@/pages/sprzedaz"));
@@ -400,6 +401,9 @@ export default function AppShell() {
               </Route>
               <Route path="/admin/users">
                 <AdminRoute><AdminUsers /></AdminRoute>
+              </Route>
+              <Route path="/admin/dopasowania">
+                <AdminRoute><AdminBenchmarkFeedback /></AdminRoute>
               </Route>
               <Route path="/admin/gopos">
                 <AdminRoute><SettingsGopos /></AdminRoute>

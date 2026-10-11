@@ -1828,36 +1828,49 @@ export const GetBenchmarksResponse = zod.object({
   "items": zod.array(zod.object({
   "productId": zod.number().optional().describe('Id produktu TEGO usera (do historii ceny i jego dostawców) — nigdy dane innych lokali'),
   "productName": zod.string(),
-  "notComparableReason": zod.enum(['insufficient_data', 'price_outlier']).optional().describe('Gdy insufficientData=true: insufficient_data = za mało restauracji; price_outlier = cena >2,5× od mediany (zwykle inne opakowanie), nie liczona do oszczędności'),
-  "unit": zod.string(),
+  "invoiceNames": zod.array(zod.string()).optional().describe('Nazwy z faktur połączone w jedną kartę (ta sama grupa rynkowa i przedział opakowania)'),
+  "variants": zod.array(zod.object({
+  "canonicalName": zod.string(),
+  "unit": zod.string()
+})).optional().describe('Warianty (nazwa kanoniczna + jednostka) — do zgłoszenia „To nie ten produkt”'),
+  "marketLabel": zod.string().nullish().describe('Produkt rynkowy, z którym porównujemy (null przy dopasowaniu po identycznej nazwie)'),
+  "notComparableReason": zod.enum(['insufficient_data', 'price_outlier']).optional().describe('Gdy insufficientData=true: insufficient_data = za mało innych restauracji; price_outlier = cena >2,5× od mediany (zwykle inne opakowanie), nie liczona do oszczędności'),
+  "unit": zod.string().describe('Jednostka porównania (kg\/l\/szt…)'),
+  "invoiceUnit": zod.string().optional(),
+  "invoiceUnitPrice": zod.number().nullish().describe('Cena z faktury za jednostkę z faktury (do wiersza przeliczenia)'),
+  "priceFactor": zod.number().nullish().describe('Cena porównywalna = cena z faktury × priceFactor (null, gdy łączone pozycje mają różne mnożniki)'),
+  "packTier": zod.union([zod.literal('luz'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('szt'),zod.literal(null)]).nullish(),
+  "matchConfidence": zod.union([zod.literal('gtin'),zod.literal('dictionary_pack'),zod.literal('dictionary'),zod.literal('exact_name'),zod.literal(null)]).nullish(),
   "category": zod.string().nullable(),
   "yourPrice": zod.number(),
   "monthlyQuantity": zod.number(),
   "insufficientData": zod.boolean(),
-  "distinctUserCount": zod.number().optional(),
-  "minUsers": zod.number().optional(),
-  "minRows": zod.number().optional(),
+  "minUsers": zod.number().optional().describe('Ile INNYCH restauracji potrzeba do pokazania mediany'),
   "medianPrice": zod.number().optional(),
-  "p25Price": zod.number().nullish(),
+  "p25Price": zod.number().nullish().describe('Tylko przy ≥ 8 innych restauracjach'),
   "p75Price": zod.number().nullish(),
   "deltaPercent": zod.number().optional(),
-  "sampleRowCount": zod.number().optional(),
   "savingsPerMonth": zod.number().optional(),
-  "medianWindow": zod.enum(['month', '12m']).optional().describe('month = mediana z jednego miesiąca; 12m = mediana z ostatnich 12 miesięcy (zapas, gdy miesięczna nie ma progu)'),
-  "medianFromMonth": zod.string().optional(),
-  "medianToMonth": zod.string().optional(),
-  "matchedBy": zod.enum(['alias', 'fuzzy']).optional().describe('alias = dopasowanie z dziennego matchera; fuzzy = dopasowanie w locie (pg_trgm), gdy nazwa nie ma jeszcze aliasu'),
-  "history": zod.array(zod.object({
-  "month": zod.string(),
-  "median": zod.number()
-})).optional()
-})),
+  "sourceBucket": zod.enum(['5-9', '10-19', '20+']).optional(),
+  "medianPeriod": zod.string().optional().describe('Miesiąc mediany (YYYY-MM) albo R12 = ostatnie 12 miesięcy'),
+  "periodFallback": zod.union([zod.literal('R12'),zod.literal(null)]).nullish(),
+  "tierFallback": zod.boolean().optional().describe('Porównanie ze wszystkimi wielkościami opakowań (we własnym przedziale za mało danych)'),
+  "largerPackMedian": zod.number().nullish().describe('Mediana dla większych opakowań, gdy co najmniej 10% niższa'),
+  "medianWindow": zod.enum(['month', '12m']).optional(),
+  "matchedBy": zod.enum(['alias', 'fuzzy']).optional()
+}).describe('Pozycja porównania. Mediana liczona BEZ ceny oglądającego (leave-one-out), zaokrąglona do 10 gr; liczba restauracji tylko w przedziale (sourceBucket) — nigdy dokładnie.')),
+  "skipped": zod.array(zod.object({
+  "name": zod.string(),
+  "reason": zod.enum(['dish', 'processed', 'frozen', 'plant_based', 'non_food'])
+})).optional().describe('Pozycje, które przypominają produkt rynkowy, ale nim nie są (danie, przetwór, mrożonka…)'),
   "summary": zod.object({
-  "savingsPotentialTotal": zod.number(),
-  "avgDeltaPercent": zod.number(),
+  "savingsPotentialTotal": zod.number().describe('Tylko z pewnych dopasowań (GTIN, słownik) i tej samej wielkości opakowań'),
+  "avgDeltaPercent": zod.number().describe('Średnia ważona wartością zakupów'),
   "benchmarkedCount": zod.number(),
   "totalCount": zod.number(),
-  "contributionCount": zod.number()
+  "skippedCount": zod.number(),
+  "contributionBucket": zod.enum(['<5', '5-9', '10+']),
+  "computedAt": zod.string().nullish()
 }).nullable(),
   "scope": zod.enum(['recent', 'latestMonth', 'invoice']).optional().describe('recent = ostatnie 3 miesiące; latestMonth = brak zakupów w 3 mies., użyto najnowszego miesiąca z zakupami; invoice = tylko wskazana faktura'),
   "yourPricePeriodFrom": zod.string().nullish().describe('Miesiąc (YYYY-MM) początku okresu, z którego liczona jest „Twoja cena”.'),
@@ -1925,6 +1938,27 @@ export const GetWelcomeStatusResponse = zod.object({
  */
 export const MarkWelcomeSeenResponse = zod.object({
   "seen": zod.boolean()
+})
+
+
+/**
+ * @summary „To nie ten produkt” — wyłącza pozycję z porównania zgłaszającego; zgłoszenia ≥ 2 restauracji trafiają do przeglądu
+ */
+export const submitBenchmarkFeedbackBodyVariantsMax = 20;
+
+
+
+export const SubmitBenchmarkFeedbackBody = zod.object({
+  "variants": zod.array(zod.object({
+  "canonicalName": zod.string(),
+  "unit": zod.string()
+})).min(1).max(submitBenchmarkFeedbackBodyVariantsMax),
+  "marketGroupKey": zod.string().nullish(),
+  "reason": zod.enum(['other_product', 'wrong_pack', 'different_quality'])
+})
+
+export const SubmitBenchmarkFeedbackResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 

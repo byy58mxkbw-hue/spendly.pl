@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { genericProduct, packSignature, parsePack, priceBasis, isNonFood } from "./generic-product";
+import { genericProduct, packSignature, parsePack, priceBasis, isNonFood, skipReason } from "./generic-product";
 
 const label = (n: string) => genericProduct(n)?.label ?? null;
 
@@ -97,10 +97,11 @@ describe("packSignature / packKeyFor — gramatura opakowania", () => {
     expect(packSignature("Czosnek polski")).toBe("");
   });
   it("cena za opakowanie → cena za kg/l", () => {
-    expect(priceBasis("Cytryna 5kg", "kg")).toEqual({ compareUnit: "kg", factor: 1, packKey: "" });
-    expect(priceBasis("Cytryna 5kg", "szt")).toEqual({ compareUnit: "kg", factor: 0.2, packKey: "" });
-    expect(priceBasis("Czosnek", "szt")).toEqual({ compareUnit: "szt", factor: 1, packKey: "" });
-    expect(priceBasis("Czosnek 3 szt", "opak")).toEqual({ compareUnit: "opak", factor: 1, packKey: "3szt" });
+    expect(priceBasis("Cytryna 5kg", "kg")).toMatchObject({ compareUnit: "kg", factor: 1, packKey: "" });
+    expect(priceBasis("Cytryna 5kg", "szt")).toMatchObject({ compareUnit: "kg", factor: 0.2, packKey: "", packTier: "M" });
+    expect(priceBasis("Czosnek", "szt")).toMatchObject({ compareUnit: "szt", factor: 1, packKey: "", packTier: "szt" });
+    expect(priceBasis("Czosnek 3 szt", "opak")).toMatchObject({ compareUnit: "szt", packTier: "szt" });
+    expect(priceBasis("Czosnek 3 szt", "opak").factor).toBeCloseTo(1 / 3, 6);
     expect(priceBasis("Pieczarki", "g").compareUnit).toBe("kg");
   });
   it.each([
@@ -151,5 +152,49 @@ describe("nie-żywność i kwasek (2026-10-11, trzeci zrzut)", () => {
     expect(isNonFood("Rękawice nitrylowe M")).toBe(true);
     expect(isNonFood("Mięta świeża")).toBe(false);
     expect(isNonFood("Pomidor LIMA II PL")).toBe(false);
+  });
+});
+
+describe("spec benchmark v2 — tabela nazw (etap 3)", () => {
+  it.each([
+    ["Vegeburger z kalafiora 1,5kg Cook Vege", null, "dish"],
+    ["[BONDUELLE] BRUNOISE KALAFIOR DROBNA KOSTKA 2,5KG", null, "processed"],
+    ["Pomidory pelati 2,5kg", null, "processed"],
+    ["Masło roślinne 250g", null, "plant_based"],
+    ["Filet z kurczaka mrożony 2,5kg", null, "frozen"],
+    ["Mozzarella di bufala 125g", null, "processed"],
+    ["Mozzarella tarta 2kg", null, "processed"],
+  ])("„%s” → %s (powód: %s)", (name, label, reason) => {
+    expect(genericProduct(name)?.label ?? null).toBe(label);
+    expect(skipReason(name)).toBe(reason);
+  });
+  it("ogórki małosolne mają własny wpis", () => {
+    expect(genericProduct("Ogórki małosolne luz polski")?.label).toBe("Ogórek małosolny");
+  });
+  it("jaja w opakowaniu → cena za sztukę", () => {
+    const b = priceBasis("Jaja L 30 szt", "opak");
+    expect(genericProduct("Jaja L 30 szt")?.label).toBe("Jaja");
+    expect(b.compareUnit).toBe("szt");
+    expect(b.factor).toBeCloseTo(1 / 30, 6);
+    expect(b.packTier).toBe("szt");
+  });
+  it("regresja: przeliczenia, które działały", () => {
+    expect(priceBasis("Masło extra 82% 200g", "szt")).toMatchObject({ compareUnit: "kg", factor: 5, packTier: "S" });
+    expect(priceBasis("Mozzarella 125g", "szt")).toMatchObject({ compareUnit: "kg", factor: 8, packTier: "S" });
+    expect(priceBasis("Mleko UHT 12x1l", "opak").compareUnit).toBe("l");
+    expect(priceBasis("Mleko UHT 12x1l", "opak").factor).toBeCloseTo(1 / 12, 6);
+    expect(priceBasis("Cukier 25kg", "szt")).toMatchObject({ factor: 0.04, packTier: "L" });
+    expect(priceBasis("Cukier biały 1kg", "szt").packTier).toBe("S");
+    expect(priceBasis("Śmietana 30% 1l", "szt")).toMatchObject({ compareUnit: "l", factor: 1 });
+    expect(priceBasis("Pieczarki 3kg", "szt").packTier).toBe("M");
+    expect(genericProduct("Masło extra 82% 200g")?.label).toBe("Masło");
+    expect(genericProduct("Mozzarella 125g")?.label).toBe("Mozzarella");
+    expect(genericProduct("Cytryny")?.label).toBe("Cytryna");
+    expect(genericProduct("Schab b/k")?.label).toBe("Schab");
+    expect(genericProduct("Pieczarki 3kg")?.label).toBe("Pieczarki");
+    expect(genericProduct("Śmietana 30% UHT 1l")?.label).toBe("Śmietana 30%");
+  });
+  it("cukier 1 kg i 25 kg to różne przedziały", () => {
+    expect(priceBasis("Cukier 1kg", "szt").packTier).not.toBe(priceBasis("Cukier 25kg", "szt").packTier);
   });
 });

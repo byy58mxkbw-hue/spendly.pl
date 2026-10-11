@@ -18,6 +18,8 @@ export {
   ArrowRight,
   ArrowUp,
   ArrowUpRight,
+  ArrowsLeftRight as ArrowLeftRight,
+  Question as HelpCircle,
   ChartBar as BarChart3,
   Bell,
   Buildings as Building2,

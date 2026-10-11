@@ -1,162 +1,236 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { Layout, PageHeader } from "@/components/layout";
-import { useGetBenchmarks, useUpdateBenchmarkOptIn, getGetBenchmarksQueryKey } from "@workspace/api-client-react";
+import { Layout } from "@/components/layout";
+import {
+  useGetBenchmarks,
+  useUpdateBenchmarkOptIn,
+  useSubmitBenchmarkFeedback,
+  getGetBenchmarksQueryKey,
+  type BenchmarkItem,
+  type BenchmarkSkipped,
+  type BenchmarkFeedbackBodyReason,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  ShieldCheck,
-  Users,
-  TrendingUp,
-  TrendingDown,
-  Percent,
-  Trophy,
-  ArrowRight,
-  ShieldOff,
-  Check,
-} from "@/lib/icons";
+import { ShieldCheck, ArrowRight, ShieldOff, Check, Trophy, ArrowLeftRight, HelpCircle, ChevronDown } from "@/lib/icons";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatPrice, formatPercent } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Link, useSearch } from "wouter";
 import { BenchmarkInvoiceView } from "@/components/benchmark-invoice-view";
 import { readViewerImport } from "@/lib/viewer-import";
 import { track } from "@/lib/posthog";
-
-// Modal historii ceny ładowany leniwie — to Twoi dostawcy i faktury źródłowe produktu.
-const PriceHistoryModal = lazy(() => import("./products/price-history-modal").then((m) => ({ default: m.PriceHistoryModal })));
 import { CATEGORIES } from "@/lib/categories";
-import type { BenchmarkItem } from "@workspace/api-client-react";
+import { plural } from "@/lib/plural";
+
+// Modal historii ceny ładowany leniwie — Twoi dostawcy i faktury źródłowe produktu.
+const PriceHistoryModal = lazy(() => import("./products/price-history-modal").then((m) => ({ default: m.PriceHistoryModal })));
 
 type SortMode = "delta_desc" | "delta_asc" | "az";
 
-// Ładna etykieta pod nazwą produktu w wierszu (np. "miesa" -> "Mięsa") —
-// kategorie kanoniczne z lib/category-rules; własne kategorie usera nie mają
-// wpisu, wtedy zostaje surowe id.
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.label]));
 
-// Kilka grubych koszyków do filtrowania — dużo mniej chipów niż 17 kategorii
-// systemowych, z których większość i tak ma "za mało danych" przy małej bazie
-// userów. Nie zmienia kategorii zapisanej w bazie, tylko grupuje ją na potrzeby
-// tego jednego filtra. Nieznana/własna kategoria user'a -> "Inne".
-const COARSE_CATEGORY_GROUPS: Record<string, string> = {
-  warzywa: "Warzywa i owoce",
-  miesa: "Mięso i ryby",
-  ryby: "Mięso i ryby",
-  nabiał: "Nabiał",
-  sery: "Nabiał",
-  pieczywo: "Pieczywo i słodycze",
-  slodycze: "Pieczywo i słodycze",
-  napoje: "Napoje",
-  alkohole: "Napoje",
-  mrozonki: "Spożywcze inne",
-  konserwy: "Spożywcze inne",
-  przyprawy: "Spożywcze inne",
-  orzechy: "Spożywcze inne",
-  techniczne: "Zaopatrzenie",
-  srodki_czystosci: "Zaopatrzenie",
-  opakowania: "Zaopatrzenie",
-  sprzet: "Zaopatrzenie",
+// ─── Formatowanie ────────────────────────────────────────────────────────────
+const pctFmt = new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+/** „↑ 4,5%” / „↓ 3,0%” — kierunek niesie strzałka, liczba bez znaku. */
+const arrowPct = (v: number) => `${v > 0 ? "↑" : v < 0 ? "↓" : ""} ${pctFmt.format(Math.abs(v))}%`.trim();
+const qtyFmt = new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 1 });
+const numFmt = new Intl.NumberFormat("pl-PL", { maximumFractionDigits: 3 });
+
+
+const UNIT_SHORT: Record<string, string> = { kg: "kg", l: "l", szt: "szt", opak: "opak", g: "g", ml: "ml" };
+const unitShort = (u: string | null | undefined) => (u ? UNIT_SHORT[u] ?? u : "");
+
+const MONTHS_NOM = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
+const MONTHS_LOC = ["styczniu", "lutym", "marcu", "kwietniu", "maju", "czerwcu", "lipcu", "sierpniu", "wrześniu", "październiku", "listopadzie", "grudniu"];
+const MONTHS_GEN = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
+const monthPart = (ym: string, names: string[]) => {
+  const [y, m] = ym.split("-").map(Number);
+  return m ? `${names[m - 1]} ${y}` : ym;
 };
 
-function coarseCategory(raw: string | null | undefined): string {
-  if (!raw) return "Inne";
-  return COARSE_CATEGORY_GROUPS[raw] ?? "Inne";
+/** „opakowanie 200 g”, „opakowanie 10 kg”, „opakowanie 30 szt.” — z mnożnika ceny. */
+function packLabel(factor: number, unit: string): string {
+  const size = 1 / factor;
+  if (unit === "kg") return size < 1 ? `${numFmt.format(size * 1000)} g` : `${numFmt.format(size)} kg`;
+  if (unit === "l") return size < 1 ? `${numFmt.format(size * 1000)} ml` : `${numFmt.format(size)} l`;
+  return `${numFmt.format(size)} szt.`;
 }
 
-// ─── Mini sparkline (mediana rynkowa, 6 mies.) — lokalny, jak w dashboard.tsx ──
-function TrendSparkline({ points }: { points: Array<{ month: string; median: number }> }) {
-  const values = points.map((p) => p.median).filter((v) => isFinite(v));
-  if (values.length < 2) return null;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const W = 64, H = 22;
-  const xs = values.map((_, i) => (i / (values.length - 1)) * W);
-  const ys = values.map((v) => H - ((v - min) / range) * H);
-  const path = values.map((_, i) => `${i === 0 ? "M" : "L"}${xs[i].toFixed(1)},${ys[i].toFixed(1)}`).join(" ");
-  const rising = values[values.length - 1]! > values[0]!;
-  // Semantyka kosztowa: rosnąca mediana rynkowa = terakota, spadająca = oliwka.
-  const color = rising ? "hsl(var(--negative))" : "hsl(var(--positive))";
-  return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none">
-      <path d={path} stroke={color} strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+const CONFIDENCE_CHIP: Record<string, { label: string; cls: string }> = {
+  gtin: { label: "Dopasowanie pewne: kod GTIN", cls: "bg-positive/15 text-positive" },
+  dictionary_pack: { label: "Dopasowanie: słownik + gramatura", cls: "bg-warning/15 text-warning" },
+  dictionary: { label: "Dopasowanie: słownik", cls: "bg-warning/15 text-warning" },
+  exact_name: { label: "Dopasowanie: ta sama nazwa", cls: "bg-secondary text-muted-foreground" },
+};
+
+function tierChip(tier: string | null | undefined, unit: string): string | null {
+  const u = unit === "l" ? "l" : "kg";
+  switch (tier) {
+    case "luz": return "Na wagę";
+    case "S": return `Opakowania do 1 ${u}`;
+    case "M": return `Opakowania 1–5 ${u}`;
+    case "L": return `Opakowania powyżej 5 ${u}`;
+    case "szt": return "Cena za sztukę";
+    default: return null;
+  }
 }
 
-// ─── Pasek zakresu 25–75 percentyl + mediana + Twoja cena, skalowany per wiersz ──
-function PriceTrack({ p25, p75, median, yourPrice }: { p25: number | null; p75: number | null; median: number; yourPrice: number }) {
-  const lo = p25 ?? median * 0.85;
-  const hi = p75 ?? median * 1.15;
-  const domainMin = Math.min(lo, yourPrice) * 0.9;
-  const domainMax = Math.max(hi, yourPrice) * 1.1;
-  const span = domainMax - domainMin || 1;
-  const pct = (v: number) => Math.max(0, Math.min(100, ((v - domainMin) / span) * 100));
+const SKIP_REASON: Record<string, string> = {
+  dish: "danie gotowe, nie surowiec",
+  processed: "przetwór lub produkt krojony",
+  frozen: "mrożonka",
+  plant_based: "zamiennik roślinny",
+  non_food: "nie żywność",
+};
 
-  const over = yourPrice > median;
+const FEEDBACK_REASONS: Array<{ value: BenchmarkFeedbackBodyReason; label: (market: string) => string }> = [
+  { value: "other_product", label: () => "To inny produkt (np. inny gatunek, w saszetkach, przetworzony)" },
+  { value: "wrong_pack", label: () => "Źle przeliczona gramatura opakowania" },
+  { value: "different_quality", label: () => "Inna jakość lub odmiana (premium, bio)" },
+];
 
+// ─── Pasek: środkowa połowa rynku, kreska mediany, kropka = Twoja cena ─────────
+function PriceTrack({ p25, p75, median, yourPrice, over }: { p25: number | null; p75: number | null; median: number; yourPrice: number; over: boolean }) {
+  const values = [median, yourPrice, ...(p25 != null ? [p25] : []), ...(p75 != null ? [p75] : [])];
+  const lo = Math.min(...values) * 0.92;
+  const hi = Math.max(...values) * 1.08;
+  const span = hi - lo || 1;
+  const pct = (v: number) => Math.max(0, Math.min(100, ((v - lo) / span) * 100));
   return (
-    <div className="relative h-2 rounded-full bg-secondary my-3.5 mx-1">
-      <div
-        className="absolute top-0 bottom-0 rounded-full bg-muted-foreground/25"
-        style={{ left: `${pct(lo)}%`, width: `${Math.max(2, pct(hi) - pct(lo))}%` }}
-      />
-      <div className="absolute -top-1 w-0.5 h-4 rounded-sm bg-foreground/40" style={{ left: `${pct(median)}%` }} />
-      <div
-        className={cn(
-          "absolute -top-1.5 w-4 h-4 rounded-full bg-card border-[3px] shadow-sm -translate-x-1/2",
-          over ? "border-negative" : "border-positive",
+    <div className="mt-5">
+      <div className="relative h-3">
+        <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
+        {p25 != null && p75 != null && (
+          <div className="absolute top-0.5 bottom-0.5 bg-secondary" style={{ left: `${pct(p25)}%`, width: `${Math.max(1, pct(p75) - pct(p25))}%` }} />
         )}
-        style={{ left: `${pct(yourPrice)}%` }}
-      />
+        <div className="absolute -top-0.5 w-0.5 h-4 bg-foreground" style={{ left: `${pct(median)}%` }} aria-label="mediana rynku" />
+        <div
+          className={cn("absolute top-1/2 w-2.5 h-2.5 rounded-full -translate-x-1/2 -translate-y-1/2", over ? "bg-negative" : "bg-positive")}
+          style={{ left: `${pct(yourPrice)}%` }}
+          aria-label="Twoja cena"
+        />
+      </div>
+      <div className="flex justify-between text-[11px] text-muted-foreground mt-1.5 num">
+        <span>{formatPrice(lo)}</span>
+        <span>{formatPrice(hi)}</span>
+      </div>
     </div>
   );
 }
 
-function StatTile({ label, value, valueClass, foot }: { label: string; value: string; valueClass?: string; foot: string }) {
+function Kpi({ label, children, foot }: { label: string; children: React.ReactNode; foot: React.ReactNode }) {
   return (
-    <div className="bg-card p-4 flex flex-col">
-      <p className="label-caps min-h-[2rem]">{label}</p>
-      <p className={cn("num-lg text-2xl mt-2", valueClass ?? "text-foreground")}>{value}</p>
-      <p className="text-[11px] text-muted-foreground mt-1.5">{foot}</p>
+    <div className="bg-card p-4 md:p-5 flex flex-col">
+      <p className="label-caps">{label}</p>
+      <div className="mt-2">{children}</div>
+      <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{foot}</p>
     </div>
   );
 }
 
-function BenchmarkRow({ item }: { item: BenchmarkItem }) {
+function FeedbackForm({ item, onDone }: { item: BenchmarkItem; onDone: () => void }) {
+  const queryClient = useQueryClient();
+  const [reason, setReason] = useState<BenchmarkFeedbackBodyReason>("other_product");
+  const submit = useSubmitBenchmarkFeedback();
+  const market = item.marketLabel ?? item.productName;
+  return (
+    <div className="mt-4 border border-border p-4">
+      <p className="text-sm font-semibold mb-3">Dlaczego to nie jest „{market}”?</p>
+      <div className="space-y-2">
+        {FEEDBACK_REASONS.map((r) => (
+          <label key={r.value} className="flex items-center gap-2.5 text-sm cursor-pointer">
+            <input type="radio" name={`fb-${item.productId}`} checked={reason === r.value} onChange={() => setReason(r.value)} className="accent-primary" />
+            {r.label(market)}
+          </label>
+        ))}
+      </div>
+      <div className="flex items-center gap-3 flex-wrap mt-4">
+        <button
+          type="button"
+          disabled={submit.isPending || !item.variants?.length}
+          onClick={() =>
+            submit.mutate(
+              { data: { variants: item.variants ?? [], reason, marketGroupKey: item.marketLabel ?? null } },
+              {
+                onSuccess: () => {
+                  track("benchmark_feedback", { reason });
+                  void queryClient.invalidateQueries({ queryKey: getGetBenchmarksQueryKey() });
+                  onDone();
+                },
+              },
+            )
+          }
+          className="text-sm font-semibold px-4 py-2 bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-60"
+        >
+          Wyłącz z porównania
+        </button>
+        <p className="text-xs text-muted-foreground flex-1 min-w-[200px]">
+          Od razu znika z Twojego porównania. Zgłoszenia od kilku restauracji poprawiają dopasowanie dla wszystkich.
+        </p>
+      </div>
+      {submit.isError && <p className="text-xs text-negative mt-2">Nie udało się zapisać zgłoszenia. Spróbuj ponownie.</p>}
+    </div>
+  );
+}
+
+function ItemSubtitle({ item }: { item: BenchmarkItem }) {
+  const cat = item.category ? CATEGORY_LABEL[item.category] ?? item.category : null;
+  if (!cat && !item.marketLabel) return null;
+  return (
+    <p className="text-xs text-muted-foreground mt-0.5">
+      {cat}
+      {cat && item.marketLabel ? " · " : ""}
+      {item.marketLabel && (
+        <>
+          produkt rynkowy: <b className="text-foreground font-semibold">{item.marketLabel}</b>
+        </>
+      )}
+      {item.packTier === "szt" && item.marketLabel ? " · cena za sztukę" : ""}
+    </p>
+  );
+}
+
+function InvoiceNames({ names }: { names: string[] | undefined }) {
+  const [open, setOpen] = useState(false);
+  if (!names || names.length < 2) return null;
+  return (
+    <div className="mt-1">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
+        {names.length} {plural(names.length, ["nazwa", "nazwy", "nazw"])} z faktur <ChevronDown className={cn("w-3 h-3 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
+          {names.map((n) => <li key={n}>{n}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function yourPeriodCaption(scope: string | undefined, from: string | null | undefined): string {
+  if (scope === "invoice") return "z tej faktury";
+  if (scope === "latestMonth" && from) return `średnia ważona, ${monthPart(from, MONTHS_NOM)}`;
+  return "średnia ważona, ost. 3 mies.";
+}
+
+function BenchmarkCard({ item, scope, yourFrom }: { item: BenchmarkItem; scope?: string; yourFrom?: string | null }) {
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const unit = unitShort(item.unit);
+
   if (item.insufficientData) {
     return (
-      <div className="bg-card border border-border p-4 opacity-60" data-testid={`benchmark-row-${item.productName}`}>
-        <div className="flex items-start justify-between gap-3 mb-1">
-          <div>
-            <span className="font-medium text-sm text-foreground">{item.productName}</span>{" "}
-            <span className="text-muted-foreground text-xs">/ {item.unit}</span>
-            {item.category && <span className="label-caps block mt-0.5">{CATEGORY_LABEL[item.category] ?? item.category}</span>}
-          </div>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-secondary text-muted-foreground whitespace-nowrap">
-            brak porównania
-          </span>
+      <div className="border border-dashed border-border bg-background/40 p-4 md:p-5 grid gap-3 md:grid-cols-2" data-testid={`benchmark-row-${item.productName}`}>
+        <div>
+          <p className="font-semibold text-foreground">{item.productName}</p>
+          <ItemSubtitle item={item} />
+          <InvoiceNames names={item.invoiceNames} />
         </div>
-        <p className="text-xs text-muted-foreground mt-2 border border-dashed border-border rounded-md px-3 py-2 inline-flex items-center gap-1.5">
-          {item.notComparableReason === "price_outlier" ? (
-            <>
-              Twoja cena różni się od rynku ponad 2,5× — to zwykle inne opakowanie (np. karton zamiast sztuki)
-              albo inny produkt pod podobną nazwą. Nie liczymy tej pozycji do oszczędności.
-            </>
-          ) : (
-            <>
-              Za mało danych, by pokazać porównanie anonimowo — potrzeba min. {item.minUsers} restauracji w danych
-              (obecnie: {item.distinctUserCount ?? 0}).
-            </>
-          )}
+        <p className="text-sm text-muted-foreground">
+          {item.notComparableReason === "price_outlier"
+            ? "Twoja cena różni się od rynku ponad 2,5× — to zwykle inne opakowanie (np. karton zamiast sztuki) albo inny produkt pod podobną nazwą. Nie liczymy tej pozycji do oszczędności."
+            : `Za mało danych, by pokazać porównanie anonimowo. Pokażemy je, gdy ceny poda co najmniej ${item.minUsers ?? 5} innych restauracji.`}
         </p>
       </div>
     );
@@ -166,72 +240,129 @@ function BenchmarkRow({ item }: { item: BenchmarkItem }) {
   const delta = item.deltaPercent ?? 0;
   const over = delta > 0;
   const savings = item.savingsPerMonth ?? 0;
+  const conf = item.matchConfidence ? CONFIDENCE_CHIP[item.matchConfidence] : null;
+  const tier = tierChip(item.packTier, item.unit);
+  const showConversion = item.priceFactor != null && item.priceFactor !== 1 && item.invoiceUnitPrice != null && item.invoiceUnit && item.invoiceUnit !== item.unit;
+  const medianCaption =
+    item.periodFallback === "R12"
+      ? null
+      : item.medianPeriod
+        ? monthPart(item.medianPeriod, MONTHS_NOM)
+        : "";
 
   return (
-    <div className="bg-card border border-border p-4" data-testid={`benchmark-row-${item.productName}`}>
-      <div className="flex items-start justify-between gap-3 mb-1">
-        <div>
-          <span className="font-medium text-sm text-foreground">{item.productName}</span>{" "}
-          <span className="text-muted-foreground text-xs">/ {item.unit}</span>
-          {item.category && <span className="label-caps block mt-0.5">{CATEGORY_LABEL[item.category] ?? item.category}</span>}
-        </div>
-        <span
-          className={cn(
-            "text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap inline-flex items-center gap-1",
-            over ? "bg-negative/10 text-negative" : "bg-positive/10 text-positive",
-          )}
-        >
-          {over ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          {formatPercent(Math.abs(delta))} {over ? "powyżej" : "poniżej"} mediany
-        </span>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <div className="flex-1">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Twoja cena: <b className="text-foreground num">{formatPrice(item.yourPrice)}</b></span>
-            <span>
-              Mediana{item.medianWindow === "12m" ? " z 12 mies." : ""}: <b className="text-foreground num">{formatPrice(median)}</b>
-            </span>
+    <div className="bg-card border border-border" data-testid={`benchmark-row-${item.productName}`}>
+      <div className="p-4 md:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-semibold text-foreground">{item.productName}</p>
+            <ItemSubtitle item={item} />
+            <InvoiceNames names={item.invoiceNames} />
           </div>
-          <PriceTrack p25={item.p25Price ?? null} p75={item.p75Price ?? null} median={median} yourPrice={item.yourPrice} />
-        </div>
-        {item.history && item.history.length > 1 && (
-          <div className="shrink-0 text-center">
-            <TrendSparkline points={item.history} />
-            <p className="text-[10px] text-muted-foreground mt-0.5">rynek, {item.history.length} mies.</p>
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between flex-wrap gap-2 mt-3 pt-2.5 border-t border-dashed border-border text-xs text-muted-foreground">
-        <span className="num">{item.distinctUserCount} restauracji w danych</span>
-        {over && savings > 0 ? (
-          <span>
-            Potencjalna oszczędność: <b className="num text-negative">{formatPrice(savings)}/mies.</b>
+          <span className={cn("text-sm font-semibold whitespace-nowrap num", over ? "text-negative" : "text-positive")}>
+            {arrowPct(delta)} {over ? "powyżej" : "poniżej"} mediany
           </span>
-        ) : item.p25Price != null && item.p75Price != null ? (
-          <span>Zakres: {formatPrice(item.p25Price)}–{formatPrice(item.p75Price)}</span>
-        ) : null}
-        {/* Cudzych dostawców nie pokażemy (anonimowość) — dajemy to, co realnie pomaga:
-            historię ceny u WŁASNYCH dostawców (najtańszy z nich) i argument do negocjacji. */}
-        <span className="inline-flex items-center gap-3">
-          {item.productId != null && (
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 mt-2.5">
+          {conf && <span className={cn("text-[11px] font-semibold px-2 py-0.5", conf.cls)}>{conf.label}</span>}
+          {tier && <span className="text-[11px] font-semibold px-2 py-0.5 bg-warning/15 text-warning">{tier}</span>}
+          {item.tierFallback && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 bg-secondary text-muted-foreground">porównanie ze wszystkimi wielkościami opakowań</span>
+          )}
+        </div>
+
+        {showConversion && (
+          <p className="flex items-center gap-2 text-xs bg-secondary/60 px-3 py-2 mt-3">
+            <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span>
+              Na fakturze <b className="num">{formatPrice(item.invoiceUnitPrice)} / {unitShort(item.invoiceUnit)}</b>{" "}
+              {item.priceFactor! >= 1 ? `× ${numFmt.format(item.priceFactor!)}` : `÷ ${numFmt.format(1 / item.priceFactor!)}`} ({`opakowanie ${packLabel(item.priceFactor!, item.unit)}`}) ={" "}
+              <b className="num">{formatPrice(item.yourPrice)} / {unit}</b>
+            </span>
+          </p>
+        )}
+
+        <div className="grid gap-4 sm:grid-cols-3 mt-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Twoja cena</p>
+            <p className="num-lg text-xl mt-0.5">{formatPrice(item.yourPrice)}/{unit}</p>
+            <p className="text-xs text-muted-foreground">{yourPeriodCaption(scope, yourFrom)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Mediana rynku</p>
+            <p className="num-lg text-xl mt-0.5">{formatPrice(median)}/{unit}</p>
+            {item.periodFallback === "R12" ? (
+              <p className="text-xs text-warning">
+                z 12 mies. — w {MONTHS_LOC[new Date().getMonth()]} za mało danych
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground num">
+                {medianCaption}{item.sourceBucket ? ` · ${item.sourceBucket} restauracji` : ""}
+              </p>
+            )}
+          </div>
+          <div>
+            {item.largerPackMedian != null ? (
+              <>
+                <p className="text-xs text-muted-foreground">Większe opakowania</p>
+                <p className="num-lg text-xl mt-0.5">{formatPrice(item.largerPackMedian)}/{unit}</p>
+                <p className="text-xs text-muted-foreground">mediana dla opakowań powyżej 5 {item.unit === "l" ? "l" : "kg"} — rozważ większe opakowanie</p>
+              </>
+            ) : item.p25Price != null && item.p75Price != null ? (
+              <>
+                <p className="text-xs text-muted-foreground">Środkowa połowa rynku</p>
+                <p className="num-lg text-xl mt-0.5">{formatPrice(item.p25Price)}–{formatPrice(item.p75Price)}</p>
+                <p className="text-xs text-muted-foreground">tyle płaci połowa restauracji</p>
+              </>
+            ) : null}
+          </div>
+        </div>
+
+        <PriceTrack p25={item.p25Price ?? null} p75={item.p75Price ?? null} median={median} yourPrice={item.yourPrice} over={over} />
+      </div>
+
+      <div className="border-t border-dashed border-border px-4 md:px-5 py-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap text-sm">
+          <span className="text-muted-foreground">
+            {over && savings > 0 ? (
+              <>
+                Potencjalna oszczędność: <b className="text-foreground num">{formatPrice(savings)} / mies.</b>{" "}
+                <span className="num">przy {qtyFmt.format(item.monthlyQuantity)} {unit} miesięcznie</span>
+              </>
+            ) : over ? (
+              "Płacisz trochę więcej niż mediana."
+            ) : (
+              "Kupujesz taniej niż większość — trzymaj tego dostawcę."
+            )}
+          </span>
+          <span className="flex items-center gap-4 flex-wrap">
+            {item.productId != null && (
+              <button
+                type="button"
+                onClick={() => { setHistoryOpen(true); track("benchmark_price_history_open"); }}
+                className="text-primary font-medium inline-flex items-center gap-1 hover:underline"
+              >
+                Historia ceny i Twoi dostawcy <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {over && (
+              <a href="/blog/jak-negocjowac-ceny-z-dostawcami" className="text-primary hover:underline">
+                Jak negocjować cenę
+              </a>
+            )}
             <button
               type="button"
-              onClick={() => { setHistoryOpen(true); track("benchmark_price_history_open"); }}
-              className="text-primary font-medium inline-flex items-center gap-0.5 hover:underline"
+              onClick={() => setFeedbackOpen((v) => !v)}
+              className="inline-flex items-center gap-1.5 border border-border px-3 py-1.5 text-sm font-medium hover:bg-secondary"
             >
-              Historia ceny i Twoi dostawcy <ArrowRight className="w-3 h-3" />
+              <HelpCircle className="w-3.5 h-3.5" /> To nie ten produkt
             </button>
-          )}
-          {over && (
-            <a href="/blog/jak-negocjowac-ceny-z-dostawcami" className="hover:underline">
-              Jak negocjować cenę
-            </a>
-          )}
-        </span>
+          </span>
+        </div>
+        {feedbackOpen && <FeedbackForm item={item} onDone={() => setFeedbackOpen(false)} />}
       </div>
+
       {historyOpen && item.productId != null && (
         <Suspense fallback={null}>
           <PriceHistoryModal productId={item.productId} productName={item.productName} onClose={() => setHistoryOpen(false)} />
@@ -241,25 +372,57 @@ function BenchmarkRow({ item }: { item: BenchmarkItem }) {
   );
 }
 
-const MONTHS_GEN = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
-const monthLabel = (ym: string) => {
-  const [y, m] = ym.split("-").map(Number);
-  return m ? `${MONTHS_GEN[m - 1]} ${y}` : ym;
-};
+function SkippedSection({ skipped }: { skipped: BenchmarkSkipped[] }) {
+  const [all, setAll] = useState(false);
+  if (skipped.length === 0) return null;
+  const shown = all ? skipped : skipped.slice(0, 4);
+  return (
+    <section id="pominiete" className="bg-card border border-border p-4 md:p-5 mt-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="label-caps">Pominięte w porównaniu</p>
+        {skipped.length > 4 && (
+          <button type="button" onClick={() => setAll((v) => !v)} className="text-sm font-semibold text-primary hover:underline">
+            {all ? "Pokaż mniej" : `Pokaż wszystkie (${skipped.length})`}
+          </button>
+        )}
+      </div>
+      <p className="text-sm mt-1">Tych pozycji nie porównujemy z rynkiem, bo to inny produkt niż świeży odpowiednik.</p>
+      <ul className="rule-list mt-3">
+        {shown.map((s) => (
+          <li key={`${s.name}__${s.reason}`} className="flex justify-between gap-4 py-2.5 text-sm">
+            <span>{s.name}</span>
+            <span className="text-muted-foreground text-right">{SKIP_REASON[s.reason] ?? s.reason}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
-/** Podpis okresu „Twojej ceny” z API (scope + yourPricePeriodFrom/To). */
-function periodCaption(scope: string | undefined, from: string | null | undefined, to: string | null | undefined): string {
-  if (!from || !to) return "Ceny netto";
-  if (scope === "invoice") return `Ceny netto · na podstawie faktury z ${monthLabel(from)}`;
-  if (scope === "latestMonth") return `Ceny netto · na podstawie zakupów z ${monthLabel(from)}`;
-  return "Ceny netto · Twoje zakupy z ostatnich 3 miesięcy";
+function Methodology() {
+  return (
+    <ul className="text-xs text-background/75 leading-relaxed mt-3 space-y-1 list-disc pl-4">
+      <li>Medianę liczymy z cen INNYCH restauracji — Twoja cena nigdy do niej nie wchodzi.</li>
+      <li>Wynik pokazujemy, gdy ceny podało co najmniej 5 innych restauracji (w tym 2 z fakturami z KSeF); środkową połowę rynku — od 8.</li>
+      <li>Każda restauracja to jeden głos: jedna cena na lokal, średnia ważona ilością, niezależnie od liczby dostawców.</li>
+      <li>Ceny za opakowanie przeliczamy na kilogram, litr albo sztukę z gramatury w nazwie i porównujemy w podobnych wielkościach opakowań.</li>
+      <li>Medianę i przedział zaokrąglamy do 10 gr, a liczbę restauracji pokazujemy w przedziałach (5–9, 10–19, 20+).</li>
+      <li>Ceny netto, bez korekt i rozliczeń zaliczek. Porównanie z tego samego miesiąca, a gdy danych za mało — z ostatnich 12 miesięcy (podpisane).</li>
+    </ul>
+  );
+}
+
+function updatedCaption(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return ` · aktualne na ${d.toLocaleDateString("pl-PL")}, ${d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 export default function Benchmark() {
   const queryClient = useQueryClient();
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sort, setSort] = useState<SortMode>("delta_desc");
-  const [showInsufficient, setShowInsufficient] = useState(false);
+  const [showInsufficient, setShowInsufficient] = useState(true);
+  const [methodOpen, setMethodOpen] = useState(false);
 
   // ?z=podglad&inv=ID — wejście z powitania po imporcie faktury z podglądu XML.
   const search = useSearch();
@@ -273,7 +436,6 @@ export default function Benchmark() {
 
   const { data, isLoading, isError } = useGetBenchmarks(invoiceScope ? { invoiceId: invoiceId! } : {});
 
-  // Raz po pierwszym załadowaniu danych — z liczbą produktów z medianą (bez nazw/cen).
   const [viewTracked, setViewTracked] = useState(false);
   useEffect(() => {
     if (viewTracked || !data) return;
@@ -283,67 +445,37 @@ export default function Benchmark() {
   const updateOptIn = useUpdateBenchmarkOptIn();
 
   function setOptIn(optedIn: boolean) {
-    updateOptIn.mutate(
-      { data: { optedIn } },
-      { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetBenchmarksQueryKey({}) }) },
-    );
+    updateOptIn.mutate({ data: { optedIn } }, { onSuccess: () => queryClient.invalidateQueries({ queryKey: getGetBenchmarksQueryKey({}) }) });
   }
 
   const items = data?.items ?? [];
-
-  // Respektuje przełącznik "pokaż też bez wystarczających danych" — inaczej chip
-  // "Wszystkie (N)" liczył WSZYSTKIE Twoje produkty z ostatnich 3 mies. (setki),
-  // podczas gdy lista pod spodem domyślnie pokazywała tylko te z benchmarkiem.
-  const visibleItems = useMemo(
-    () => (showInsufficient ? items : items.filter((i) => !i.insufficientData)),
-    [items, showInsufficient],
-  );
-
-  const categories = useMemo(() => {
-    const byCat = new Map<string, { total: number; deltaSum: number; deltaCount: number }>();
-    for (const i of visibleItems) {
-      const cat = coarseCategory(i.category);
-      const entry = byCat.get(cat) ?? { total: 0, deltaSum: 0, deltaCount: 0 };
-      entry.total++;
-      if (!i.insufficientData && i.deltaPercent != null) {
-        entry.deltaSum += i.deltaPercent;
-        entry.deltaCount++;
-      }
-      byCat.set(cat, entry);
-    }
-    return [...byCat.entries()]
-      .map(([category, v]) => ({
-        category,
-        total: v.total,
-        avgDelta: v.deltaCount > 0 ? v.deltaSum / v.deltaCount : null,
-      }))
-      .sort((a, b) => b.total - a.total);
-  }, [visibleItems]);
-
-  const filtered = useMemo(() => {
-    const rows = categoryFilter === "all" ? visibleItems : visibleItems.filter((i) => coarseCategory(i.category) === categoryFilter);
-    const sorted = [...rows].sort((a, b) => {
+  const skipped = data?.skipped ?? [];
+  const sorted = useMemo(() => {
+    const rows = showInsufficient ? items : items.filter((i) => !i.insufficientData);
+    return [...rows].sort((a, b) => {
+      // Porównane zawsze przed „za mało danych”.
+      if (a.insufficientData !== b.insufficientData) return a.insufficientData ? 1 : -1;
       if (sort === "az") return a.productName.localeCompare(b.productName, "pl");
-      const da = a.insufficientData ? -Infinity : a.deltaPercent ?? 0;
-      const db = b.insufficientData ? -Infinity : b.deltaPercent ?? 0;
+      const da = a.deltaPercent ?? 0;
+      const db = b.deltaPercent ?? 0;
       return sort === "delta_desc" ? db - da : da - db;
     });
-    return sorted;
-  }, [visibleItems, categoryFilter, sort]);
+  }, [items, showInsufficient, sort]);
 
   const summary = data?.summary ?? null;
   const optedIn = data?.optedIn ?? true;
+  const contribution = summary?.contributionBucket === "<5" ? "mniej niż 5" : summary?.contributionBucket ?? "";
 
   return (
     <Layout>
-      <div className="px-4 py-5 md:px-8 md:py-8 max-w-4xl">
+      <div className="px-4 py-5 md:px-8 md:py-8 max-w-5xl">
         {viewerImport && invoiceId === viewerImport.invoiceId && (
           <div className="flex items-start gap-3 border border-positive/30 bg-positive/10 px-4 py-3 mb-5 text-sm">
             <Check className="w-4 h-4 shrink-0 mt-0.5 text-positive" />
             <p className="flex-1">
               <b>Faktura {viewerImport.invoiceNumber} {viewerImport.duplicate ? "jest już na Twoim koncie" : "zaimportowana"}.</b>{" "}
               {viewerImport.itemsCount} pozycji od {viewerImport.supplierName}. Poniżej porównanie z medianą cen innych restauracji
-              {data?.yourPricePeriodFrom ? ` z ${monthLabel(data.yourPricePeriodFrom)}` : ""}.
+              {data?.yourPricePeriodFrom ? ` z ${monthPart(data.yourPricePeriodFrom, MONTHS_GEN)}` : ""}.
             </p>
             <Link href="/invoices"><span className="text-primary font-semibold cursor-pointer whitespace-nowrap">Zobacz fakturę</span></Link>
           </div>
@@ -352,12 +484,9 @@ export default function Benchmark() {
         <div className="flex items-end justify-between gap-4 flex-wrap mb-5">
           <div>
             <p className="label-caps text-muted-foreground" data-testid="benchmark-period">
-              {periodCaption(data?.scope, data?.yourPricePeriodFrom, data?.yourPricePeriodTo)}
+              Ceny netto · porównanie z tego samego miesiąca{updatedCaption(summary?.computedAt)}
             </p>
-            <PageHeader
-              title={invoiceScope ? "Twoje ceny na tle rynku" : "Porównanie cen"}
-              subtitle="Twoje ceny na tle anonimowej mediany rynkowej — bez pokazywania danych innej restauracji czy dostawcy"
-            />
+            <h1 className="head-display text-3xl md:text-4xl mt-1">Twoje ceny na tle rynku</h1>
           </div>
           {invoiceId != null && (
             <div className="flex border border-border text-sm" role="group" aria-label="Zakres porównania">
@@ -371,125 +500,90 @@ export default function Benchmark() {
           <BenchmarkInvoiceView items={data?.items ?? []} />
         ) : isLoading ? (
           <div className="space-y-3">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-56 w-full" />
           </div>
         ) : isError ? (
-          <div className="bg-card border border-border p-6 text-center text-sm text-destructive">
-            Nie udało się załadować porównania cen.
-          </div>
+          <div className="bg-card border border-border p-6 text-center text-sm text-destructive">Nie udało się załadować porównania cen.</div>
         ) : !optedIn ? (
           <div className="bg-card border border-border p-8 text-center">
             <ShieldOff className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-foreground font-medium mb-1">Porównanie cen jest wyłączone</p>
             <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-              Wyłączyłeś udział w porównaniu — Twoje ceny nie zasilają statystyk innych restauracji i Ty też nie
-              widzisz ich mediany. Możesz to zmienić w każdej chwili.
+              Wyłączyłeś udział w porównaniu — Twoje ceny nie zasilają statystyk innych restauracji i Ty też nie widzisz ich mediany.
+              Możesz to zmienić w każdej chwili.
             </p>
-            <button
-              onClick={() => setOptIn(true)}
-              disabled={updateOptIn.isPending}
-              className="text-sm font-medium px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-            >
+            <button onClick={() => setOptIn(true)} disabled={updateOptIn.isPending} className="text-sm font-medium px-4 py-2 bg-primary text-primary-foreground hover:opacity-90">
               Włącz porównanie cen
             </button>
           </div>
-        ) : items.length === 0 ? (
+        ) : items.length === 0 && skipped.length === 0 ? (
           <div className="bg-card border border-border p-8 text-center">
             <Trophy className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-foreground font-medium mb-1">Jeszcze brak danych</p>
-            <p className="text-sm text-muted-foreground">
-              Zaimportuj fakturę albo podłącz KSeF — porównanie policzy się dla produktów z Twoich faktur zakupowych.
-            </p>
+            <p className="text-sm text-muted-foreground">Zaimportuj fakturę albo podłącz KSeF — porównanie policzy się dla produktów z Twoich faktur zakupowych.</p>
           </div>
         ) : (
           <>
             {summary && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border border border-border mb-4">
-                <StatTile
-                  label="Potencjał oszczędności / mies."
-                  value={formatPrice(summary.savingsPotentialTotal)}
-                  valueClass="text-negative"
-                  foot="gdybyś płacił medianę za produkty powyżej rynku"
-                />
-                <StatTile
-                  label="Vs. rynek (średnio)"
-                  value={formatPercent(summary.avgDeltaPercent)}
-                  valueClass={summary.avgDeltaPercent > 0 ? "text-negative" : "text-positive"}
-                  foot={summary.avgDeltaPercent > 0 ? "płacisz więcej niż mediana" : "płacisz mniej niż mediana"}
-                />
-                <StatTile
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border mb-5">
+                <Kpi label="Potencjał oszczędności" foot="tylko z pewnych dopasowań i tej samej wielkości opakowań">
+                  <p className="num-lg text-3xl text-negative">
+                    {formatPrice(summary.savingsPotentialTotal)}<span className="text-sm font-medium text-muted-foreground"> / mies.</span>
+                  </p>
+                </Kpi>
+                <Kpi label="Względem mediany" foot="średnio, ważone tym, ile kupujesz">
+                  <p className={cn("num-lg text-3xl", summary.avgDeltaPercent > 0 ? "text-foreground" : "text-positive")}>{arrowPct(summary.avgDeltaPercent)}</p>
+                </Kpi>
+                <Kpi
                   label="Produkty z porównaniem"
-                  value={`${summary.benchmarkedCount} / ${summary.totalCount}`}
-                  foot="reszta: za mało danych rynkowych"
-                />
-                <StatTile
-                  label="Twój wkład w dane"
-                  value={String(summary.contributionCount)}
-                  foot="restauracji korzysta też z Twoich (anonimowych) cen"
-                />
+                  foot={
+                    summary.skippedCount > 0 ? (
+                      <>
+                        {summary.skippedCount} {plural(summary.skippedCount, ["pominięty", "pominięte", "pominiętych"])} jako przetwory lub dania gotowe —{" "}
+                        <a href="#pominiete" className="text-primary hover:underline">zobacz listę</a>
+                      </>
+                    ) : (
+                      "reszta: za mało danych rynkowych"
+                    )
+                  }
+                >
+                  <p className="num-lg text-3xl">
+                    {summary.benchmarkedCount}<span className="text-base font-medium text-muted-foreground"> / {summary.totalCount + summary.skippedCount}</span>
+                  </p>
+                </Kpi>
+                <Kpi label="Twój wkład w dane" foot="restauracji korzysta z Twoich anonimowych cen">
+                  <p className="num-lg text-3xl">{contribution}</p>
+                </Kpi>
               </div>
             )}
 
-            <div className="flex items-start gap-3 bg-foreground text-background rounded-md p-4 mb-4">
-              <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5 text-positive" />
-              <div>
-                <p className="font-semibold text-sm mb-1">Pełna anonimowość — z założenia, nie jako opcja</p>
-                <p className="text-xs text-background/70 leading-relaxed">
-                  Widzisz wyłącznie medianę i zakres rynkowy (25–75 percentyl), nigdy cenę konkretnego dostawcy ani
-                  restauracji. Porównanie liczy się dopiero, gdy ceny podało kilka różnych restauracji — poniżej progu
-                  widzisz „za mało danych", nie przybliżoną wartość.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 bg-positive/10 border border-positive/20 rounded-md px-4 py-3 mb-5 text-sm">
-              <Users className="w-4 h-4 shrink-0 text-positive" />
-              <span className="flex-1 text-foreground">
-                <b>Twoje ceny anonimowo zasilają porównanie dla {summary?.contributionCount ?? 0} innych restauracji</b> —
-                dokładnie tak, jak ich ceny zasilają Twój.
-              </span>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-muted-foreground">Udział</span>
-                <Switch checked={optedIn} onCheckedChange={setOptIn} disabled={updateOptIn.isPending} aria-label="Udział w porównaniu cen" />
+            <div className="bg-foreground text-background p-4 md:p-5 mb-5">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5 text-primary" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm mb-1">Jak liczymy, żeby nikt nie poznał Twoich cen</p>
+                  <p className="text-sm text-background/80 leading-relaxed">
+                    Twoja cena nigdy nie wchodzi do mediany, którą widzisz. Pokazujemy wynik dopiero, gdy ceny podało co najmniej 5 innych
+                    restauracji, medianę zaokrąglamy do 10 gr, a liczbę restauracji pokazujemy w przedziałach.{" "}
+                    <button type="button" onClick={() => setMethodOpen((v) => !v)} className="text-primary hover:underline">
+                      {methodOpen ? "Zwiń metodologię" : "Pełna metodologia"}
+                    </button>
+                  </p>
+                  {methodOpen && <Methodology />}
+                </div>
               </div>
             </div>
 
             <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => setCategoryFilter("all")}
-                  className={cn(
-                    "text-xs font-medium px-3 py-1.5 rounded-full transition-colors",
-                    categoryFilter === "all" ? "bg-foreground text-background" : "bg-secondary text-muted-foreground hover:bg-secondary/70",
-                  )}
-                >
-                  Wszystkie <span className="opacity-70">({visibleItems.length})</span>
-                </button>
-                {categories.map((c) => (
-                  <button
-                    key={c.category}
-                    onClick={() => setCategoryFilter(c.category)}
-                    className={cn(
-                      "text-xs font-medium px-3 py-1.5 rounded-full transition-colors",
-                      categoryFilter === c.category ? "bg-foreground text-background" : "bg-secondary text-muted-foreground hover:bg-secondary/70",
-                    )}
-                  >
-                    {c.category}{" "}
-                    <span className="opacity-70 num">{c.avgDelta != null ? formatPercent(c.avgDelta) : "brak"}</span>
-                  </button>
-                ))}
-              </div>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Switch checked={optedIn} onCheckedChange={setOptIn} disabled={updateOptIn.isPending} aria-label="Udział w porównaniu cen" />
+                Udział w anonimowym porównaniu
+              </label>
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
-                  <input
-                    type="checkbox"
-                    checked={showInsufficient}
-                    onChange={(e) => setShowInsufficient(e.target.checked)}
-                    className="accent-primary"
-                  />
+                  <input type="checkbox" checked={showInsufficient} onChange={(e) => setShowInsufficient(e.target.checked)} className="accent-primary" />
                   Pokaż też bez wystarczających danych
                 </label>
                 <Select value={sort} onValueChange={(v) => setSort(v as SortMode)}>
@@ -505,21 +599,14 @@ export default function Benchmark() {
               </div>
             </div>
 
-            <div className="space-y-2.5" data-testid="benchmark-rows">
-              {filtered.length > 0 ? (
-                filtered.map((item) => <BenchmarkRow key={`${item.productName}__${item.unit}`} item={item} />)
-              ) : (
-                <div className="py-10 text-center text-sm text-muted-foreground">
-                  Brak produktów w tej kategorii.
-                </div>
-              )}
+            <div className="space-y-4" data-testid="benchmark-rows">
+              {sorted.map((item) => (
+                <BenchmarkCard key={`${item.productName}__${item.unit}__${item.packTier ?? ""}`} item={item} scope={data?.scope} yourFrom={data?.yourPricePeriodFrom} />
+              ))}
+              {sorted.length === 0 && <div className="py-10 text-center text-sm text-muted-foreground">Brak produktów z porównaniem.</div>}
             </div>
 
-            <div className="flex items-center gap-4 mt-5 text-[11px] text-muted-foreground flex-wrap">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-muted-foreground/25" /> zakres rynkowy (25–75 percentyl)</span>
-              <span className="flex items-center gap-1.5"><span className="w-0.5 h-2.5 bg-foreground/40" /> mediana rynkowa</span>
-              <span className="flex items-center gap-1.5"><Percent className="w-3 h-3" /> Twoja cena</span>
-            </div>
+            <SkippedSection skipped={skipped} />
           </>
         )}
       </div>

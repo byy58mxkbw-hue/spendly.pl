@@ -16,6 +16,10 @@ export const marketProductAliasesTable = pgTable("market_product_aliases", {
   // i mnożnik: cena porównywalna = unit_price × price_factor (patrz category-rules priceBasis).
   compareUnit: text("compare_unit"),
   priceFactor: doublePrecision("price_factor").notNull().default(1),
+  // Przedział opakowania (luz/S/M/L/szt — category-rules priceBasis) i pewność dopasowania:
+  // gtin > dictionary_pack (słownik + gramatura) > dictionary > exact_name.
+  packTier: text("pack_tier"),
+  matchConfidence: text("match_confidence"),
   computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   uniqueIndex("mpa_canonical_unit_uniq").on(t.canonicalName, t.unit),

@@ -436,4 +436,57 @@ router.post("/admin/benchmarks/run", async (req, res): Promise<void> => {
   }
 });
 
+// ─── Zgłoszenia „To nie ten produkt” (benchmark v2, etap 4) ────────────────────
+// Lista wariantów nazw zgłoszonych przez restauracje. ≥ 2 różne restauracje = matcher już
+// wyłącza wariant z grupy; admin potwierdza (excluded) albo przywraca (restored).
+// Bez danych zgłaszających — tylko liczba restauracji (admin i tak widzi konta).
+router.get("/admin/benchmarks/feedback", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+  const result = await db.execute<{
+    canonical_name: string; unit: string; market_group_key: string | null; reports: number;
+    reasons: string[]; last_at: string; decision: string | null;
+  }>(sql`
+    SELECT f.canonical_name, f.unit, MAX(f.market_group_key) AS market_group_key,
+           COUNT(DISTINCT f.user_id)::int AS reports,
+           array_agg(DISTINCT f.reason) AS reasons,
+           MAX(f.created_at)::text AS last_at,
+           MAX(r.decision) AS decision
+    FROM market_match_feedback f
+    LEFT JOIN market_match_review r ON r.canonical_name = f.canonical_name AND r.unit = f.unit
+    GROUP BY f.canonical_name, f.unit
+    ORDER BY reports DESC, last_at DESC
+    LIMIT 200
+  `);
+  res.json({
+    items: result.rows.map((r) => ({
+      canonicalName: r.canonical_name,
+      unit: r.unit,
+      marketGroupKey: r.market_group_key,
+      reports: r.reports,
+      reasons: r.reasons,
+      lastAt: r.last_at,
+      decision: r.decision,
+      excludedNow: r.decision === "excluded" || (r.reports >= 2 && r.decision !== "restored"),
+    })),
+  });
+});
+
+router.post("/admin/benchmarks/feedback/decision", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+  const body = req.body as { canonicalName?: unknown; unit?: unknown; decision?: unknown };
+  const canonicalName = typeof body.canonicalName === "string" ? body.canonicalName.trim() : "";
+  const unit = typeof body.unit === "string" ? body.unit.trim() : "";
+  const decision = body.decision === "excluded" || body.decision === "restored" ? body.decision : null;
+  if (!canonicalName || !unit || !decision || canonicalName.length > 500) {
+    res.status(400).json({ error: "Podaj canonicalName, unit i decision (excluded | restored)." });
+    return;
+  }
+  await db.execute(sql`
+    INSERT INTO market_match_review (canonical_name, unit, decision, decided_at)
+    VALUES (${canonicalName}, ${unit}, ${decision}, now())
+    ON CONFLICT (canonical_name, unit) DO UPDATE SET decision = EXCLUDED.decision, decided_at = now()
+  `);
+  res.json({ ok: true });
+});
+
 export default router;

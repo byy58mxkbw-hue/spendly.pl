@@ -1,65 +1,73 @@
 import { Router, type IRouter } from "express";
 import { sql, type SQL } from "drizzle-orm";
-import { db, userSettingsTable } from "@workspace/db";
-import { DEFAULT_MIN_USERS, DEFAULT_MIN_ROWS, RANGE_WINDOW_MONTHS } from "../services/market-benchmark-job.js";
+import { db, userSettingsTable, marketMatchFeedbackTable } from "@workspace/db";
+import { R12 } from "../services/market-benchmark-job.js";
 import { normalizedUnitSql } from "../lib/units.js";
 import { EXCLUDED_BENCHMARK_CATEGORIES } from "../lib/market-product-matcher.js";
 import { spendInvoicesFilter } from "../lib/invoice-line-classify.js";
-import { UpdateBenchmarkOptInBody } from "@workspace/api-zod";
-import { genericProduct, priceBasis } from "@workspace/category-rules";
+import { UpdateBenchmarkOptInBody, SubmitBenchmarkFeedbackBody } from "@workspace/api-zod";
+import { genericProduct, priceBasis, skipReason, type SkipReason } from "@workspace/category-rules";
+import {
+  medianMinOthers,
+  medianMinKsef,
+  spreadMinOthers,
+  roundPublished,
+  sourceBucket,
+  contributionBucket,
+} from "../lib/benchmark-thresholds.js";
 
 const router: IRouter = Router();
-
-function minUsers(): number {
-  const v = Number(process.env.BENCHMARK_MIN_USERS);
-  return Number.isFinite(v) && v > 0 ? v : DEFAULT_MIN_USERS;
-}
-function minRows(): number {
-  const v = Number(process.env.BENCHMARK_MIN_ROWS);
-  return Number.isFinite(v) && v > 0 ? v : DEFAULT_MIN_ROWS;
-}
 
 const uid = (name: string, unit: string) => `${name}::${unit}`;
 /** Powyżej tej krotności różnicy względem mediany uznajemy porównanie za błędne dopasowanie. */
 const MAX_PRICE_RATIO = 2.5;
+/** Przedział „wszystkie wielkości opakowań” w agregacji na żądanie. */
+const ALL_TIERS = "*";
+
+type MatchConfidence = "gtin" | "dictionary_pack" | "dictionary" | "exact_name";
+const CONFIDENCE_RANK: Record<MatchConfidence, number> = { exact_name: 0, dictionary: 1, dictionary_pack: 2, gtin: 3 };
 
 type YourPriceRow = {
   canonical_name: string;
   unit: string;
   product_name: string;
   product_id: number;
-  your_price: number;
-  monthly_quantity: number;
+  value: number;
+  quantity: number;
 };
 
-type BenchmarkRow = {
+type AliasRow = {
   canonical_name: string;
-  market_group_key: string;
   unit: string;
+  market_group_key: string;
+  compare_unit: string;
+  price_factor: number;
+  pack_tier: string;
+  match_confidence: string;
   category: string | null;
-  period_month: string;
-  median_price: number | null;
-  p25_price: number | null;
-  p75_price: number | null;
-  distinct_user_count: number;
-  sample_row_count: number;
-  is_published: boolean;
 };
 
-type HistoryRow = {
+type AggRow = {
   market_group_key: string;
-  unit: string;
+  compare_unit: string;
+  pack_tier: string;
   period_month: string;
-  median_price: number | null;
+  median: number | null;
+  p25: number | null;
+  p75: number | null;
+  n: number;
+  nk: number;
 };
 
 // ─── GET /benchmarks — Twoje ceny na tle anonimowej mediany rynkowej ───────
 //
-// Jedyne miejsce łamiące regułę "zawsze filtruj po userId": po stronie rynkowej
-// czyta WYŁĄCZNIE market_price_benchmarks (tabela bez userId/supplierId/invoiceId
-// z definicji — patrz schema), po stronie własnej normalnie WHERE user_id = ${userId}.
-// Wiersze z is_published=false NIGDY nie trafiają do odpowiedzi z liczbami — front
-// dostaje samo insufficientData:true + count/threshold.
+// Spec benchmark v2 (2026-10-11), anonimowość:
+//  - mediana i percentyle liczone NA ŻĄDANIE z market_user_prices z warunkiem
+//    user_id <> oglądający (leave-one-out) — Twoja cena nigdy nie wchodzi do mediany,
+//    którą widzisz, więc nie da się „odjąć siebie” i wyliczyć cen innych lokali;
+//  - mediana dopiero przy ≥ 5 innych restauracjach (≥ 2 z KSeF), p25–p75 przy ≥ 8;
+//  - ceny zaokrąglone do 10 gr, liczba restauracji tylko w przedziałach (sourceBucket);
+//  - po stronie własnej normalnie WHERE user_id = ${userId}.
 router.get("/benchmarks", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const categoryFilter = typeof req.query.category === "string" && req.query.category.trim() ? req.query.category.trim() : null;
@@ -69,33 +77,39 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
   `);
   const optedIn = settingsResult.rows[0]?.benchmark_opt_in ?? true; // brak wiersza = domyślnie true
   if (!optedIn) {
-    res.json({ optedIn: false, items: [], summary: null });
+    res.json({ optedIn: false, items: [], skipped: [], summary: null });
     return;
   }
 
   const invoiceIdRaw = typeof req.query.invoiceId === "string" ? Number(req.query.invoiceId) : NaN;
   const invoiceId = Number.isInteger(invoiceIdRaw) && invoiceIdRaw > 0 ? invoiceIdRaw : null;
 
-  // Wspólne warunki „Twojej ceny”: tylko wydatki (bez excluded i bez KOR/ROZ — korekty
-  // różnic cen i rozliczenia zaliczek to nie cena zakupu; spójnie z regułą 29),
-  // produkty z nazwą kanoniczną, bez kategorii wyłączonych z benchmarku.
+  // Wspólne warunki „Twojej ceny”: tylko wydatki (bez excluded i bez KOR/ROZ — reguła 29),
+  // produkty z nazwą kanoniczną, bez kategorii wyłączonych z benchmarku, dodatnia cena i ilość.
   const baseWhere = sql`
     i.user_id = ${userId}
     ${spendInvoicesFilter("i")}
     AND p.canonical_name IS NOT NULL
     AND (p.category IS NULL OR p.category NOT IN (${sql.join(EXCLUDED_BENCHMARK_CATEGORIES.map((c) => sql`${c}`), sql`, `)}))
+    AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0
   `;
 
   // Okres „Twojej ceny” (invoice_date to TEXT YYYY-MM-DD — porównania stringów, reguła 3):
-  //  - invoice: tylko wskazana faktura (ekran po imporcie z podglądu XML), ilość = z faktury;
-  //  - recent: ostatnie 3 miesiące, ilość miesięczna = suma / 3 (jak dotąd);
-  //  - latestMonth: brak zakupów w 3 mies. → najnowszy miesiąc z zakupami (ktoś wgrał
-  //    fakturę z lipca i dotąd widział „brak danych”), ilość = suma z tego miesiąca.
+  //  - invoice: tylko wskazana faktura (ekran po imporcie z podglądu XML);
+  //  - recent: ostatnie 3 miesiące, ilość miesięczna = suma / 3;
+  //  - latestMonth: brak zakupów w 3 mies. → najnowszy miesiąc z zakupami.
   let scope: "recent" | "latestMonth" | "invoice";
   let periodWhere: SQL;
   let quantityDivisor: number;
   let periodFrom: string | null;
   let periodTo: string | null;
+
+  const months = await db.execute<{ this_month: string; prev_month: string; cutoff: string }>(sql`
+    SELECT to_char(current_date, 'YYYY-MM') AS this_month,
+           to_char(current_date - interval '1 month', 'YYYY-MM') AS prev_month,
+           to_char(current_date - interval '3 months', 'YYYY-MM-DD') AS cutoff
+  `);
+  const { this_month: thisMonth, prev_month: prevMonth, cutoff } = months.rows[0]!;
 
   if (invoiceId != null) {
     const inv = await db.execute<{ invoice_date: string }>(sql`
@@ -111,18 +125,16 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     quantityDivisor = 1;
     periodFrom = periodTo = d.slice(0, 7);
   } else {
-    const range = await db.execute<{ last_date: string | null; cutoff: string; this_month: string }>(sql`
-      SELECT MAX(i.invoice_date) AS last_date,
-             to_char(current_date - interval '3 months', 'YYYY-MM-DD') AS cutoff,
-             to_char(current_date, 'YYYY-MM') AS this_month
+    const range = await db.execute<{ last_date: string | null }>(sql`
+      SELECT MAX(i.invoice_date) AS last_date
       FROM invoice_items ii
       JOIN invoices i ON i.id = ii.invoice_id
       JOIN products p ON p.id = ii.product_id
       WHERE ${baseWhere}
     `);
-    const { last_date: lastDate, cutoff, this_month: thisMonth } = range.rows[0] ?? { last_date: null, cutoff: "", this_month: "" };
+    const lastDate = range.rows[0]?.last_date ?? null;
     if (!lastDate) {
-      res.json({ optedIn: true, items: [], summary: emptySummary(), scope: "recent", yourPricePeriodFrom: null, yourPricePeriodTo: null });
+      res.json({ optedIn: true, items: [], skipped: [], summary: emptySummary(), scope: "recent", yourPricePeriodFrom: null, yourPricePeriodTo: null });
       return;
     }
     if (lastDate >= cutoff) {
@@ -140,226 +152,309 @@ router.get("/benchmarks", async (req, res): Promise<void> => {
     }
   }
 
-  // Twoja cena per (canonical_name, unit znormalizowany — musi się zgadzać z tym, co
-  // matcher zapisał w market_product_aliases) + ilość do potencjału oszczędności.
+  // Wartość i ilość per (canonical_name, jednostka) — cena = średnia WAŻONA ilością.
   const yourPricesResult = await db.execute<YourPriceRow>(sql`
     SELECT
       p.canonical_name,
       ${normalizedUnitSql(sql`p.unit`)} AS unit,
       MAX(p.name) AS product_name,
       MAX(p.id)::int AS product_id,
-      AVG(ii.unit_price::numeric)::float AS your_price,
-      (SUM(ii.quantity::numeric) / ${quantityDivisor})::float AS monthly_quantity
+      SUM(ii.unit_price::numeric * ii.quantity::numeric)::float AS value,
+      SUM(ii.quantity::numeric)::float AS quantity
     FROM invoice_items ii
     JOIN invoices i ON i.id = ii.invoice_id
     JOIN products p ON p.id = ii.product_id
     WHERE ${baseWhere} ${periodWhere}
     GROUP BY p.canonical_name, ${normalizedUnitSql(sql`p.unit`)}
   `);
-  const yourPrices = yourPricesResult.rows;
   const periodMeta = { scope, yourPricePeriodFrom: periodFrom, yourPricePeriodTo: periodTo };
 
+  // „To nie ten produkt” (etap 4): zgłoszone przez TEGO usera warianty znikają od razu.
+  const feedbackRows = await db.execute<{ canonical_name: string; unit: string }>(sql`
+    SELECT canonical_name, unit FROM market_match_feedback WHERE user_id = ${userId}
+  `);
+  const reported = new Set(feedbackRows.rows.map((r) => uid(r.canonical_name, r.unit)));
+  const yourPrices = yourPricesResult.rows.filter((r) => !reported.has(uid(r.canonical_name, r.unit)) && r.quantity > 0);
+
   if (yourPrices.length === 0) {
-    res.json({ optedIn: true, items: [], summary: emptySummary(), ...periodMeta });
+    res.json({ optedIn: true, items: [], skipped: [], summary: emptySummary(), ...periodMeta });
     return;
   }
 
-  // market_group_key + jednostka porównania + mnożnik ceny dla każdego (canonical_name, unit)
-  // usera i NAJNOWSZY OPUBLIKOWANY wiersz benchmarku dla tej grupy (is_published DESC przed
-  // period_month DESC — bieżący miesiąc regularnie ma mniej niż próg userów, a poprzedni,
-  // opublikowany, wciąż jest aktualny). Tylko gdy grupa nigdy się nie opublikowała, bierzemy
-  // najnowszy nieopublikowany wiersz wyłącznie do komunikatu „za mało danych”.
-  const benchResult = await db.execute<BenchmarkRow & { price_factor: number }>(sql`
-    SELECT DISTINCT ON (mpa.canonical_name, mpa.unit)
-      mpa.canonical_name,
-      mpa.unit AS invoice_unit,
-      mpa.price_factor::float AS price_factor,
-      mpb.market_group_key, mpb.unit, mpb.category, mpb.period_month,
-      mpb.median_price::float AS median_price, mpb.p25_price::float AS p25_price, mpb.p75_price::float AS p75_price,
-      mpb.distinct_user_count, mpb.sample_row_count, mpb.is_published
-    FROM market_product_aliases mpa
-    JOIN market_price_benchmarks mpb
-      ON mpb.market_group_key = mpa.market_group_key AND mpb.unit = COALESCE(mpa.compare_unit, mpa.unit)
-    WHERE (mpa.canonical_name, mpa.unit) IN (
-      ${sql.join(yourPrices.map((r) => sql`(${r.canonical_name}, ${r.unit})`), sql`, `)}
-    )
-    ORDER BY mpa.canonical_name, mpa.unit, mpb.is_published DESC, mpb.period_month DESC
+  // Karta każdego wariantu: alias z matchera (grupa, jednostka porównania, mnożnik, przedział,
+  // pewność), a dla nazw bez aliasu (matcher liczy raz na dobę) ta sama karta w locie ze słownika.
+  const aliasResult = await db.execute<AliasRow>(sql`
+    SELECT canonical_name, unit, market_group_key, COALESCE(compare_unit, unit) AS compare_unit,
+           price_factor::float AS price_factor, COALESCE(pack_tier, 'szt') AS pack_tier,
+           COALESCE(match_confidence, 'exact_name') AS match_confidence, category
+    FROM market_product_aliases
+    WHERE (canonical_name, unit) IN (${sql.join(yourPrices.map((r) => sql`(${r.canonical_name}, ${r.unit})`), sql`, `)})
   `);
-  const benchRows: BenchmarkRow[] = [];
-  const benchByKey = new Map<string, BenchmarkRow>();
-  const factorByKey = new Map<string, number>();
-  for (const r of benchResult.rows) {
-    const k = uid(r.canonical_name, (r as unknown as { invoice_unit: string }).invoice_unit);
-    benchByKey.set(k, r);
-    factorByKey.set(k, r.price_factor);
-    benchRows.push(r);
-  }
+  const aliasByKey = new Map(aliasResult.rows.map((a) => [uid(a.canonical_name, a.unit), a]));
 
-  // Nazwa bez aliasu (matcher liczy aliasy raz na dobę — nowy user do jutra nie miałby
-  // porównań): ta sama karta co w matcherze, policzona w locie — produkt bazowy ze słownika
-  // + jednostka porównania + mnożnik ceny. Deterministycznie, bez podobieństwa liter, bez AI.
-  const derivedKeys = new Set<string>();
-  const wanted = new Map<string, { group: string; unit: string; factor: number }>();
-  for (const yp of yourPrices) {
-    const k = uid(yp.canonical_name, yp.unit);
-    if (benchByKey.has(k)) continue;
+  type Card = { group: string; label: string | null; compareUnit: string; factor: number; tier: string; confidence: MatchConfidence; category: string | null };
+  const cardOf = (yp: YourPriceRow): Card | null => {
+    const a = aliasByKey.get(uid(yp.canonical_name, yp.unit));
+    if (a) {
+      const confidence = a.match_confidence as MatchConfidence;
+      return {
+        group: a.market_group_key,
+        label: confidence === "exact_name" ? null : a.market_group_key,
+        compareUnit: a.compare_unit,
+        factor: a.price_factor,
+        tier: a.pack_tier,
+        confidence,
+        category: a.category,
+      };
+    }
     const g = genericProduct(yp.canonical_name);
-    if (!g) continue;
-    const basis = priceBasis(yp.canonical_name, yp.unit);
-    wanted.set(k, { group: basis.packKey ? `${g.label} · ${basis.packKey}` : g.label, unit: basis.compareUnit, factor: basis.factor });
+    if (!g) return null;
+    const b = priceBasis(yp.canonical_name, yp.unit);
+    const group = b.packKey ? `${g.label} · ${b.packKey}` : g.label;
+    return {
+      group,
+      label: group,
+      compareUnit: b.compareUnit,
+      factor: b.factor,
+      tier: b.packTier,
+      confidence: b.compareUnit !== yp.unit ? "dictionary_pack" : "dictionary",
+      category: null,
+    };
+  };
+
+  // Pozycje z tej samej grupy rynkowej i przedziału opakowania łączymy w jedną kartę
+  // („Ogórki małosolne luz polski” + „OGÓRKI MAŁOSOLNE LUZ”).
+  type Merged = {
+    key: string;
+    card: Card | null;
+    variants: YourPriceRow[];
+    value: number;
+    compareQty: number;
+  };
+  const merged = new Map<string, Merged>();
+  for (const yp of yourPrices) {
+    const card = cardOf(yp);
+    const factor = card?.factor && card.factor > 0 ? card.factor : 1;
+    const key = card ? `${card.group}::${card.compareUnit}::${card.tier}` : `own::${uid(yp.canonical_name, yp.unit)}`;
+    const m = merged.get(key) ?? { key, card, variants: [], value: 0, compareQty: 0 };
+    m.variants.push(yp);
+    m.value += yp.value;
+    m.compareQty += yp.quantity / factor;
+    // Najmocniejsza pewność z łączonych wariantów.
+    if (card && m.card && CONFIDENCE_RANK[card.confidence] > CONFIDENCE_RANK[m.card.confidence]) m.card = { ...m.card, confidence: card.confidence };
+    merged.set(key, m);
   }
-  if (wanted.size > 0) {
-    const pairs = [...new Set([...wanted.values()].map((w) => uid(w.group, w.unit)))].map((p) => p.split("::") as [string, string]);
-    const derived = await db.execute<BenchmarkRow>(sql`
-      SELECT DISTINCT ON (market_group_key, unit)
-        market_group_key, unit, category, period_month,
-        median_price::float AS median_price, p25_price::float AS p25_price, p75_price::float AS p75_price,
-        distinct_user_count, sample_row_count, is_published
-      FROM market_price_benchmarks
-      WHERE (market_group_key, unit) IN (${sql.join(pairs.map(([g, u]) => sql`(${g}, ${u})`), sql`, `)})
-      ORDER BY market_group_key, unit, is_published DESC, period_month DESC
+
+  // Mediany na żądanie — BEZ oglądającego. Okresy: bieżący miesiąc, poprzedni, ostatnie 12 mies.
+  // Przedziały: własny przedział opakowania i „wszystkie przedziały” ('*', jedna cena na lokal).
+  const groupPairs = [...new Set([...merged.values()].filter((m) => m.card).map((m) => uid(m.card!.group, m.card!.compareUnit)))]
+    .map((p) => p.split("::") as [string, string]);
+  const aggByKey = new Map<string, AggRow>();
+  let contributionOthers = 0;
+  if (groupPairs.length > 0) {
+    const pairsSql = sql.join(groupPairs.map(([g, u]) => sql`(${g}, ${u})`), sql`, `);
+    const agg = await db.execute<AggRow>(sql`
+      WITH t AS (
+        SELECT market_group_key, compare_unit, pack_tier, period_month, user_id,
+               price_per_unit::numeric AS price, quantity::numeric AS quantity, has_ksef
+        FROM market_user_prices
+        WHERE user_id <> ${userId}
+          AND period_month IN (${thisMonth}, ${prevMonth}, ${R12})
+          AND (market_group_key, compare_unit) IN (${pairsSql})
+      ),
+      a AS (
+        SELECT market_group_key, compare_unit, ${ALL_TIERS}::text AS pack_tier, period_month, user_id,
+               SUM(price * quantity) / NULLIF(SUM(quantity), 0) AS price, bool_or(has_ksef) AS has_ksef
+        FROM t GROUP BY 1, 2, 4, 5
+      ),
+      u AS (
+        SELECT market_group_key, compare_unit, pack_tier, period_month, user_id, price, has_ksef FROM t
+        UNION ALL
+        SELECT market_group_key, compare_unit, pack_tier, period_month, user_id, price, has_ksef FROM a
+      )
+      SELECT market_group_key, compare_unit, pack_tier, period_month,
+             percentile_cont(0.5) WITHIN GROUP (ORDER BY price)::float AS median,
+             percentile_cont(0.25) WITHIN GROUP (ORDER BY price)::float AS p25,
+             percentile_cont(0.75) WITHIN GROUP (ORDER BY price)::float AS p75,
+             COUNT(*)::int AS n,
+             COUNT(*) FILTER (WHERE has_ksef)::int AS nk
+      FROM u
+      GROUP BY 1, 2, 3, 4
     `);
-    const byGroup = new Map(derived.rows.map((r) => [uid(r.market_group_key, r.unit), r]));
-    for (const [k, w] of wanted) {
-      const r = byGroup.get(uid(w.group, w.unit));
-      if (!r) continue;
-      const row = { ...r, canonical_name: k.split("::")[0]! };
-      benchByKey.set(k, row);
-      factorByKey.set(k, w.factor);
-      benchRows.push(row);
-      derivedKeys.add(k);
-    }
-  }
+    for (const r of agg.rows) aggByKey.set(`${r.market_group_key}::${r.compare_unit}::${r.pack_tier}::${r.period_month}`, r);
 
-  // 6-miesięczny mini-trend mediany rynkowej — tylko dla opublikowanych okresów.
-  const historyByKey = new Map<string, Array<{ month: string; median: number }>>();
-  if (benchRows.length > 0) {
-    const historyResult = await db.execute<HistoryRow>(sql`
-      SELECT market_group_key, unit, period_month, median_price::float AS median_price
-      FROM market_price_benchmarks
-      WHERE is_published = true
-        AND (market_group_key, unit) IN (
-          ${sql.join(benchRows.map((r) => sql`(${r.market_group_key}, ${r.unit})`), sql`, `)}
-        )
-      ORDER BY period_month ASC
+    // Ile innych restauracji korzysta z Twoich cen (kupuje te same produkty) — tylko przedział.
+    const contrib = await db.execute<{ n: number }>(sql`
+      SELECT COUNT(DISTINCT user_id)::int AS n FROM market_user_prices
+      WHERE user_id <> ${userId} AND period_month = ${R12} AND (market_group_key, compare_unit) IN (${pairsSql})
     `);
-    for (const r of historyResult.rows) {
-      const k = uid(r.market_group_key, r.unit);
-      const arr = historyByKey.get(k) ?? [];
-      if (r.median_price != null) arr.push({ month: r.period_month, median: r.median_price });
-      historyByKey.set(k, arr.slice(-6));
-    }
+    contributionOthers = contrib.rows[0]?.n ?? 0;
   }
 
-  const MIN_USERS = minUsers();
-  const MIN_ROWS = minRows();
+  const MIN_OTHERS = medianMinOthers();
+  const MIN_KSEF = medianMinKsef();
+  const SPREAD_MIN = spreadMinOthers();
+  const qualifies = (a: AggRow | undefined): a is AggRow => !!a && a.n >= MIN_OTHERS && a.nk >= MIN_KSEF && a.median != null;
+  const periods = [thisMonth, prevMonth, R12];
 
-  // Zapas: gdy grupa nie ma opublikowanej mediany MIESIĘCZNEJ, bierzemy medianę z okna
-  // 12 mies. (market_price_ranges, te same progi k-anonimowości). Przy małej liczbie kont
-  // to ona daje większość porównań. Front podpisuje taki wiersz „mediana z 12 mies.”.
-  type RangeRow = { market_group_key: string; unit: string; median_price: number | null; p25_price: number | null; p75_price: number | null; distinct_user_count: number; sample_row_count: number; from_month: string; to_month: string };
-  const rangeByKey = new Map<string, RangeRow>();
-  const needRange = benchRows.filter((r) => !r.is_published);
-  if (needRange.length > 0) {
-    const rangeResult = await db.execute<RangeRow>(sql`
-      SELECT market_group_key, unit, median_price::float AS median_price, p25_price::float AS p25_price, p75_price::float AS p75_price,
-             distinct_user_count, sample_row_count, from_month, to_month
-      FROM market_price_ranges
-      WHERE is_published = true AND window_months = ${RANGE_WINDOW_MONTHS}
-        AND (market_group_key, unit) IN (${sql.join(needRange.map((r) => sql`(${r.market_group_key}, ${r.unit})`), sql`, `)})
-    `);
-    for (const r of rangeResult.rows) rangeByKey.set(uid(r.market_group_key, r.unit), r);
-  }
-
-  const items = yourPrices.map((yp) => {
-    const key = uid(yp.canonical_name, yp.unit);
-    const monthly = benchByKey.get(key);
-    // Cena i ilość w jednostce porównania (np. paczka 1,05 kg po 44,80 zł/szt → 42,67 zł/kg),
-    // tak samo jak mediana rynku liczona w jobie.
-    const factor = factorByKey.get(key) ?? 1;
-    const yourPrice = yp.your_price * factor;
-    const monthlyQuantity = factor > 0 ? yp.monthly_quantity / factor : yp.monthly_quantity;
-    const range = monthly && !monthly.is_published ? rangeByKey.get(uid(monthly.market_group_key, monthly.unit)) : undefined;
-    const bench = range && monthly
-      ? { ...monthly, ...range, is_published: true, period_month: range.to_month }
-      : monthly;
+  const skipped: Array<{ name: string; reason: SkipReason }> = [];
+  const items = [];
+  for (const m of merged.values()) {
+    const first = m.variants[0]!;
+    const yourPrice = m.compareQty > 0 ? m.value / m.compareQty : 0;
+    const monthlyQuantity = m.compareQty / quantityDivisor;
+    const card = m.card;
+    // Przeliczenie pokazujemy tylko, gdy wszystkie łączone pozycje mają ten sam mnożnik.
+    const sameFactor = m.variants.every((v) => (aliasByKey.get(uid(v.canonical_name, v.unit))?.price_factor ?? cardOf(v)?.factor ?? 1) === (card?.factor ?? 1));
     const base = {
-      productId: yp.product_id,
-      productName: yp.product_name,
-      unit: bench?.unit ?? yp.unit,
-      category: bench?.category ?? null,
+      productId: first.product_id,
+      productName: first.product_name,
+      invoiceNames: m.variants.length > 1 ? m.variants.map((v) => v.product_name) : undefined,
+      variants: m.variants.map((v) => ({ canonicalName: v.canonical_name, unit: v.unit })),
+      marketLabel: card?.label ?? null,
+      unit: card?.compareUnit ?? first.unit,
+      invoiceUnit: first.unit,
+      invoiceUnitPrice: sameFactor && first.quantity > 0 ? first.value / first.quantity : null,
+      priceFactor: sameFactor ? (card?.factor ?? 1) : null,
+      packTier: card?.tier ?? null,
+      matchConfidence: card?.confidence ?? null,
+      category: card?.category ?? null,
       yourPrice,
       monthlyQuantity,
+      minUsers: MIN_OTHERS,
     };
-    if (!bench || !bench.is_published) {
-      return {
-        ...base,
-        insufficientData: true,
-        notComparableReason: "insufficient_data" as const,
-        distinctUserCount: bench?.distinct_user_count ?? 0,
-        minUsers: MIN_USERS,
-        minRows: MIN_ROWS,
-      };
+    const reason = m.variants.map((v) => skipReason(v.canonical_name)).find((r) => r != null) ?? null;
+
+    let chosen: { agg: AggRow; tierFallback: boolean; period: string } | null = null;
+    if (card) {
+      outer: for (const tier of [card.tier, ALL_TIERS]) {
+        for (const p of periods) {
+          const a = aggByKey.get(`${card.group}::${card.compareUnit}::${tier}::${p}`);
+          if (qualifies(a)) {
+            chosen = { agg: a, tierFallback: tier === ALL_TIERS && card.tier !== ALL_TIERS, period: p };
+            break outer;
+          }
+        }
+      }
     }
-    const median = bench.median_price ?? 0;
-    // Bezpiecznik: cena 2,5× wyższa albo 2,5× niższa od mediany tego samego produktu to prawie
-    // zawsze inna rzecz (karton zamiast sztuki, granulat zamiast świeżego) — nie pokazujemy
-    // „+1400% powyżej mediany” ani fikcyjnej oszczędności, tylko brak porównania.
+
+    if (!chosen || !card) {
+      // Przypomina produkt ze słownika, ale odpadł przez wykluczenie (danie, przetwór, mrożonka…)
+      // i nie ma z czym go porównać — lista „Pominięte w porównaniu”, nie karta „za mało danych”.
+      if (reason) {
+        skipped.push({ name: first.product_name, reason });
+        continue;
+      }
+      items.push({ ...base, insufficientData: true, notComparableReason: "insufficient_data" as const });
+      continue;
+    }
+
+    const median = roundPublished(chosen.agg.median)!;
+    // Bezpiecznik: cena 2,5× od mediany tego samego produktu to prawie zawsze inna rzecz
+    // (karton zamiast sztuki) — bez „+1400%” i fikcyjnej oszczędności.
     if (median > 0 && (yourPrice > median * MAX_PRICE_RATIO || yourPrice < median / MAX_PRICE_RATIO)) {
-      return {
-        ...base,
-        insufficientData: true,
-        notComparableReason: "price_outlier" as const,
-        distinctUserCount: bench.distinct_user_count,
-        minUsers: MIN_USERS,
-        minRows: MIN_ROWS,
-      };
+      items.push({ ...base, insufficientData: true, notComparableReason: "price_outlier" as const });
+      continue;
     }
+    const spread = chosen.agg.n >= SPREAD_MIN;
     const deltaPercent = median > 0 ? ((yourPrice - median) / median) * 100 : 0;
     const savingsPerMonth = yourPrice > median ? (yourPrice - median) * monthlyQuantity : 0;
-    return {
+
+    // Większe opakowania tańsze o ≥ 10% (cukier 1 kg vs worki 25 kg).
+    let largerPackMedian: number | null = null;
+    if (!chosen.tierFallback && (card.tier === "S" || card.tier === "M" || card.tier === "luz")) {
+      const big = [chosen.period, R12].map((p) => aggByKey.get(`${card.group}::${card.compareUnit}::L::${p}`)).find(qualifies);
+      const bigMedian = big ? roundPublished(big.median) : null;
+      if (bigMedian != null && bigMedian <= median * 0.9) largerPackMedian = bigMedian;
+    }
+
+    items.push({
       ...base,
       insufficientData: false,
       medianPrice: median,
-      p25Price: bench.p25_price,
-      p75Price: bench.p75_price,
+      p25Price: spread ? roundPublished(chosen.agg.p25) : null,
+      p75Price: spread ? roundPublished(chosen.agg.p75) : null,
       deltaPercent,
-      distinctUserCount: bench.distinct_user_count,
-      sampleRowCount: bench.sample_row_count,
       savingsPerMonth,
-      matchedBy: derivedKeys.has(key) ? ("fuzzy" as const) : ("alias" as const),
-      medianWindow: range ? ("12m" as const) : ("month" as const),
-      medianFromMonth: range ? range.from_month : bench.period_month,
-      medianToMonth: range ? range.to_month : bench.period_month,
-      history: historyByKey.get(uid(bench.market_group_key, bench.unit)) ?? [],
-    };
-  });
+      sourceBucket: sourceBucket(chosen.agg.n),
+      medianPeriod: chosen.period,
+      periodFallback: chosen.period === R12 ? ("R12" as const) : null,
+      tierFallback: chosen.tierFallback,
+      largerPackMedian,
+      // Zgodność wsteczna (podgląd faktury po imporcie): okno mediany i sposób dopasowania.
+      medianWindow: chosen.period === R12 ? ("12m" as const) : ("month" as const),
+      matchedBy: aliasByKey.has(uid(first.canonical_name, first.unit)) ? ("alias" as const) : ("fuzzy" as const),
+    });
+  }
 
   const filtered = categoryFilter ? items.filter((i) => i.category === categoryFilter) : items;
-  const published = items.filter(
-    (i): i is typeof i & { deltaPercent: number; savingsPerMonth: number; distinctUserCount: number } => i.insufficientData === false,
-  );
-  const savingsPotentialTotal = published.reduce((sum, i) => sum + i.savingsPerMonth, 0);
-  const avgDeltaPercent = published.length > 0 ? published.reduce((sum, i) => sum + i.deltaPercent, 0) / published.length : 0;
-  const contributionCount = published.length > 0 ? Math.max(0, Math.max(...published.map((i) => i.distinctUserCount)) - 1) : 0;
+  type Priced = (typeof items)[number] & { deltaPercent: number; savingsPerMonth: number; tierFallback: boolean };
+  const published = items.filter((i): i is Priced => i.insufficientData === false);
+  // Potencjał oszczędności tylko z pewnych dopasowań i tej samej wielkości opakowań.
+  const savingsPotentialTotal = published
+    .filter((i) => i.matchConfidence != null && i.matchConfidence !== "exact_name" && !i.tierFallback)
+    .reduce((sum, i) => sum + i.savingsPerMonth, 0);
+  // Względem mediany: średnia ważona wartością zakupów, nie zwykła.
+  const weight = (i: Priced) => i.yourPrice * i.monthlyQuantity;
+  const totalWeight = published.reduce((s, i) => s + weight(i), 0);
+  const avgDeltaPercent = totalWeight > 0 ? published.reduce((s, i) => s + i.deltaPercent * weight(i), 0) / totalWeight : 0;
+  const computed = await db.execute<{ at: string | null }>(sql`SELECT max(computed_at)::text AS at FROM market_user_prices`);
 
   res.json({
     optedIn: true,
     items: filtered,
+    skipped,
     ...periodMeta,
     summary: {
       savingsPotentialTotal,
       avgDeltaPercent,
       benchmarkedCount: published.length,
       totalCount: items.length,
-      contributionCount,
+      skippedCount: skipped.length,
+      contributionBucket: contributionBucket(contributionOthers),
+      computedAt: computed.rows[0]?.at ? new Date(computed.rows[0].at).toISOString() : null,
     },
   });
 });
 
 function emptySummary() {
-  return { savingsPotentialTotal: 0, avgDeltaPercent: 0, benchmarkedCount: 0, totalCount: 0, contributionCount: 0 };
+  return { savingsPotentialTotal: 0, avgDeltaPercent: 0, benchmarkedCount: 0, totalCount: 0, skippedCount: 0, contributionBucket: "<5" as const, computedAt: null };
 }
+
+// ─── POST /benchmarks/feedback — „To nie ten produkt” ───────────────────────
+// Natychmiast: pozycja znika z porównania TEGO usera (filtr w GET wyżej). Globalnie: gdy
+// ≥ 2 różne restauracje zgłoszą ten sam wariant, matcher wyłącza go z grupy, a admin może
+// to potwierdzić albo cofnąć (routes/admin.ts). Zgłaszać można tylko własne pozycje.
+router.post("/benchmarks/feedback", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const parsed = SubmitBenchmarkFeedbackBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { variants, reason, marketGroupKey } = parsed.data;
+  // Tylko warianty, które ten user faktycznie kupuje — nikt nie „wyłączy” cudzego produktu.
+  const own = await db.execute<{ canonical_name: string; unit: string }>(sql`
+    SELECT DISTINCT canonical_name, ${normalizedUnitSql(sql`unit`)} AS unit
+    FROM products
+    WHERE user_id = ${userId}
+      AND (canonical_name, ${normalizedUnitSql(sql`unit`)}) IN (${sql.join(variants.map((v) => sql`(${v.canonicalName}, ${v.unit})`), sql`, `)})
+  `);
+  if (own.rows.length === 0) {
+    res.status(404).json({ error: "Nie znaleziono tej pozycji wśród Twoich produktów." });
+    return;
+  }
+  for (const v of own.rows) {
+    await db
+      .insert(marketMatchFeedbackTable)
+      .values({ userId, canonicalName: v.canonical_name, unit: v.unit, marketGroupKey: marketGroupKey ?? null, reason })
+      .onConflictDoUpdate({
+        target: [marketMatchFeedbackTable.userId, marketMatchFeedbackTable.canonicalName, marketMatchFeedbackTable.unit],
+        set: { reason, marketGroupKey: marketGroupKey ?? null, createdAt: new Date() },
+      });
+  }
+  res.json({ ok: true });
+});
 
 // ─── PATCH /benchmarks/opt-in — przełącznik prywatności ────────────────────
 // false = user nie jest ani źródłem (market-benchmark-job.ts WHERE), ani odbiorcą

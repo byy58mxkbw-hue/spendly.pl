@@ -1,35 +1,41 @@
 import type { Logger } from "pino";
-import { sql, eq } from "drizzle-orm";
-import { db, marketPriceBenchmarksTable, marketPriceRangesTable } from "@workspace/db";
+import { sql } from "drizzle-orm";
+import { db, marketPriceBenchmarksTable, marketPriceRangesTable, marketUserPricesTable } from "@workspace/db";
 import { runMarketProductMatcher } from "../lib/market-product-matcher.js";
 import { normalizedUnitSql } from "../lib/units.js";
 // Mediana liczona tylko z wydatków: bez excluded i bez KOR/ROZ (korekty różnic cen
 // mają kwoty ujemne, rozliczenia zaliczek dublują towar) — ta sama definicja co ekrany.
 import { spendInvoicesFilter } from "../lib/invoice-line-classify.js";
+import { medianMinKsef, publicMinUsers, spreadMinOthers } from "../lib/benchmark-thresholds.js";
 
 // Batch dzienny — NIE live query. Wzorowany na ksef-scheduler.ts (setInterval).
-// Liczy jedną cenę na usera na okres (żeby duży klient z wieloma fakturami tego
-// samego produktu w miesiącu nie ważył mediany nieproporcjonalnie).
 //
-// Progi TYMCZASOWO obniżone (2026-09-24, na wyraźną prośbę) — na produkcji jest
-// dziś tylko 7 userów z fakturami w ogóle, więc rekomendowane z brief 5/8 nigdy
-// by się nie opublikowało (max zaobserwowany distinct_user_count = 3). 3/3 to
-// wciąż realny próg k-anonimowości (nigdy 1-2 osoby), ale WYRAŹNIE słabszy niż
-// zalecane 5 — podnieś z powrotem do 5/8, gdy baza userów wystarczająco urośnie.
-// Konfigurowalne przez BENCHMARK_MIN_USERS/BENCHMARK_MIN_ROWS bez zmiany kodu.
-export const DEFAULT_MIN_USERS = 3;
-export const DEFAULT_MIN_ROWS = 3;
+// Spec benchmark v2 (2026-10-11):
+//  - JEDNA cena na restaurację (wcześniej per dostawca — lokal z 3 dostawcami miał 3 głosy),
+//  - średnia WAŻONA ilością: Σ(cena × ilość) / Σ(ilość ÷ factor) w kg/l/szt (1 kg po 10 zł
+//    i 99 kg po 5 zł to ~5,05 zł/kg, nie 7,50),
+//  - per przedział opakowania (luz/S/M/L/szt),
+//  - wynik w market_user_prices (wewnętrzna; mediany dla zalogowanych liczy routes/benchmarks.ts
+//    na żądanie BEZ oglądającego) + publiczne agregaty (market_price_benchmarks miesięcznie,
+//    market_price_ranges z 12 mies.) dla strony cen rynkowych — próg ≥ 5 restauracji,
+//    ceny zaokrąglone do 10 gr, p25–p75 tylko przy ≥ 8.
 
-function minUsers(): number {
-  const v = Number(process.env.BENCHMARK_MIN_USERS);
-  return Number.isFinite(v) && v > 0 ? v : DEFAULT_MIN_USERS;
-}
-function minRows(): number {
-  const v = Number(process.env.BENCHMARK_MIN_ROWS);
-  return Number.isFinite(v) && v > 0 ? v : DEFAULT_MIN_ROWS;
-}
+export const RANGE_WINDOW_MONTHS = 12;
+/** Okres „ostatnie 12 miesięcy” w market_user_prices. */
+export const R12 = "R12";
 
-type AggregatedBenchmarkRow = {
+type UserPriceRow = {
+  market_group_key: string;
+  compare_unit: string;
+  pack_tier: string;
+  period_month: string;
+  user_id: string;
+  category: string | null;
+  price_per_unit: string | null;
+  quantity: string;
+};
+
+type PublicAggRow = {
   market_group_key: string;
   unit: string;
   category: string | null;
@@ -37,20 +43,20 @@ type AggregatedBenchmarkRow = {
   median_price: string | null;
   p25_price: string | null;
   p75_price: string | null;
-  distinct_user_count: number;
-  verified_user_count: number;
-  distinct_supplier_count: number;
-  sample_row_count: number;
+  n: number;
+  nk: number;
+  from_month: string | null;
+  to_month: string | null;
 };
 
+const round1 = (v: string | null) => (v == null ? null : (Math.round(Number(v) * 10) / 10).toFixed(2));
+
 /**
- * Batch benchmarku rynkowego: (1) przelicza grupowanie rozmyte nazw produktów
- * (market-product-matcher.ts), (2) liczy median/p25/p75 per (market_group_key,
- * unit, period_month) i upsertuje do market_price_benchmarks. Respektuje
- * benchmark_opt_in w OBIE strony — user z opt-out=false nie jest źródłem danych
- * (WHERE niżej), a routes/benchmarks.ts osobno pilnuje, że taki user nie WIDZI
- * benchmarku. Wywoływane przez harmonogram (startMarketBenchmarkScheduler) i
- * ręcznie (admin POST /admin/benchmarks/run).
+ * Batch benchmarku rynkowego: (1) matcher — karty produktów i aliasy, (2) jedna ważona cena na
+ * restaurację → market_user_prices, (3) publiczne agregaty. Respektuje benchmark_opt_in w obie
+ * strony — user z opt-out nie jest źródłem (WHERE niżej), a routes/benchmarks.ts pilnuje, że
+ * taki user nie widzi porównania. Harmonogram (startMarketBenchmarkScheduler) i ręcznie
+ * (admin POST /admin/benchmarks/run).
  */
 export async function runMarketBenchmarkJob(log: Logger): Promise<{
   groups: number;
@@ -59,21 +65,25 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
 }> {
   const matcherResult = await runMarketProductMatcher(log);
 
-  const MIN_USERS = minUsers();
-  const MIN_ROWS = minRows();
+  // Restauracje z co najmniej jedną fakturą z KSeF — do progu „≥ 2 z KSeF” (trudne do
+  // podrobienia: ktoś z kilkoma kontami i ręcznymi plikami nie otworzy sam publikacji).
+  const ksefUsers = new Set(
+    (await db.execute<{ user_id: string }>(sql`SELECT DISTINCT user_id FROM invoices WHERE source = 'ksef_sync'`)).rows.map((r) => r.user_id),
+  );
 
-  const aggResult = await db.execute<AggregatedBenchmarkRow>(sql`
-    WITH per_user_price AS (
+  const perUser = await db.execute<UserPriceRow>(sql`
+    WITH base AS (
       SELECT
         mpa.market_group_key,
-        COALESCE(mpa.compare_unit, mpa.unit) AS unit,
+        COALESCE(mpa.compare_unit, mpa.unit) AS compare_unit,
+        COALESCE(mpa.pack_tier, 'szt') AS pack_tier,
         mpa.category,
         SUBSTRING(i.invoice_date, 1, 7) AS period_month,
+        i.invoice_date,
         i.user_id,
-        i.supplier_id,
-        AVG(ii.unit_price::numeric * mpa.price_factor::numeric) AS avg_price,
-        -- Czy user ma choć jedną fakturę pobraną z KSeF (patrz verified_user_count niżej).
-        EXISTS (SELECT 1 FROM invoices k WHERE k.user_id = i.user_id AND k.source = 'ksef_sync') AS has_ksef
+        ii.unit_price::numeric AS price,
+        ii.quantity::numeric AS qty,
+        mpa.price_factor::numeric AS factor
       FROM invoice_items ii
       JOIN invoices i ON i.id = ii.invoice_id
       JOIN products p ON p.id = ii.product_id
@@ -83,160 +93,143 @@ export async function runMarketBenchmarkJob(log: Logger): Promise<{
       WHERE p.canonical_name IS NOT NULL
         ${spendInvoicesFilter("i")}
         AND COALESCE(us.benchmark_opt_in, true) = true
-      GROUP BY 1, 2, 3, 4, 5, 6
+        AND ii.quantity::numeric > 0 AND ii.unit_price::numeric > 0 AND mpa.price_factor > 0
     )
-    SELECT
-      market_group_key, unit, category, period_month,
-      percentile_cont(0.5) WITHIN GROUP (ORDER BY avg_price)::text AS median_price,
-      percentile_cont(0.25) WITHIN GROUP (ORDER BY avg_price)::text AS p25_price,
-      percentile_cont(0.75) WITHIN GROUP (ORDER BY avg_price)::text AS p75_price,
-      COUNT(DISTINCT user_id)::int AS distinct_user_count,
-      COUNT(DISTINCT user_id) FILTER (WHERE has_ksef)::int AS verified_user_count,
-      COUNT(DISTINCT supplier_id)::int AS distinct_supplier_count,
-      COUNT(*)::int AS sample_row_count
-    FROM per_user_price
-    GROUP BY market_group_key, unit, category, period_month
+    SELECT market_group_key, compare_unit, pack_tier, period_month, user_id, MAX(category) AS category,
+           (SUM(price * qty) / NULLIF(SUM(qty / factor), 0))::text AS price_per_unit,
+           SUM(qty / factor)::text AS quantity
+    FROM base
+    GROUP BY 1, 2, 3, 4, 5
+    UNION ALL
+    SELECT market_group_key, compare_unit, pack_tier, ${R12} AS period_month, user_id, MAX(category) AS category,
+           (SUM(price * qty) / NULLIF(SUM(qty / factor), 0))::text AS price_per_unit,
+           SUM(qty / factor)::text AS quantity
+    FROM base
+    WHERE invoice_date >= to_char(current_date - make_interval(months => ${RANGE_WINDOW_MONTHS}), 'YYYY-MM-DD')
+    GROUP BY 1, 2, 3, 5
   `);
 
-  // Ta sama (grupa, jednostka, miesiąc) bywa w dwóch kategoriach — zostaje wiersz z większą próbą.
-  const aggRows = [...aggResult.rows].sort((a, b) => b.sample_row_count - a.sample_row_count);
-  let published = 0;
-  const values = aggRows.map((row) => {
-    // Ochrona przed fałszywymi kontami (2026-10-07): ktoś mógłby założyć kilka kont,
-    // wgrać ręcznie spreparowane pliki i sam „otworzyć” publikację mediany. Do progu k
-    // liczą się tylko userzy z co najmniej jedną fakturą z KSeF (trudna do podrobienia);
-    // pozostali nadal zasilają medianę, ale nie mogą sami spełnić progu.
-    const isPublished = row.verified_user_count >= MIN_USERS && row.sample_row_count >= MIN_ROWS;
-    if (isPublished) published++;
-    return {
-      marketGroupKey: row.market_group_key,
-      unit: row.unit,
-      category: row.category,
-      periodMonth: row.period_month,
-      medianPrice: row.median_price,
-      p25Price: row.p25_price,
-      p75Price: row.p75_price,
-      distinctUserCount: row.distinct_user_count,
-      distinctSupplierCount: row.distinct_supplier_count,
-      sampleRowCount: row.sample_row_count,
-      isPublished,
-    };
-  });
-
-  // Przeliczenie OD ZERA w jednej transakcji (2026-10-11). Wcześniej upsert zostawiał stare
-  // wiersze miesięcy, których nowe grupowanie już nie dotyka — „Malina/szt” po wyrzuceniu
-  // sorbetu dalej pokazywała medianę liczoną z sorbetem. Historia nie ginie: agregacja wyżej
-  // liczy wszystkie miesiące z faktur.
+  const userRows = perUser.rows.filter((r) => r.price_per_unit != null);
   await db.transaction(async (tx) => {
-    await tx.delete(marketPriceBenchmarksTable);
-    for (const batch of chunk(values, 500)) {
-      await tx
-        .insert(marketPriceBenchmarksTable)
-        .values(batch)
-        .onConflictDoNothing({ target: [marketPriceBenchmarksTable.marketGroupKey, marketPriceBenchmarksTable.unit, marketPriceBenchmarksTable.periodMonth] });
+    await tx.delete(marketUserPricesTable);
+    for (const batch of chunk(userRows, 500)) {
+      await tx.insert(marketUserPricesTable).values(
+        batch.map((r) => ({
+          marketGroupKey: r.market_group_key,
+          compareUnit: r.compare_unit,
+          packTier: r.pack_tier,
+          periodMonth: r.period_month,
+          userId: r.user_id,
+          pricePerUnit: r.price_per_unit!,
+          quantity: r.quantity,
+          hasKsef: ksefUsers.has(r.user_id),
+          category: r.category,
+        })),
+      );
     }
   });
 
-  const ranges = await computeRollingRanges(RANGE_WINDOW_MONTHS, MIN_USERS, MIN_ROWS);
+  // Publiczne agregaty — wszystkie przedziały opakowań razem (najpierw jedna cena na lokal
+  // przez wszystkie przedziały, ważona ilością); tu oglądający nie jest uczestnikiem porównania.
+  const publicAgg = await db.execute<PublicAggRow>(sql`
+    WITH u AS (
+      SELECT market_group_key, compare_unit, period_month, user_id, MAX(category) AS category,
+             SUM(price_per_unit * quantity) / NULLIF(SUM(quantity), 0) AS price,
+             bool_or(has_ksef) AS has_ksef
+      FROM market_user_prices
+      GROUP BY 1, 2, 3, 4
+    ),
+    months AS (
+      SELECT market_group_key, compare_unit, MIN(period_month) AS from_month, MAX(period_month) AS to_month
+      FROM market_user_prices
+      WHERE period_month <> ${R12}
+        AND period_month >= to_char(current_date - make_interval(months => ${RANGE_WINDOW_MONTHS}), 'YYYY-MM')
+      GROUP BY 1, 2
+    )
+    SELECT u.market_group_key, u.compare_unit AS unit, MAX(u.category) AS category, u.period_month,
+           percentile_cont(0.5) WITHIN GROUP (ORDER BY u.price)::text AS median_price,
+           percentile_cont(0.25) WITHIN GROUP (ORDER BY u.price)::text AS p25_price,
+           percentile_cont(0.75) WITHIN GROUP (ORDER BY u.price)::text AS p75_price,
+           COUNT(*)::int AS n,
+           COUNT(*) FILTER (WHERE u.has_ksef)::int AS nk,
+           MAX(m.from_month) AS from_month, MAX(m.to_month) AS to_month
+    FROM u
+    LEFT JOIN months m ON m.market_group_key = u.market_group_key AND m.compare_unit = u.compare_unit
+    GROUP BY u.market_group_key, u.compare_unit, u.period_month
+  `);
+
+  const PUBLIC_MIN = publicMinUsers();
+  const MIN_KSEF = medianMinKsef();
+  const SPREAD_MIN = spreadMinOthers();
+  const publish = (r: PublicAggRow) => r.n >= PUBLIC_MIN && r.nk >= MIN_KSEF;
+  let published = 0;
+  let rangesPublished = 0;
+  // Liczby restauracji w tabelach publicznych służą tylko decyzji o publikacji — żaden
+  // endpoint ich nie zwraca (public-market.ts ich nie wybiera).
+  const monthlyValues = publicAgg.rows
+    .filter((r) => r.period_month !== R12)
+    .map((r) => {
+      const isPublished = publish(r);
+      if (isPublished) published++;
+      const spread = r.n >= SPREAD_MIN;
+      return {
+        marketGroupKey: r.market_group_key,
+        unit: r.unit,
+        category: r.category,
+        periodMonth: r.period_month,
+        medianPrice: round1(r.median_price),
+        p25Price: spread ? round1(r.p25_price) : null,
+        p75Price: spread ? round1(r.p75_price) : null,
+        distinctUserCount: r.n,
+        distinctSupplierCount: 0,
+        sampleRowCount: r.n,
+        isPublished,
+      };
+    });
+  const rangeValues = publicAgg.rows
+    .filter((r) => r.period_month === R12 && r.from_month && r.to_month)
+    .map((r) => {
+      const isPublished = publish(r);
+      if (isPublished) rangesPublished++;
+      const spread = r.n >= SPREAD_MIN;
+      return {
+        marketGroupKey: r.market_group_key,
+        unit: r.unit,
+        category: r.category,
+        windowMonths: RANGE_WINDOW_MONTHS,
+        fromMonth: r.from_month!,
+        toMonth: r.to_month!,
+        medianPrice: round1(r.median_price),
+        p25Price: spread ? round1(r.p25_price) : null,
+        p75Price: spread ? round1(r.p75_price) : null,
+        distinctUserCount: r.n,
+        verifiedUserCount: r.nk,
+        sampleRowCount: r.n,
+        isPublished,
+      };
+    });
+
+  // Przeliczenie OD ZERA w jednej transakcji — bez starych wierszy z poprzedniego grupowania.
+  await db.transaction(async (tx) => {
+    await tx.delete(marketPriceBenchmarksTable);
+    for (const batch of chunk(monthlyValues, 500)) await tx.insert(marketPriceBenchmarksTable).values(batch);
+    await tx.delete(marketPriceRangesTable);
+    for (const batch of chunk(rangeValues, 500)) await tx.insert(marketPriceRangesTable).values(batch);
+  });
 
   log.info(
-    { grupy: matcherResult.groups, wierszeBenchmarku: aggRows.length, opublikowane: published, okno12m: ranges, minUsers: MIN_USERS, minRows: MIN_ROWS },
+    {
+      grupy: matcherResult.groups,
+      cenyLokali: userRows.length,
+      wierszeMiesieczne: monthlyValues.length,
+      opublikowaneMiesiecznie: published,
+      opublikowane12m: rangesPublished,
+      progPubliczny: PUBLIC_MIN,
+    },
     "benchmark rynkowy: job zakończony",
   );
 
-  return { groups: matcherResult.groups, benchmarkRows: aggRows.length, published };
-}
-
-export const RANGE_WINDOW_MONTHS = 12;
-
-type RangeRow = {
-  market_group_key: string;
-  unit: string;
-  category: string | null;
-  median_price: string | null;
-  p25_price: string | null;
-  p75_price: string | null;
-  distinct_user_count: number;
-  verified_user_count: number;
-  sample_row_count: number;
-  from_month: string;
-  to_month: string;
-};
-
-/**
- * Mediana z okna kroczącego (domyślnie 12 mies.) → market_price_ranges. Jedna cena na
- * (user, dostawca) z CAŁEGO okna, więc produkt kupowany przez różne lokale w różnych
- * miesiącach też dostaje medianę (miesięczna rzadko przekracza próg przy małej bazie).
- * Te same filtry co mediana miesięczna: tylko wydatki, opt-in, próg liczy konta z KSeF.
- * Tabela jest mała — przeliczana w całości w transakcji.
- */
-export async function computeRollingRanges(windowMonths: number, minUsersN: number, minRowsN: number): Promise<{ rows: number; published: number }> {
-  const result = await db.execute<RangeRow>(sql`
-    WITH per_user_price AS (
-      SELECT
-        mpa.market_group_key,
-        COALESCE(mpa.compare_unit, mpa.unit) AS unit,
-        mpa.category,
-        i.user_id,
-        i.supplier_id,
-        AVG(ii.unit_price::numeric * mpa.price_factor::numeric) AS avg_price,
-        MIN(SUBSTRING(i.invoice_date, 1, 7)) AS min_month,
-        MAX(SUBSTRING(i.invoice_date, 1, 7)) AS max_month,
-        EXISTS (SELECT 1 FROM invoices k WHERE k.user_id = i.user_id AND k.source = 'ksef_sync') AS has_ksef
-      FROM invoice_items ii
-      JOIN invoices i ON i.id = ii.invoice_id
-      JOIN products p ON p.id = ii.product_id
-      JOIN market_product_aliases mpa
-        ON mpa.canonical_name = p.canonical_name AND mpa.unit = ${normalizedUnitSql(sql`p.unit`)}
-      LEFT JOIN user_settings us ON us.user_id = i.user_id
-      WHERE p.canonical_name IS NOT NULL
-        ${spendInvoicesFilter("i")}
-        AND COALESCE(us.benchmark_opt_in, true) = true
-        AND i.invoice_date >= to_char(current_date - make_interval(months => ${windowMonths}), 'YYYY-MM-DD')
-      GROUP BY 1, 2, 3, 4, 5
-    )
-    SELECT
-      market_group_key, unit, category,
-      percentile_cont(0.5) WITHIN GROUP (ORDER BY avg_price)::text AS median_price,
-      percentile_cont(0.25) WITHIN GROUP (ORDER BY avg_price)::text AS p25_price,
-      percentile_cont(0.75) WITHIN GROUP (ORDER BY avg_price)::text AS p75_price,
-      COUNT(DISTINCT user_id)::int AS distinct_user_count,
-      COUNT(DISTINCT user_id) FILTER (WHERE has_ksef)::int AS verified_user_count,
-      COUNT(*)::int AS sample_row_count,
-      MIN(min_month) AS from_month,
-      MAX(max_month) AS to_month
-    FROM per_user_price
-    GROUP BY 1, 2, 3
-  `);
-  const rows = result.rows;
-  let published = 0;
-  await db.transaction(async (tx) => {
-    await tx.delete(marketPriceRangesTable).where(eq(marketPriceRangesTable.windowMonths, windowMonths));
-    for (const r of rows) {
-      const isPublished = r.verified_user_count >= minUsersN && r.sample_row_count >= minRowsN;
-      if (isPublished) published++;
-      await tx
-        .insert(marketPriceRangesTable)
-        .values({
-          marketGroupKey: r.market_group_key,
-          unit: r.unit,
-          category: r.category,
-          windowMonths,
-          fromMonth: r.from_month,
-          toMonth: r.to_month,
-          medianPrice: r.median_price,
-          p25Price: r.p25_price,
-          p75Price: r.p75_price,
-          distinctUserCount: r.distinct_user_count,
-          verifiedUserCount: r.verified_user_count,
-          sampleRowCount: r.sample_row_count,
-          isPublished,
-        })
-        // Ta sama grupa w dwóch kategoriach (alias przepisany między kategoriami) — zostaje pierwsza.
-        .onConflictDoNothing({ target: [marketPriceRangesTable.marketGroupKey, marketPriceRangesTable.unit, marketPriceRangesTable.windowMonths] });
-    }
-  });
-  return { rows: rows.length, published };
+  return { groups: matcherResult.groups, benchmarkRows: monthlyValues.length, published };
 }
 
 const TICK_MS = 24 * 60 * 60 * 1000; // raz dziennie — dane nie wymagają świeżości co do minuty
