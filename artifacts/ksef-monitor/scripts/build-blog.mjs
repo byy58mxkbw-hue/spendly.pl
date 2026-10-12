@@ -33,7 +33,7 @@ const STATIC_URLS = [
   { loc: "/dla-kogo", changefreq: "monthly", priority: "0.8", lastmod: "2026-10-06" },
   { loc: "/podglad-faktury-ksef", changefreq: "monthly", priority: "0.9", lastmod: "2026-10-07" },
   // Ceny zmieniają się codziennie — changefreq daily, lastmod przy zmianie strony.
-  { loc: "/ceny-rynkowe", changefreq: "daily", priority: "0.9", lastmod: "2026-10-08" },
+  { loc: "/ceny-rynkowe", changefreq: "daily", priority: "0.9", lastmod: "2026-10-12" },
   { loc: "/cennik", changefreq: "monthly", priority: "0.8", lastmod: "2026-09-02" },
   // Indeks bloga zmienia się realnie przy każdym nowym artykule — datę bierzemy
   // z najnowszego wpisu, więc jest prawdziwa bez ręcznego pilnowania.
