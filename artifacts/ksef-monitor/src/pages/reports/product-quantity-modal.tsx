@@ -153,6 +153,7 @@ export function ProductQuantityModal({
       : rows.length ? rows.reduce((s, r) => s + (metric === "qty" ? r.qty : r.spend), 0) / rows.length : 0;
   const chartKey = metric === "qty" ? "qty" : metric === "value" ? "spend" : "price";
   const maxV = rows.reduce((m, r) => Math.max(m, valueOf(r) ?? 0), 0);
+  const maxLabelShown = { current: false };
   const fmtAxis = (v: number) => (metric === "qty" ? fmtQty(v) : v >= 1000 ? `${Math.round(v / 1000)} tys.` : formatPrice(v).replace(/\s?zł/, ""));
   const tone = metric === "qty" ? qtyTone(delta) : moneyTone(delta);
   const up = (delta ?? 0) > 0;
@@ -278,7 +279,12 @@ export function ProductQuantityModal({
                         const { x, y, width, value, index } = props;
                         const v = Number(value ?? 0);
                         const isLast = index === rows.length - 1;
-                        if (!v || (!isLast && v !== maxV)) return null;
+                        if (!v) return null;
+                        // Najwyższy słupek tylko raz (przy remisach etykiety nachodziły na siebie);
+                        // indeks z LabelList bywa przesunięty, więc decydujemy po wartości.
+                        const isMax = v === maxV && !maxLabelShown.current;
+                        if (!isLast && !isMax) return null;
+                        if (isMax) maxLabelShown.current = true;
                         return (
                           <text
                             x={Number(x ?? 0) + Number(width ?? 0) / 2}

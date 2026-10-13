@@ -448,7 +448,7 @@ function ReportsInner() {
                 title="Największe zmiany"
                 subtitle="Produkty, które najmocniej ruszyły rachunek vs poprzedni okres"
               >
-                <TopChangesTable products={allProducts} onViewAll={() => setTab("produkty")} />
+                <TopChangesTable products={allProducts} onViewAll={() => setTab("produkty")} onSelect={(name, unit) => setOpenProduct({ name, unit })} />
               </SectionCard>
             )}
 
@@ -575,7 +575,7 @@ function ReportsInner() {
                     Łącznie {formatPrice(data?.totalSpend ?? 0)}
                   </span>
                 </div>
-                <ProductsTable products={allProducts} />
+                <ProductsTable products={allProducts} onSelect={(name, unit) => setOpenProduct({ name, unit })} />
               </div>
             ) : (
               <div className="glass py-20 text-center px-4">

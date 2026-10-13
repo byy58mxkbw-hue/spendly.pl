@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { CategoryIcon, categoryColor } from "@/lib/category-icons";
+import { CATEGORIES } from "@/lib/categories";
 import { ArrowDown, ArrowUp, ArrowRight, Minus } from "@/lib/icons";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,11 @@ const MONTH_SHORT = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wr
 function monthShort(ym: string): string {
   const m = parseInt(ym.split("-")[1] ?? "", 10);
   return MONTH_SHORT[m - 1] ?? ym;
+}
+const MONTHS_LOC = ["styczniu", "lutym", "marcu", "kwietniu", "maju", "czerwcu", "lipcu", "sierpniu", "wrześniu", "październiku", "listopadzie", "grudniu"];
+function monthLocative(ym: string): string {
+  const [y, mm] = ym.split("-");
+  return `${MONTHS_LOC[parseInt(mm, 10) - 1] ?? mm} ${y}`;
 }
 function monthLong(ym: string): string {
   const [y, mm] = ym.split("-");
@@ -53,16 +59,29 @@ function ChartTooltip({ active, payload }: {
   );
 }
 
+const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(CATEGORIES.map((c) => [c.id, c.label]));
+
+/**
+ * Jedna kategoria miesiąc po miesiącu — albo (categoryId = null) CAŁE centrum kosztów:
+ * wydatki w każdym miesiącu + w czym centrum wydało najwięcej w ostatnim miesiącu.
+ * Klik w centrum na karcie „Porównanie centrów kosztów”.
+ */
 export function CategoryMonthlyModal({
   categoryId,
   categoryLabel,
   onClose,
+  costCenterId: costCenterOverride,
+  color: colorOverride,
 }: {
-  categoryId: string;
+  categoryId: string | null;
   categoryLabel: string;
   onClose: () => void;
+  /** Wymusza centrum kosztów (okno centrum) zamiast filtra z nagłówka. */
+  costCenterId?: number;
+  color?: string;
 }) {
-  const { selectedId: costCenterId } = useCostCenter();
+  const { selectedId: selectedCostCenter } = useCostCenter();
+  const costCenterId = costCenterOverride ?? selectedCostCenter;
   const [showTable, setShowTable] = useState(false);
   const ccParam = costCenterId != null ? { costCenterId } : {};
   const MONTHS = 12;
@@ -80,21 +99,32 @@ export function CategoryMonthlyModal({
     const months = Array.from(new Set(data.map((r) => r.month))).sort();
     const sums = new Map<string, number>();
     for (const r of data) {
-      if ((r.category ?? "inne") !== categoryId) continue;
+      if (categoryId != null && (r.category ?? "inne") !== categoryId) continue;
       sums.set(r.month, (sums.get(r.month) ?? 0) + r.totalSpend);
     }
     return months.map((ym) => ({ ym, label: monthShort(ym), spend: sums.get(ym) ?? 0 }));
   }, [data, categoryId]);
 
-  const color = categoryColor(categoryId);
+  const color = colorOverride ?? (categoryId ? categoryColor(categoryId) : "hsl(var(--primary))");
   const last = rows[rows.length - 1];
   const prev = rows[rows.length - 2];
   const delta = last && prev && prev.spend > 0
     ? ((last.spend - prev.spend) / prev.spend) * 100
     : null;
   const maxSpend = rows.reduce((m, r) => Math.max(m, r.spend), 0);
+  const maxLabelShown = { current: false };
   const avg = rows.length ? rows.reduce((s, r) => s + r.spend, 0) / rows.length : 0;
   const hasAny = maxSpend > 0;
+  const topCategories = useMemo(() => {
+    if (categoryId != null || !data || !last) return [];
+    const byCat = new Map<string, number>();
+    for (const r of data) {
+      if (r.month !== last.ym) continue;
+      const c = r.category ?? "inne";
+      byCat.set(c, (byCat.get(c) ?? 0) + r.totalSpend);
+    }
+    return [...byCat.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  }, [data, categoryId, last]);
 
   // Wzrost kosztu = źle (terakota), spadek = dobrze (oliwka).
   const up = (delta ?? 0) > 0;
@@ -105,7 +135,11 @@ export function CategoryMonthlyModal({
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 head-display text-lg">
-            <CategoryIcon categoryId={categoryId} className="w-5 h-5 shrink-0" />
+            {categoryId ? (
+              <CategoryIcon categoryId={categoryId} className="w-5 h-5 shrink-0" />
+            ) : (
+              <span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} />
+            )}
             {categoryLabel}
           </DialogTitle>
         </DialogHeader>
@@ -114,7 +148,7 @@ export function CategoryMonthlyModal({
           <Skeleton className="h-64 w-full" />
         ) : !hasAny ? (
           <p className="py-12 text-center text-sm text-muted-foreground">
-            Brak zakupów w tej kategorii w ostatnich {MONTHS} miesiącach.
+            Brak zakupów {categoryId ? "w tej kategorii" : "w tym centrum"} w ostatnich {MONTHS} miesiącach.
           </p>
         ) : (
           <>
@@ -182,7 +216,12 @@ export function CategoryMonthlyModal({
                         const { x, y, width, value, index } = props;
                         const v = Number(value ?? 0);
                         const isLast = index === rows.length - 1;
-                        if (!v || (!isLast && v !== maxSpend)) return null;
+                        if (!v) return null;
+                        // Najwyższy słupek tylko raz (przy remisach etykiety nachodziły na siebie);
+                        // indeks z LabelList bywa przesunięty, więc decydujemy po wartości.
+                        const isMax = v === maxSpend && !maxLabelShown.current;
+                        if (!isLast && !isMax) return null;
+                        if (isMax) maxLabelShown.current = true;
                         return (
                           <text
                             x={Number(x ?? 0) + Number(width ?? 0) / 2}
@@ -219,14 +258,33 @@ export function CategoryMonthlyModal({
               >
                 {showTable ? "Ukryj tabelę" : "Pokaż jako tabelę"}
               </button>
-              <Link
-                href={`/products?category=${categoryId}`}
-                onClick={onClose}
-                className="text-xs text-primary hover:underline underline-offset-2 flex items-center gap-1"
-              >
-                Produkty w tej kategorii <ArrowRight className="w-3 h-3" />
-              </Link>
+              {categoryId && (
+                <Link
+                  href={`/products?category=${categoryId}`}
+                  onClick={onClose}
+                  className="text-xs text-primary hover:underline underline-offset-2 flex items-center gap-1"
+                >
+                  Produkty w tej kategorii <ArrowRight className="w-3 h-3" />
+                </Link>
+              )}
             </div>
+
+            {topCategories.length > 0 && last && (
+              <div>
+                <p className="label-caps mb-1.5">Najwięcej w {monthLocative(last.ym)}</p>
+                <ul className="rule-list text-sm">
+                  {topCategories.map(([cat, spend]) => (
+                    <li key={cat} className="flex items-center justify-between gap-3 py-1.5">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <CategoryIcon categoryId={cat} className="w-4 h-4 shrink-0" />
+                        <span className="truncate">{CATEGORY_LABEL[cat] ?? cat}</span>
+                      </span>
+                      <span className="tabular-nums font-medium">{formatPrice(spend)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Widok tabelaryczny — każda wartość osiągalna bez najeżdżania na wykres. */}
             {showTable && (

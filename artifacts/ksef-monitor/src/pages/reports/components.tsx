@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { Layout, PageHeader } from "@/components/layout";
 import {
   useGetCategorySpend,
@@ -649,7 +649,7 @@ export function pctVsOverall(p: ProductWithImpact): number | null {
 }
 
 // Scalona zakładka „Produkty": ceny + ilości + „vs zwykle" + flaga oszczędności.
-export function ProductsTable({ products }: { products: ProductWithImpact[] }) {
+export function ProductsTable({ products, onSelect }: { products: ProductWithImpact[]; onSelect?: (productName: string, unit: string) => void }) {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"cost" | "price" | "qty" | "overprice">("cost");
 
@@ -723,7 +723,11 @@ export function ProductsTable({ products }: { products: ProductWithImpact[] }) {
                 {filtered.map((p, i) => {
                   const vsOverall = pctVsOverall(p);
                   return (
-                    <tr key={i}>
+                    <tr
+                      key={i}
+                      onClick={onSelect ? () => onSelect(p.productName, p.unit) : undefined}
+                      className={cn(onSelect && "cursor-pointer hover:bg-secondary/30 transition-colors")}
+                    >
                       <td className="px-5 py-2.5 max-w-[280px]">
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm text-foreground truncate">{p.productName}</span>
@@ -901,8 +905,12 @@ export function CategoryComparisonTable({
 
 // ─── Cost center comparison ────────────────────────────────────────────────────
 
+// Okno centrum: wydatki w każdym miesiącu (ten sam wykres co okno kategorii).
+const CategoryMonthlyModalLazy = lazy(() => import("./category-monthly-modal").then((m) => ({ default: m.CategoryMonthlyModal })));
+
 export function CostCenterComparisonSection() {
   const { period } = usePeriod();
+  const [openCenter, setOpenCenter] = useState<{ id: number; name: string; color: string } | null>(null);
   const { data, isLoading } = useGetReportsCostCenters(
     { from: period.from, to: period.to },
     { query: { queryKey: ["reports-cost-centers", period.from, period.to] } },
@@ -921,8 +929,15 @@ export function CostCenterComparisonSection() {
           const color = costCenterColor(r.costCenterId, r.costCenterColor);
           const hasChange = r.changePercent != null;
           const up = (r.changePercent ?? 0) > 0;
+          const clickable = r.costCenterId != null;
           return (
-            <div key={r.costCenterId ?? "none"}>
+            <button
+              type="button"
+              key={r.costCenterId ?? "none"}
+              disabled={!clickable}
+              onClick={() => clickable && setOpenCenter({ id: r.costCenterId!, name: r.costCenterName ?? "Centrum", color })}
+              className="block w-full text-left -mx-2 px-2 py-1 enabled:hover:bg-secondary/30 transition-colors"
+            >
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2 min-w-0">
                   <div
@@ -960,10 +975,21 @@ export function CostCenterComparisonSection() {
                   style={{ width: `${pct}%`, background: r.costCenterColor ?? color }}
                 />
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
+      {openCenter && (
+        <Suspense fallback={null}>
+          <CategoryMonthlyModalLazy
+            categoryId={null}
+            categoryLabel={openCenter.name}
+            costCenterId={openCenter.id}
+            color={openCenter.color}
+            onClose={() => setOpenCenter(null)}
+          />
+        </Suspense>
+      )}
     </SectionCard>
   );
 }
@@ -1060,10 +1086,13 @@ export function FoodCostHeroCard({
 export function TopChangesTable({
   products,
   onViewAll,
+  onSelect,
   limit = 5,
 }: {
   products: ReportProductRow[];
   onViewAll?: () => void;
+  /** Klik w produkt → okno z ilością, ceną i wartością w każdym miesiącu. */
+  onSelect?: (productName: string, unit: string) => void;
   limit?: number;
 }) {
   const rows = useMemo(() => {
@@ -1103,7 +1132,11 @@ export function TopChangesTable({
           </thead>
           <tbody className="divide-y divide-border">
             {rows.map((r, i) => (
-              <tr key={`${r.productName}|${r.unit}|${i}`}>
+              <tr
+                key={`${r.productName}|${r.unit}|${i}`}
+                onClick={onSelect ? () => onSelect(r.productName, r.unit) : undefined}
+                className={cn(onSelect && "cursor-pointer hover:bg-secondary/30 transition-colors")}
+              >
                 <td className="px-4 md:px-5 py-2.5 max-w-[280px]">
                   <p className="text-foreground truncate" title={r.productName}>{r.productName}</p>
                   <p className="text-[10px] text-muted-foreground">/{r.unit}</p>
