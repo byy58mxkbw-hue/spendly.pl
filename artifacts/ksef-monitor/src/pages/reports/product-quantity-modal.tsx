@@ -1,5 +1,6 @@
-// „Ile tego produktu zamawiam co miesiąc" — ilości jednego produktu przez rok.
-// Otwiera się kliknięciem w wiersz karty „Więcej / mniej zamówione".
+// „Ile tego produktu zamawiam i po ile" — ilość, średnia cena NETTO i wartość jednego
+// produktu w każdym miesiącu (przełącznik jak w oknie dania w Sprzedaży). Otwiera się
+// kliknięciem w wiersz karty „Więcej / mniej zamówione" i w produkt na karcie dostawcy.
 //
 // DLACZEGO OSOBNY ENDPOINT, a nie dane z karty: karta porównuje tylko dwa okresy
 // i ślepnie na rotację dostawców (jeśli poprzednio kupowałeś u kogoś innego, jego
@@ -46,9 +47,16 @@ function lastMonths(n: number): string[] {
   return out;
 }
 
+type Metric = "qty" | "price" | "value";
+type Row = { ym: string; label: string; qty: number; spend: number; net: number; price: number | null };
+
+// Cena i wartość to pieniądze: drożej = terakota, taniej = oliwka (semantyka kosztowa).
+const moneyTone = (v: number | null | undefined) =>
+  v == null || Math.abs(v) < 0.05 ? "text-muted-foreground" : v > 0 ? "text-negative" : "text-positive";
+
 function ChartTooltip({ active, payload, unit }: {
   active?: boolean;
-  payload?: Array<{ payload: { ym: string; qty: number; spend: number } }>;
+  payload?: Array<{ payload: Row }>;
   unit: string;
 }) {
   if (!active || !payload?.length) return null;
@@ -57,8 +65,11 @@ function ChartTooltip({ active, payload, unit }: {
     <div className="bg-card border border-border px-3 py-2 text-xs">
       <p className="label-caps mb-1">{monthLong(d.ym)}</p>
       <p className="text-sm font-semibold text-foreground tabular-nums">{fmtQty(d.qty)} {unit}</p>
+      {d.price != null && (
+        <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">{formatPrice(d.price)} / {unit} netto</p>
+      )}
       {d.spend > 0 && (
-        <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">{formatPrice(d.spend)}</p>
+        <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">{formatPrice(d.spend)} brutto</p>
       )}
     </div>
   );
@@ -76,6 +87,7 @@ export function ProductQuantityModal({
 }) {
   const { selectedId: costCenterId } = useCostCenter();
   const [showTable, setShowTable] = useState(false);
+  const [metric, setMetric] = useState<Metric>("qty");
   const [unitOverride, setUnitOverride] = useState<string | null>(null);
   const ccParam = costCenterId != null ? { costCenterId } : {};
 
@@ -98,27 +110,51 @@ export function ProductQuantityModal({
 
   const rows = useMemo(() => {
     const months = lastMonths(MONTHS);
-    const byMonth = new Map<string, { qty: number; spend: number }>();
+    const byMonth = new Map<string, { qty: number; spend: number; net: number }>();
     for (const r of data ?? []) {
       if (r.unit !== activeUnit) continue;
-      const cur = byMonth.get(r.month) ?? { qty: 0, spend: 0 };
+      const cur = byMonth.get(r.month) ?? { qty: 0, spend: 0, net: 0 };
       cur.qty += r.totalQuantity;
       cur.spend += r.totalSpend;
+      cur.net += r.totalNet ?? 0;
       byMonth.set(r.month, cur);
     }
-    return months.map((ym) => ({
-      ym,
-      label: monthShort(ym),
-      qty: byMonth.get(ym)?.qty ?? 0,
-      spend: byMonth.get(ym)?.spend ?? 0,
-    }));
+    return months.map((ym): Row => {
+      const m = byMonth.get(ym);
+      const qty = m?.qty ?? 0;
+      return {
+        ym,
+        label: monthShort(ym),
+        qty,
+        spend: m?.spend ?? 0,
+        net: m?.net ?? 0,
+        // Średnia cena NETTO w miesiącu (jak na fakturze); miesiąc bez zakupów = brak ceny.
+        price: qty > 0 && m && m.net > 0 ? m.net / qty : null,
+      };
+    });
   }, [data, activeUnit]);
 
   const last = rows[rows.length - 1];
   const prev = rows[rows.length - 2];
-  const delta = last && prev && prev.qty > 0 ? ((last.qty - prev.qty) / prev.qty) * 100 : null;
   const maxQty = rows.reduce((m, r) => Math.max(m, r.qty), 0);
-  const avg = rows.length ? rows.reduce((s, r) => s + r.qty, 0) / rows.length : 0;
+  const valueOf = (r: Row | undefined): number | null =>
+    !r ? null : metric === "qty" ? r.qty : metric === "value" ? r.spend : r.price;
+  const fmtMetric = (v: number | null) =>
+    v == null ? "—" : metric === "qty" ? `${fmtQty(v)} ${activeUnit}` : metric === "price" ? `${formatPrice(v)} / ${activeUnit}` : formatPrice(v);
+  const lastV = valueOf(last);
+  const prevV = valueOf(prev);
+  const delta = lastV != null && prevV != null && prevV > 0 ? ((lastV - prevV) / prevV) * 100 : null;
+  const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+  const totalNet = rows.reduce((s, r) => s + r.net, 0);
+  // Średnia: ilość i wartość na miesiąc; cena — ważona ilością z całego okresu.
+  const avg =
+    metric === "price"
+      ? (totalQty > 0 && totalNet > 0 ? totalNet / totalQty : null)
+      : rows.length ? rows.reduce((s, r) => s + (metric === "qty" ? r.qty : r.spend), 0) / rows.length : 0;
+  const chartKey = metric === "qty" ? "qty" : metric === "value" ? "spend" : "price";
+  const maxV = rows.reduce((m, r) => Math.max(m, valueOf(r) ?? 0), 0);
+  const fmtAxis = (v: number) => (metric === "qty" ? fmtQty(v) : v >= 1000 ? `${Math.round(v / 1000)} tys.` : formatPrice(v).replace(/\s?zł/, ""));
+  const tone = metric === "qty" ? qtyTone(delta) : moneyTone(delta);
   const up = (delta ?? 0) > 0;
   const down = (delta ?? 0) < 0;
 
@@ -169,32 +205,48 @@ export function ProductQuantityModal({
               </div>
             )}
 
+            <div className="flex items-center gap-1">
+              {([["qty", "Ilość"], ["price", "Cena"], ["value", "Wartość"]] as const).map(([k, lbl]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setMetric(k)}
+                  className={cn(
+                    "px-2.5 py-1 border text-[11px] font-medium transition-colors",
+                    metric === k
+                      ? "bg-primary border-primary text-primary-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/40",
+                  )}
+                >
+                  {lbl}
+                </button>
+              ))}
+              <span className="text-[11px] text-muted-foreground ml-2">
+                {metric === "price" ? "średnia cena netto, jak na fakturze" : metric === "value" ? "wartość brutto" : ""}
+              </span>
+            </div>
+
             <div className="flex flex-wrap items-end gap-x-8 gap-y-3 pb-4 border-b border-border">
               <div>
                 <p className="label-caps">{last ? monthLong(last.ym) : "—"}</p>
-                <p className="num-lg text-2xl text-foreground mt-1">
-                  {fmtQty(last?.qty ?? 0)}{" "}
-                  <span className="text-base font-normal text-muted-foreground">{activeUnit}</span>
-                </p>
+                <p className="num-lg text-2xl text-foreground mt-1">{fmtMetric(lastV)}</p>
               </div>
               <div>
                 <p className="label-caps">{prev ? monthLong(prev.ym) : "poprzedni"}</p>
-                <p className="num text-lg font-semibold text-muted-foreground mt-1">
-                  {fmtQty(prev?.qty ?? 0)} {activeUnit}
-                </p>
+                <p className="num text-lg font-semibold text-muted-foreground mt-1">{fmtMetric(prevV)}</p>
               </div>
               {delta != null && (
                 <div>
                   <p className="label-caps">Zmiana</p>
-                  <p className={cn("num text-lg font-semibold mt-1 flex items-center gap-1", qtyTone(delta))}>
+                  <p className={cn("num text-lg font-semibold mt-1 flex items-center gap-1", tone)}>
                     {up ? <ArrowUp className="w-4 h-4" /> : down ? <ArrowDown className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
                     {signedPct(delta)}
                   </p>
                 </div>
               )}
               <div>
-                <p className="label-caps">Średnia / mies.</p>
-                <p className="num text-lg font-semibold text-muted-foreground mt-1">{fmtQty(avg)} {activeUnit}</p>
+                <p className="label-caps">{metric === "price" ? "Średnia z 12 mies." : "Średnia / mies."}</p>
+                <p className="num text-lg font-semibold text-muted-foreground mt-1">{fmtMetric(avg)}</p>
               </div>
             </div>
 
@@ -212,13 +264,13 @@ export function ProductQuantityModal({
                     tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                     tickLine={false}
                     axisLine={false}
-                    width={48}
-                    tickFormatter={(v: number) => fmtQty(v)}
+                    width={52}
+                    tickFormatter={fmtAxis}
                   />
                   <Tooltip content={<ChartTooltip unit={activeUnit} />} cursor={{ fill: "hsl(var(--muted))" }} />
-                  <Bar dataKey="qty" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                  <Bar dataKey={chartKey} radius={[3, 3, 0, 0]} isAnimationActive={false}>
                     <LabelList
-                      dataKey="qty"
+                      dataKey={chartKey}
                       content={(props: {
                         x?: string | number; y?: string | number; width?: string | number;
                         value?: string | number; index?: number;
@@ -226,7 +278,7 @@ export function ProductQuantityModal({
                         const { x, y, width, value, index } = props;
                         const v = Number(value ?? 0);
                         const isLast = index === rows.length - 1;
-                        if (!v || (!isLast && v !== maxQty)) return null;
+                        if (!v || (!isLast && v !== maxV)) return null;
                         return (
                           <text
                             x={Number(x ?? 0) + Number(width ?? 0) / 2}
@@ -236,7 +288,7 @@ export function ProductQuantityModal({
                             fontWeight={isLast ? 600 : 400}
                             fill="hsl(var(--foreground))"
                           >
-                            {fmtQty(v)}
+                            {metric === "qty" ? fmtQty(v) : fmtAxis(v)}
                           </text>
                         );
                       }}
@@ -270,7 +322,8 @@ export function ProductQuantityModal({
                     <tr>
                       <th className="text-left px-3 py-1.5 font-semibold">Miesiąc</th>
                       <th className="text-right px-3 py-1.5 font-semibold">Ilość</th>
-                      <th className="text-right px-3 py-1.5 font-semibold">Wartość</th>
+                      <th className="text-right px-3 py-1.5 font-semibold">Cena netto</th>
+                      <th className="text-right px-3 py-1.5 font-semibold">Wartość brutto</th>
                     </tr>
                   </thead>
                   <tbody className="rule-list">
@@ -279,6 +332,9 @@ export function ProductQuantityModal({
                         <td className="px-3 py-1.5 text-muted-foreground">{monthLong(r.ym)}</td>
                         <td className="px-3 py-1.5 text-right tabular-nums text-foreground">
                           {fmtQty(r.qty)} {activeUnit}
+                        </td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-foreground">
+                          {r.price != null ? `${formatPrice(r.price)} / ${activeUnit}` : "—"}
                         </td>
                         <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
                           {r.spend > 0 ? formatPrice(r.spend) : "—"}

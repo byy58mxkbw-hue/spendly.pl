@@ -600,6 +600,7 @@ function ReportsInner() {
                     supplier={s}
                     rank={i}
                     totalAllSpend={data?.totalSpend ?? 0}
+                    onProductClick={(name, unit) => setOpenProduct({ name, unit })}
                   />
                 ))}
               </div>

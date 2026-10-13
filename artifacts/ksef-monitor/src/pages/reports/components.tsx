@@ -552,10 +552,13 @@ export function SupplierCard({
   supplier,
   rank,
   totalAllSpend,
+  onProductClick,
 }: {
   supplier: ReportSupplierRow;
   rank: number;
   totalAllSpend: number;
+  /** Klik w produkt → okno z ilością i ceną w każdym miesiącu (jak w Sprzedaży). */
+  onProductClick?: (productName: string, unit: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -603,7 +606,13 @@ export function SupplierCard({
           <div className="border-t border-border">
             <div className="divide-y divide-border">
               {visibleProducts.map((p, i) => (
-                <div key={i} className="px-4 md:px-6 py-2.5 grid grid-cols-[1fr_auto_auto] gap-3 items-center">
+                <button
+                  type="button"
+                  key={i}
+                  onClick={() => onProductClick?.(p.productName, p.unit)}
+                  disabled={!onProductClick}
+                  className="w-full text-left px-4 md:px-6 py-2.5 grid grid-cols-[1fr_auto_auto] gap-3 items-center enabled:hover:bg-secondary/30 transition-colors"
+                >
                   <p className="text-sm text-foreground truncate">{p.productName}</p>
                   <p className="text-xs text-muted-foreground text-right">
                     {p.totalQuantity % 1 === 0 ? p.totalQuantity : p.totalQuantity.toFixed(2)} {p.unit}
@@ -611,7 +620,7 @@ export function SupplierCard({
                   <p className="text-sm font-semibold text-foreground text-right w-24">
                     {formatPrice(p.totalCost)}
                   </p>
-                </div>
+                </button>
               ))}
             </div>
             {supplier.topProducts.length > 5 && (

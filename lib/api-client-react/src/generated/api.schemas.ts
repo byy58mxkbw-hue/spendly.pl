@@ -1148,6 +1148,10 @@ export interface ProductQuantityTrendRow {
   /** Gross (brutto) — see rule 29 */
   totalSpend: number;
   avgUnitPrice?: number | null;
+  /** Netto — wartość jak na fakturze */
+  totalNet?: number;
+  /** Średnia cena jednostkowa NETTO w miesiącu (wartość netto ÷ ilość) */
+  avgUnitPriceNet?: number | null;
   invoiceCount?: number;
 }
 

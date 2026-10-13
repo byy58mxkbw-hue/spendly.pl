@@ -821,6 +821,7 @@ router.get("/reports/product-quantity-trend", async (req, res): Promise<void> =>
       ${normalizedUnitSql(sql`ii.unit`)} AS unit,
       SUM(ii.quantity::numeric)::float AS total_quantity,
       SUM((ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0) / 100)))::float AS total_spend,
+      SUM(ii.total_price::numeric)::float AS total_net,
       COUNT(DISTINCT i.id)::int AS invoice_count
     FROM invoice_items ii
     INNER JOIN invoices i ON ii.invoice_id = i.id
@@ -844,6 +845,7 @@ router.get("/reports/product-quantity-trend", async (req, res): Promise<void> =>
     unit: string | null;
     total_quantity: number;
     total_spend: number;
+    total_net: number;
     invoice_count: number;
   }>;
 
@@ -857,6 +859,9 @@ router.get("/reports/product-quantity-trend", async (req, res): Promise<void> =>
       totalSpend: spend,
       // Cena jednostkowa BRUTTO — tylko jako kontekst, karta jest o ilościach.
       avgUnitPrice: qty > 0 ? spend / qty : null,
+      // Cena jednostkowa NETTO (jak na fakturze) — do wykresu ceny w oknie produktu.
+      totalNet: toNum(r.total_net),
+      avgUnitPriceNet: qty > 0 ? toNum(r.total_net) / qty : null,
       invoiceCount: r.invoice_count,
     };
   }));

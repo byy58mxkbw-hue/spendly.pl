@@ -4461,6 +4461,13 @@ components:
         avgUnitPrice:
           type: number
           nullable: true
+        totalNet:
+          type: number
+          description: "Netto — wartość jak na fakturze"
+        avgUnitPriceNet:
+          type: number
+          nullable: true
+          description: "Średnia cena jednostkowa NETTO w miesiącu (wartość netto ÷ ilość)"
         invoiceCount:
           type: integer
       required:

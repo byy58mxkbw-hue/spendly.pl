@@ -2226,6 +2226,8 @@ export const GetProductQuantityTrendResponseItem = zod.object({
   "totalQuantity": zod.number(),
   "totalSpend": zod.number().describe('Gross (brutto) — see rule 29'),
   "avgUnitPrice": zod.number().nullish(),
+  "totalNet": zod.number().optional().describe('Netto — wartość jak na fakturze'),
+  "avgUnitPriceNet": zod.number().nullish().describe('Średnia cena jednostkowa NETTO w miesiącu (wartość netto ÷ ilość)'),
   "invoiceCount": zod.number().optional()
 })
 export const GetProductQuantityTrendResponse = zod.array(GetProductQuantityTrendResponseItem)
