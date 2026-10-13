@@ -2282,6 +2282,10 @@ export type GetCategorySpendTrendParams = {
  */
 months?: number;
 costCenterId?: number;
+/**
+ * Tylko faktury tego dostawcy (wykres miesięczny na karcie dostawcy w Raportach)
+ */
+supplierId?: number;
 };
 
 export type GetProductQuantityTrendParams = {

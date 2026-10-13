@@ -546,6 +546,9 @@ export function SectionCard({
   );
 }
 
+// Panel wydatków w każdym miesiącu (okno centrum, karta dostawcy) — ten sam co okno kategorii.
+const CategoryMonthlyModalLazy = lazy(() => import("./category-monthly-modal").then((m) => ({ default: m.CategoryMonthlyModal })));
+
 // ─── Supplier card (for Dostawcy tab) ─────────────────────────────────────────
 
 export function SupplierCard({
@@ -603,6 +606,19 @@ export function SupplierCard({
 
       {open && (
         <>
+          {/* Wydatki u dostawcy w każdym miesiącu (12 mies.) — ten sam panel co okno centrum. */}
+          <div className="border-t border-border px-4 md:px-6 py-4">
+            <Suspense fallback={<Skeleton className="h-56 w-full" />}>
+              <CategoryMonthlyModalLazy
+                inline
+                categoryId={null}
+                categoryLabel={supplier.supplierName}
+                supplierId={supplier.supplierId}
+                color={color}
+                onClose={() => setOpen(false)}
+              />
+            </Suspense>
+          </div>
           <div className="border-t border-border">
             <div className="divide-y divide-border">
               {visibleProducts.map((p, i) => (
@@ -905,8 +921,6 @@ export function CategoryComparisonTable({
 
 // ─── Cost center comparison ────────────────────────────────────────────────────
 
-// Okno centrum: wydatki w każdym miesiącu (ten sam wykres co okno kategorii).
-const CategoryMonthlyModalLazy = lazy(() => import("./category-monthly-modal").then((m) => ({ default: m.CategoryMonthlyModal })));
 
 export function CostCenterComparisonSection() {
   const { period } = usePeriod();

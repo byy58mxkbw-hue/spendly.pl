@@ -2361,7 +2361,8 @@ export const getCategorySpendTrendQueryMonthsMax = 12;
 
 export const GetCategorySpendTrendQueryParams = zod.object({
   "months": zod.coerce.number().min(getCategorySpendTrendQueryMonthsMin).max(getCategorySpendTrendQueryMonthsMax).optional().describe('Number of months to include (default 6, max 12)'),
-  "costCenterId": zod.coerce.number().optional()
+  "costCenterId": zod.coerce.number().optional(),
+  "supplierId": zod.coerce.number().optional().describe('Tylko faktury tego dostawcy (wykres miesięczny na karcie dostawcy w Raportach)')
 })
 
 export const GetCategorySpendTrendResponseItem = zod.object({

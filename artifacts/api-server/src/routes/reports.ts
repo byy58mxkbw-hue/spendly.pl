@@ -720,6 +720,12 @@ router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
   const ccTrendSql = costCenterId != null && !isNaN(costCenterId)
     ? sql`AND i.cost_center_id = ${costCenterId}`
     : sql.raw("");
+  const supplierIdRaw = req.query.supplierId;
+  const supplierId = supplierIdRaw != null && supplierIdRaw !== "" ? parseInt(String(supplierIdRaw), 10) : null;
+  // Filtr po dostawcy — i tak w zakresie i.user_id, więc cudzy supplierId daje puste wyniki.
+  const supplierTrendSql = supplierId != null && !isNaN(supplierId)
+    ? sql`AND i.supplier_id = ${supplierId}`
+    : sql.raw("");
 
   // Build list of YYYY-MM month strings going back monthCount months from current
   const now = new Date();
@@ -752,6 +758,7 @@ router.get("/reports/category-spend-trend", async (req, res): Promise<void> => {
       AND i.invoice_date >= ${rangeStart}
       AND i.invoice_date < ${rangeEnd}
       ${ccTrendSql}
+      ${supplierTrendSql}
     GROUP BY 1, 2
     ORDER BY 1, total_spend DESC
   `);
