@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Check, ChevronLeft, ChevronRight, Download, Eye, EyeOff, FileText, Layers, Loader2, Plus, Search, Trash2 } from "@/lib/icons";
 import { formatPrice, formatDate } from "@/lib/format";
+import { plural } from "@/lib/plural";
 import { cn } from "@/lib/utils";
 import { exportToCsv, todaySlug } from "@/lib/export-csv";
 import { ErrorState } from "@/components/error-state";
@@ -462,6 +463,18 @@ export function FakturyView({ onImportClick, onDeleteAllClick }: { onImportClick
                           <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded text-warning leading-none" style={{ background: "rgba(251,146,60,0.18)" }}>
                             KOREKTA
                           </span>
+                        )}
+                        {/* WZ vs faktura — liczba zapisana przy odczycie WZ (sekcja „Dokumenty WZ” w oknie faktury). */}
+                        {inv.wzMismatches != null && (
+                          inv.wzMismatches > 0 ? (
+                            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-negative/15 text-negative leading-none" title="Ilości na WZ nie zgadzają się z fakturą — otwórz fakturę">
+                              WZ: {inv.wzMismatches} {plural(inv.wzMismatches, ["różnica", "różnice", "różnic"])}
+                            </span>
+                          ) : (
+                            <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-positive/15 text-positive leading-none" title="WZ zgodne z fakturą">
+                              WZ zgodne
+                            </span>
+                          )
                         )}
                       </div>
                       <p className="text-xs text-foreground/50 truncate">{inv.invoiceNumber}</p>

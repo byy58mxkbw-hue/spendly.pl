@@ -4,6 +4,7 @@ import type { Server } from "node:http";
 import type { Logger } from "pino";
 import { inArray, eq } from "drizzle-orm";
 import { db, suppliersTable, invoicesTable, invoiceItemsTable, invoiceWzDocumentsTable } from "@workspace/db";
+import { encryptSecret } from "../lib/encryption";
 
 // WZ przy fakturze: numery z XML, odczyt WZ (AI zamockowane) i porównanie z pozycjami
 // faktury, izolacja kont. DB-gated (TEST_DATABASE_URL).
@@ -49,7 +50,9 @@ vi.mock("@workspace/integrations-openai-ai-server", () => ({
 const log = { info: () => {}, error: () => {}, warn: () => {} } as unknown as Logger;
 const OWNER = "test_wz_owner";
 const OTHER = "test_wz_other";
-const XML = `<Faktura><Fa><P_2>FV/1/10/2026</P_2><WZ>WZ/101/10/2026</WZ><WZ>WZ/102/10/2026</WZ></Fa></Faktura>`;
+// Jak na produkcji: FA(3) z przestrzenią nazw, zapisane ZASZYFROWANE (realny błąd 2026-10-13:
+// sekcja czytała szyfrogram i nie widziała numerów WZ z faktury Stelmy).
+const XML = `<?xml version="1.0" encoding="UTF-8"?><Faktura xmlns="http://crd.gov.pl/wzor/2025/06/25/13775/"><Fa><P_2>FV/1/10/2026</P_2><WZ>WZ/101/10/2026</WZ><WZ>WZ/102/10/2026</WZ></Fa></Faktura>`;
 
 describe.skipIf(!RUN_DB)("WZ przy fakturze: /invoices/:id/wz", () => {
   let server: Server;
@@ -68,7 +71,7 @@ describe.skipIf(!RUN_DB)("WZ przy fakturze: /invoices/:id/wz", () => {
     supplierId = s!.id;
     const [inv] = await db
       .insert(invoicesTable)
-      .values({ userId: OWNER, supplierId, invoiceNumber: "FV/1/10/2026", invoiceDate: "2026-10-10", totalAmount: "200.00", excluded: false, xmlContent: XML })
+      .values({ userId: OWNER, supplierId, invoiceNumber: "FV/1/10/2026", invoiceDate: "2026-10-10", totalAmount: "200.00", excluded: false, xmlContent: encryptSecret(XML) })
       .returning({ id: invoicesTable.id });
     invoiceId = inv!.id;
     await db.insert(invoiceItemsTable).values([
@@ -130,9 +133,18 @@ describe.skipIf(!RUN_DB)("WZ przy fakturze: /invoices/:id/wz", () => {
     expect(boczek.difference).toBe(-0.5);
     expect(body.comparison.summary.ok).toBe(1);
 
+    // Liczba rozbieżności przy fakturze (znaczek na liście): 1 różnica ilości; „brak na WZ”
+    // się nie liczy, bo WZ/102 jeszcze nieodczytana.
+    const page = (await (await call(`/invoices/page?limit=200`)).json()) as { items: Array<{ id: number; wzMismatches: number | null; itemCount: number }> };
+    const row = page.items.find((i) => i.id === invoiceId)!;
+    expect(row.wzMismatches).toBe(1);
+    expect(row.itemCount).toBe(2);
+
     const del = await call(`/invoices/${invoiceId}/wz/${body.documents[0]!.id}`, { method: "DELETE" });
     const after = (await del.json()) as { documents: unknown[]; comparison: unknown };
     expect(after.documents).toHaveLength(0);
     expect(after.comparison).toBeNull();
+    const page2 = (await (await call(`/invoices/page?limit=200`)).json()) as { items: Array<{ id: number; wzMismatches: number | null }> };
+    expect(page2.items.find((i) => i.id === invoiceId)!.wzMismatches).toBeNull();
   });
 });

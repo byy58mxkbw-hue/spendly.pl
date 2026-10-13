@@ -60,6 +60,9 @@ router.get("/invoices", async (req, res): Promise<void> => {
       invoiceType: invoicesTable.invoiceType,
       parentInvoiceId: invoicesTable.parentInvoiceId,
       correctedInvoiceNumber: invoicesTable.correctedInvoiceNumber,
+      wzMismatches: invoicesTable.wzMismatches,
+      // Liczba pozycji w tym samym zapytaniu (wcześniej osobne zapytanie na każdą fakturę — N+1).
+      itemCount: sql<number>`(SELECT count(*)::int FROM invoice_items ii WHERE ii.invoice_id = ${invoicesTable.id})`,
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
@@ -80,17 +83,12 @@ router.get("/invoices", async (req, res): Promise<void> => {
     .limit(limit)
     .offset(offset);
 
-  const enriched = await Promise.all(
-    invoices.map(async (inv) => {
-      const items = await db
-        .select({ id: invoiceItemsTable.id })
-        .from(invoiceItemsTable)
-        .where(eq(invoiceItemsTable.invoiceId, inv.id));
-
+  const enriched = invoices.map((inv) => {
       return {
         ...inv,
         totalAmount: toNum(inv.totalAmount),
-        itemCount: items.length,
+        itemCount: Number(inv.itemCount ?? 0),
+        wzMismatches: inv.wzMismatches ?? null,
         importedAt: inv.importedAt.toISOString(),
         paidAt: inv.paidAt ? inv.paidAt.toISOString() : null,
         costCenterId: inv.costCenterId ?? null,
@@ -103,8 +101,7 @@ router.get("/invoices", async (req, res): Promise<void> => {
         parentInvoiceId: inv.parentInvoiceId ?? null,
         correctedInvoiceNumber: inv.correctedInvoiceNumber ?? null,
       };
-    }),
-  );
+    });
 
   res.json(enriched);
 });
@@ -181,6 +178,9 @@ router.get("/invoices/page", async (req, res): Promise<void> => {
       invoiceType: invoicesTable.invoiceType,
       parentInvoiceId: invoicesTable.parentInvoiceId,
       correctedInvoiceNumber: invoicesTable.correctedInvoiceNumber,
+      wzMismatches: invoicesTable.wzMismatches,
+      // Liczba pozycji w tym samym zapytaniu (wcześniej osobne zapytanie na każdą fakturę — N+1).
+      itemCount: sql<number>`(SELECT count(*)::int FROM invoice_items ii WHERE ii.invoice_id = ${invoicesTable.id})`,
     })
     .from(invoicesTable)
     .innerJoin(suppliersTable, eq(invoicesTable.supplierId, suppliersTable.id))
@@ -195,16 +195,12 @@ router.get("/invoices/page", async (req, res): Promise<void> => {
     .limit(limit)
     .offset(offset);
 
-  const items = await Promise.all(
-    invoices.map(async (inv) => {
-      const itemRows = await db
-        .select({ id: invoiceItemsTable.id })
-        .from(invoiceItemsTable)
-        .where(eq(invoiceItemsTable.invoiceId, inv.id));
+  const items = invoices.map((inv) => {
       return {
         ...inv,
         totalAmount: toNum(inv.totalAmount),
-        itemCount: itemRows.length,
+        itemCount: Number(inv.itemCount ?? 0),
+        wzMismatches: inv.wzMismatches ?? null,
         importedAt: inv.importedAt.toISOString(),
         paidAt: inv.paidAt ? inv.paidAt.toISOString() : null,
         costCenterId: inv.costCenterId ?? null,
@@ -217,8 +213,7 @@ router.get("/invoices/page", async (req, res): Promise<void> => {
         parentInvoiceId: inv.parentInvoiceId ?? null,
         correctedInvoiceNumber: inv.correctedInvoiceNumber ?? null,
       };
-    }),
-  );
+    });
 
   res.json({ items, total, suggestedCount });
 });

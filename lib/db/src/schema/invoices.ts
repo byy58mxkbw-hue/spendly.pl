@@ -26,6 +26,9 @@ export const invoicesTable = pgTable("invoices", {
   invoiceType: text("invoice_type"),
   parentInvoiceId: integer("parent_invoice_id").references((): AnyPgColumn => invoicesTable.id, { onDelete: "set null" }),
   correctedInvoiceNumber: text("corrected_invoice_number"),
+  // Rozbieżności WZ vs faktura (null = żadna WZ nieodczytana). Przeliczane w routes/invoice-wz.ts
+  // przy odczycie/odpięciu WZ — lista faktur czyta gotową liczbę zamiast liczyć porównanie.
+  wzMismatches: integer("wz_mismatches"),
   // Skąd faktura trafiła do bazy: 'ksef_sync' (pobrana z KSeF API) | 'manual' (import
   // ręczny/OCR) | 'viewer' (import z publicznego podglądu XML po rejestracji).
   // Benchmark rynkowy liczy do progu k-anonimowości tylko userów z fakturą 'ksef_sync'

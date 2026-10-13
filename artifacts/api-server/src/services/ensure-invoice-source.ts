@@ -79,6 +79,7 @@ export async function ensurePreListenColumns(log: Logger): Promise<void> {
   `);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS iwz_invoice_number_uniq ON invoice_wz_documents (invoice_id, wz_number)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS iwz_user_idx ON invoice_wz_documents (user_id)`);
+  await db.execute(sql`ALTER TABLE IF EXISTS invoices ADD COLUMN IF NOT EXISTS wz_mismatches integer`);
 }
 
 export async function ensureInvoiceSourceColumn(log: Logger): Promise<void> {

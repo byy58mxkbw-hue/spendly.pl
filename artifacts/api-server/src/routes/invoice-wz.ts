@@ -7,6 +7,17 @@ import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-o
 import { compareWzWithInvoice, type WzLine } from "../lib/wz-compare";
 import { toNum } from "../lib/parse";
 import { captureServer } from "../lib/telemetry";
+import { decryptSecret } from "../lib/encryption";
+
+/** XML faktury jest w bazie zaszyfrowany (jak w GET /invoices/:id/xml); stare wpisy bywają jawne. */
+function readXml(stored: string | null): string | null {
+  if (!stored) return null;
+  try {
+    return decryptSecret(stored);
+  } catch {
+    return stored.trimStart().startsWith("<") ? stored : null;
+  }
+}
 
 // Dokumenty WZ (wydanie zewnętrzne) przy fakturze: numery z XML KSeF, odczyt WZ ze
 // zdjęcia/PDF (OCR, raz na dokument — reguła 14) i porównanie ilości z pozycjami faktury,
@@ -29,7 +40,8 @@ async function buildWz(userId: string, invoice: { id: number; xmlContent: string
     .where(and(eq(invoiceWzDocumentsTable.invoiceId, invoice.id), eq(invoiceWzDocumentsTable.userId, userId)))
     .orderBy(asc(invoiceWzDocumentsTable.scannedAt));
 
-  const fromXml = invoice.xmlContent ? extractWzNumbers(invoice.xmlContent) : [];
+  const xml = readXml(invoice.xmlContent);
+  const fromXml = xml ? extractWzNumbers(xml) : [];
   const wzNumbers = [...fromXml];
   for (const d of documents) if (!wzNumbers.some((n) => n.toLowerCase() === d.wzNumber.toLowerCase())) wzNumbers.push(d.wzNumber);
 
@@ -45,6 +57,18 @@ async function buildWz(userId: string, invoice: { id: number; xmlContent: string
       wzLines,
     );
   }
+
+  // Liczba rozbieżności zapisywana przy fakturze (znaczek na liście faktur). „Brak na WZ”
+  // liczymy dopiero, gdy wszystkie WZ z faktury są odczytane — wcześniej to nie brak, tylko
+  // nieodczytany dokument.
+  const allRead = wzNumbers.every((n) => documents.some((d) => d.wzNumber.toLowerCase() === n.toLowerCase()));
+  const mismatches = comparison
+    ? comparison.summary.differences + comparison.summary.notInvoiced + (allRead ? comparison.summary.missingOnWz : 0)
+    : null;
+  await db
+    .update(invoicesTable)
+    .set({ wzMismatches: mismatches })
+    .where(and(eq(invoicesTable.id, invoice.id), eq(invoicesTable.userId, userId)));
 
   return {
     wzNumbers,

@@ -3217,6 +3217,9 @@ components:
         correctedInvoiceNumber:
           type: ["string", "null"]
           description: "Invoice number being corrected (KOR invoices)"
+        wzMismatches:
+          type: ["integer", "null"]
+          description: "Rozbieżności WZ vs faktura (różnice ilości, towar spoza faktury, brak na WZ gdy wszystkie WZ odczytane); null = brak odczytanej WZ"
       required:
         - id
         - supplierId

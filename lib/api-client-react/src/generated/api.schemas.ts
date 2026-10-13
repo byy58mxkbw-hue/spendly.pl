@@ -269,6 +269,11 @@ export interface Invoice {
      * @nullable
      */
   correctedInvoiceNumber?: string | null;
+  /**
+     * Rozbieżności WZ vs faktura (różnice ilości, towar spoza faktury, brak na WZ gdy wszystkie WZ odczytane); null = brak odczytanej WZ
+     * @nullable
+     */
+  wzMismatches?: number | null;
 }
 
 export interface InvoiceItem {

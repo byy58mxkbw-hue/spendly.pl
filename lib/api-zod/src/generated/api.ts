@@ -669,7 +669,8 @@ export const SetInvoiceCostCenterResponse = zod.object({
   "suggestedCostCenterColor": zod.string().nullish(),
   "invoiceType": zod.string().nullish().describe('Invoice type from KSeF: VAT, KOR, etc.'),
   "parentInvoiceId": zod.number().nullish().describe('ID of the parent invoice that this correction corrects'),
-  "correctedInvoiceNumber": zod.string().nullish().describe('Invoice number being corrected (KOR invoices)')
+  "correctedInvoiceNumber": zod.string().nullish().describe('Invoice number being corrected (KOR invoices)'),
+  "wzMismatches": zod.number().nullish().describe('Rozbieżności WZ vs faktura (różnice ilości, towar spoza faktury, brak na WZ gdy wszystkie WZ odczytane); null = brak odczytanej WZ')
 })
 
 
@@ -1289,7 +1290,8 @@ export const ListInvoicesResponseItem = zod.object({
   "suggestedCostCenterColor": zod.string().nullish(),
   "invoiceType": zod.string().nullish().describe('Invoice type from KSeF: VAT, KOR, etc.'),
   "parentInvoiceId": zod.number().nullish().describe('ID of the parent invoice that this correction corrects'),
-  "correctedInvoiceNumber": zod.string().nullish().describe('Invoice number being corrected (KOR invoices)')
+  "correctedInvoiceNumber": zod.string().nullish().describe('Invoice number being corrected (KOR invoices)'),
+  "wzMismatches": zod.number().nullish().describe('Rozbieżności WZ vs faktura (różnice ilości, towar spoza faktury, brak na WZ gdy wszystkie WZ odczytane); null = brak odczytanej WZ')
 })
 export const ListInvoicesResponse = zod.array(ListInvoicesResponseItem)
 
@@ -1328,7 +1330,8 @@ export const ListInvoicesPagedResponse = zod.object({
   "suggestedCostCenterColor": zod.string().nullish(),
   "invoiceType": zod.string().nullish().describe('Invoice type from KSeF: VAT, KOR, etc.'),
   "parentInvoiceId": zod.number().nullish().describe('ID of the parent invoice that this correction corrects'),
-  "correctedInvoiceNumber": zod.string().nullish().describe('Invoice number being corrected (KOR invoices)')
+  "correctedInvoiceNumber": zod.string().nullish().describe('Invoice number being corrected (KOR invoices)'),
+  "wzMismatches": zod.number().nullish().describe('Rozbieżności WZ vs faktura (różnice ilości, towar spoza faktury, brak na WZ gdy wszystkie WZ odczytane); null = brak odczytanej WZ')
 })),
   "total": zod.number().describe('Łączna liczba faktur pasujących do filtrów (bez paginacji).'),
   "suggestedCount": zod.number().describe('Ile nieprzypisanych faktur ma sugerowane centrum kosztów (cały zbiór, nie tylko strona).')
@@ -1551,7 +1554,8 @@ export const GetInvoicesTimelineResponse = zod.object({
   "suggestedCostCenterColor": zod.string().nullish(),
   "invoiceType": zod.string().nullish().describe('Invoice type from KSeF: VAT, KOR, etc.'),
   "parentInvoiceId": zod.number().nullish().describe('ID of the parent invoice that this correction corrects'),
-  "correctedInvoiceNumber": zod.string().nullish().describe('Invoice number being corrected (KOR invoices)')
+  "correctedInvoiceNumber": zod.string().nullish().describe('Invoice number being corrected (KOR invoices)'),
+  "wzMismatches": zod.number().nullish().describe('Rozbieżności WZ vs faktura (różnice ilości, towar spoza faktury, brak na WZ gdy wszystkie WZ odczytane); null = brak odczytanej WZ')
 }))
 })),
   "totalAmount": zod.number(),
