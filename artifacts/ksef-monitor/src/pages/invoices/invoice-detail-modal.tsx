@@ -26,6 +26,7 @@ import { PriceHistoryModal } from "../products";
 import { useToast } from "@/hooks/use-toast";
 import { getInvoiceXml } from "@workspace/api-client-react";
 import { downloadKsefPdf } from "@/lib/ksef-pdf";
+import { InvoiceWzSection } from "./invoice-wz-section";
 
 export function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invoiceId: number; onClose: () => void; onOpenInvoice?: (id: number) => void }) {
   const qc = useQueryClient();
@@ -287,6 +288,8 @@ export function InvoiceDetailModal({ invoiceId, onClose, onOpenInvoice }: { invo
                 Brak pozycji (zaimportowano bez XML).
               </div>
             )}
+
+            {data.items.length > 0 && <InvoiceWzSection invoiceId={invoiceId} />}
           </div>
         ) : null}
       </DialogContent>

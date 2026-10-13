@@ -4,3 +4,4 @@
 export * from "./errors";
 export * from "./fa3";
 export * from "./import-parse";
+export * from "./wz";

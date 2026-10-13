@@ -336,6 +336,82 @@ export interface ScanReceiptBody {
   pages?: ScanReceiptPage[];
 }
 
+export interface ScanInvoiceWzBody {
+  /**
+     * Numer WZ (z faktury albo wpisany ręcznie)
+     * @minLength 1
+     * @maxLength 80
+     */
+  wzNumber: string;
+  /**
+     * @minItems 1
+     * @maxItems 6
+     */
+  pages: ScanReceiptPage[];
+}
+
+export interface WzItem {
+  productName: string;
+  quantity: number;
+  unit: string;
+}
+
+export interface InvoiceWzDocument {
+  id: number;
+  wzNumber: string;
+  /** @nullable */
+  wzDate?: string | null;
+  items: WzItem[];
+  scannedAt: string;
+}
+
+export type WzCompareRowStatus = typeof WzCompareRowStatus[keyof typeof WzCompareRowStatus];
+
+
+export const WzCompareRowStatus = {
+  ok: 'ok',
+  difference: 'difference',
+  missing_on_wz: 'missing_on_wz',
+  unit_mismatch: 'unit_mismatch',
+} as const;
+
+export interface WzCompareRow {
+  invoiceName: string;
+  invoiceQuantity: number;
+  unit: string;
+  /** @nullable */
+  wzName?: string | null;
+  /** @nullable */
+  wzQuantity?: number | null;
+  /** @nullable */
+  difference?: number | null;
+  status: WzCompareRowStatus;
+}
+
+export type InvoiceWzComparisonSummary = {
+  ok: number;
+  differences: number;
+  missingOnWz: number;
+  notInvoiced: number;
+};
+
+/**
+ * @nullable
+ */
+export type InvoiceWzComparison = {
+  rows: WzCompareRow[];
+  notInvoiced: WzItem[];
+  summary: InvoiceWzComparisonSummary;
+} | null;
+
+export interface InvoiceWz {
+  /** Numery WZ z XML faktury i z przypiętych dokumentów */
+  wzNumbers: string[];
+  documents: InvoiceWzDocument[];
+  /** @nullable */
+  comparison: InvoiceWzComparison;
+}
+
 export interface ScannedReceiptItem {
   productName: string;
   quantity: number;

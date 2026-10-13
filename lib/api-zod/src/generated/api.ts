@@ -1879,6 +1879,156 @@ export const GetBenchmarksResponse = zod.object({
 
 
 /**
+ * @summary Dokumenty WZ faktury — numery z XML, przypięte odczyty i porównanie z pozycjami faktury
+ */
+export const GetInvoiceWzParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetInvoiceWzResponse = zod.object({
+  "wzNumbers": zod.array(zod.string()).describe('Numery WZ z XML faktury i z przypiętych dokumentów'),
+  "documents": zod.array(zod.object({
+  "id": zod.number(),
+  "wzNumber": zod.string(),
+  "wzDate": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string()
+})),
+  "scannedAt": zod.string()
+})),
+  "comparison": zod.object({
+  "rows": zod.array(zod.object({
+  "invoiceName": zod.string(),
+  "invoiceQuantity": zod.number(),
+  "unit": zod.string(),
+  "wzName": zod.string().nullish(),
+  "wzQuantity": zod.number().nullish(),
+  "difference": zod.number().nullish(),
+  "status": zod.enum(['ok', 'difference', 'missing_on_wz', 'unit_mismatch'])
+})),
+  "notInvoiced": zod.array(zod.object({
+  "productName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string()
+})),
+  "summary": zod.object({
+  "ok": zod.number(),
+  "differences": zod.number(),
+  "missingOnWz": zod.number(),
+  "notInvoiced": zod.number()
+})
+}).nullable()
+})
+
+
+/**
+ * @summary Odczyt WZ (zdjęcie/PDF → strony) przez OCR i przypięcie do faktury. Limit AI planu.
+ */
+export const ScanInvoiceWzParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const scanInvoiceWzBodyWzNumberMax = 80;
+
+export const scanInvoiceWzBodyPagesMax = 6;
+
+
+
+export const ScanInvoiceWzBody = zod.object({
+  "wzNumber": zod.string().min(1).max(scanInvoiceWzBodyWzNumberMax).describe('Numer WZ (z faktury albo wpisany ręcznie)'),
+  "pages": zod.array(zod.object({
+  "imageBase64": zod.string(),
+  "mimeType": zod.string()
+})).min(1).max(scanInvoiceWzBodyPagesMax)
+})
+
+export const ScanInvoiceWzResponse = zod.object({
+  "wzNumbers": zod.array(zod.string()).describe('Numery WZ z XML faktury i z przypiętych dokumentów'),
+  "documents": zod.array(zod.object({
+  "id": zod.number(),
+  "wzNumber": zod.string(),
+  "wzDate": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string()
+})),
+  "scannedAt": zod.string()
+})),
+  "comparison": zod.object({
+  "rows": zod.array(zod.object({
+  "invoiceName": zod.string(),
+  "invoiceQuantity": zod.number(),
+  "unit": zod.string(),
+  "wzName": zod.string().nullish(),
+  "wzQuantity": zod.number().nullish(),
+  "difference": zod.number().nullish(),
+  "status": zod.enum(['ok', 'difference', 'missing_on_wz', 'unit_mismatch'])
+})),
+  "notInvoiced": zod.array(zod.object({
+  "productName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string()
+})),
+  "summary": zod.object({
+  "ok": zod.number(),
+  "differences": zod.number(),
+  "missingOnWz": zod.number(),
+  "notInvoiced": zod.number()
+})
+}).nullable()
+})
+
+
+/**
+ * @summary Odpina odczytany dokument WZ od faktury
+ */
+export const DeleteInvoiceWzParams = zod.object({
+  "id": zod.coerce.number(),
+  "wzId": zod.coerce.number()
+})
+
+export const DeleteInvoiceWzResponse = zod.object({
+  "wzNumbers": zod.array(zod.string()).describe('Numery WZ z XML faktury i z przypiętych dokumentów'),
+  "documents": zod.array(zod.object({
+  "id": zod.number(),
+  "wzNumber": zod.string(),
+  "wzDate": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "productName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string()
+})),
+  "scannedAt": zod.string()
+})),
+  "comparison": zod.object({
+  "rows": zod.array(zod.object({
+  "invoiceName": zod.string(),
+  "invoiceQuantity": zod.number(),
+  "unit": zod.string(),
+  "wzName": zod.string().nullish(),
+  "wzQuantity": zod.number().nullish(),
+  "difference": zod.number().nullish(),
+  "status": zod.enum(['ok', 'difference', 'missing_on_wz', 'unit_mismatch'])
+})),
+  "notInvoiced": zod.array(zod.object({
+  "productName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string()
+})),
+  "summary": zod.object({
+  "ok": zod.number(),
+  "differences": zod.number(),
+  "missingOnWz": zod.number(),
+  "notInvoiced": zod.number()
+})
+}).nullable()
+})
+
+
+/**
  * @summary Plik XML faktury (do PDF w układzie KSeF generowanego w przeglądarce)
  */
 export const GetInvoiceXmlParams = zod.object({

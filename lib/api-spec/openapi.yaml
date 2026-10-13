@@ -1972,6 +1972,76 @@ paths:
               schema:
                 $ref: "#/components/schemas/BenchmarksResponse"
 
+  /invoices/{id}/wz:
+    get:
+      operationId: getInvoiceWz
+      tags: [invoices]
+      summary: Dokumenty WZ faktury — numery z XML, przypięte odczyty i porównanie z pozycjami faktury
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: WZ faktury
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWz"
+        "404":
+          description: Faktura nie istnieje albo nie należy do użytkownika
+
+  /invoices/{id}/wz/scan:
+    post:
+      operationId: scanInvoiceWz
+      tags: [invoices]
+      summary: Odczyt WZ (zdjęcie/PDF → strony) przez OCR i przypięcie do faktury. Limit AI planu.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanInvoiceWzBody"
+      responses:
+        "200":
+          description: Zaktualizowane WZ faktury
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWz"
+
+  /invoices/{id}/wz/{wzId}:
+    delete:
+      operationId: deleteInvoiceWz
+      tags: [invoices]
+      summary: Odpina odczytany dokument WZ od faktury
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: wzId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Zaktualizowane WZ faktury
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceWz"
+
   /invoices/{id}/xml:
     get:
       operationId: getInvoiceXml
@@ -3267,6 +3337,108 @@ components:
           maxItems: 6
           items:
             $ref: "#/components/schemas/ScanReceiptPage"
+
+    ScanInvoiceWzBody:
+      type: object
+      properties:
+        wzNumber:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: Numer WZ (z faktury albo wpisany ręcznie)
+        pages:
+          type: array
+          minItems: 1
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/ScanReceiptPage"
+      required: [wzNumber, pages]
+
+    WzItem:
+      type: object
+      properties:
+        productName:
+          type: string
+        quantity:
+          type: number
+        unit:
+          type: string
+      required: [productName, quantity, unit]
+
+    InvoiceWzDocument:
+      type: object
+      properties:
+        id:
+          type: integer
+        wzNumber:
+          type: string
+        wzDate:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WzItem"
+        scannedAt:
+          type: string
+      required: [id, wzNumber, items, scannedAt]
+
+    WzCompareRow:
+      type: object
+      properties:
+        invoiceName:
+          type: string
+        invoiceQuantity:
+          type: number
+        unit:
+          type: string
+        wzName:
+          type: ["string", "null"]
+        wzQuantity:
+          type: ["number", "null"]
+        difference:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [ok, difference, missing_on_wz, unit_mismatch]
+      required: [invoiceName, invoiceQuantity, unit, status]
+
+    InvoiceWz:
+      type: object
+      properties:
+        wzNumbers:
+          type: array
+          items:
+            type: string
+          description: Numery WZ z XML faktury i z przypiętych dokumentów
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceWzDocument"
+        comparison:
+          type: ["object", "null"]
+          properties:
+            rows:
+              type: array
+              items:
+                $ref: "#/components/schemas/WzCompareRow"
+            notInvoiced:
+              type: array
+              items:
+                $ref: "#/components/schemas/WzItem"
+            summary:
+              type: object
+              properties:
+                ok:
+                  type: integer
+                differences:
+                  type: integer
+                missingOnWz:
+                  type: integer
+                notInvoiced:
+                  type: integer
+              required: [ok, differences, missingOnWz, notInvoiced]
+          required: [rows, notInvoiced, summary]
+      required: [wzNumbers, documents, comparison]
 
     ScannedReceiptItem:
       type: object

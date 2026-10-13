@@ -90,6 +90,7 @@ import type {
   InvoiceCalendarResponse,
   InvoiceTimelineResponse,
   InvoiceWithItems,
+  InvoiceWz,
   InvoiceXml,
   KsefConfigView,
   KsefPendingInvoiceDetail,
@@ -132,6 +133,7 @@ import type {
   RetryKsefPendingResult,
   SaveMenuDishes201,
   SaveMenuDishesBody,
+  ScanInvoiceWzBody,
   ScanReceiptBody,
   ScannedReceiptData,
   SearchResults,
@@ -6218,6 +6220,226 @@ export function useGetBenchmarks<TData = Awaited<ReturnType<typeof getBenchmarks
 
 
 
+
+export const getGetInvoiceWzUrl = (id: number,) => {
+
+
+
+
+  return `/api/invoices/${id}/wz`
+}
+
+/**
+ * @summary Dokumenty WZ faktury — numery z XML, przypięte odczyty i porównanie z pozycjami faktury
+ */
+export const getInvoiceWz = async (id: number, options?: RequestInit): Promise<InvoiceWz> => {
+
+  return customFetch<InvoiceWz>(getGetInvoiceWzUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetInvoiceWzQueryKey = (id: number,) => {
+    return [
+    `/api/invoices/${id}/wz`
+    ] as const;
+    }
+
+
+export const getGetInvoiceWzQueryOptions = <TData = Awaited<ReturnType<typeof getInvoiceWz>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvoiceWz>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetInvoiceWzQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getInvoiceWz>>> = ({ signal }) => getInvoiceWz(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getInvoiceWz>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetInvoiceWzQueryResult = NonNullable<Awaited<ReturnType<typeof getInvoiceWz>>>
+export type GetInvoiceWzQueryError = ErrorType<void>
+
+
+/**
+ * @summary Dokumenty WZ faktury — numery z XML, przypięte odczyty i porównanie z pozycjami faktury
+ */
+
+export function useGetInvoiceWz<TData = Awaited<ReturnType<typeof getInvoiceWz>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getInvoiceWz>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetInvoiceWzQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getScanInvoiceWzUrl = (id: number,) => {
+
+
+
+
+  return `/api/invoices/${id}/wz/scan`
+}
+
+/**
+ * @summary Odczyt WZ (zdjęcie/PDF → strony) przez OCR i przypięcie do faktury. Limit AI planu.
+ */
+export const scanInvoiceWz = async (id: number,
+    scanInvoiceWzBody: ScanInvoiceWzBody, options?: RequestInit): Promise<InvoiceWz> => {
+
+  return customFetch<InvoiceWz>(getScanInvoiceWzUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(scanInvoiceWzBody)
+  }
+);}
+
+
+
+
+export const getScanInvoiceWzMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scanInvoiceWz>>, TError,{id: number;data: BodyType<ScanInvoiceWzBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof scanInvoiceWz>>, TError,{id: number;data: BodyType<ScanInvoiceWzBody>}, TContext> => {
+
+const mutationKey = ['scanInvoiceWz'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof scanInvoiceWz>>, {id: number;data: BodyType<ScanInvoiceWzBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  scanInvoiceWz(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ScanInvoiceWzMutationResult = NonNullable<Awaited<ReturnType<typeof scanInvoiceWz>>>
+    export type ScanInvoiceWzMutationBody = BodyType<ScanInvoiceWzBody>
+    export type ScanInvoiceWzMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Odczyt WZ (zdjęcie/PDF → strony) przez OCR i przypięcie do faktury. Limit AI planu.
+ */
+export const useScanInvoiceWz = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof scanInvoiceWz>>, TError,{id: number;data: BodyType<ScanInvoiceWzBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof scanInvoiceWz>>,
+        TError,
+        {id: number;data: BodyType<ScanInvoiceWzBody>},
+        TContext
+      > => {
+      return useMutation(getScanInvoiceWzMutationOptions(options));
+    }
+
+export const getDeleteInvoiceWzUrl = (id: number,
+    wzId: number,) => {
+
+
+
+
+  return `/api/invoices/${id}/wz/${wzId}`
+}
+
+/**
+ * @summary Odpina odczytany dokument WZ od faktury
+ */
+export const deleteInvoiceWz = async (id: number,
+    wzId: number, options?: RequestInit): Promise<InvoiceWz> => {
+
+  return customFetch<InvoiceWz>(getDeleteInvoiceWzUrl(id,wzId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteInvoiceWzMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteInvoiceWz>>, TError,{id: number;wzId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteInvoiceWz>>, TError,{id: number;wzId: number}, TContext> => {
+
+const mutationKey = ['deleteInvoiceWz'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteInvoiceWz>>, {id: number;wzId: number}> = (props) => {
+          const {id,wzId} = props ?? {};
+
+          return  deleteInvoiceWz(id,wzId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteInvoiceWzMutationResult = NonNullable<Awaited<ReturnType<typeof deleteInvoiceWz>>>
+
+    export type DeleteInvoiceWzMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Odpina odczytany dokument WZ od faktury
+ */
+export const useDeleteInvoiceWz = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteInvoiceWz>>, TError,{id: number;wzId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteInvoiceWz>>,
+        TError,
+        {id: number;wzId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteInvoiceWzMutationOptions(options));
+    }
 
 export const getGetInvoiceXmlUrl = (id: number,) => {
 

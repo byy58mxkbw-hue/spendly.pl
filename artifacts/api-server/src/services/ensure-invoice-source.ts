@@ -64,6 +64,21 @@ export async function ensurePreListenColumns(log: Logger): Promise<void> {
     )
   `);
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS mmr_variant_uniq ON market_match_review (canonical_name, unit)`);
+  // Dokumenty WZ przypięte do faktur (numer + pozycje z OCR).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS invoice_wz_documents (
+      id serial PRIMARY KEY,
+      user_id text NOT NULL,
+      invoice_id integer NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+      wz_number text NOT NULL,
+      wz_date text,
+      items jsonb NOT NULL,
+      page_count integer NOT NULL DEFAULT 1,
+      scanned_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS iwz_invoice_number_uniq ON invoice_wz_documents (invoice_id, wz_number)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS iwz_user_idx ON invoice_wz_documents (user_id)`);
 }
 
 export async function ensureInvoiceSourceColumn(log: Logger): Promise<void> {

@@ -5,6 +5,7 @@ import publicMarketRouter from "./public-market";
 import suppliersRouter from "./suppliers";
 import productsRouter from "./products";
 import invoicesRouter from "./invoices";
+import invoiceWzRouter from "./invoice-wz";
 import priceAlertsRouter from "./price-alerts";
 import benchmarksRouter from "./benchmarks";
 import dashboardRouter from "./dashboard";
@@ -32,11 +33,14 @@ router.use(requireUser);
 // bo potrzebuje req.userId/req.plan; przed routerami, żeby wyprzedzić handlery.
 router.use("/ai-cfo/chat", aiQuota);
 router.use("/invoices/scan-receipt", aiQuota);
+// Odczyt WZ (OCR) — ten sam miesięczny limit AI co skan faktur.
+router.post("/invoices/:id/wz/scan", aiQuota);
 router.use("/food-cost/import-menu", aiQuota);
 
 router.use(suppliersRouter);
 router.use(productsRouter);
 router.use(invoicesRouter);
+router.use(invoiceWzRouter);
 router.use(priceAlertsRouter);
 router.use(benchmarksRouter);
 router.use(dashboardRouter);
