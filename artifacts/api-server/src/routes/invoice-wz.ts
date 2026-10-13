@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { and, asc, eq } from "drizzle-orm";
 import { db, invoicesTable, invoiceItemsTable, invoiceWzDocumentsTable } from "@workspace/db";
 import { GetInvoiceWzParams, ScanInvoiceWzParams, ScanInvoiceWzBody, DeleteInvoiceWzParams } from "@workspace/api-zod";
-import { extractWzNumbers } from "@workspace/ksef-xml";
+import { extractWzNumbers, extractWzDetails, wzKey } from "@workspace/ksef-xml";
 import { requireOpenAI, aiObservabilityEnabled } from "@workspace/integrations-openai-ai-server";
 import { compareWzWithInvoice, type WzLine } from "../lib/wz-compare";
 import { toNum } from "../lib/parse";
@@ -43,7 +43,12 @@ async function buildWz(userId: string, invoice: { id: number; xmlContent: string
   const xml = readXml(invoice.xmlContent);
   const fromXml = xml ? extractWzNumbers(xml) : [];
   const wzNumbers = [...fromXml];
-  for (const d of documents) if (!wzNumbers.some((n) => n.toLowerCase() === d.wzNumber.toLowerCase())) wzNumbers.push(d.wzNumber);
+  // Ten sam dokument bywa zapisany różnie („WZ983” vs „WZ/983/2026”) — łączymy po numerze.
+  for (const d of documents) if (!wzNumbers.some((n) => wzKey(n) === wzKey(d.wzNumber))) wzNumbers.push(d.wzNumber);
+  const details = xml ? extractWzDetails(xml) : new Map();
+  const wzDetails = wzNumbers
+    .map((n) => ({ wzNumber: n, ...(details.get(wzKey(n)) ?? { date: null, amount: null }) }))
+    .filter((d) => d.date != null || d.amount != null);
 
   let comparison = null;
   if (documents.length > 0) {
@@ -61,7 +66,7 @@ async function buildWz(userId: string, invoice: { id: number; xmlContent: string
   // Liczba rozbieżności zapisywana przy fakturze (znaczek na liście faktur). „Brak na WZ”
   // liczymy dopiero, gdy wszystkie WZ z faktury są odczytane — wcześniej to nie brak, tylko
   // nieodczytany dokument.
-  const allRead = wzNumbers.every((n) => documents.some((d) => d.wzNumber.toLowerCase() === n.toLowerCase()));
+  const allRead = wzNumbers.every((n) => documents.some((d) => wzKey(d.wzNumber) === wzKey(n)));
   const mismatches = comparison
     ? comparison.summary.differences + comparison.summary.notInvoiced + (allRead ? comparison.summary.missingOnWz : 0)
     : null;
@@ -72,6 +77,7 @@ async function buildWz(userId: string, invoice: { id: number; xmlContent: string
 
   return {
     wzNumbers,
+    wzDetails,
     documents: documents.map((d) => ({
       id: d.id,
       wzNumber: d.wzNumber,

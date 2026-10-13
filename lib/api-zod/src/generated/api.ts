@@ -1891,6 +1891,11 @@ export const GetInvoiceWzParams = zod.object({
 
 export const GetInvoiceWzResponse = zod.object({
   "wzNumbers": zod.array(zod.string()).describe('Numery WZ z XML faktury i z przypiętych dokumentów'),
+  "wzDetails": zod.array(zod.object({
+  "wzNumber": zod.string(),
+  "date": zod.string().nullable(),
+  "amount": zod.number().nullable()
+})).optional().describe('Data i kwota WZ z opisu faktury („05.10 WZ983 519,12”), gdy dostawca je podaje'),
   "documents": zod.array(zod.object({
   "id": zod.number(),
   "wzNumber": zod.string(),
@@ -1950,6 +1955,11 @@ export const ScanInvoiceWzBody = zod.object({
 
 export const ScanInvoiceWzResponse = zod.object({
   "wzNumbers": zod.array(zod.string()).describe('Numery WZ z XML faktury i z przypiętych dokumentów'),
+  "wzDetails": zod.array(zod.object({
+  "wzNumber": zod.string(),
+  "date": zod.string().nullable(),
+  "amount": zod.number().nullable()
+})).optional().describe('Data i kwota WZ z opisu faktury („05.10 WZ983 519,12”), gdy dostawca je podaje'),
   "documents": zod.array(zod.object({
   "id": zod.number(),
   "wzNumber": zod.string(),
@@ -1996,6 +2006,11 @@ export const DeleteInvoiceWzParams = zod.object({
 
 export const DeleteInvoiceWzResponse = zod.object({
   "wzNumbers": zod.array(zod.string()).describe('Numery WZ z XML faktury i z przypiętych dokumentów'),
+  "wzDetails": zod.array(zod.object({
+  "wzNumber": zod.string(),
+  "date": zod.string().nullable(),
+  "amount": zod.number().nullable()
+})).optional().describe('Data i kwota WZ z opisu faktury („05.10 WZ983 519,12”), gdy dostawca je podaje'),
   "documents": zod.array(zod.object({
   "id": zod.number(),
   "wzNumber": zod.string(),

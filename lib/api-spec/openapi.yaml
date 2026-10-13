@@ -3413,6 +3413,19 @@ components:
           items:
             type: string
           description: Numery WZ z XML faktury i z przypiętych dokumentów
+        wzDetails:
+          type: array
+          description: "Data i kwota WZ z opisu faktury („05.10 WZ983 519,12”), gdy dostawca je podaje"
+          items:
+            type: object
+            properties:
+              wzNumber:
+                type: string
+              date:
+                type: ["string", "null"]
+              amount:
+                type: ["number", "null"]
+            required: [wzNumber, date, amount]
         documents:
           type: array
           items:

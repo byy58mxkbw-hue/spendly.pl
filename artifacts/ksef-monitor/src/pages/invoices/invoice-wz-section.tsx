@@ -12,7 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Trash2, Upload, CheckCircle2, AlertTriangle } from "@/lib/icons";
 import { fileToImages } from "@/lib/file-to-images";
 import { useToast } from "@/hooks/use-toast";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPrice } from "@/lib/format";
+import { wzKey } from "@workspace/ksef-xml";
 import { plural } from "@/lib/plural";
 import { track } from "@/lib/posthog";
 import { cn } from "@/lib/utils";
@@ -93,8 +94,10 @@ export function InvoiceWzSection({ invoiceId }: { invoiceId: number }) {
   if (isLoading) return <Skeleton className="h-20 w-full" />;
   if (!data) return null;
 
-  const docByNumber = new Map(data.documents.map((d) => [d.wzNumber.toLowerCase(), d]));
-  const unread = data.wzNumbers.filter((n) => !docByNumber.has(n.toLowerCase()));
+  // Dopasowanie po numerze dokumentu — „WZ983” i „WZ/983/2026” to ta sama WZ.
+  const docByNumber = new Map(data.documents.map((d) => [wzKey(d.wzNumber), d]));
+  const detailByNumber = new Map((data.wzDetails ?? []).map((d) => [wzKey(d.wzNumber), d]));
+  const unread = data.wzNumbers.filter((n) => !docByNumber.has(wzKey(n)));
   const cmp = data.comparison;
   const rows = cmp ? [...cmp.rows].sort((a, b) => ORDER[a.status] - ORDER[b.status]) : [];
 
@@ -120,11 +123,17 @@ export function InvoiceWzSection({ invoiceId }: { invoiceId: number }) {
       {data.wzNumbers.length > 0 && (
         <ul className="rule-list mt-2">
           {data.wzNumbers.map((n) => {
-            const doc = docByNumber.get(n.toLowerCase());
+            const doc = docByNumber.get(wzKey(n));
+            const det = detailByNumber.get(wzKey(n));
             return (
               <li key={n} className="flex items-center justify-between gap-3 py-2 text-sm">
                 <span className="min-w-0">
                   <span className="font-medium num">{n}</span>
+                  {det && (
+                    <span className="block text-xs text-muted-foreground num">
+                      {[det.date ? `dostawa ${det.date}` : null, det.amount != null ? formatPrice(det.amount) : null].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
                   {doc && (
                     <span className="block text-xs text-muted-foreground">
                       {doc.items.length} {plural(doc.items.length, ["pozycja", "pozycje", "pozycji"])}

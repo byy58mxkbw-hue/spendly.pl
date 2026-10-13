@@ -393,6 +393,14 @@ export interface WzCompareRow {
   status: WzCompareRowStatus;
 }
 
+export type InvoiceWzWzDetailsItem = {
+  wzNumber: string;
+  /** @nullable */
+  date: string | null;
+  /** @nullable */
+  amount: number | null;
+};
+
 export type InvoiceWzComparisonSummary = {
   ok: number;
   differences: number;
@@ -412,6 +420,8 @@ export type InvoiceWzComparison = {
 export interface InvoiceWz {
   /** Numery WZ z XML faktury i z przypiętych dokumentów */
   wzNumbers: string[];
+  /** Data i kwota WZ z opisu faktury („05.10 WZ983 519,12”), gdy dostawca je podaje */
+  wzDetails?: InvoiceWzWzDetailsItem[];
   documents: InvoiceWzDocument[];
   /** @nullable */
   comparison: InvoiceWzComparison;
