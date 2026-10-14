@@ -19,7 +19,8 @@ import {
   CorrectProductCategoryBody,
 } from "@workspace/api-zod";
 import { getUserCategories, ensureCustomCategory, saveProductCorrection, normalizeProductName } from "../lib/categorize-ai.js";
-import { BUILTIN_CATEGORY_DEFS, categorizeProduct } from "../lib/categorize.js";
+import { BUILTIN_CATEGORY_DEFS, categorizeProduct, isNonFood } from "../lib/categorize.js";
+import { matchBrand } from "../lib/brand-map.js";
 import { normalizedUnitSql } from "../lib/units.js";
 
 const router: IRouter = Router();
@@ -993,14 +994,18 @@ router.get("/products/category-review", async (req, res): Promise<void> => {
   }[] = [];
 
   for (const p of products) {
+    if (p.classificationConfidence === 1) continue;
     const lookup = p.canonicalName || p.name.toLowerCase();
-    const suggested = categorizeProduct(lookup) !== "inne"
+    // Pomijaj produkty nieżywnościowe (płyny do naczyń, opakowania itp.)
+    if (isNonFood(lookup) || isNonFood(p.name.toLowerCase())) continue;
+    // Brand ma priorytet nad keyword (MONIN → syropy, nie owoce)
+    const brand = matchBrand(lookup) ?? matchBrand(p.name.toLowerCase());
+    const keywordCat = categorizeProduct(lookup) !== "inne"
       ? categorizeProduct(lookup)
       : categorizeProduct(p.name.toLowerCase());
-    // Pomijamy: brak sugestii (inne), brak zmiany, produkty z confidence=1 (ręczna korekta)
-    if (suggested === "inne") continue;
+    const suggested = brand?.category ?? (keywordCat !== "inne" ? keywordCat : null);
+    if (!suggested || suggested === "inne") continue;
     if (suggested === p.category) continue;
-    if (p.classificationConfidence === 1) continue;
     items.push({
       id: p.id, name: p.name,
       currentCategory: p.category,

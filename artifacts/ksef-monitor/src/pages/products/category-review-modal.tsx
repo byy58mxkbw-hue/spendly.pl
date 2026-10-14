@@ -72,26 +72,34 @@ function ReviewRow({ item, onAccept, onSkip, isPending }: {
   isPending: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 py-2 border-b border-border last:border-0">
-      <div className="flex items-center gap-1.5 min-w-0 flex-1">
-        <CategoryIcon categoryId={item.currentCategory} className="w-4 h-4 shrink-0 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground shrink-0">{categoryLabel(item.currentCategory)}</span>
-        <ArrowRight className="w-3 h-3 shrink-0 text-muted-foreground mx-0.5" />
-        <CategoryIcon categoryId={item.suggestedCategory} className="w-4 h-4 shrink-0" />
-        <span className="text-xs font-medium shrink-0">{categoryLabel(item.suggestedCategory)}</span>
+    <div className="py-2 border-b border-border last:border-0">
+      <div className="flex items-center gap-2">
+        {/* kategoria: ikona current → ikona suggested */}
+        <div className="flex items-center gap-1 shrink-0 w-[72px] justify-center">
+          <CategoryIcon categoryId={item.currentCategory} className="w-4 h-4 text-muted-foreground" />
+          <ArrowRight className="w-3 h-3 text-muted-foreground" />
+          <CategoryIcon categoryId={item.suggestedCategory} className="w-4 h-4" />
+        </div>
+        {/* nazwa produktu */}
+        <span className="text-sm truncate flex-1 min-w-0 text-foreground" title={item.name}>
+          {item.name}
+        </span>
+        <span className="num text-sm text-right shrink-0 w-20">{formatPrice(item.spend)}</span>
+        <div className="flex gap-1 shrink-0">
+          <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={onAccept} disabled={isPending}>
+            <Check className="w-3 h-3" />
+            <span className="text-xs">Akceptuj</span>
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={onSkip} disabled={isPending}>
+            <X className="w-3 h-3" />
+          </Button>
+        </div>
       </div>
-      <span className="text-sm truncate flex-[2] min-w-0 text-foreground" title={item.name}>
-        {item.name}
-      </span>
-      <span className="num text-sm text-right shrink-0 w-24">{formatPrice(item.spend)}</span>
-      <div className="flex gap-1 shrink-0">
-        <Button size="sm" variant="outline" className="h-7 px-2 gap-1" onClick={onAccept} disabled={isPending}>
-          <Check className="w-3 h-3" />
-          <span className="text-xs">Akceptuj</span>
-        </Button>
-        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={onSkip} disabled={isPending}>
-          <X className="w-3 h-3" />
-        </Button>
+      {/* etykiety kategorii pod spodem */}
+      <div className="flex items-center gap-1 mt-0.5 ml-[80px]">
+        <span className="text-[11px] text-muted-foreground">{categoryLabel(item.currentCategory)}</span>
+        <ArrowRight className="w-2.5 h-2.5 text-muted-foreground/50" />
+        <span className="text-[11px] font-medium text-foreground">{categoryLabel(item.suggestedCategory)}</span>
       </div>
     </div>
   );
