@@ -72,6 +72,7 @@ import { KeywordComparisonModal } from "./products/keyword-comparison-modal";
 import { PriceHistoryModal } from "./products/price-history-modal";
 import { SupplierComparisonModal } from "./products/supplier-comparison-modal";
 import { CategoryBadge } from "./products/category-management";
+import { CategoryReviewBanner } from "./products/category-review-modal";
 import { CategoryFilterPanel, type CategoryFilterRow } from "./products/category-filter-panel";
 
 // Re-eksport: PriceHistoryModal jest używany przez inne strony (dashboard, invoices,
@@ -340,7 +341,12 @@ export default function Products() {
         <PageHeader
           title="Produkty"
           subtitle="Ceny surowców i historia zmian"
-          action={<MonthNavigator month={month} onChange={setMonth} />}
+          action={
+            <div className="flex items-center gap-3">
+              <CategoryReviewBanner />
+              <MonthNavigator month={month} onChange={setMonth} />
+            </div>
+          }
         />
 
         {/* Filter bar */}

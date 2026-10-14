@@ -19,7 +19,7 @@ import {
   CorrectProductCategoryBody,
 } from "@workspace/api-zod";
 import { getUserCategories, ensureCustomCategory, saveProductCorrection, normalizeProductName } from "../lib/categorize-ai.js";
-import { BUILTIN_CATEGORY_DEFS } from "../lib/categorize.js";
+import { BUILTIN_CATEGORY_DEFS, categorizeProduct } from "../lib/categorize.js";
 import { normalizedUnitSql } from "../lib/units.js";
 
 const router: IRouter = Router();
@@ -943,6 +943,77 @@ router.patch("/products/:id/correct-category", async (req, res): Promise<void> =
     .limit(1);
 
   res.json({ ...updated, updatedCount: ids.length });
+});
+
+/**
+ * Przegląd kategorii — produkty gdzie silnik słów kluczowych sugeruje zmianę kategorii,
+ * posortowane wg spend (wpływ finansowy). Używane w UI do bulk-korekty po zmianie rules.
+ * Nie uruchamia AI — tylko deterministyczny keyword matcher.
+ */
+router.get("/products/category-review", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+
+  // Pobierz wszystkie produkty usera z ich bieżącą kategorią
+  const products = await db
+    .select({
+      id: productsTable.id,
+      name: productsTable.name,
+      canonicalName: productsTable.canonicalName,
+      category: productsTable.category,
+      classificationConfidence: productsTable.classificationConfidence,
+    })
+    .from(productsTable)
+    .where(eq(productsTable.userId, userId));
+
+  if (products.length === 0) {
+    res.json({ items: [], total: 0 });
+    return;
+  }
+
+  // Spend per produkt (brutto) z faktur niekorygujących/niewykluczonych
+  const spendRows = await db.execute(sql`
+    SELECT ii.product_id, SUM(ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0)::numeric / 100)) AS spend
+    FROM invoice_items ii
+    JOIN invoices i ON ii.invoice_id = i.id
+    WHERE i.user_id = ${userId}
+      AND i.excluded = false
+      AND i.parent_invoice_id IS NULL
+      AND i.invoice_type IS DISTINCT FROM 'KOR'
+    GROUP BY ii.product_id
+  `);
+  const spendMap = new Map<number, number>();
+  for (const row of spendRows.rows as { product_id: number; spend: string }[]) {
+    spendMap.set(row.product_id, parseFloat(row.spend) || 0);
+  }
+
+  // Porównaj bieżącą kategorię z sugestią silnika keyword
+  const items: {
+    id: number; name: string; currentCategory: string | null;
+    suggestedCategory: string; spend: number; confidence: number | null;
+  }[] = [];
+
+  for (const p of products) {
+    const lookup = p.canonicalName || p.name.toLowerCase();
+    const suggested = categorizeProduct(lookup) !== "inne"
+      ? categorizeProduct(lookup)
+      : categorizeProduct(p.name.toLowerCase());
+    // Pomijamy: brak sugestii (inne), brak zmiany, produkty z confidence=1 (ręczna korekta)
+    if (suggested === "inne") continue;
+    if (suggested === p.category) continue;
+    if (p.classificationConfidence === 1) continue;
+    items.push({
+      id: p.id, name: p.name,
+      currentCategory: p.category,
+      suggestedCategory: suggested,
+      spend: spendMap.get(p.id) ?? 0,
+      confidence: p.classificationConfidence,
+    });
+  }
+
+  // Sortuj wg spend desc (największy wpływ finansowy na górze)
+  items.sort((a, b) => b.spend - a.spend);
+
+  res.json({ items: items.slice(0, 200), total: items.length });
 });
 
 router.get("/categories", async (req, res): Promise<void> => {
