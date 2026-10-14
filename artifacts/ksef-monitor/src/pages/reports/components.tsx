@@ -817,7 +817,11 @@ export function ProductsTable({ products, onSelect }: { products: ProductWithImp
 
 // ─── Category spend grouping hook ───────────────────────────────────────────
 
-export function useCategoryGroupData(currentData: any[] | undefined, prevData: any[] | undefined) {
+export function useCategoryGroupData(
+  currentData: any[] | undefined,
+  prevData: any[] | undefined,
+  allCategories?: Array<{ id: string; label: string }>,
+) {
   return useMemo(() => {
     if (!currentData) return [];
     const map = new Map<string, number>();
@@ -832,23 +836,22 @@ export function useCategoryGroupData(currentData: any[] | undefined, prevData: a
         prevMap.set(cat, (prevMap.get(cat) ?? 0) + item.totalSpend);
       }
     }
+    // Lookup w kolejności: allCategories (wbudowane + własne usera) → CATEGORIES (fallback)
+    function resolveLabel(id: string): string {
+      const fromAll = allCategories?.find((c) => c.id === id);
+      if (fromAll) return fromAll.label;
+      return CATEGORIES.find((c) => c.id === id)?.label ?? "Inne";
+    }
     return Array.from(map.entries())
       .map(([id, spend]) => {
-        const catDef = CATEGORIES.find((c) => c.id === id);
+        const label = resolveLabel(id);
         const prevSpend = prevMap.get(id) ?? 0;
         const trend = prevSpend > 0 ? ((spend - prevSpend) / prevSpend) * 100 : null;
-        const shortLabel = (catDef?.label ?? "Inne").split(" / ")[0].substring(0, 16);
-        return {
-          id,
-          label: catDef?.label ?? "Inne",
-          shortLabel,
-          spend,
-          prevSpend,
-          trend,
-        };
+        const shortLabel = label.split(" / ")[0].substring(0, 16);
+        return { id, label, shortLabel, spend, prevSpend, trend };
       })
       .sort((a, b) => b.spend - a.spend);
-  }, [currentData, prevData]);
+  }, [currentData, prevData, allCategories]);
 }
 
 

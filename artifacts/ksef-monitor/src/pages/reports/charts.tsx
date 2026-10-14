@@ -17,7 +17,7 @@ import {
   LabelList,
   Legend,
 } from "recharts";
-import { useGetCategorySpend, useGetCategorySpendTrend } from "@workspace/api-client-react";
+import { useGetCategorySpend, useGetCategorySpendTrend, useListCategories } from "@workspace/api-client-react";
 import { useCostCenter } from "@/contexts/cost-center-context";
 import { usePeriod } from "@/contexts/period-context";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -142,8 +142,10 @@ export function CategoryBarChart() {
     { from: prev.from, to: prev.to, ...ccParam },
     { query: { queryKey: ["category-spend", prev.from, prev.to, costCenterId] } },
   );
+  // Własne kategorie usera — żeby nie pokazywały się jako "Inne" w wykresie
+  const { data: userCategories } = useListCategories();
 
-  const groups = useCategoryGroupData(currentData, prevData);
+  const groups = useCategoryGroupData(currentData, prevData, userCategories);
 
   const total = groups.reduce((s, g) => s + g.spend, 0);
 
