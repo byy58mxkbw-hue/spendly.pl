@@ -2,7 +2,7 @@
 slug: raport-sprzedazy-z-pos
 title: Raport sprzedaży w restauracji — 4 liczby co miesiąc
 h1: Jak czytać raport sprzedaży z POS — na co patrzeć co miesiąc
-description: Jak czytać raport sprzedaży z POS: ilość i wartość, średni rachunek, sprzedaż na dzień i kategorie. Trzy pułapki porównań i checklista na 15 minut w miesiącu.
+description: Raport sprzedaży z POS: co sprawdzać co miesiąc — ilość i wartość, średni rachunek, sprzedaż na dzień. Trzy pułapki porównań i checklista na 15 minut.
 date: 2026-09-04
 updated: 2026-10-05
 category: Operacje

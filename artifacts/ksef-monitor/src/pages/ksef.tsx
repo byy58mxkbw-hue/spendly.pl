@@ -139,6 +139,22 @@ export default function KsefPage() {
         </div>
       </section>
 
+      {/* Blog links */}
+      <section style={{ maxWidth: 760, margin: "0 auto", padding: "0 24px 64px" }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: C.accentText, textTransform: "uppercase", marginBottom: 20 }}>Z bloga</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 0, borderTop: `1px solid ${C.border}` }}>
+          {[
+            { href: "/blog/jak-czytac-fakture-ksef", title: "Jak czytać fakturę z KSeF — pola FA(3) krok po kroku" },
+            { href: "/blog/ksef-dla-restauracji-od-kiedy-obowiazkowy", title: "KSeF dla restauracji — od kiedy obowiązkowy?" },
+          ].map(({ href, title }) => (
+            <a key={href} href={href} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderBottom: `1px solid ${C.border}`, textDecoration: "none", color: C.text, fontSize: 14, fontWeight: 500 }}>
+              {title}
+              <ChevronRight size={15} style={{ color: C.muted, flexShrink: 0, marginLeft: 12 }} />
+            </a>
+          ))}
+        </div>
+      </section>
+
       {/* CTA */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px 80px", paddingTop: 80 }}>
         <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, padding: "60px 40px", textAlign: "center" }}>

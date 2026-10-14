@@ -408,6 +408,30 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Z BLOGA */}
+      <section className="blk wrap">
+        <div className="sec-head">
+          <div className="sec-eye">Z bloga</div>
+          <h2>Wiedza dla gastronomii</h2>
+        </div>
+        <div className="rule-list">
+          {[
+            { href: "/blog/jak-liczyc-food-cost", title: "Jak obliczyć food cost — wzór i przykład krok po kroku" },
+            { href: "/blog/ile-powinien-wynosic-food-cost", title: "Ile powinien wynosić food cost w restauracji?" },
+            { href: "/blog/beverage-cost-restauracja", title: "Czym jest beverage cost i jak go liczyć?" },
+            { href: "/blog/jak-czytac-fakture-ksef", title: "Jak czytać fakturę z KSeF — pola FA(3) krok po kroku" },
+          ].map(({ href, title }) => (
+            <a key={href} href={href} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0", borderBottom: "1px solid var(--border)", textDecoration: "none", color: "var(--text)", fontSize: 14, fontWeight: 500 }}>
+              {title}
+              <span style={{ color: "var(--muted)", flexShrink: 0, marginLeft: 12, fontSize: 16 }}>›</span>
+            </a>
+          ))}
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <a href="/blog" style={{ fontSize: 13, color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>Wszystkie artykuły →</a>
+        </div>
+      </section>
+
       {/* BEZPIECZEŃSTWO */}
       <section className="blk wrap">
         <div className="sec-head">
