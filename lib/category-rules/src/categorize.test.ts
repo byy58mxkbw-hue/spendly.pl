@@ -147,8 +147,8 @@ describe("categorizeProduct: dalsze kolizje prefiksowe (audyt rozszerzony)", () 
     expect(categorizeProduct("lody waniliowe")).toBe("mrozonki");
     expect(categorizeProduct("lodów czekoladowych")).toBe("mrozonki");
   });
-  it('"kawa mielona"/"pieprz mielony" nie trafiają do mięs ("mielon" był zbyt ogólny)', () => {
-    expect(categorizeProduct("kawa mielona 500g")).toBe("napoje");
+  it('"kawa mielona" trafia do kawa_herbata (nie mięs, nie napoje)', () => {
+    expect(categorizeProduct("kawa mielona 500g")).toBe("kawa_herbata");
     expect(categorizeProduct("pieprz czarny mielony 1kg")).toBe("przyprawy");
   });
   it('mięso mielone nadal poprawnie trafia do mięs', () => {
@@ -237,20 +237,122 @@ describe("categorizeProduct: regresje z audytu produkcyjnego (marki vs pospolite
 // Regresje znalezione przy weryfikacji prod_category_updates.sql (2026-09-21,
 // przed odpaleniem na produkcji): napoje (sok/syrop smakowy) łapały się na
 // nazwę owocu w warzywa, bo warzywa były wcześniej w tablicy CATEGORY_DEFS.
-describe("categorizeProduct: napoje PRZED warzywa (sok, syropy smakowe)", () => {
-  it('"sok pomarańczowy" trafia do napoje, nie warzywa (przez nazwę owocu)', () => {
+describe("categorizeProduct: napoje PRZED owoce, syropy i kawa_herbata wydzielone (2026-10)", () => {
+  it('"sok pomarańczowy" trafia do napoje, nie owoce (przez "sok ")', () => {
     expect(categorizeProduct("pet 1/12 toma sok pomaranczowy drs")).toBe("napoje");
   });
-  it('"sok jabłkowy" trafia do napoje, nie warzywa', () => {
+  it('"sok jabłkowy" trafia do napoje, nie owoce', () => {
     expect(categorizeProduct("pet 1/12 toma sok jablkowy drs")).toBe("napoje");
   });
-  it('syrop smakowy marki Monin trafia do napoje, nie warzywa (przez "marakuj")', () => {
-    expect(categorizeProduct("monin syrop marakuja - passion fruit")).toBe("napoje");
+  it('syrop smakowy marki Monin trafia do syropy (nie napoje, nie warzywa)', () => {
+    expect(categorizeProduct("monin syrop marakuja - passion fruit")).toBe("syropy");
   });
-  it('prawdziwe owoce nadal trafiają do warzyw', () => {
-    expect(categorizeProduct("pomarańcze kraj pochodzenia hiszpania")).toBe("warzywa");
-    expect(categorizeProduct("jabłka polskie")).toBe("warzywa");
-    expect(categorizeProduct("marakuja świeża")).toBe("warzywa");
+  it('"kawa mielona" trafia do kawa_herbata, nie napoje', () => {
+    expect(categorizeProduct("kawa mielona 500g")).toBe("kawa_herbata");
+  });
+  it('"herbata zielona" trafia do kawa_herbata, nie napoje', () => {
+    expect(categorizeProduct("herbata zielona 100g")).toBe("kawa_herbata");
+  });
+  it('prawdziwe owoce trafiają do owoce (nie warzywa)', () => {
+    expect(categorizeProduct("pomarancze kraj pochodzenia hiszpania")).toBe("owoce");
+    expect(categorizeProduct("jablka polskie")).toBe("owoce");
+    expect(categorizeProduct("marakuja swieza")).toBe("owoce");
+  });
+  it('warzywa nadal trafiają do warzywa', () => {
+    expect(categorizeProduct("pomidor malinowy")).toBe("warzywa");
+    expect(categorizeProduct("papryka czerwona")).toBe("warzywa");
+  });
+});
+
+describe("categorizeProduct: nowe kategorie 2026-10", () => {
+  // makarony
+  it('"ravioli z borowikami 3kg" → makarony', () => {
+    expect(categorizeProduct("ravioli z borowikami 3kg")).toBe("makarony");
+  });
+  it('"gnocchi di patate 500g" → makarony', () => {
+    expect(categorizeProduct("gnocchi di patate 500g")).toBe("makarony");
+  });
+  it('"tortellini z serem 250g" → makarony', () => {
+    expect(categorizeProduct("tortellini z serem 250g")).toBe("makarony");
+  });
+  it('"spaghetti bolognese" → makarony', () => {
+    expect(categorizeProduct("spaghetti bolognese")).toBe("makarony");
+  });
+  it('"makaron penne 500g" → makarony', () => {
+    expect(categorizeProduct("makaron penne 500g")).toBe("makarony");
+  });
+  it('"kluski śląskie" → makarony', () => {
+    expect(categorizeProduct("kluski slaskie 400g")).toBe("makarony");
+  });
+  // pieczywo nadal poprawne
+  it('"tortilla pszenna" nadal → pieczywo (nie makarony)', () => {
+    expect(categorizeProduct("tortilla pszenna")).toBe("pieczywo");
+  });
+  it('"kasza gryczana" nadal → pieczywo', () => {
+    expect(categorizeProduct("kasza gryczana 1kg")).toBe("pieczywo");
+  });
+  // syropy
+  it('"Monin syrop marakuja" → syropy', () => {
+    expect(categorizeProduct("monin syrop marakuja passion fruit")).toBe("syropy");
+  });
+  it('"CO2 8kg butla do nalewaków" → syropy', () => {
+    expect(categorizeProduct("co2 8kg butla do nalewakow")).toBe("syropy");
+  });
+  // kawa_herbata
+  it('"espresso forte 1kg" → kawa_herbata', () => {
+    expect(categorizeProduct("espresso forte 1kg")).toBe("kawa_herbata");
+  });
+  it('"yerba mate 500g" → kawa_herbata', () => {
+    expect(categorizeProduct("yerba mate 500g")).toBe("kawa_herbata");
+  });
+  // owoce
+  it('"jabłka polskie 10kg" → owoce', () => {
+    expect(categorizeProduct("jablka polskie 10kg")).toBe("owoce");
+  });
+  it('"truskawki świeże" → owoce', () => {
+    expect(categorizeProduct("truskawki swieze")).toBe("owoce");
+  });
+  it('"puree owocowe Boiron marakuja" → owoce', () => {
+    expect(categorizeProduct("puree owocowe boiron marakuja 1kg")).toBe("owoce");
+  });
+  // biuro
+  it('"rolka termiczna 57mm" → biuro', () => {
+    expect(categorizeProduct("rolka termiczna 57mm x25m")).toBe("biuro");
+  });
+  it('"papier ksero A4 500ark" → biuro', () => {
+    expect(categorizeProduct("papier ksero a4 500 arkuszy")).toBe("biuro");
+  });
+  // kaucje
+  it('"kaucja butelka 0,5l" → kaucje', () => {
+    expect(categorizeProduct("kaucja butelka 0.5l")).toBe("kaucje");
+  });
+  it('"opakowanie zwrotne skrzynka" → kaucje', () => {
+    expect(categorizeProduct("opakowanie zwrotne skrzynka")).toBe("kaucje");
+  });
+  // naprawy
+  it('"serwis zmywarki Meiko" → naprawy', () => {
+    expect(categorizeProduct("serwis zmywarki meiko")).toBe("naprawy");
+  });
+  it('"naprawa ekspresu do kawy" → naprawy', () => {
+    expect(categorizeProduct("naprawa ekspresu do kawy")).toBe("naprawy");
+  });
+  // przyprawy — cebula suszona (keyword multi-word; "cebula żółta suszona" z "żółta" w środku
+  // nie matchuje przez includes(), bo przerywa ciągłość stringa — testujemy wprost)
+  it('"cebula suszona" → przyprawy (nie warzywa)', () => {
+    expect(categorizeProduct("cebula suszona")).toBe("przyprawy");
+  });
+  it('"czosnek granulowany" → przyprawy (nie warzywa)', () => {
+    expect(categorizeProduct("czosnek granulowany 1kg")).toBe("przyprawy");
+  });
+  it('"cebula świeża" nadal → warzywa', () => {
+    expect(categorizeProduct("cebula biala swieza")).toBe("warzywa");
+  });
+  it('"czosnek świeży" nadal → warzywa', () => {
+    expect(categorizeProduct("czosnek swiezy glowka")).toBe("warzywa");
+  });
+  // alkohole — keg
+  it('"keg piwa 30l" → alkohole', () => {
+    expect(categorizeProduct("keg piwa 30l")).toBe("alkohole");
   });
 });
 
