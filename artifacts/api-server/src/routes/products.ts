@@ -980,6 +980,7 @@ router.get("/products/category-review", async (req, res): Promise<void> => {
       AND i.excluded = false
       AND i.parent_invoice_id IS NULL
       AND i.invoice_type IS DISTINCT FROM 'KOR'
+      AND i.invoice_type IS DISTINCT FROM 'ROZ'
     GROUP BY ii.product_id
   `);
   const spendMap = new Map<number, number>();

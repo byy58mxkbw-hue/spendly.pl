@@ -267,6 +267,13 @@ export function CategoryTrendChart({ months: numMonths = 6 }: { months?: number 
     { months: numMonths, ...ccParam },
     { query: { queryKey: ["category-spend-trend", numMonths, costCenterId] } },
   );
+  const { data: userCategories } = useListCategories();
+
+  function resolveTrendLabel(id: string): string {
+    const fromAll = userCategories?.find((c) => c.id === id);
+    if (fromAll) return fromAll.label.split(" / ")[0];
+    return (CATEGORIES.find((c) => c.id === id)?.label ?? "Inne").split(" / ")[0];
+  }
 
   const { chartData, categories } = useMemo(() => {
     if (!trendData || !trendData.length) return { chartData: [], categories: [] };
@@ -302,17 +309,14 @@ export function CategoryTrendChart({ months: numMonths = 6 }: { months?: number 
       return row;
     });
 
-    const categories = topCats.map(({ cat }, i) => {
-      const catDef = CATEGORIES.find((c) => c.id === cat);
-      return {
-        id: cat,
-        label: (catDef?.label ?? "Inne").split(" / ")[0],
-        color: CHART_COLORS[i % CHART_COLORS.length],
-      };
-    });
+    const categories = topCats.map(({ cat }, i) => ({
+      id: cat,
+      label: resolveTrendLabel(cat),
+      color: CHART_COLORS[i % CHART_COLORS.length],
+    }));
 
     return { chartData, categories };
-  }, [trendData]);
+  }, [trendData, userCategories]);
 
   if (isLoading) return <Skeleton className="h-56 w-full" />;
   if (!chartData.length) return (
@@ -344,19 +348,13 @@ export function CategoryTrendChart({ months: numMonths = 6 }: { months?: number 
             borderRadius: "4px",
             fontSize: "12px",
           }}
-          formatter={(v: number, name: string) => {
-            const catDef = CATEGORIES.find((c) => c.id === name);
-            return [formatPrice(v), (catDef?.label ?? name).split(" / ")[0]];
-          }}
+          formatter={(v: number, name: string) => [formatPrice(v), resolveTrendLabel(name)]}
         />
         <Legend
           iconSize={8}
           iconType="circle"
           wrapperStyle={{ fontSize: 11, paddingTop: 10 }}
-          formatter={(name: string) => {
-            const catDef = CATEGORIES.find((c) => c.id === name);
-            return (catDef?.label ?? name).split(" / ")[0];
-          }}
+          formatter={(name: string) => resolveTrendLabel(name)}
         />
         {categories.map((cat) => (
           <Bar key={cat.id} dataKey={cat.id} stackId="a" fill={cat.color} name={cat.id} />
