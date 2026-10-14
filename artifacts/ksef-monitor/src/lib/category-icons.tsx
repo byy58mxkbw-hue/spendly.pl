@@ -8,8 +8,9 @@
 // użytkownika (tworzone w aplikacji) nie mają wpisu i dostają `Cube` — to
 // świadomy fallback, nie brak.
 import {
-  Acorn, Bread, Cake, Carrot, Cheese, Cow, Cube, Drop, Egg, Fish, Jar, Package,
-  PintGlass, Receipt, Snowflake, SprayBottle, ShoppingBag, Toolbox, Wine,
+  Acorn, Bread, Cake, Carrot, Cheese, Coffee, Cow, Cube, Drop, Egg, Fish,
+  Flask, Jar, Leaf, Nut, Package, PintGlass, Pizza, Printer, Receipt, Recycle,
+  Snowflake, SprayBottle, ShoppingBag, Toolbox, Wine, Wrench,
 } from "@/lib/icons";
 
 type IconType = typeof Cube;
@@ -27,12 +28,17 @@ const CATEGORY_STYLES: Record<string, CategoryStyle> = {
   koszty_stale:      { icon: Receipt,     h: 210, s: 12 }, // atrament — to nie żywność
   miesa:             { icon: Cow,         h: 8,   s: 45 }, // terakota
   warzywa:           { icon: Carrot,      h: 95,  s: 30 }, // zieleń przygaszona
+  owoce:             { icon: Leaf,        h: 110, s: 35 }, // zieleń owocowa (nieco lżejsza niż warzywa)
   alkohole:          { icon: Wine,        h: 320, s: 22 }, // śliwka
+  kawa_herbata:      { icon: Coffee,      h: 28,  s: 40 }, // brąz kawy
+  syropy:            { icon: Flask,       h: 280, s: 22 }, // chłodna lila barmańska
   przyprawy:         { icon: Drop,        h: 20,  s: 40 }, // papryka / olej
   napoje:            { icon: PintGlass,   h: 190, s: 30 }, // woda
+  makarony:          { icon: Pizza,       h: 18,  s: 38 }, // ciepłożółty — mąka/jajko
   "nabiał":          { icon: Egg,         h: 45,  s: 30 }, // kremowy
   pieczywo:          { icon: Bread,       h: 32,  s: 40 }, // skórka chleba
   sprzet:            { icon: Toolbox,     h: 220, s: 12 }, // stal
+  techniczne:        { icon: Nut,         h: 210, s: 15 }, // stalowy — metal/mechanika
   mrozonki:          { icon: Snowflake,   h: 205, s: 35 }, // chłód
   sery:              { icon: Cheese,      h: 42,  s: 55 }, // żółty sera
   konserwy:          { icon: Jar,         h: 25,  s: 35 }, // puszka
@@ -41,6 +47,9 @@ const CATEGORY_STYLES: Record<string, CategoryStyle> = {
   slodycze:          { icon: Cake,        h: 340, s: 30 }, // róż przygaszony
   opakowania:        { icon: ShoppingBag, h: 30,  s: 20 }, // karton
   orzechy:           { icon: Acorn,       h: 28,  s: 32 }, // brąz orzecha
+  biuro:             { icon: Printer,     h: 215, s: 10 }, // chłodna szarość — papier/druk
+  kaucje:            { icon: Recycle,     h: 140, s: 22 }, // oliwka — zwrot/obieg
+  naprawy:           { icon: Wrench,      h: 30,  s: 25 }, // ciepły brąz — narzędzie
   inne:              { icon: Package,     h: 38,  s: 8  }, // ciepła szarość
 };
 

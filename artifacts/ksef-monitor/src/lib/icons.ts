@@ -137,6 +137,13 @@ export {
   SprayBottle,
   Toolbox,
   Wine,
+  // Nowe kategorie 2026-10
+  Leaf,
+  Flask,
+  Printer,
+  Recycle,
+  Wrench,
+  Nut,
 } from "@phosphor-icons/react";
 
 export type { Icon as IconComponent, IconProps } from "@phosphor-icons/react";
