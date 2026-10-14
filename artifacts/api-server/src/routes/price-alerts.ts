@@ -174,6 +174,17 @@ router.post("/price-alerts/:id/dismiss", async (req, res): Promise<void> => {
     return;
   }
 
+  // Sprawdź własność alertu przed zapisem oddalenia
+  const [ownedAlert] = await db
+    .select({ id: priceAlertsTable.id })
+    .from(priceAlertsTable)
+    .where(and(eq(priceAlertsTable.id, params.data.id), eq(priceAlertsTable.userId, userId)))
+    .limit(1);
+  if (!ownedAlert) {
+    res.status(404).json({ error: "Alert nie znaleziony." });
+    return;
+  }
+
   const [dismissal] = await db
     .insert(alertDismissalsTable)
     .values({

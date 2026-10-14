@@ -218,10 +218,11 @@ router.get("/admin/users/:userId/details", async (req, res): Promise<void> => {
     `),
     db.execute(sql`
       SELECT ii.product_name AS "productName",
-             SUM(ii.total_price)::numeric AS "totalSpend"
+             SUM(ii.total_price::numeric * (1 + COALESCE(ii.vat_rate, 0)::numeric / 100))::numeric AS "totalSpend"
       FROM invoice_items ii
       JOIN invoices i ON i.id = ii.invoice_id
       WHERE i.user_id = ${userId}
+        AND i.excluded = false
         ${excludeNonSpendInvoiceTypes("i")}
       GROUP BY ii.product_name
       ORDER BY "totalSpend" DESC
