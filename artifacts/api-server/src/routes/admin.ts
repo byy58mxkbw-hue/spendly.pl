@@ -495,4 +495,39 @@ router.post("/admin/benchmarks/feedback/decision", async (req, res): Promise<voi
   res.json({ ok: true });
 });
 
+// Statystyki matchowania nazw produktów — rozkład match_confidence w market_product_aliases.
+// Odpowiada na pytanie: ile % nazw jest poza słownikiem (exact_name) i może skorzystać z Fazy B.
+router.get("/admin/benchmarks/match-stats", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+  const byConfidence = await db.execute<{ match_confidence: string; names: number; groups: number }>(sql`
+    SELECT match_confidence,
+           COUNT(*)::int AS names,
+           COUNT(DISTINCT market_group_key)::int AS groups
+    FROM market_product_aliases
+    GROUP BY match_confidence
+    ORDER BY names DESC
+  `);
+  const total = byConfidence.rows.reduce((s, r) => s + r.names, 0);
+  const topExact = await db.execute<{ canonical_name: string; unit: string; user_count: number }>(sql`
+    SELECT a.canonical_name, a.compare_unit AS unit,
+           COUNT(DISTINCT p.user_id)::int AS user_count
+    FROM market_product_aliases a
+    JOIN products p ON p.canonical_name = a.canonical_name
+    WHERE a.match_confidence = 'exact_name'
+    GROUP BY a.canonical_name, a.compare_unit
+    ORDER BY user_count DESC
+    LIMIT 30
+  `);
+  res.json({
+    total,
+    byConfidence: byConfidence.rows.map((r) => ({
+      confidence: r.match_confidence,
+      names: r.names,
+      groups: r.groups,
+      pct: total > 0 ? Math.round((r.names / total) * 100) : 0,
+    })),
+    topExactName: topExact.rows,
+  });
+});
+
 export default router;
