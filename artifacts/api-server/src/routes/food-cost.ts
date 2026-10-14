@@ -219,7 +219,7 @@ export async function computeAllDishMargins(userId: string): Promise<DishMargin[
     })
     .from(dishIngredientsTable)
     .innerJoin(dishesTable, eq(dishIngredientsTable.dishId, dishesTable.id))
-    .innerJoin(productsTable, eq(dishIngredientsTable.productId, productsTable.id))
+    .innerJoin(productsTable, and(eq(dishIngredientsTable.productId, productsTable.id), eq(productsTable.userId, userId)))
     .where(eq(dishesTable.userId, userId));
 
   const allProductIds = [...new Set(ingredients.map((i) => i.productId))];

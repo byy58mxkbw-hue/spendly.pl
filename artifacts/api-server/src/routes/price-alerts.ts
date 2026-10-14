@@ -152,7 +152,7 @@ router.patch("/price-alerts/:id", async (req, res): Promise<void> => {
     })
     .from(priceAlertsTable)
     .leftJoin(suppliersTable, and(eq(priceAlertsTable.supplierId, suppliersTable.id), eq(suppliersTable.userId, userId)))
-    .where(eq(priceAlertsTable.id, params.data.id));
+    .where(and(eq(priceAlertsTable.id, params.data.id), eq(priceAlertsTable.userId, userId)));
 
   res.json({
     ...withSupplier,

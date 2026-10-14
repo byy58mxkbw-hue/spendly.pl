@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import type { Logger } from "pino";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -21,6 +21,11 @@ export function isAdmin(req: Request): boolean {
 
 export function denyAdmin(res: Response): void {
   res.status(403).json({ error: "Brak dostępu." });
+}
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+  next();
 }
 
 export interface ClerkUserRaw {

@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { AI_MONTHLY_LIMIT, normalizePlan, currentPeriod } from "../lib/ai-plan.js";
+import * as Sentry from "@sentry/node";
 
 // Bramka miesięcznego limitu AI (czat AI CFO + OCR skanowania faktur — wspólna pula).
 // Zliczanie w Postgres (ai_usage), reset per miesiąc (klucz period). Montowana ZA
@@ -45,8 +46,9 @@ export function aiQuota(req: Request, res: Response, next: NextFunction): void {
 
     next();
   })().catch((err) => {
-    // Awaria bramki nie powinna blokować użytkownika — logujemy i przepuszczamy.
+    // Awaria bramki nie powinna blokować użytkownika — logujemy, raportujemy do Sentry i przepuszczamy.
     req.log?.error?.({ err: String(err) }, "aiQuota middleware nieudany");
+    Sentry.captureException(err);
     next();
   });
 }

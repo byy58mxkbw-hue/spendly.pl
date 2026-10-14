@@ -537,7 +537,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
         ROUND(SUM(${spendOnly("i", moneyExpr)}), 0) AS total_spend,
         ROUND(SUM(${spendOnly("i", grossExpr)}), 0) AS total_spend_brutto,
         ROUND(SUM(${realQuantityOnly("ii", sql`ii.quantity::numeric`)}), 2) AS total_qty,
-        COUNT(DISTINCT i.id) AS invoice_count
+        COUNT(DISTINCT i.id) FILTER (WHERE i.invoice_type IS DISTINCT FROM 'KOR' AND i.invoice_type IS DISTINCT FROM 'ROZ') AS invoice_count
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id
       JOIN suppliers s ON i.supplier_id = s.id
@@ -599,7 +599,7 @@ export async function toolSpendSummary(userId: string, args: Record<string, unkn
         ROUND(SUM(${spendOnly("i", moneyExpr)}), 0) AS total_spend,
         ROUND(SUM(ii.quantity::numeric), 2) AS total_qty,
         COUNT(DISTINCT p.id) AS unique_products,
-        COUNT(DISTINCT i.id) AS invoice_count,
+        COUNT(DISTINCT i.id) FILTER (WHERE i.invoice_type IS DISTINCT FROM 'KOR' AND i.invoice_type IS DISTINCT FROM 'ROZ') AS invoice_count,
         ROUND(AVG(ii.unit_price::numeric), 2) AS avg_unit_price
       FROM invoice_items ii
       JOIN invoices i ON ii.invoice_id = i.id

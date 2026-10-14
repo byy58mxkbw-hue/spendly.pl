@@ -180,10 +180,10 @@ export async function categorizeProductWithAI(
   // Runs BEFORE the supplier default so a reliable keyword hit (e.g. "płyn do naczyń"
   // → środki czystości, "energia elektryczna" → koszty stałe) wins even when the
   // supplier has a default category set for a mixed assortment.
-  const keywordResult =
-    categorizeProduct(canonicalName) !== "inne"
-      ? categorizeProduct(canonicalName)
-      : categorizeProduct(productName.toLowerCase());
+  const keywordByCanonical = categorizeProduct(canonicalName);
+  const keywordResult = keywordByCanonical !== "inne"
+    ? keywordByCanonical
+    : categorizeProduct(productName.toLowerCase());
 
   if (keywordResult !== "inne") {
     return {

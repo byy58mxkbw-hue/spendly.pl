@@ -53,7 +53,8 @@ router.use(searchRouter);
 import aiCfoRouter from "./ai-cfo";
 router.use(aiCfoRouter);
 
-import adminRouter from "./admin";
+import adminRouter, { requireAdmin } from "./admin";
+router.use("/admin", requireAdmin);
 router.use(adminRouter);
 
 import foodCostRouter from "./food-cost";
