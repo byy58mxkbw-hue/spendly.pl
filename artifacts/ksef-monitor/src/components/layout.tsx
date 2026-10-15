@@ -46,6 +46,7 @@ import { useCostCenter } from "@/contexts/cost-center-context";
 import { AiAssistant } from "@/components/ai-assistant";
 import { TrialBanner } from "@/components/trial-banner";
 import { AiUpdateNotice } from "@/components/ai-update-notice";
+import { MarketPricesNotice } from "@/components/market-prices-notice";
 import { useTheme } from "@/hooks/use-theme";
 
 type NavItem = { path: string; label: string; icon: React.ElementType };
@@ -808,6 +809,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Jednorazowa notka o ulepszeniach AI — patrz components/ai-update-notice.tsx */}
       <AiUpdateNotice />
+
+      {/* Jednorazowa notka o funkcji Porównanie cen — patrz components/market-prices-notice.tsx */}
+      <MarketPricesNotice />
 
       {/* Mobile bottom navigation */}
       <nav
