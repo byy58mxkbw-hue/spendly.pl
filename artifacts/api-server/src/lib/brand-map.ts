@@ -263,6 +263,12 @@ const BRAND_MAP: Record<string, BrandInfo> = {
   bonduelle: { category: "konserwy", subcategory: "warzywa konserwowe" },
   "rio mare": { category: "konserwy", subcategory: "tuńczyk konserwowy" },
   ortiz: { category: "konserwy", subcategory: "anchois i tuńczyk" },
+  graal: { category: "konserwy", subcategory: "konserwy rybne" },
+  lisner: { category: "konserwy", subcategory: "konserwy rybne" },
+  "john west": { category: "konserwy", subcategory: "konserwy rybne" },
+
+  // ── Mięso ──
+  berlinki: { category: "miesa", subcategory: "parówki" },
 
   // ── Środki czystości ──
   domestos: { category: "srodki_czystosci", subcategory: "płyn czyszczący" },

@@ -321,6 +321,19 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "flądra", "sandacz", "sum ", "karp", "lin ", "węgorz",
       "okoń", "szczupak", "amur", "tołpyga",
       "owoce morza",
+      // Gatunki rzadziej wymieniane na polskich fakturach:
+      "miruna", "miruny",
+      "langustynk", "langustyna", "langustyny",
+      "gambas", "scampi",
+      "dorada", "branzino",
+      "kawior", "ikra",
+      "gravlax", "gravad lax",
+      "lox ", "łosoś wędzony", "filet łososia",
+      "mątwa", "sepia",
+      "żabnica",
+      "łupacz", "karmazyn",
+      "mule ", "mussel",
+      "graal", "lisner",
     ],
   },
 
@@ -351,6 +364,19 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "kotlet", "schnitzel", "gulasz",
       "drobiu", "drobiow",
       "mięsn", "mięsem", "mięso", "mięsa", "stek ",
+      // Steki i cięcia premium (gastro hotelowa):
+      "ribeye", "rib eye", "t-bone", "porterhouse",
+      "picanha", "sirloin", "striploin", "new york strip",
+      "wagyu", "angus", "black angus",
+      // Mielone i tartary:
+      "mielone", "mięso mielone",
+      "tatar wołowy", "beef tartare",
+      // Podroby:
+      "wątróbka", "wątroba", "żołądki drobiowe", "żołądek drobiow",
+      "serca drobiowe", "serce drobiow",
+      "ozór", "ozory", "nerki wołow", "nerki wieprzow",
+      // Parówki i kiełbaski (uzupełnienie):
+      "berlinki", "frankfurter", "hot dog",
     ],
   },
 
@@ -366,9 +392,17 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "spaghetti", "penne", "fusilli",
       "tagliatelle", "lasagna", "rigatoni", "paccheri",
       "linguine", "fettuccine", "farfalle", "conchiglie",
+      "pappardelle", "bucatini", "vermicelli",
+      "orecchiette", "mafaldine", "strozzapreti",
+      "orzo", "ditalini", "castellane",
       "ravioli", "tortellini", "cappelletti",
       "gnocchi",
       "kluski", "kopytka",
+      // Makaron azjatycki (ramen bary i kuchnia fusion):
+      "ramen", "udon", "soba", "somen",
+      "rice noodle", "pad thai noodle",
+      "mie ", "mie goreng",
+      "spätzle",
     ],
   },
 
@@ -457,6 +491,19 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "kapsułki do kawy", "arabica", "robusta",
       // kakao pitne (napój) tu; kakao w proszku/cukiernicze → slodycze
       "kakao pitne", "kakao do picia",
+      // Specialty coffee:
+      "cold brew", "cold brew kawa",
+      "drip kawa", "filter coffee", "pourover",
+      "single origin", "blend kawowy",
+      "kawa ziarnista", "kawa mielona", "kawa palona",
+      // Herbaty szczegółowe:
+      "zielona herbata", "czarna herbata", "biała herbata",
+      "oolong", "pu erh", "pu-erh",
+      "chai", "masala chai",
+      // Roślinne mleka do kawy (PRZED napoje):
+      "mleko owsiane", "mleko sojowe", "mleko migdałowe", "mleko kokosowe",
+      "napój owsiany", "napój sojowy", "napój migdałowy",
+      "oat milk", "soy milk", "almond milk",
     ],
   },
 
@@ -505,6 +552,13 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       // Egzotyczne
       "physalis", "pitahaya", "smoczy owoc", "miechunka", "karambola", "kumkwat",
       "marakuj",
+      // Owoce suszone i bakaliowe (gastro/pâtisserie):
+      "figa", "figi", "figowi", "figowe",
+      "daktyl", "daktyle", "daktyli",
+      "morela suszona", "śliwka suszona",
+      "rodzynk", "rodzynki",
+      "kokos tart", "wiórki kokosowe", "płatki kokosowe",
+      "tamaryn", "tamarynd",
       // Winorośl
       "winogron",
       // Awokado
@@ -564,6 +618,17 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "sambal", "nori", "glony", "żurek", "zakwas",
       // Suszone/przetworzone warzywa jako przyprawy (2026-10)
       "cebula suszona", "cebulka prażona", "czosnek granulowany",
+      // Azjatyckie sosy i przyprawy (gastro fusion):
+      "sos rybny", "fish sauce", "nuoc mam",
+      "sos ostrygowy", "oyster sauce",
+      "tamari", "sos tamari",
+      "ponzu", "yuzu",
+      "dashi", "kombu", "bonito",
+      "mirin", "sake do gotowania",
+      "pasta kimchi",
+      // Sosy premium i specjalne:
+      "sos hoisin", "black bean sauce",
+      "sos teriyaki",
     ],
   },
 
@@ -607,6 +672,13 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "salsefia", "botwina", "kwiat jadaln",
       "warzywa", "warzywo",
       "ogórek", "ogórk",
+      // Warzywa azjatyckie (kuchnia fusion):
+      "pak choi", "bok choy", "bok choi",
+      "fenkuł", "koper włoski",
+      "edamame",
+      "wasabi świeże", "wasabi korzeń",
+      "batatów", "słodki ziemniak",
+      "szparagi zielone", "szparagi białe",
     ],
   },
 
