@@ -3,7 +3,7 @@ import type { Logger } from "pino";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../lib/ai-plan.js";
-import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers, sendAiUpdateAnnouncementToAllUsers, sendKsefSyncReminderToAllUsers } from "../services/admin-broadcast.js";
+import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers, sendAiUpdateAnnouncementToAllUsers, sendKsefSyncReminderToAllUsers, sendThankYouFeedbackEmail } from "../services/admin-broadcast.js";
 import { backfillTrialForAllUsers, extendTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "../services/subscriptions.js";
 import { runMarketBenchmarkJob } from "../services/market-benchmark-job.js";
 import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
@@ -414,6 +414,17 @@ router.post("/admin/announce-trial", async (req, res): Promise<void> => {
 
 // Jednorazowy broadcast o auto-sync KSeF — do wszystkich userów (dedup przez email_log
 // type=ksef_sync_reminder). Wysyłać ręcznie z panelu admina gdy chcemy powiadomić o funkcji.
+// Personalny mail z podziękowaniem i prośbą o opinię — do wybranego użytkownika (dedup).
+router.post("/admin/users/:id/send-thank-you", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+  const userId = req.params.id;
+  const { data: users } = await fetchAllClerkUsers();
+  const user = users.find((u) => u.id === userId);
+  if (!user) { res.status(404).json({ error: "Nie znaleziono użytkownika" }); return; }
+  const result = await sendThankYouFeedbackEmail(req.log, user);
+  res.json(result);
+});
+
 router.post("/admin/announce-ksef-sync", async (req, res): Promise<void> => {
   if (!isAdmin(req)) { denyAdmin(res); return; }
 

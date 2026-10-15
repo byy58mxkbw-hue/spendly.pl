@@ -109,6 +109,20 @@ export function ksefSyncReminderEmailHtml({ firstName }: { firstName: string | n
   `);
 }
 
+// Personalny mail z podziękowaniem i prośbą o opinię — wysyłany ręcznie przez admina
+// do wybranych użytkowników (routes/admin.ts: POST /admin/users/:id/send-thank-you).
+export function thankYouFeedbackEmailHtml({ firstName }: { firstName: string | null }): string {
+  const greeting = firstName ? `Cześć, ${firstName}!` : "Cześć!";
+  return shell(`
+    <p style="margin:0 0 16px 0; font-size:18px; font-weight:700;">${greeting}</p>
+    <p style="margin:0 0 12px 0;">Dziękujemy, że korzystasz ze Spendly. Widzimy, że masz już sporą bazę faktur — cieszymy się, że platforma jest dla Ciebie użyteczna.</p>
+    <p style="margin:0 0 12px 0;">Zależy nam, żeby Spendly działało dokładnie tak, jak potrzebujesz. Jeśli masz jakieś uwagi, widzisz coś co można poprawić albo brakuje Ci jakiejś funkcji — napisz do nas na tego maila albo zadzwoń bezpośrednio:</p>
+    <p style="margin:0 0 12px 0; font-size:16px; font-weight:700;">607 771 555</p>
+    <p style="margin:0 0 12px 0; color:#8A7C63; font-size:13px;">Każda opinia — nawet jedno zdanie — naprawdę pomaga nam rozwijać produkt w dobrym kierunku.</p>
+    ${ctaButton("Przejdź do Spendly", APP_URL)}
+  `);
+}
+
 // Jednorazowe ogłoszenie startu 30-dniowego triala pro (routes/admin.ts:
 // /admin/announce-trial, wołane PO nadaniu triala — patrz admin-broadcast.ts).
 export function trialAnnouncementEmailHtml({ firstName, trialEndsAtLabel }: { firstName: string | null; trialEndsAtLabel: string }): string {

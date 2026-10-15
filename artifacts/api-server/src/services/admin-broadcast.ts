@@ -3,7 +3,7 @@ import { sql, eq } from "drizzle-orm";
 import { db, subscriptionsTable } from "@workspace/db";
 import { fetchAllClerkUsers, ADMIN_IDS, type ClerkUserRaw } from "../routes/admin.js";
 import { sendEmail } from "./resend-client.js";
-import { feedbackRequestEmailHtml, trialAnnouncementEmailHtml, aiUpdateAnnouncementEmailHtml, ksefSyncReminderEmailHtml } from "../lib/email-templates.js";
+import { feedbackRequestEmailHtml, trialAnnouncementEmailHtml, aiUpdateAnnouncementEmailHtml, ksefSyncReminderEmailHtml, thankYouFeedbackEmailHtml } from "../lib/email-templates.js";
 
 const DEFAULT_FROM = "Spendly <onboarding@resend.dev>";
 const DEFAULT_REPLY_TO = "spendlykontakt@gmail.com";
@@ -111,6 +111,42 @@ export async function sendTrialAnnouncementToAllUsers(log: Logger): Promise<Broa
       return trialAnnouncementEmailHtml({ firstName: u.first_name, trialEndsAtLabel });
     },
   });
+}
+
+export async function sendThankYouFeedbackEmail(
+  log: Logger,
+  user: ClerkUserRaw,
+): Promise<{ sent: boolean; error?: string }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { sent: false, error: "RESEND_API_KEY not set" };
+
+  const email =
+    user.email_addresses.find((e) => e.id === user.primary_email_address_id)?.email_address ??
+    user.email_addresses[0]?.email_address ??
+    null;
+  if (!email) return { sent: false, error: "Brak adresu email" };
+
+  const claimed = await db.execute(sql`
+    INSERT INTO email_log (user_id, type) VALUES (${user.id}, ${"thank_you_feedback"})
+    ON CONFLICT (user_id, type) DO NOTHING
+    RETURNING id
+  `);
+  if (claimed.rows.length === 0) return { sent: false, error: "Już wysłano ten typ maila do tego użytkownika" };
+
+  try {
+    await sendEmail(apiKey, {
+      to: email,
+      from: process.env.EMAIL_FROM || DEFAULT_FROM,
+      replyTo: process.env.EMAIL_REPLY_TO || DEFAULT_REPLY_TO,
+      subject: "Dziękujemy za korzystanie ze Spendly — chętnie posłuchamy Twojej opinii",
+      html: thankYouFeedbackEmailHtml({ firstName: user.first_name }),
+    });
+    log.info({ userId: user.id }, "thank_you_feedback email sent");
+    return { sent: true };
+  } catch (err) {
+    log.error({ userId: user.id, err: String(err) }, "thank_you_feedback email failed");
+    return { sent: false, error: String(err) };
+  }
 }
 
 export async function sendKsefSyncReminderToAllUsers(log: Logger): Promise<BroadcastResult> {
