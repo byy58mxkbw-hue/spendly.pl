@@ -3,7 +3,7 @@ import type { Logger } from "pino";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../lib/ai-plan.js";
-import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers, sendAiUpdateAnnouncementToAllUsers, sendKsefSyncReminderToAllUsers, sendThankYouFeedbackEmail } from "../services/admin-broadcast.js";
+import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers, sendAiUpdateAnnouncementToAllUsers, sendKsefSyncReminderToAllUsers, sendThankYouFeedbackEmail, sendMarketPricesAnnouncementToAllUsers } from "../services/admin-broadcast.js";
 import { backfillTrialForAllUsers, extendTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "../services/subscriptions.js";
 import { runMarketBenchmarkJob } from "../services/market-benchmark-job.js";
 import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
@@ -423,6 +423,19 @@ router.post("/admin/users/:id/send-thank-you", async (req, res): Promise<void> =
   if (!user) { res.status(404).json({ error: "Nie znaleziono użytkownika" }); return; }
   const result = await sendThankYouFeedbackEmail(req.log, user);
   res.json(result);
+});
+
+// Jednorazowy broadcast o nowej funkcji „Porównanie cen" (/benchmark) — do wszystkich
+// userów (dedup przez email_log type=market_prices_announcement).
+router.post("/admin/announce-market-prices", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+  try {
+    const result = await sendMarketPricesAnnouncementToAllUsers(req.log);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err: String(err) }, "announce-market-prices failed");
+    res.status(500).json({ error: "Nie udało się wysłać ogłoszenia o porównaniu cen." });
+  }
 });
 
 router.post("/admin/announce-ksef-sync", async (req, res): Promise<void> => {

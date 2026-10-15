@@ -109,6 +109,20 @@ export function ksefSyncReminderEmailHtml({ firstName }: { firstName: string | n
   `);
 }
 
+// Ogłoszenie funkcji „Porównanie cen" (/benchmark) — anonimowe porównanie cen
+// zakupu do mediany rynkowej z innych restauracji. Opt-in, wymaga wyrażenia zgody
+// w ustawieniach zanim user zobaczy dane (routes/benchmarks.ts PATCH /benchmarks/opt-in).
+export function marketPricesAnnouncementEmailHtml({ firstName }: { firstName: string | null }): string {
+  const greeting = firstName ? `Cześć, ${firstName}!` : "Cześć!";
+  return shell(`
+    <p style="margin:0 0 16px 0; font-size:18px; font-weight:700;">${greeting}</p>
+    <p style="margin:0 0 12px 0;">Nowość w Spendly: <strong>Porównanie cen</strong> — sprawdzasz, czy Twoje ceny zakupu surowców są wyższe, niższe, czy w normie względem innych restauracji.</p>
+    <p style="margin:0 0 12px 0;">Dla każdego produktu widzisz medianę rynkową i swoją cenę na tle innych — od razu wiadomo, gdzie warto negocjować z dostawcą, a gdzie już masz dobrą stawkę.</p>
+    <p style="margin:0 0 12px 0; color:#8A7C63; font-size:13px;">Dane są w pełni anonimowe — nikt nie widzi Twoich cen ani nazwy lokalu, a Ty widzisz tylko zagregowaną medianę. Udział jest dobrowolny i włączasz go jednym przełącznikiem.</p>
+    ${ctaButton("Zobacz porównanie cen", `${APP_URL}/benchmark`)}
+  `);
+}
+
 // Personalny mail z podziękowaniem i prośbą o opinię — wysyłany ręcznie przez admina
 // do wybranych użytkowników (routes/admin.ts: POST /admin/users/:id/send-thank-you).
 export function thankYouFeedbackEmailHtml({ firstName }: { firstName: string | null }): string {
