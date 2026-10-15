@@ -95,6 +95,20 @@ export function aiUpdateAnnouncementEmailHtml({ firstName }: { firstName: string
   `);
 }
 
+// Przypomnienie o wznowieniu synchronizacji KSeF (routes/admin.ts:
+// /admin/announce-ksef-sync, wywoływane ręcznie przez admina dla userów
+// którzy nie synchrnizowali od 14+ dni i mają auto_sync=false).
+export function ksefSyncReminderEmailHtml({ firstName }: { firstName: string | null }): string {
+  const greeting = firstName ? `Cześć, ${firstName}!` : "Cześć!";
+  return shell(`
+    <p style="margin:0 0 16px 0; font-size:18px; font-weight:700;">${greeting}</p>
+    <p style="margin:0 0 12px 0;">Od teraz Spendly może pobierać faktury z KSeF <strong>automatycznie, codziennie</strong> — bez żadnego klikania z Twojej strony.</p>
+    <p style="margin:0 0 12px 0;">Włącz auto-synchronizację w ustawieniach, a nowe faktury będą pojawiać się same. Ty tylko nadzorujesz koszty i reagujesz na zmiany cen — resztą zajmuje się Spendly.</p>
+    <p style="margin:0 0 12px 0; color:#8A7C63; font-size:13px;">Jeśli nie masz jeszcze podłączonego KSeF — to dobry moment, żeby zacząć. Wystarczy NIP i token autoryzacyjny.</p>
+    ${ctaButton("Włącz auto-synchronizację", `${APP_URL}/settings/ksef`)}
+  `);
+}
+
 // Jednorazowe ogłoszenie startu 30-dniowego triala pro (routes/admin.ts:
 // /admin/announce-trial, wołane PO nadaniu triala — patrz admin-broadcast.ts).
 export function trialAnnouncementEmailHtml({ firstName, trialEndsAtLabel }: { firstName: string | null; trialEndsAtLabel: string }): string {

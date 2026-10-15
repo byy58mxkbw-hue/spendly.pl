@@ -3,7 +3,7 @@ import type { Logger } from "pino";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { normalizePlan, currentPeriod, AI_MONTHLY_LIMIT, type Plan } from "../lib/ai-plan.js";
-import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers, sendAiUpdateAnnouncementToAllUsers } from "../services/admin-broadcast.js";
+import { sendFeedbackRequestToAllUsers, sendTrialAnnouncementToAllUsers, sendAiUpdateAnnouncementToAllUsers, sendKsefSyncReminderToAllUsers } from "../services/admin-broadcast.js";
 import { backfillTrialForAllUsers, extendTrialForAllUsers, resyncClerkPlanForAllSubscriptions } from "../services/subscriptions.js";
 import { runMarketBenchmarkJob } from "../services/market-benchmark-job.js";
 import { excludeNonSpendInvoiceTypes } from "../lib/invoice-line-classify.js";
@@ -409,6 +409,20 @@ router.post("/admin/announce-trial", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err: String(err) }, "announce-trial failed");
     res.status(500).json({ error: "Nie udało się wysłać ogłoszenia o trialu." });
+  }
+});
+
+// Jednorazowy broadcast o auto-sync KSeF — do wszystkich userów (dedup przez email_log
+// type=ksef_sync_reminder). Wysyłać ręcznie z panelu admina gdy chcemy powiadomić o funkcji.
+router.post("/admin/announce-ksef-sync", async (req, res): Promise<void> => {
+  if (!isAdmin(req)) { denyAdmin(res); return; }
+
+  try {
+    const result = await sendKsefSyncReminderToAllUsers(req.log);
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err: String(err) }, "announce-ksef-sync failed");
+    res.status(500).json({ error: "Nie udało się wysłać przypomnienia o KSeF sync." });
   }
 });
 

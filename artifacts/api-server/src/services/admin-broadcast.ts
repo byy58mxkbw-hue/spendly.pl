@@ -3,7 +3,7 @@ import { sql, eq } from "drizzle-orm";
 import { db, subscriptionsTable } from "@workspace/db";
 import { fetchAllClerkUsers, ADMIN_IDS, type ClerkUserRaw } from "../routes/admin.js";
 import { sendEmail } from "./resend-client.js";
-import { feedbackRequestEmailHtml, trialAnnouncementEmailHtml, aiUpdateAnnouncementEmailHtml } from "../lib/email-templates.js";
+import { feedbackRequestEmailHtml, trialAnnouncementEmailHtml, aiUpdateAnnouncementEmailHtml, ksefSyncReminderEmailHtml } from "../lib/email-templates.js";
 
 const DEFAULT_FROM = "Spendly <onboarding@resend.dev>";
 const DEFAULT_REPLY_TO = "spendlykontakt@gmail.com";
@@ -110,5 +110,13 @@ export async function sendTrialAnnouncementToAllUsers(log: Logger): Promise<Broa
       const trialEndsAtLabel = row?.trialEndsAt ? PL_DATE_FORMAT.format(row.trialEndsAt) : "za 30 dni";
       return trialAnnouncementEmailHtml({ firstName: u.first_name, trialEndsAtLabel });
     },
+  });
+}
+
+export async function sendKsefSyncReminderToAllUsers(log: Logger): Promise<BroadcastResult> {
+  return broadcastEmailToAllUsers(log, {
+    emailType: "ksef_sync_reminder",
+    subject: "Faktury mogą spływać automatycznie — włącz auto-sync w Spendly",
+    buildHtml: (u) => ksefSyncReminderEmailHtml({ firstName: u.first_name }),
   });
 }

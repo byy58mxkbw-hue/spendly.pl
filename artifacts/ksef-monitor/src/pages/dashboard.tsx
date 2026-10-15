@@ -33,6 +33,7 @@ import {
   Check,
   ArrowUpRight,
   ArrowDownRight,
+  Clock,
 } from "@/lib/icons";
 import { Link } from "wouter";
 import { formatPrice, formatPercent, formatDate } from "@/lib/format";
@@ -283,6 +284,15 @@ function DashboardPage() {
   const showOnboarding = onbDone < 3 && !onbHidden;
   const pendingCount = pendingList?.length ?? 0;
 
+  // Banner auto-sync: pokazuj gdy KSeF skonfigurowany ale auto-sync wyłączony.
+  const showAutoSyncBanner = !!config && config.autoSyncEnabled === false;
+  const [autoSyncBannerHidden, setAutoSyncBannerHidden] = useState<boolean>(() => {
+    try { return localStorage.getItem("spendly_autosync_banner_hidden") === "1"; } catch { return false; }
+  });
+  const daysSinceSync = config?.lastSyncedAt
+    ? Math.floor((Date.now() - new Date(config.lastSyncedAt).getTime()) / 86400000)
+    : null;
+
   // Realny food cost % (koszt z KSeF ÷ przychód z GoPOS/ręczny). Widoczny tylko gdy
   // jest przychód (foodCostPct != null) — więc sam się chowa dla lokali bez sprzedaży.
   const { data: foodCost } = useFoodCostRatio({ month });
@@ -424,6 +434,41 @@ function DashboardPage() {
 
         {/* Powitalny samouczek — raz dla nowego użytkownika */}
         <WelcomeOnboarding ready={suppliers !== undefined} hasData={!!config || hasSuppliers} />
+
+        {/* Banner auto-sync KSeF — gdy skonfigurowany ale sync ręczny */}
+        {showAutoSyncBanner && !autoSyncBannerHidden && (
+          <div className="mb-4 border border-border bg-card p-4 flex items-start gap-3">
+            <Clock className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                Faktury mogą spływać automatycznie
+              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {daysSinceSync !== null && daysSinceSync > 7
+                  ? `Ostatnia synchronizacja ${daysSinceSync} dni temu. `
+                  : ""}
+                Włącz auto-sync i zapomnij o ręcznym odświeżaniu — Spendly pobierze faktury za Ciebie, codziennie.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link href="/settings/ksef">
+                <button className="text-sm font-semibold text-primary hover:underline underline-offset-2">
+                  Włącz auto-sync
+                </button>
+              </Link>
+              <button
+                className="text-xs text-muted-foreground hover:text-foreground ml-2"
+                onClick={() => {
+                  setAutoSyncBannerHidden(true);
+                  try { localStorage.setItem("spendly_autosync_banner_hidden", "1"); } catch { /* ignore */ }
+                }}
+                aria-label="Zamknij"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Onboarding — checklist aktywacji z realnym postępem */}
         {showOnboarding && (
