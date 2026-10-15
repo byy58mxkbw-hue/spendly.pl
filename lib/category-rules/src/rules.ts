@@ -36,7 +36,8 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "papier ksero", "papier a4", "papier do drukarki",
       "koperta ",
       "toner do drukarki", "tusz do drukarki",
-      "marker do tablicy", "marker suchościeraln",
+      "marker do tablicy", "marker suchościeraln", "markery permanentne", "marker perm",
+      "magnesy ", "magnes ", "tabliczka kredow",
       "druk menu", "druk ulotki", "druk plakatu", "wydruki cyfrowe",
       "wizytówka", "naklejka reklamow", "baner reklamowy",
     ],
@@ -86,6 +87,7 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       // Paliwo i opał
       "paliwo", "diesel", "benzyn", "napędowy", "efecta", "adblue", "ad blue",
       "tankowanie", "gaz ziemny", "gazu ziemnego", "opał", "pellet", "węgiel drzewny",
+      "gaz w butli", "butla z gazem", "propan", "butan", "propan-butan", "gaz propan",
       // Usługi i monitoring
       "monitorowania", "monitoring", "interwencji", "wywóz odpad", "wywóz śmieci",
       "opłata za udostępnienie", "opłata serwisow",
@@ -100,6 +102,8 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "usługi księgow", "obsługa księgow", "obsługę księgow", "amortyzacj",
       "rata leasingow", "czynsz najmu", "opłata eksploatacyjn",
       "wywóz nieczystości", "media ",
+      // Świeczki stołowe / dekoracyjne (restauracje używają do nakrycia)
+      "świeczka ", "świeczki ", "świeca stołow", "świeca restaur", "znicz",
     ],
   },
 
@@ -243,6 +247,7 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "papier do pieczenia", "papier pergaminowy", "papier śniadaniowy",
       "papier do pakowania",
       "słomki", "słomka", "szaszłyki", "szaszłyk", "wykałaczki",
+      "patyczki do burger", "patyczki burger", "patyczek do burger",
       "rękaw cukierniczy", "worek cukierniczy",
       "podstawki pod napoje", "podstawka pod szklankę",
       "etykiety", "naklejki", "tasma klejąca", "taśma do pakowania",
@@ -306,6 +311,7 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "pasta truflowa", "tapenad",
       "grillowane papryki", "papryki konserwowe",
       "karczochy w oleju", "suszone pomidory",
+      "ciecierzyca", "soczewica", "fasola konserwow", "cieciorka",
     ],
   },
 
@@ -410,6 +416,8 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "rice noodle", "pad thai noodle",
       "mie ", "mie goreng",
       "spätzle",
+      // Ryż
+      "arborio", "basmati", "jasmin rice", "ryż do sushi",
     ],
   },
 
@@ -625,6 +633,7 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "kucharek", "vegeta",
       "barszcz", "żur ", "barszcz w prosz",
       "pasta miso", "pasta curry", "pasta paprykow",
+      "miso shiro", "miso mugi", "miso pasta", "shiro miso",
       "guacamole mieszanka",
       "margaryna", "frytura",
       "sambal", "nori", "glony", "żurek", "zakwas",
@@ -725,6 +734,7 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "krem cukierniczy", "krem patissier", "krem budyniowy",
       "masa kajmakow", "dulce de leche",
       "nutella", "lava cake", "suflet",
+      "cannoli", "eclair", "profiterol", "choux",
     ],
   },
 
