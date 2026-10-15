@@ -191,7 +191,7 @@ export function parseFA3Xml(xml: string, ksefNumber: string | null = null): Pars
           "Opis",
         ]) ?? "";
       if (!name.trim()) continue;
-      const gtin = extractTagAny(block, ["GTIN", "P_6A"]);
+      const gtin = extractTagAny(block, ["GTIN"]);
       const unit = extractTagAny(block, ["P_8A", "Jednostka", "Jm"])
         ?? "szt";
       const qty = parseNum(

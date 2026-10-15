@@ -222,8 +222,9 @@ export async function runMarketProductMatcher(log: Logger): Promise<{ groups: nu
     else byCard.set(card, id);
 
     // Wspólny GTIN (kod kreskowy z KSeF) = ten sam towar, nawet przy innych nazwach.
+    // Walidacja: tylko 8-14 cyfr (EAN-8/EAN-13/GTIN-14); daty i inne śmieci odrzucamy.
     const gt = isExcluded ? undefined : gtinOf.get(id);
-    if (gt) {
+    if (gt && /^\d{8,14}$/.test(gt.gtin)) {
       const gk = `${gt.gtin}::${basis.compareUnit}`;
       const firstG = byGtin.get(gk);
       if (firstG) {
