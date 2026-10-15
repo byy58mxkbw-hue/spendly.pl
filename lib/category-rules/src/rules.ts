@@ -77,6 +77,12 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "opłata za sim", "karta sim",
       // Najem i dzierżawa
       "dzierżawa", "najem", "wynajem", "czynsz", "leasing",
+      // Terminale płatnicze i kasy (dzierżawa urządzeń)
+      "najem terminala", "dzierżawa terminala", "najem terminalu",
+      "najem kasy fiskalnej", "dzierżawa kasy", "wynajem kasy",
+      "najem pos", "dzierżawa pos",
+      // Reklama i nośniki zewnętrzne
+      "najem tablicy", "dzierżawa tablicy", "tablica reklamowa najem",
       // Paliwo i opał
       "paliwo", "diesel", "benzyn", "napędowy", "efecta", "adblue", "ad blue",
       "tankowanie", "gaz ziemny", "gazu ziemnego", "opał", "pellet", "węgiel drzewny",
@@ -160,7 +166,6 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "stout", "weizen", "bock", "wheat beer", "craft beer", "bz ", "bz",
       "litovel", "tyskie", "żywiec", "lech ", "heineken", "carlsberg",
       "desperados", "corona ", "budweiser", "hoegaarden", "leffe", "pilsner",
-      "piwo bezalkoholow", "piwo 0",
       "wino ", "vino ", "rouge",
       "primitivo", "sauvignon", "chardonnay", "merlot", "cabernet",
       "pinot", "shiraz", "riesling", "sangiovese", "tempranillo",
@@ -181,7 +186,8 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "cydr", "cyder", "cider",
       "alkohol", "alcopop",
       "bacardi", "jameson", "pirosmani", "carta blanca",
-      "angostura", "keg ", "kegu ",
+      "angostura", "bitter truth",
+      "keg ", "kegu ",
     ],
   },
 
@@ -526,6 +532,12 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "milk shake", "mleko smakowe",
       "rgb x24", "0,25 rgb", "butelka szk", "but szk", "drs ",
       "tonic", "kinletonic",
+      // Bezalkoholowe: piwo/wino/gin 0% → napoje, nie alkohole
+      "piwo bezalkohol", "piwo 0",
+      "gin bezalkohol", "gin 0%", "gin 0,",
+      "wino bezalkohol",
+      // Lód do drinków (nie lody desery — te są w mrozonki)
+      "kostki lodu", "lód gastr", "ice cube",
     ],
   },
 
@@ -737,6 +749,7 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "tortilla", "wrap",
       "kuskus", "bulgur",
       "naleśnik", "pancake", "crepe",
+      "lasagne", "lasagna",
       "ciasto kataifi", "spód do quiche", "korpusy kruche",
       "vol-au-vent", "ciasto filo", "ciasto francuskie",
       "panierka bułczana", "panierka",
