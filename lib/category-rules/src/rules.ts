@@ -166,6 +166,7 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "stout", "weizen", "bock", "wheat beer", "craft beer", "bz ", "bz",
       "litovel", "tyskie", "żywiec", "lech ", "heineken", "carlsberg",
       "desperados", "corona ", "budweiser", "hoegaarden", "leffe", "pilsner",
+      "piwo bezalkoholow", "piwo 0",
       "wino ", "vino ", "rouge",
       "primitivo", "sauvignon", "chardonnay", "merlot", "cabernet",
       "pinot", "shiraz", "riesling", "sangiovese", "tempranillo",
@@ -532,8 +533,7 @@ export const CATEGORY_DEFS: CategoryDef[] = [
       "milk shake", "mleko smakowe",
       "rgb x24", "0,25 rgb", "butelka szk", "but szk", "drs ",
       "tonic", "kinletonic",
-      // Bezalkoholowe: piwo/wino/gin 0% → napoje, nie alkohole
-      "piwo bezalkohol", "piwo 0",
+      // Gin/wino 0% → napoje (piwo bezalk. zostaje w alkohole)
       "gin bezalkohol", "gin 0%", "gin 0,",
       "wino bezalkohol",
       // Lód do drinków (nie lody desery — te są w mrozonki)
