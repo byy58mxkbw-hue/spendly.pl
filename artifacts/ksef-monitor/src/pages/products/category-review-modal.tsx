@@ -58,6 +58,28 @@ function useApplyCategory() {
   });
 }
 
+// Odrzucenie sugestii = potwierdź obecną kategorię (confidence=1) → znika z kolejki na stałe.
+function useRejectSuggestion() {
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, currentCategory }: { id: number; currentCategory: string | null }) => {
+      if (!currentCategory) return;
+      const token = await getToken();
+      const res = await fetch(apiUrl(`/api/products/${id}/correct-category`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ category: currentCategory }),
+      });
+      if (!res.ok) throw new Error("Błąd zapisu");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["category-review"] });
+    },
+  });
+}
+
 function categoryLabel(id: string | null) {
   if (!id) return "Brak";
   const cats = Object.values(CATEGORIES);
@@ -108,6 +130,7 @@ function ReviewRow({ item, onAccept, onSkip, isPending }: {
 export function CategoryReviewModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data, isLoading } = useCategoryReview();
   const applyMutation = useApplyCategory();
+  const rejectMutation = useRejectSuggestion();
   const [skipped, setSkipped] = useState<Set<number>>(() => new Set());
 
   const visible = (data?.items ?? []).filter((i) => !skipped.has(i.id));
@@ -156,7 +179,10 @@ export function CategoryReviewModal({ open, onClose }: { open: boolean; onClose:
                   item={item}
                   isPending={applyMutation.isPending}
                   onAccept={() => applyMutation.mutate({ id: item.id, category: item.suggestedCategory })}
-                  onSkip={() => setSkipped((s) => new Set([...s, item.id]))}
+                  onSkip={() => {
+                    setSkipped((s) => new Set([...s, item.id]));
+                    rejectMutation.mutate({ id: item.id, currentCategory: item.currentCategory });
+                  }}
                 />
               ))}
             </div>
