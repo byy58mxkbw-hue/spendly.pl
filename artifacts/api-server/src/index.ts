@@ -17,6 +17,7 @@ import { startQueue } from "./services/queue.js";
 import { ensureMarketBenchmarkExtensions } from "./services/ensure-market-benchmark.js";
 import { ensurePreListenColumns } from "./services/ensure-invoice-source.js";
 import { startMarketBenchmarkScheduler } from "./services/market-benchmark-job.js";
+import { mergeDuplicateProducts } from "./services/merge-duplicate-products.js";
 import { startGoposAutoSyncScheduler } from "./services/gopos-scheduler.js";
 
 // ── Walidacja zmiennych środowiskowych przy starcie ───────────────────────────
@@ -122,6 +123,10 @@ app.listen(port, (err) => {
   // (przed poprawką w lib/invoice-line-classify.ts) — idempotentne.
   ensureNoAdvanceLineProducts(logger).catch((err) => logger.error({ err }, "no-advance-line-products: migracja nieudana"));
   ensureGrossInvoiceTotals(logger).catch((err) => logger.error({ err }, "gross-totals: migracja nieudana"));
+
+  // Scalenie duplikatów produktów powstałych przed fixem normalizacji spacji (2026-07).
+  // Idempotentne: po pierwszym przebiegu brak grup z count>1.
+  mergeDuplicateProducts().catch((err) => logger.warn({ err }, "merge-duplicate-products: nieudane (non-fatal)"));
 
   // Kolejka zadań (pg-boss) — startuje TYLKO gdy PGBOSS_ENABLED=true (PoC).
   // Samo-gated i samo-obsługujące błędy; przy fladze OFF to no-op.
