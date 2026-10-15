@@ -454,17 +454,14 @@ router.post("/admin/resync-clerk-plan", async (req, res): Promise<void> => {
 });
 
 // Ręczne uruchomienie batcha benchmarku rynkowego (poza harmonogramem 24h) —
-// do testów/weryfikacji po deployu, bez czekania na kolejny tik.
+// odpowiada od razu (202) i odpala job w tle, żeby nie trafiać w timeout proxy.
 router.post("/admin/benchmarks/run", async (req, res): Promise<void> => {
   if (!isAdmin(req)) { denyAdmin(res); return; }
-
-  try {
-    const result = await runMarketBenchmarkJob(req.log);
-    res.json(result);
-  } catch (err) {
-    req.log.error({ err: String(err) }, "benchmarks/run failed");
-    res.status(500).json({ error: "Nie udało się przeliczyć benchmarku." });
-  }
+  const log = req.log;
+  res.status(202).json({ status: "started" });
+  runMarketBenchmarkJob(log)
+    .then((r) => log.info(r, "benchmarks/run: zakończony"))
+    .catch((err) => log.error({ err: String(err) }, "benchmarks/run failed"));
 });
 
 // ─── Zgłoszenia „To nie ten produkt” (benchmark v2, etap 4) ────────────────────
