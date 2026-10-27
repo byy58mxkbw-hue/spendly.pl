@@ -18,6 +18,7 @@ import {
   useListProducts,
   useGetDishesSales,
   useRepriceDish,
+  useSuggestDishIngredients,
   useSetProductPackage,
   useSetProductManualPrice,
   useGetPosItems,
@@ -29,7 +30,7 @@ import {
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import type { DishIngredientInput, DishDetail } from "@workspace/api-client-react";
-import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, Sparkles, ChevronLeft, ShoppingBag, RefreshCw } from "@/lib/icons";
+import { Plus, Trash2, X, ChevronRight, Search, AlertTriangle, Edit2, Sparkles, ChevronLeft, ShoppingBag, RefreshCw, Loader2 } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 import { Combobox } from "@/components/ui/combobox";
@@ -736,6 +737,8 @@ function DishDetailSheet({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const reprice = useRepriceDish();
+  const suggestIngredients = useSuggestDishIngredients();
+  const updateDish = useUpdateDish();
   const isMobile = useIsMobile();
   const costPct = dish ? dishFoodCostPct(dish.portionCost ?? null, dish.sellPrice) : null;
   const tone = costPct != null ? foodCostTone(costPct) : null;
@@ -765,6 +768,31 @@ function DishDetailSheet({
     queryClient.invalidateQueries({ queryKey: getGetDishQueryKey(dishId) });
     queryClient.invalidateQueries({ queryKey: getListDishesQueryKey() });
   };
+
+  // Danie bez składników (import bezpośredni z GoPOS, bez AI) — jeden klik
+  // wywołuje AI dla TEGO JEDNEGO dania i od razu zapisuje wynik.
+  async function handleSuggestIngredients() {
+    try {
+      const res = await suggestIngredients.mutateAsync({ id: dishId });
+      if (res.ingredients.length === 0) {
+        toast({ variant: "destructive", title: "AI nie zaproponowało składników", description: "Dodaj je ręcznie w edycji dania." });
+        return;
+      }
+      await updateDish.mutateAsync({
+        id: dishId,
+        data: { ingredients: res.ingredients.map((i) => ({ productId: i.productId, quantity: i.quantity, unit: i.unit })) },
+      });
+      refreshDish();
+      toast({ title: "Dodano składniki", description: `AI zaproponowało ${res.ingredients.length} składników. Popraw gramatury w edycji, jeśli trzeba.` });
+    } catch (err) {
+      const status = (err as { status?: number })?.status;
+      toast({
+        variant: "destructive",
+        title: status === 429 ? "Wyczerpano limit AI" : "Nie udało się zaproponować składników",
+        description: status === 429 ? "Miesięczny limit zapytań AI został osiągnięty." : "",
+      });
+    }
+  }
 
   return (
     <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -894,7 +922,19 @@ function DishDetailSheet({
                     <IngredientDetailRow key={ing.id} ing={ing} totalCost={dish.portionCost ?? null} onPackageSaved={refreshDish} />
                   ))}
                 </div>
-                {ingredients.length === 0 && <p className="text-xs text-muted-foreground py-4">Brak składników. Dodaj je w edycji dania.</p>}
+                {ingredients.length === 0 && (
+                  <div className="py-4 space-y-2">
+                    <p className="text-xs text-muted-foreground">Brak składników.</p>
+                    <Button size="sm" variant="outline" onClick={handleSuggestIngredients} disabled={suggestIngredients.isPending || updateDish.isPending}>
+                      {suggestIngredients.isPending || updateDish.isPending ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      Sugestie AI
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </>

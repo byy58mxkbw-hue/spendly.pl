@@ -292,37 +292,23 @@ export const GetGoposMenuResponse = zod.object({
 
 
 /**
- * @summary Estimate ingredients for selected GoPOS menu items (AI text, preview only)
+ * @summary AI estimate of ingredients for ONE existing dish (by name/category) — matches or creates products, ready to apply
  */
-export const ImportMenuFromGoposBody = zod.object({
-  "dishes": zod.array(zod.object({
-  "posProductName": zod.string(),
-  "name": zod.string(),
-  "category": zod.string().nullish(),
-  "sellPrice": zod.number().nullish()
-}))
+export const SuggestDishIngredientsParams = zod.object({
+  "id": zod.coerce.number()
 })
 
-export const ImportMenuFromGoposResponse = zod.object({
-  "dishes": zod.array(zod.object({
-  "name": zod.string(),
-  "posProductName": zod.string().nullish(),
-  "sellPrice": zod.number().nullish(),
-  "category": zod.string().nullish(),
-  "portionCost": zod.number().nullish(),
-  "foodCostPct": zod.number().nullish(),
-  "confidencePct": zod.number(),
+export const SuggestDishIngredientsResponse = zod.object({
   "ingredients": zod.array(zod.object({
-  "name": zod.string(),
-  "grams": zod.number(),
-  "matchedProductId": zod.number().nullish(),
-  "matchedName": zod.string().nullish(),
+  "productId": zod.number(),
+  "productName": zod.string(),
+  "quantity": zod.number(),
+  "unit": zod.string(),
   "unitPrice": zod.number().nullish(),
-  "estPricePerKg": zod.number().nullish(),
-  "estPieceGrams": zod.number().nullish(),
-  "priceSource": zod.union([zod.literal('invoice'),zod.literal('manual'),zod.literal('estimate'),zod.literal(null)]).nullish(),
-  "ingredientCost": zod.number().nullish()
-}))
+  "invoiceUnit": zod.string().nullish(),
+  "ingredientCost": zod.number().nullish(),
+  "canSetPrice": zod.boolean(),
+  "needsPackage": zod.boolean()
 }))
 })
 

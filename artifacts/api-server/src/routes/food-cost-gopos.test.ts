@@ -4,10 +4,11 @@ import type { Server } from "node:http";
 import { eq } from "drizzle-orm";
 import { db, posSalesTable, dishesTable } from "@workspace/db";
 
-// Import menu z GoPOS do Food Cost: lista pozycji (GET /food-cost/gopos-menu)
+// Import menu z GoPOS do Food Cost: lista pozycji (GET /food-cost/gopos-menu),
+// import BEZPOŚREDNI bez AI (POST /food-cost/dishes/from-menu, ingredients: [])
 // i automatyczne powiązanie zapisanego dania ze sprzedażą (posProductName).
-// DB-gated: tylko z TEST_DATABASE_URL. Szacowanie składników (AI) nie jest tu
-// wołane — testujemy tylko walidację wejścia tego endpointu.
+// DB-gated: tylko z TEST_DATABASE_URL. Sugestia składników AI (suggest-ingredients)
+// woła prawdziwe OpenAI — tu testujemy tylko ownership/404, nie samo wywołanie AI.
 const RUN_DB = !!process.env.TEST_DATABASE_URL;
 
 const authState = vi.hoisted(() => ({ userId: "test_fc_gopos" }));
@@ -110,11 +111,29 @@ describe.skipIf(!RUN_DB)("Food Cost: import menu z GoPOS", () => {
     expect(await db.select().from(dishesTable).where(eq(dishesTable.userId, OTHER))).toHaveLength(1);
   });
 
-  it("POST /food-cost/import-menu/gopos: odrzuca pustą i zbyt długą listę", async () => {
-    const empty = await call("/api/food-cost/import-menu/gopos", { method: "POST", body: JSON.stringify({ dishes: [] }) });
+  it("POST /food-cost/dishes/from-menu: odrzuca pustą i zbyt długą listę (import bezpośredni, bez AI)", async () => {
+    const empty = await call("/api/food-cost/dishes/from-menu", { method: "POST", body: JSON.stringify({ dishes: [] }) });
     expect(empty.status).toBe(400);
-    const many = Array.from({ length: 81 }, (_, i) => ({ name: `Danie ${i}`, posProductName: `Danie ${i}` }));
-    const tooMany = await call("/api/food-cost/import-menu/gopos", { method: "POST", body: JSON.stringify({ dishes: many }) });
+    const many = Array.from({ length: 301 }, (_, i) => ({ name: `Danie ${i}`, posProductName: `Danie ${i}`, ingredients: [] }));
+    const tooMany = await call("/api/food-cost/dishes/from-menu", { method: "POST", body: JSON.stringify({ dishes: many }) });
     expect(tooMany.status).toBe(400);
+  });
+
+  it("POST /food-cost/dishes/from-menu: import bez AI tworzy danie z pustymi składnikami", async () => {
+    const res = await call("/api/food-cost/dishes/from-menu", {
+      method: "POST",
+      body: JSON.stringify({ dishes: [{ name: "Burger wołowy", posProductName: "Burger wołowy", sellPrice: 42, category: "DANIA GŁÓWNE", ingredients: [] }] }),
+    });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { createdIds: number[] };
+    expect(body.createdIds.length).toBe(1);
+    const [dish] = await db.select().from(dishesTable).where(eq(dishesTable.id, body.createdIds[0]));
+    expect(dish.name).toBe("Burger wołowy");
+    expect(dish.posProductName).toBe("Burger wołowy");
+  });
+
+  it("POST /food-cost/dishes/:id/suggest-ingredients: 404 dla cudzego/nieistniejącego dania", async () => {
+    const res = await call("/api/food-cost/dishes/999999/suggest-ingredients", { method: "POST" });
+    expect(res.status).toBe(404);
   });
 });

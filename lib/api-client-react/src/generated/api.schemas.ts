@@ -1720,17 +1720,23 @@ export interface GoposMenu {
   items: GoposMenuItem[];
 }
 
-export interface GoposMenuImportDish {
-  posProductName: string;
-  name: string;
+export interface DishIngredientSuggestion {
+  productId: number;
+  productName: string;
+  quantity: number;
+  unit: string;
   /** @nullable */
-  category?: string | null;
+  unitPrice?: number | null;
   /** @nullable */
-  sellPrice?: number | null;
+  invoiceUnit?: string | null;
+  /** @nullable */
+  ingredientCost?: number | null;
+  canSetPrice: boolean;
+  needsPackage: boolean;
 }
 
-export interface GoposMenuImportBody {
-  dishes: GoposMenuImportDish[];
+export interface SuggestDishIngredientsResponse {
+  ingredients: DishIngredientSuggestion[];
 }
 
 export interface MenuImportPreview {

@@ -354,24 +354,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/GoposMenu"
 
-  /food-cost/import-menu/gopos:
+  /food-cost/dishes/{id}/suggest-ingredients:
     post:
-      operationId: importMenuFromGopos
+      operationId: suggestDishIngredients
       tags: [food-cost]
-      summary: Estimate ingredients for selected GoPOS menu items (AI text, preview only)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/GoposMenuImportBody"
+      summary: AI estimate of ingredients for ONE existing dish (by name/category) — matches or creates products, ready to apply
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
       responses:
         "200":
-          description: Dishes preview with rough food cost
+          description: Suggested ingredients, resolved to productId (existing match or newly created product)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MenuImportPreview"
+                $ref: "#/components/schemas/SuggestDishIngredientsResponse"
+        "404":
+          description: Not found
 
   /food-cost/dishes/from-menu:
     post:
@@ -5569,30 +5571,44 @@ components:
         - maxDishes
         - items
 
-    GoposMenuImportDish:
+    DishIngredientSuggestion:
       type: object
       properties:
-        posProductName:
+        productId:
+          type: integer
+        productName:
           type: string
-        name:
+        quantity:
+          type: number
+        unit:
           type: string
-        category:
-          type: ["string", "null"]
-        sellPrice:
+        unitPrice:
           type: ["number", "null"]
+        invoiceUnit:
+          type: ["string", "null"]
+        ingredientCost:
+          type: ["number", "null"]
+        canSetPrice:
+          type: boolean
+        needsPackage:
+          type: boolean
       required:
-        - posProductName
-        - name
+        - productId
+        - productName
+        - quantity
+        - unit
+        - canSetPrice
+        - needsPackage
 
-    GoposMenuImportBody:
+    SuggestDishIngredientsResponse:
       type: object
       properties:
-        dishes:
+        ingredients:
           type: array
           items:
-            $ref: "#/components/schemas/GoposMenuImportDish"
+            $ref: "#/components/schemas/DishIngredientSuggestion"
       required:
-        - dishes
+        - ingredients
 
     MenuImportPreview:
       type: object

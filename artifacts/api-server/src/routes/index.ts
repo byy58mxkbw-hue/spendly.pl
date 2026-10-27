@@ -36,6 +36,7 @@ router.use("/invoices/scan-receipt", aiQuota);
 // Odczyt WZ (OCR) — ten sam miesięczny limit AI co skan faktur.
 router.post("/invoices/:id/wz/scan", aiQuota);
 router.use("/food-cost/import-menu", aiQuota);
+router.post("/food-cost/dishes/:id/suggest-ingredients", aiQuota);
 
 router.use(suppliersRouter);
 router.use(productsRouter);

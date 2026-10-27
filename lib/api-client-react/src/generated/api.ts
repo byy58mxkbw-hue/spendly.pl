@@ -83,7 +83,6 @@ import type {
   GetTopPriceChangesParams,
   GlobalSearchParams,
   GoposMenu,
-  GoposMenuImportBody,
   HealthStatus,
   ImportInvoiceBody,
   Invoice,
@@ -145,6 +144,7 @@ import type {
   SetSupplierDefaultCostCenterBody,
   SpendBridge,
   SubmitBenchmarkFeedback200,
+  SuggestDishIngredientsResponse,
   Supplier,
   SupplierComparison,
   SupplierCostCenterSuggestion,
@@ -1213,36 +1213,36 @@ export function useGetGoposMenu<TData = Awaited<ReturnType<typeof getGoposMenu>>
 
 
 
-export const getImportMenuFromGoposUrl = () => {
+export const getSuggestDishIngredientsUrl = (id: number,) => {
 
 
 
 
-  return `/api/food-cost/import-menu/gopos`
+  return `/api/food-cost/dishes/${id}/suggest-ingredients`
 }
 
 /**
- * @summary Estimate ingredients for selected GoPOS menu items (AI text, preview only)
+ * @summary AI estimate of ingredients for ONE existing dish (by name/category) — matches or creates products, ready to apply
  */
-export const importMenuFromGopos = async (goposMenuImportBody: GoposMenuImportBody, options?: RequestInit): Promise<MenuImportPreview> => {
+export const suggestDishIngredients = async (id: number, options?: RequestInit): Promise<SuggestDishIngredientsResponse> => {
 
-  return customFetch<MenuImportPreview>(getImportMenuFromGoposUrl(),
+  return customFetch<SuggestDishIngredientsResponse>(getSuggestDishIngredientsUrl(id),
   {
     ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(goposMenuImportBody)
+    method: 'POST'
+
+
   }
 );}
 
 
 
 
-export const getImportMenuFromGoposMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importMenuFromGopos>>, TError,{data: BodyType<GoposMenuImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof importMenuFromGopos>>, TError,{data: BodyType<GoposMenuImportBody>}, TContext> => {
+export const getSuggestDishIngredientsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestDishIngredients>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestDishIngredients>>, TError,{id: number}, TContext> => {
 
-const mutationKey = ['importMenuFromGopos'];
+const mutationKey = ['suggestDishIngredients'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -1252,10 +1252,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importMenuFromGopos>>, {data: BodyType<GoposMenuImportBody>}> = (props) => {
-          const {data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestDishIngredients>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
 
-          return  importMenuFromGopos(data,requestOptions)
+          return  suggestDishIngredients(id,requestOptions)
         }
 
 
@@ -1265,22 +1265,22 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type ImportMenuFromGoposMutationResult = NonNullable<Awaited<ReturnType<typeof importMenuFromGopos>>>
-    export type ImportMenuFromGoposMutationBody = BodyType<GoposMenuImportBody>
-    export type ImportMenuFromGoposMutationError = ErrorType<unknown>
+    export type SuggestDishIngredientsMutationResult = NonNullable<Awaited<ReturnType<typeof suggestDishIngredients>>>
+
+    export type SuggestDishIngredientsMutationError = ErrorType<void>
 
     /**
- * @summary Estimate ingredients for selected GoPOS menu items (AI text, preview only)
+ * @summary AI estimate of ingredients for ONE existing dish (by name/category) — matches or creates products, ready to apply
  */
-export const useImportMenuFromGopos = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importMenuFromGopos>>, TError,{data: BodyType<GoposMenuImportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useSuggestDishIngredients = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestDishIngredients>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof importMenuFromGopos>>,
+        Awaited<ReturnType<typeof suggestDishIngredients>>,
         TError,
-        {data: BodyType<GoposMenuImportBody>},
+        {id: number},
         TContext
       > => {
-      return useMutation(getImportMenuFromGoposMutationOptions(options));
+      return useMutation(getSuggestDishIngredientsMutationOptions(options));
     }
 
 export const getSaveMenuDishesUrl = () => {

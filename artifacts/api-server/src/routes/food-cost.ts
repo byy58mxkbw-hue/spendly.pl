@@ -881,16 +881,17 @@ router.post("/food-cost/import-menu", async (req, res): Promise<void> => {
 // ─── Import menu z GoPOS (bez zdjęcia karty) ──────────────────────────────────
 // Źródłem listy dań jest AKTUALNE menu z GoPOS (aktywne menu → pozycje z ceną z
 // karty i kategorią), a nie historia sprzedaży — dania zdjęte z karty nie wracają.
-// AI dostaje tylko NAZWY dań (tekst, tanio) i szacuje składniki. Każde danie
-// zapisuje `posProductName`, więc od razu łączy się ze sprzedażą w
-// „Realny food cost — GoPOS".
+// Import jest BEZPOŚREDNI, bez AI (2026-10-27) — dania wchodzą bez składników,
+// każde od razu zapisuje `posProductName` i łączy się ze sprzedażą w
+// „Realny food cost — GoPOS". Składniki user dogrywa per danie przyciskiem
+// „Sugestie AI" w panelu szczegółów (POST /food-cost/dishes/:id/suggest-ingredients)
+// — jedno danie na raz, więc bez ryzyka timeoutu i bez sztucznego limitu wielkości
+// importu (poprzednio 80 pozycji, bo AI liczyło składniki dla całego menu naraz).
 // „Aktualne" = aktywne w GoPOS ORAZ sprzedane w ostatnich 3 miesiącach. Sama
 // aktywność w GoPOS nie wystarcza: na realnym koncie ~600 aktywnych pozycji,
 // w tym dodatki i stare dania (GoPOS oznacza je wszystkie tym samym typem).
 const GOPOS_MENU_MONTHS = 3;
-const GOPOS_MENU_MAX_DISHES = 80;
-const GOPOS_MENU_BATCH = 8;
-const GOPOS_MENU_CONCURRENCY = 5;
+const GOPOS_MENU_MAX_DISHES = 300; // sanity cap na jeden import (zwykły INSERT, nie AI) — nie ucina typowego menu
 
 function lastMonthKeys(n: number): string[] {
   const now = new Date();
@@ -1088,75 +1089,90 @@ async function estimateIngredientsBatch(userId: string, batch: GoposMenuInput[])
   return out;
 }
 
-// Szacowanie składników dla wybranych pozycji GoPOS → ten sam podgląd co import
-// ze zdjęcia. Ścieżka pod `/food-cost/import-menu/...`, więc łapie ją middleware
-// `aiQuota` (prefiks w routes/index.ts) — jedno użycie limitu AI na import.
-router.post("/food-cost/import-menu/gopos", async (req, res): Promise<void> => {
+// Sugestia składników dla JEDNEGO istniejącego dania — na żądanie z panelu
+// szczegółów (zamiast AI dla całego menu naraz przy imporcie, patrz
+// GOPOS_MENU_MAX_DISHES wyżej, usunięty 2026-10-27: import z GoPOS jest teraz
+// bezpośredni bez AI, składniki user dogrywa per danie). Jedno wywołanie AI
+// (estimateIngredientsBatch z batchem=1) — bez ryzyka timeoutu na proxy.
+// W przeciwieństwie do buildMenuPreview (read-only), tu OD RAZU tworzymy
+// brakujące produkty — user dostaje gotowe, edytowalne wiersze składników,
+// tak samo jak przy starym imporcie z karty/GoPOS.
+router.post("/food-cost/dishes/:id/suggest-ingredients", async (req, res): Promise<void> => {
   const userId = req.userId!;
-  const raw = (req.body as { dishes?: unknown }).dishes;
-  if (!Array.isArray(raw) || raw.length === 0) { res.status(400).json({ error: "Wybierz przynajmniej jedną pozycję z GoPOS." }); return; }
-  if (raw.length > GOPOS_MENU_MAX_DISHES) {
-    res.status(400).json({ error: `Za dużo pozycji naraz (max ${GOPOS_MENU_MAX_DISHES}). Zaimportuj menu w kilku częściach.` });
-    return;
-  }
-  const input: GoposMenuInput[] = [];
-  for (const r of raw as Array<Record<string, unknown>>) {
-    const name = typeof r?.name === "string" ? r.name.trim().slice(0, 200) : "";
-    const posProductName = typeof r?.posProductName === "string" ? r.posProductName.trim().slice(0, 200) : "";
-    if (!name || !posProductName) continue;
-    input.push({
-      name,
-      posProductName,
-      sellPrice: typeof r.sellPrice === "number" && r.sellPrice > 0 ? r.sellPrice : null,
-      category: typeof r.category === "string" && r.category.trim() ? r.category.trim().slice(0, 100) : null,
-    });
-  }
-  if (input.length === 0) { res.status(400).json({ error: "Brak poprawnych pozycji do importu." }); return; }
+  const params = GetDishParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Nieprawidłowe ID dania." }); return; }
 
-  const batches: GoposMenuInput[][] = [];
-  for (let i = 0; i < input.length; i += GOPOS_MENU_BATCH) batches.push(input.slice(i, i + GOPOS_MENU_BATCH));
+  const [dish] = await db
+    .select({ name: dishesTable.name, category: dishesTable.category })
+    .from(dishesTable)
+    .where(and(eq(dishesTable.id, params.data.id), eq(dishesTable.userId, userId)))
+    .limit(1);
+  if (!dish) { res.status(404).json({ error: "Nie znaleziono dania." }); return; }
 
-  const results: ExtractedMenuIngredient[][][] = new Array(batches.length);
+  let rawIngredients: ExtractedMenuIngredient[];
   try {
-    // Kilka partii równolegle (ograniczone) — przy 80 pozycjach jedno wywołanie
-    // trwałoby za długo i ucinało JSON na limicie tokenów.
-    // Jedna nieudana partia (timeout / ucięty JSON) nie przekreśla całego importu:
-    // ponawiamy raz, a gdy dalej nie wyjdzie — te dania wracają bez składników
-    // (podgląd je odznacza). Całość pada dopiero, gdy nie udała się ŻADNA partia.
-    let next = 0;
-    let failed = 0;
-    const worker = async () => {
-      while (next < batches.length) {
-        const b = next++;
-        try {
-          results[b] = await estimateIngredientsBatch(userId, batches[b]);
-        } catch (first) {
-          try {
-            results[b] = await estimateIngredientsBatch(userId, batches[b]);
-          } catch {
-            req.log.warn({ err: first instanceof Error ? first.message : String(first), batch: b }, "import-menu/gopos: partia nieudana");
-            results[b] = batches[b].map(() => []);
-            failed++;
-          }
-        }
-      }
-    };
-    await Promise.all(Array.from({ length: Math.min(GOPOS_MENU_CONCURRENCY, batches.length) }, worker));
-    if (failed === batches.length) throw new Error("all batches failed");
+    const [result] = await estimateIngredientsBatch(userId, [{ name: dish.name, category: dish.category, sellPrice: null, posProductName: "" }]);
+    rawIngredients = result ?? [];
   } catch (err) {
-    req.log.error({ err }, "import-menu/gopos: OpenAI error");
+    req.log.error({ err }, "suggest-ingredients: OpenAI error");
     res.status(500).json({ error: "Nie udało się oszacować składników. Spróbuj ponownie za chwilę." });
     return;
   }
+  const clean = sanitizeMenuDishes([{ name: dish.name, sellPrice: null, category: dish.category, ingredients: rawIngredients }])[0]!.ingredients;
+  if (clean.length === 0) { res.json({ ingredients: [] }); return; }
 
-  const extracted = input.map((d, i) => ({
-    name: d.name,
-    sellPrice: d.sellPrice,
-    category: d.category,
-    ingredients: results[Math.floor(i / GOPOS_MENU_BATCH)][i % GOPOS_MENU_BATCH] ?? [],
-  }));
-  const clean = sanitizeMenuDishes(extracted).map((d, i) => ({ ...d, posProductName: input[i].posProductName }));
-  res.json({ dishes: await buildMenuPreview(userId, clean) });
+  // Dopasuj do istniejących produktów usera (ten sam indeks co buildMenuPreview),
+  // a dla niedopasowanych od razu utwórz produkt — user dostaje gotowe wiersze.
+  const userProducts = await db
+    .select({ id: productsTable.id, name: productsTable.name, unit: productsTable.unit, canonicalName: productsTable.canonicalName })
+    .from(productsTable)
+    .where(eq(productsTable.userId, userId));
+  const exactByNorm = new Map<string, ProdIdx>();
+  const prodIndex: ProdIdx[] = [];
+  for (const p of userProducts) {
+    const canon = p.canonicalName?.trim() || normalizeProductName(p.name);
+    const idx: ProdIdx = { id: p.id, name: p.name, unit: p.unit ?? "szt", tokens: new Set(significantTokens(canon)) };
+    prodIndex.push(idx);
+    for (const key of [normalizeName(p.name), normalizeName(canon)]) {
+      if (key && !exactByNorm.has(key)) exactByNorm.set(key, idx);
+    }
+  }
+
+  const resolved: Array<{ ing: CleanMenuDish["ingredients"][number]; productId: number; productName: string }> = [];
+  for (const ing of clean) {
+    const m = matchProduct(ing.name, exactByNorm, prodIndex);
+    if (m) {
+      resolved.push({ ing, productId: m.id, productName: m.name });
+    } else {
+      const productId = await findOrCreateProductByName(userId, ing.name, "g");
+      resolved.push({ ing, productId, productName: ing.name });
+    }
+  }
+
+  const prices = await getLatestPrices(userId, [...new Set(resolved.map((r) => r.productId))]);
+  const ingredients = resolved.map(({ ing, productId, productName }) => {
+    const price = prices.get(productId);
+    let ingredientCost: number | null = null;
+    if (price) {
+      const pkg = price.pkgOverride ?? (ing.estPieceGrams ? { valueInBase: ing.estPieceGrams, base: "g" } : null);
+      ingredientCost = convertIngredientCost(ing.grams, "g", price.unit, price.unitPrice, price.productName, pkg);
+    }
+    if (ingredientCost == null && ing.estPricePerKg != null && ing.estPricePerKg > 0) {
+      ingredientCost = convertIngredientCost(ing.grams, "g", "kg", ing.estPricePerKg, "");
+    }
+    return {
+      productId,
+      productName,
+      quantity: ing.grams,
+      unit: "g",
+      unitPrice: price?.unitPrice ?? null,
+      invoiceUnit: price?.unit ?? null,
+      ingredientCost,
+      canSetPrice: price == null,
+      needsPackage: price != null && ingredientCost == null,
+    };
+  });
+  res.json({ ingredients });
 });
 
 // Krok 3 — zapis zaakceptowanych dań: tworzy brakujące produkty + wstawia dania i składniki (unit "g")
@@ -1165,6 +1181,10 @@ router.post("/food-cost/dishes/from-menu", async (req, res): Promise<void> => {
   const body = SaveMenuDishesBody.safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: body.error.message }); return; }
   if (body.data.dishes.length === 0) { res.status(400).json({ error: "Brak dań do zapisania." }); return; }
+  if (body.data.dishes.length > GOPOS_MENU_MAX_DISHES) {
+    res.status(400).json({ error: `Za dużo pozycji naraz (max ${GOPOS_MENU_MAX_DISHES}). Zaimportuj w kilku częściach.` });
+    return;
+  }
 
   const createdIds: number[] = [];
   for (const d of body.data.dishes) {

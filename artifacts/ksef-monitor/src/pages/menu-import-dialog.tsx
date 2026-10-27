@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useImportMenu, useSaveMenuDishes, useGetGoposMenu, useImportMenuFromGopos } from "@workspace/api-client-react";
+import { useImportMenu, useSaveMenuDishes, useGetGoposMenu } from "@workspace/api-client-react";
 import type { MenuImportPreview, GoposMenuItem } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
 import { fileToImages } from "@/lib/file-to-images";
@@ -80,12 +80,11 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
   const saveDishes = useSaveMenuDishes();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const importFromGopos = useImportMenuFromGopos();
   // Aktualne menu z GoPOS (pobierane na żywo). Brak konfiguracji GoPOS = zostaje
   // tylko import ze zdjęcia karty.
   const { data: goposMenu, isLoading: goposLoading, isError: goposFailed, refetch: refetchGopos } = useGetGoposMenu();
   const goposItems = useMemo(() => goposMenu?.items ?? [], [goposMenu]);
-  const goposMax = goposMenu?.maxDishes ?? 80;
+  const goposMax = goposMenu?.maxDishes ?? 300;
 
   const [step, setStep] = useState<"upload" | "gopos" | "loading" | "preview">("upload");
   const [source, setSource] = useState<"file" | "gopos">("file");
@@ -131,28 +130,35 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
     });
   }
 
-  async function handleGoposEstimate() {
+  // Import bezpośredni, bez AI (2026-10-27): dania z GoPOS wchodzą od razu, bez
+  // składników — posProductName łączy je ze sprzedażą natychmiast. Składniki
+  // user dogrywa per danie przyciskiem „Sugestie AI" w panelu szczegółów.
+  async function handleGoposImport() {
     const chosen = goposItems.filter((i) => picked.has(i.posProductName));
     if (chosen.length === 0) return;
     setSource("gopos");
     setFileName("");
     setStep("loading");
     try {
-      const preview = await importFromGopos.mutateAsync({
+      const res = await saveDishes.mutateAsync({
         data: {
-          dishes: chosen.map((i) => ({ posProductName: i.posProductName, name: i.name, category: i.category ?? null, sellPrice: i.sellPrice ?? null })),
+          dishes: chosen.map((i) => ({
+            posProductName: i.posProductName,
+            name: i.name,
+            category: i.category ?? null,
+            sellPrice: i.sellPrice ?? null,
+            ingredients: [],
+          })),
         },
       });
-      // Pozycje bez składników (opłaty, opakowania) od razu odznaczone.
-      setDishes(toEditDishes(preview).map((d) => ({ ...d, selected: d.ingredients.length > 0 })));
-      setStep("preview");
-    } catch (err) {
-      const status = (err as { status?: number })?.status;
       toast({
-        variant: "destructive",
-        title: status === 429 ? "Wyczerpano limit AI" : "Nie udało się oszacować składników",
-        description: status === 429 ? "Miesięczny limit zapytań AI został osiągnięty." : err instanceof Error ? err.message : "",
+        title: "Zaimportowano dania",
+        description: `Dodano ${res.createdIds.length} dań z GoPOS. Są od razu powiązane ze sprzedażą — składniki dodasz per danie przyciskiem „Sugestie AI".`,
       });
+      onSaved();
+      onClose();
+    } catch (err) {
+      toast({ variant: "destructive", title: "Nie udało się zaimportować", description: err instanceof Error ? err.message : "" });
       setStep("gopos");
     }
   }
@@ -258,7 +264,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
                       {goposItems.some((i) => i.alreadyImported) && (
                         <> (<span className="num">{goposItems.filter((i) => i.alreadyImported).length}</span> już w Food Cost)</>
                       )}
-                      . AI oszacuje składniki, a dania od razu połączą się ze sprzedażą.
+                      . Dania od razu połączą się ze sprzedażą — składniki dogrywasz później, per danie.
                     </span>
                   </span>
                 </button>
@@ -381,8 +387,8 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
             </p>
             <div className="flex items-center justify-between gap-2 pt-3 mt-1 border-t border-border">
               <Button variant="ghost" onClick={() => setStep("upload")}>Wstecz</Button>
-              <Button onClick={handleGoposEstimate} disabled={picked.size === 0 || picked.size > goposMax}>
-                <Sparkles className="w-4 h-4 mr-1" /> Oszacuj składniki ({picked.size})
+              <Button onClick={handleGoposImport} disabled={picked.size === 0 || picked.size > goposMax || saveDishes.isPending}>
+                {saveDishes.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plug className="w-4 h-4 mr-1" />} Importuj ({picked.size})
               </Button>
             </div>
           </div>
@@ -392,7 +398,7 @@ export default function MenuImportDialog({ onClose, onSaved }: { onClose: () => 
           <div className="py-16 flex flex-col items-center gap-3 text-muted-foreground">
             <Loader2 className="w-6 h-6 animate-spin" />
             <p className="text-sm">
-              {source === "gopos" ? "Szacuję składniki dań z GoPOS… przy dużym menu to może potrwać do minuty." : <>Czytam kartę menu{fileName ? ` (${fileName})` : ""}…</>}
+              {source === "gopos" ? "Importuję dania z GoPOS…" : <>Czytam kartę menu{fileName ? ` (${fileName})` : ""}…</>}
             </p>
           </div>
         )}
