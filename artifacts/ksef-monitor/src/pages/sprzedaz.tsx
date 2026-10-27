@@ -253,9 +253,19 @@ export default function Sprzedaz() {
   // zależy od kilku hitów (zasada Pareto).
   const concentration = useMemo(() => {
     if (!data || data.items.length === 0 || data.totalNet <= 0) return null;
-    const top10Net = [...data.items].sort((a, b) => b.netValue - a.netValue).slice(0, 10).reduce((s, i) => s + i.netValue, 0);
-    return Math.round((top10Net / data.totalNet) * 1000) / 10;
+    const top10 = [...data.items].sort((a, b) => b.netValue - a.netValue).slice(0, 10);
+    const top10Net = top10.reduce((s, i) => s + i.netValue, 0);
+    return {
+      pct: Math.round((top10Net / data.totalNet) * 1000) / 10,
+      items: top10.map((i) => ({
+        key: i.key,
+        name: i.productName,
+        netValue: i.netValue,
+        share: Math.round((i.netValue / data.totalNet) * 1000) / 10,
+      })),
+    };
   }, [data]);
+  const [concentrationOpen, setConcentrationOpen] = useState(false);
 
   const prevPeriodLabel = compareMode === "month" ? "Poprz. mies." : "Rok wcześniej";
   const effTotalQtyChangePct = data ? (compareMode === "month" ? data.totalQtyChangePct : data.totalQtyYearChangePct) : null;
@@ -379,12 +389,36 @@ export default function Sprzedaz() {
                   </div>
                 )}
                 {concentration != null && (
-                  <div className="glass p-4 flex flex-col justify-center md:w-48 shrink-0">
-                    <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                      Koncentracja
-                    </div>
-                    <p className="num-lg text-2xl text-foreground">{concentration.toFixed(0)}%</p>
+                  <div className={cn("glass p-4 flex flex-col shrink-0", concentrationOpen ? "md:w-72" : "md:w-48 justify-center")}>
+                    <button
+                      type="button"
+                      onClick={() => setConcentrationOpen((v) => !v)}
+                      className="flex items-center justify-between gap-2 text-left"
+                      aria-expanded={concentrationOpen}
+                    >
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Koncentracja
+                      </span>
+                      {concentrationOpen ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+                    </button>
+                    <p className="num-lg text-2xl text-foreground mt-2">{concentration.pct.toFixed(0)}%</p>
                     <p className="text-xs text-muted-foreground mt-1">obrotu robi TOP 10 pozycji</p>
+                    {concentrationOpen && (
+                      <div className="mt-3 pt-3 border-t border-border space-y-1.5">
+                        {concentration.items.map((i) => (
+                          <button
+                            key={i.key}
+                            type="button"
+                            onClick={() => setTrend({ label: i.name, key: i.key })}
+                            className="flex items-center justify-between gap-2 text-xs w-full text-left hover:text-foreground transition-colors"
+                            title="Pokaż sprzedaż miesiąc po miesiącu"
+                          >
+                            <span className="truncate text-foreground">{i.name}</span>
+                            <span className="shrink-0 tabular-nums text-muted-foreground">{i.share.toFixed(0)}% · {formatPrice(i.netValue)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -435,7 +435,7 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
 // to fallback. Żeby wykres nie rozjechał się w 20 cienkich linii, bierzemy TOP 6
 // kategorii (wg sumy netto w całym zakresie) + resztę sumujemy jako „Pozostałe".
 // „Niezakategoryzowane" zostaje zawsze widoczne osobno (podpowiedź do uzupełnienia).
-const CATEGORY_TREND_TOP_N = 6;
+const CATEGORY_TREND_TOP_N = 10;
 const OTHER_LABEL = "Pozostałe";
 
 router.get("/sales/category-trend", async (req, res): Promise<void> => {
