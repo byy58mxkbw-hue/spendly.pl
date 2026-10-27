@@ -8,13 +8,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2 } from "@/lib/icons";
+import { ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2, LineChart } from "@/lib/icons";
 import { Link } from "wouter";
 import { CHART_COLORS } from "./reports/components";
 
-// Wykres pojedynczej pozycji ładowany leniwie — ciągnie recharts, który nie ma
-// czego szukać w głównym chunku strony z tabelą.
+// Wykresy ładowane leniwie — ciągną recharts, który nie ma czego szukać w
+// głównym chunku strony z tabelą.
 const SalesTrendModal = lazy(() => import("./sprzedaz/sales-trend-modal").then((m) => ({ default: m.SalesTrendModal })));
+const CategoryTrendModal = lazy(() => import("./sprzedaz/category-trend-modal").then((m) => ({ default: m.CategoryTrendModal })));
 
 type SalesLeaf = {
   productName: string;
@@ -157,6 +158,7 @@ export default function Sprzedaz() {
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
   const [trend, setTrend] = useState<{ label: string; key?: string; name?: string } | null>(null);
+  const [showCategoryTrend, setShowCategoryTrend] = useState(false);
   const [sort, setSort] = useState<Sort>({ key: "netValue", dir: "desc" });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // Porównanie do poprzedniego miesiąca albo tego samego miesiąca rok wcześniej
@@ -389,8 +391,18 @@ export default function Sprzedaz() {
             )}
             {categoryBreakdown.length > 0 && (
               <div className="glass p-4 mb-4">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                  Sprzedaż wg kategorii dania
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Sprzedaż wg kategorii dania
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryTrend(true)}
+                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <LineChart className="w-3.5 h-3.5" />
+                    Trend w czasie
+                  </button>
                 </div>
                 <div className="space-y-3">
                   {categoryBreakdown.map((c, i) => {
@@ -578,6 +590,12 @@ export default function Sprzedaz() {
             productName={trend.name}
             onClose={() => setTrend(null)}
           />
+        </Suspense>
+      )}
+
+      {showCategoryTrend && (
+        <Suspense fallback={null}>
+          <CategoryTrendModal onClose={() => setShowCategoryTrend(false)} />
         </Suspense>
       )}
     </Layout>

@@ -425,6 +425,99 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
   });
 });
 
+// ─── Trend kategorii dania w czasie ────────────────────────────────────────────
+// Rozkład „Sprzedaż wg kategorii" na stronie pokazuje tylko BIEŻĄCY miesiąc —
+// ten endpoint dokłada oś czasu (ostatnie N miesięcy), żeby zobaczyć, czy dana
+// kategoria rośnie, czy maleje, nie tylko jaki ma udział teraz.
+//
+// Kategorię per wiersz sprzedaży ustalamy TAK SAMO jak w buildSalesGroups:
+// kategoria wprost z POS ma priorytet, dopasowanie do Food Cost (categoryForSaleName)
+// to fallback. Żeby wykres nie rozjechał się w 20 cienkich linii, bierzemy TOP 6
+// kategorii (wg sumy netto w całym zakresie) + resztę sumujemy jako „Pozostałe".
+// „Niezakategoryzowane" zostaje zawsze widoczne osobno (podpowiedź do uzupełnienia).
+const CATEGORY_TREND_TOP_N = 6;
+const OTHER_LABEL = "Pozostałe";
+
+router.get("/sales/category-trend", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const monthsRaw = parseInt(String(req.query.months ?? ""), 10);
+  const monthCount = Number.isFinite(monthsRaw) && monthsRaw >= 2 && monthsRaw <= 24 ? monthsRaw : 12;
+
+  const now = new Date();
+  const periods: string[] = [];
+  for (let i = monthCount - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  const [rows, dishIndex] = await Promise.all([
+    db
+      .select({
+        period: posSalesTable.period,
+        name: posSalesTable.productName,
+        category: posSalesTable.category,
+        net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
+      })
+      .from(posSalesTable)
+      .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, periods)))
+      .groupBy(posSalesTable.period, posSalesTable.productName, posSalesTable.category),
+    buildDishCategoryIndex(userId),
+  ]);
+
+  // Kategoria per wiersz (POS → fallback Food Cost), z normalizacją wielkości liter
+  // tak jak w buildSalesGroups — inaczej "LUNCH" i "Lunch" rozjechałyby się na dwie serie.
+  const labelByNorm = new Map<string, string>();
+  const canonicalLabel = (raw: string | null): string => {
+    const label = raw?.trim() || UNCATEGORIZED;
+    if (label === UNCATEGORIZED) return UNCATEGORIZED;
+    const norm = normalizeName(label);
+    if (!labelByNorm.has(norm)) labelByNorm.set(norm, label);
+    return labelByNorm.get(norm)!;
+  };
+
+  const byMonthCategory = new Map<string, Map<string, number>>();
+  const totalByCategory = new Map<string, number>();
+  for (const r of rows) {
+    const label = canonicalLabel(r.category?.trim() || categoryForSaleName(r.name, dishIndex));
+    const net = toNum(r.net);
+    let monthMap = byMonthCategory.get(r.period);
+    if (!monthMap) { monthMap = new Map(); byMonthCategory.set(r.period, monthMap); }
+    monthMap.set(label, (monthMap.get(label) ?? 0) + net);
+    totalByCategory.set(label, (totalByCategory.get(label) ?? 0) + net);
+  }
+
+  // TOP N (bez „Niezakategoryzowane", które zawsze zostaje osobno) + reszta → "Pozostałe".
+  const ranked = [...totalByCategory.entries()]
+    .filter(([label]) => label !== UNCATEGORIZED)
+    .sort((a, b) => b[1] - a[1]);
+  const topLabels = new Set(ranked.slice(0, CATEGORY_TREND_TOP_N).map(([label]) => label));
+  const hasOther = ranked.length > CATEGORY_TREND_TOP_N;
+  const hasUncategorized = totalByCategory.has(UNCATEGORIZED);
+
+  const seriesLabels = [
+    ...ranked.filter(([label]) => topLabels.has(label)).map(([label]) => label),
+    ...(hasOther ? [OTHER_LABEL] : []),
+    ...(hasUncategorized ? ["Niezakategoryzowane"] : []),
+  ];
+
+  const series = seriesLabels.map((label) => ({
+    label,
+    data: periods.map((period) => {
+      const monthMap = byMonthCategory.get(period);
+      if (!monthMap) return 0;
+      if (label === OTHER_LABEL) {
+        let sum = 0;
+        for (const [cat, net] of monthMap) if (cat !== UNCATEGORIZED && !topLabels.has(cat)) sum += net;
+        return Math.round(sum * 100) / 100;
+      }
+      if (label === "Niezakategoryzowane") return Math.round((monthMap.get(UNCATEGORIZED) ?? 0) * 100) / 100;
+      return Math.round((monthMap.get(label) ?? 0) * 100) / 100;
+    }),
+  }));
+
+  res.json({ months: periods, series });
+});
+
 // ─── Eksport Excel ────────────────────────────────────────────────────────────
 // Formaty i układ celowo takie same jak w raporcie zakupów (`reports-workbook.ts`),
 // żeby oba pliki wyglądały jak z jednego systemu.

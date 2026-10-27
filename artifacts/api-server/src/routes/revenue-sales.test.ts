@@ -227,6 +227,20 @@ describe.skipIf(!RUN_DB)("Sprzedaż wg kategorii dania", () => {
     expect(filetRow?.getCell(2).value).toBe("Dania główne");
   });
 
+  it("/sales/category-trend: miesiące wyrównane, bieżący miesiąc zgadza się z categoryBreakdown", async () => {
+    const r = (await get("/api/sales/category-trend?months=2")) as {
+      months: string[];
+      series: Array<{ label: string; data: number[] }>;
+    };
+    expect(r.months).toEqual(["2026-06", "2026-07"]);
+    const dania = r.series.find((s) => s.label === "Dania główne");
+    expect(dania?.data).toEqual([0, 4000]); // czerwiec bez danych, lipiec 4000
+    const burgery = r.series.find((s) => s.label === "Burgery");
+    expect(burgery?.data[1]).toBeCloseTo(2500, 2);
+    const uncategorized = r.series.find((s) => s.label === "Niezakategoryzowane");
+    expect(uncategorized?.data[1]).toBeCloseTo(500, 2); // Sok pomarańczowy
+  });
+
   it("/sales.xlsx: pozycje rozdzielone na sekcje kategorii z sumą + arkusz „Kategorie”", async () => {
     authState.userId = UC;
     const res = await fetch(`${baseUrl}/api/sales.xlsx?month=2026-07`);
