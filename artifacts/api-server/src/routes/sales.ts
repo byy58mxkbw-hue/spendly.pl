@@ -3,7 +3,7 @@ import ExcelJS from "exceljs";
 import { db, posSalesTable } from "@workspace/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { toNum } from "../lib/parse";
-import { periodFromQuery, previousPeriod, periodLabel, monthsInRange, type Period } from "../lib/period";
+import { periodFromQuery, previousPeriod, yearAgoPeriod, periodLabel, monthsInRange, type Period } from "../lib/period";
 import { categoryForSaleName, commonWordPrefix, normalizeName, posGroupKey, sharesCommonPrefix, umbrellaFor } from "../lib/pos-group";
 import { captureServer } from "../lib/telemetry";
 import { buildDishCategoryIndex } from "./food-cost.js";
@@ -52,6 +52,11 @@ export type SalesLeaf = {
   prevNet: number | null;
   qtyChangePct: number | null;
   netChangePct: number | null;
+  /** Ten sam okres, rok wcześniej — porównanie sezonowe (grudzień do grudnia). */
+  prevYearQty: number | null;
+  prevYearNet: number | null;
+  qtyYearChangePct: number | null;
+  netYearChangePct: number | null;
   /**
    * Klucz do /sales/trend TEGO KONKRETNEGO wariantu — bez niego front pytał
    * trend po samej `productName`, a to dopasowuje WSZYSTKIE wiersze o tej
@@ -71,10 +76,15 @@ export type SalesGroup = SalesLeaf & {
   category: string | null;
 };
 
-type Leaf = { name: string; qty: number; net: number; prevQty: number | null; prevNet: number | null; category: string | null };
+type Leaf = {
+  name: string; qty: number; net: number;
+  prevQty: number | null; prevNet: number | null;
+  prevYearQty: number | null; prevYearNet: number | null;
+  category: string | null;
+};
 
-// Sumy grupy liści + zmiany procentowe. `prev` zostaje `null`, gdy ŻADEN liść
-// nie miał sprzedaży w poprzednim okresie — inaczej nowa pozycja pokazywałaby
+// Sumy grupy liści + zmiany procentowe. `prev`/`prevYear` zostają `null`, gdy ŻADEN
+// liść nie miał sprzedaży w tamtym okresie — inaczej nowa pozycja pokazywałaby
 // spadek z zera zamiast „nowa".
 function totalsOf(members: Leaf[]): Omit<SalesLeaf, "productName"> {
   const qty = members.reduce((s, m) => s + m.qty, 0);
@@ -82,7 +92,15 @@ function totalsOf(members: Leaf[]): Omit<SalesLeaf, "productName"> {
   const hasPrev = members.some((m) => m.prevQty != null || m.prevNet != null);
   const prevQty = hasPrev ? members.reduce((s, m) => s + (m.prevQty ?? 0), 0) : null;
   const prevNet = hasPrev ? members.reduce((s, m) => s + (m.prevNet ?? 0), 0) : null;
-  return { qty, netValue: net, prevQty, prevNet, qtyChangePct: changePct(qty, prevQty), netChangePct: changePct(net, prevNet) };
+  const hasPrevYear = members.some((m) => m.prevYearQty != null || m.prevYearNet != null);
+  const prevYearQty = hasPrevYear ? members.reduce((s, m) => s + (m.prevYearQty ?? 0), 0) : null;
+  const prevYearNet = hasPrevYear ? members.reduce((s, m) => s + (m.prevYearNet ?? 0), 0) : null;
+  return {
+    qty, netValue: net, prevQty, prevNet,
+    qtyChangePct: changePct(qty, prevQty), netChangePct: changePct(net, prevNet),
+    prevYearQty, prevYearNet,
+    qtyYearChangePct: changePct(qty, prevYearQty), netYearChangePct: changePct(net, prevYearNet),
+  };
 }
 
 function makeLeaf(l: Leaf, parentKey: string): SalesLeaf {
@@ -94,15 +112,21 @@ function makeLeaf(l: Leaf, parentKey: string): SalesLeaf {
     prevNet: l.prevNet,
     qtyChangePct: changePct(l.qty, l.prevQty),
     netChangePct: changePct(l.net, l.prevNet),
+    prevYearQty: l.prevYearQty,
+    prevYearNet: l.prevYearNet,
+    qtyYearChangePct: changePct(l.qty, l.prevYearQty),
+    netYearChangePct: changePct(l.net, l.prevYearNet),
     key: `${parentKey}#${normalizeName(l.name)}`,
   };
 }
 
-async function buildSalesGroups(userId: string, period: Period): Promise<{ groups: SalesGroup[]; prev: Period }> {
+async function buildSalesGroups(userId: string, period: Period): Promise<{ groups: SalesGroup[]; prev: Period; prevYear: Period }> {
   const prev = previousPeriod(period);
-  const [curRows, prevRows, dishIndex] = await Promise.all([
+  const prevYear = yearAgoPeriod(period);
+  const [curRows, prevRows, prevYearRows, dishIndex] = await Promise.all([
     fetchRows(userId, monthsInRange(period)),
     fetchRows(userId, monthsInRange(prev)),
+    fetchRows(userId, monthsInRange(prevYear)),
     buildDishCategoryIndex(userId),
   ]);
 
@@ -115,7 +139,7 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
     if (!members) { members = new Map(); buckets.set(key, members); }
     const nk = normalizeName(r.name);
     let leaf = members.get(nk);
-    if (!leaf) { leaf = { name: r.name, qty: 0, net: 0, prevQty: null, prevNet: null, category: null }; members.set(nk, leaf); }
+    if (!leaf) { leaf = { name: r.name, qty: 0, net: 0, prevQty: null, prevNet: null, prevYearQty: null, prevYearNet: null, category: null }; members.set(nk, leaf); }
     return leaf;
   };
 
@@ -129,6 +153,12 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
     const leaf = leafFor(r);
     leaf.prevQty = (leaf.prevQty ?? 0) + r.qty;
     leaf.prevNet = (leaf.prevNet ?? 0) + r.net;
+    leaf.category = leaf.category ?? r.category;
+  }
+  for (const r of prevYearRows) {
+    const leaf = leafFor(r);
+    leaf.prevYearQty = (leaf.prevYearQty ?? 0) + r.qty;
+    leaf.prevYearNet = (leaf.prevYearNet ?? 0) + r.net;
     leaf.category = leaf.category ?? r.category;
   }
 
@@ -242,7 +272,7 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
   // Sortowanie po WARTOŚCI, nie ilości — 300 kaw po 4 zł znaczy dla wyniku
   // mniej niż 40 dań po 90 zł. Front i tak pozwala przesortować.
   groups.sort((a, b) => b.netValue - a.netValue);
-  return { groups, prev };
+  return { groups, prev, prevYear };
 }
 
 export type CategoryBreakdownEntry = { category: string; label: string; netValue: number; qty: number; pct: number };
@@ -281,6 +311,8 @@ router.get("/sales", async (req, res): Promise<void> => {
   const totalNet = groups.reduce((s, g) => s + g.netValue, 0);
   const prevTotalQty = groups.reduce((s, g) => s + (g.prevQty ?? 0), 0);
   const prevTotalNet = groups.reduce((s, g) => s + (g.prevNet ?? 0), 0);
+  const prevYearTotalQty = groups.reduce((s, g) => s + (g.prevYearQty ?? 0), 0);
+  const prevYearTotalNet = groups.reduce((s, g) => s + (g.prevYearNet ?? 0), 0);
 
   res.json({
     from: period.from,
@@ -291,6 +323,10 @@ router.get("/sales", async (req, res): Promise<void> => {
     prevTotalNet,
     totalQtyChangePct: changePct(totalQty, prevTotalQty),
     totalNetChangePct: changePct(totalNet, prevTotalNet),
+    prevYearTotalQty,
+    prevYearTotalNet,
+    totalQtyYearChangePct: changePct(totalQty, prevYearTotalQty),
+    totalNetYearChangePct: changePct(totalNet, prevYearTotalNet),
     items: groups,
     categoryBreakdown: buildCategoryBreakdown(groups),
   });

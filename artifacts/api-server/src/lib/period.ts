@@ -50,6 +50,25 @@ export function previousPeriod(p: Period): Period {
   return { from: ymdUTC(prevFrom), to: ymdUTC(prevTo) };
 }
 
+// Ten sam okres, rok wcześniej — do porównania sezonowego (np. grudzień do grudnia,
+// nie do listopada). Dla okresów pełnomiesięcznych przesuwa kalendarzowo (rok-1,
+// ten sam miesiąc/zakres miesięcy); dla dowolnego zakresu dni — o dokładnie rok
+// (UTC, bez korekty przestępnego roku — wystarczające do porównania sezonowego).
+export function yearAgoPeriod(p: Period): Period {
+  if (isFirstOfMonth(p.from) && isLastOfMonth(p.to)) {
+    const [fy, fm] = p.from.split("-").map(Number);
+    const [ty, tm] = p.to.split("-").map(Number);
+    const pf = new Date(Date.UTC(fy - 1, fm - 1, 1));
+    const pt = new Date(Date.UTC(ty - 1, tm, 0));
+    return { from: `${pf.getUTCFullYear()}-${pad(pf.getUTCMonth() + 1)}-01`, to: ymdUTC(pt) };
+  }
+  const shiftYear = (d: Date) => new Date(Date.UTC(d.getUTCFullYear() - 1, d.getUTCMonth(), d.getUTCDate()));
+  return {
+    from: ymdUTC(shiftYear(new Date(`${p.from}T00:00:00Z`))),
+    to: ymdUTC(shiftYear(new Date(`${p.to}T00:00:00Z`))),
+  };
+}
+
 // Lista kluczy miesięcy 'YYYY-MM' w zakresie [from,to] (włącznie po miesiącu).
 export function monthsInRange(p: Period): string[] {
   const out: string[] = [];

@@ -52,11 +52,13 @@ describe.skipIf(!RUN_DB)("Food cost % + sprzedaż", () => {
       invoiceId: inv.id, productName: "Kurczak", quantity: "10", unit: "kg", unitPrice: "300", totalPrice: "3000",
     });
 
-    // Sprzedaż per pozycja: lipiec (Filet 100, Burger 50) + czerwiec (Filet 80).
+    // Sprzedaż per pozycja: lipiec (Filet 100, Burger 50) + czerwiec (Filet 80)
+    // + lipiec ROK WCZEŚNIEJ (Filet 60) — porównanie sezonowe.
     await db.insert(posSalesTable).values([
       { userId: U, period: "2026-07", productName: "Filet z kurczaka", qty: "100", netValue: "4000", source: "test" },
       { userId: U, period: "2026-07", productName: "Burger", qty: "50", netValue: "2500", source: "test" },
       { userId: U, period: "2026-06", productName: "Filet z kurczaka", qty: "80", netValue: "3200", source: "test" },
+      { userId: U, period: "2025-07", productName: "Filet z kurczaka", qty: "60", netValue: "2100", source: "test" },
     ]);
   });
 
@@ -103,6 +105,21 @@ describe.skipIf(!RUN_DB)("Food cost % + sprzedaż", () => {
     expect(r.items[0].qtyChangePct).toBeCloseTo(25, 1); // (100-80)/80
     const burger = r.items.find((i) => i.productName === "Burger");
     expect(burger?.prevQty).toBeNull(); // nie było w czerwcu
+  });
+
+  it("/sales: porównanie rok do roku (ten sam miesiąc, rok wcześniej)", async () => {
+    const r = (await get("/api/sales?month=2026-07")) as {
+      prevYearTotalQty: number;
+      totalQtyYearChangePct: number | null;
+      items: Array<{ productName: string; qty: number; prevYearQty: number | null; qtyYearChangePct: number | null }>;
+    };
+    expect(r.prevYearTotalQty).toBeCloseTo(60, 2); // tylko Filet miał sprzedaż w 2025-07
+    expect(r.totalQtyYearChangePct).toBeCloseTo(150, 1); // (150-60)/60
+    const filet = r.items.find((i) => i.productName === "Filet z kurczaka");
+    expect(filet?.prevYearQty).toBeCloseTo(60, 2);
+    expect(filet?.qtyYearChangePct).toBeCloseTo(66.7, 1); // (100-60)/60
+    const burger = r.items.find((i) => i.productName === "Burger");
+    expect(burger?.prevYearQty).toBeNull(); // nie było w lipcu 2025
   });
 });
 

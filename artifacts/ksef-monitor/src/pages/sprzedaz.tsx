@@ -24,6 +24,11 @@ type SalesLeaf = {
   prevNet: number | null;
   qtyChangePct: number | null;
   netChangePct: number | null;
+  /** Ten sam okres, rok wcześniej — porównanie sezonowe. */
+  prevYearQty: number | null;
+  prevYearNet: number | null;
+  qtyYearChangePct: number | null;
+  netYearChangePct: number | null;
   /** Klucz do /sales/trend TEGO wariantu — bez niego trend łapał każdy wiersz o tej nazwie w całej bazie. */
   key?: string;
 };
@@ -40,6 +45,10 @@ type SalesResponse = {
   prevTotalNet: number;
   totalQtyChangePct: number | null;
   totalNetChangePct: number | null;
+  prevYearTotalQty: number;
+  prevYearTotalNet: number;
+  totalQtyYearChangePct: number | null;
+  totalNetYearChangePct: number | null;
   items: SalesItem[];
   categoryBreakdown: CategoryBreakdownEntry[];
 };
@@ -150,6 +159,11 @@ export default function Sprzedaz() {
   const [trend, setTrend] = useState<{ label: string; key?: string; name?: string } | null>(null);
   const [sort, setSort] = useState<Sort>({ key: "netValue", dir: "desc" });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Porównanie do poprzedniego miesiąca albo tego samego miesiąca rok wcześniej
+  // (sezonowość — grudzień do grudnia, nie do listopada). Podmienia WARTOŚCI
+  // kolumn „poprzedni okres"/„zmiana" (displayItems niżej), żeby reszta tabeli
+  // (sort, render) nie wiedziała nic o trybie.
+  const [compareMode, setCompareMode] = useState<"month" | "year">("month");
   // "" = brak filtra kategorii; inaczej wartość `category` z categoryBreakdown
   // (klucz UNCATEGORIZED dla „Niezakategoryzowane").
   const [categoryFilter, setCategoryFilter] = useState<string>("");
@@ -185,17 +199,32 @@ export default function Sprzedaz() {
     return () => { cancelled = true; };
   }, [month, session]);
 
+  // Podmienia prevQty/prevNet/qtyChangePct/netChangePct na wariant roczny, gdy
+  // compareMode === "year" — tabela, sort i karta „Najmocniejsze zmiany" dalej
+  // czytają te same pola, nie wiedząc że to inny okres porównania.
+  function withCompareMode<T extends SalesLeaf>(leaf: T): T {
+    if (compareMode === "month") return leaf;
+    return { ...leaf, prevQty: leaf.prevYearQty, prevNet: leaf.prevYearNet, qtyChangePct: leaf.qtyYearChangePct, netChangePct: leaf.netYearChangePct };
+  }
+
+  const displayItems = useMemo(() => {
+    return (data?.items ?? []).map((i) => ({
+      ...withCompareMode(i),
+      variants: i.variants.map((v) => withCompareMode(v)),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, compareMode]);
+
   const items = useMemo(() => {
-    const list = data?.items ?? [];
     const q = search.trim().toLowerCase();
-    let filtered = q ? list.filter((i) => i.productName.toLowerCase().includes(q)) : list;
+    let filtered = q ? displayItems.filter((i) => i.productName.toLowerCase().includes(q)) : displayItems;
     if (categoryFilter) {
       filtered = filtered.filter((i) =>
         categoryFilter === UNCATEGORIZED ? i.category == null : i.category === categoryFilter,
       );
     }
     return [...filtered].sort((a, b) => compareItems(a, b, sort));
-  }, [data, search, sort, categoryFilter]);
+  }, [displayItems, search, sort, categoryFilter]);
 
   // „Niezakategoryzowane" zawsze na końcu, niezależnie od wartości sprzedaży —
   // to podpowiedź do dokończenia powiązania, nie wynik do rywalizacji o pozycję.
@@ -205,6 +234,30 @@ export default function Sprzedaz() {
     const rest = list.filter((c) => c.category !== UNCATEGORIZED);
     return [...rest, ...uncategorized];
   }, [data]);
+
+  // Najmocniej rosnące/spadające pozycje — tylko te o realnym udziale w obrocie
+  // (próg 1% totalNet), inaczej kawa za 8 zł z „+300%" zdominowałaby listę obok
+  // steka wartego tysiące. Z `displayItems`, więc respektuje compareMode.
+  const movers = useMemo(() => {
+    if (!data || data.totalNet <= 0) return { up: [], down: [] as SalesItem[] };
+    const minNet = data.totalNet * 0.01;
+    const eligible = displayItems.filter((i) => i.netChangePct != null && i.netValue >= minNet);
+    const up = eligible.filter((i) => i.netChangePct! > 0).sort((a, b) => b.netChangePct! - a.netChangePct!).slice(0, 3);
+    const down = eligible.filter((i) => i.netChangePct! < 0).sort((a, b) => a.netChangePct! - b.netChangePct!).slice(0, 3);
+    return { up, down };
+  }, [data, displayItems]);
+
+  // Udział TOP 10 pozycji w całym obrocie — im wyższy, tym bardziej restauracja
+  // zależy od kilku hitów (zasada Pareto).
+  const concentration = useMemo(() => {
+    if (!data || data.items.length === 0 || data.totalNet <= 0) return null;
+    const top10Net = [...data.items].sort((a, b) => b.netValue - a.netValue).slice(0, 10).reduce((s, i) => s + i.netValue, 0);
+    return Math.round((top10Net / data.totalNet) * 1000) / 10;
+  }, [data]);
+
+  const prevPeriodLabel = compareMode === "month" ? "Poprz. mies." : "Rok wcześniej";
+  const effTotalQtyChangePct = data ? (compareMode === "month" ? data.totalQtyChangePct : data.totalQtyYearChangePct) : null;
+  const effTotalNetChangePct = data ? (compareMode === "month" ? data.totalNetChangePct : data.totalNetYearChangePct) : null;
 
   const empty = !loading && (!data || data.items.length === 0);
 
@@ -276,6 +329,64 @@ export default function Sprzedaz() {
           </div>
         ) : (
           <>
+            {(movers.up.length > 0 || movers.down.length > 0 || concentration != null) && (
+              <div className="grid md:grid-cols-[1fr_auto] gap-4 mb-4">
+                {(movers.up.length > 0 || movers.down.length > 0) && (
+                  <div className="glass p-4">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                      Najmocniejsze zmiany m/m
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[11px] text-muted-foreground mb-1.5">Rosną</p>
+                        <div className="space-y-1.5">
+                          {movers.up.length === 0 && <p className="text-xs text-muted-foreground italic">brak</p>}
+                          {movers.up.map((i) => (
+                            <button
+                              key={i.key}
+                              type="button"
+                              onClick={() => setTrend({ label: i.productName, key: i.key })}
+                              className="flex items-center justify-between gap-2 text-xs w-full text-left hover:text-foreground transition-colors"
+                              title="Pokaż sprzedaż miesiąc po miesiącu"
+                            >
+                              <span className="truncate text-foreground">{i.productName}</span>
+                              <ChangeCell pct={i.netChangePct} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground mb-1.5">Spadają</p>
+                        <div className="space-y-1.5">
+                          {movers.down.length === 0 && <p className="text-xs text-muted-foreground italic">brak</p>}
+                          {movers.down.map((i) => (
+                            <button
+                              key={i.key}
+                              type="button"
+                              onClick={() => setTrend({ label: i.productName, key: i.key })}
+                              className="flex items-center justify-between gap-2 text-xs w-full text-left hover:text-foreground transition-colors"
+                              title="Pokaż sprzedaż miesiąc po miesiącu"
+                            >
+                              <span className="truncate text-foreground">{i.productName}</span>
+                              <ChangeCell pct={i.netChangePct} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {concentration != null && (
+                  <div className="glass p-4 flex flex-col justify-center md:w-48 shrink-0">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                      Koncentracja
+                    </div>
+                    <p className="num-lg text-2xl text-foreground">{concentration.toFixed(0)}%</p>
+                    <p className="text-xs text-muted-foreground mt-1">obrotu robi TOP 10 pozycji</p>
+                  </div>
+                )}
+              </div>
+            )}
             {categoryBreakdown.length > 0 && (
               <div className="glass p-4 mb-4">
                 <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
@@ -329,25 +440,43 @@ export default function Sprzedaz() {
                 <div>
                   <span className="text-xs text-muted-foreground">Sprzedano</span>{" "}
                   <span className="text-sm font-semibold tabular-nums">{fmtQty(data!.totalQty)}</span>
-                  {data!.totalQtyChangePct != null && (
-                    <span className={cn("text-xs ml-1 tabular-nums", tone(data!.totalQtyChangePct))}>
-                      ({data!.totalQtyChangePct > 0 ? "+" : ""}{data!.totalQtyChangePct.toFixed(0)}%)
+                  {effTotalQtyChangePct != null && (
+                    <span className={cn("text-xs ml-1 tabular-nums", tone(effTotalQtyChangePct))}>
+                      ({effTotalQtyChangePct > 0 ? "+" : ""}{effTotalQtyChangePct.toFixed(0)}%)
                     </span>
                   )}
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground">Wartość netto</span>{" "}
                   <span className="text-sm font-semibold tabular-nums">{formatPrice(data!.totalNet)}</span>
-                  {data!.totalNetChangePct != null && (
-                    <span className={cn("text-xs ml-1 tabular-nums", tone(data!.totalNetChangePct))}>
-                      ({data!.totalNetChangePct > 0 ? "+" : ""}{data!.totalNetChangePct.toFixed(0)}%)
+                  {effTotalNetChangePct != null && (
+                    <span className={cn("text-xs ml-1 tabular-nums", tone(effTotalNetChangePct))}>
+                      ({effTotalNetChangePct > 0 ? "+" : ""}{effTotalNetChangePct.toFixed(0)}%)
                     </span>
                   )}
                 </div>
               </div>
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj pozycji…" className="pl-8 h-8 w-44 text-sm" />
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center rounded-md border border-border p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setCompareMode("month")}
+                    className={cn("px-2 py-1 rounded transition-colors", compareMode === "month" ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground")}
+                  >
+                    vs poprz. miesiąc
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCompareMode("year")}
+                    className={cn("px-2 py-1 rounded transition-colors", compareMode === "year" ? "bg-secondary text-foreground font-medium" : "text-muted-foreground hover:text-foreground")}
+                  >
+                    vs rok wcześniej
+                  </button>
+                </div>
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj pozycji…" className="pl-8 h-8 w-44 text-sm" />
+                </div>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -356,10 +485,10 @@ export default function Sprzedaz() {
                   <tr className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-secondary/30">
                     <SortHeader label="Pozycja" sortKey="productName" sort={sort} onSort={toggleSort} align="left" className="px-5 py-2" />
                     <SortHeader label="Sprzedano" sortKey="qty" sort={sort} onSort={toggleSort} className="px-3 py-2" />
-                    <SortHeader label="Poprz. mies." sortKey="prevQty" sort={sort} onSort={toggleSort} className="px-3 py-2" />
+                    <SortHeader label={prevPeriodLabel} sortKey="prevQty" sort={sort} onSort={toggleSort} className="px-3 py-2" />
                     <SortHeader label="Zmiana" sortKey="qtyChangePct" sort={sort} onSort={toggleSort} className="px-3 py-2" />
                     <SortHeader label="Wartość netto" sortKey="netValue" sort={sort} onSort={toggleSort} className="px-3 py-2" />
-                    <SortHeader label="Poprz. mies." sortKey="prevNet" sort={sort} onSort={toggleSort} className="px-3 py-2" />
+                    <SortHeader label={prevPeriodLabel} sortKey="prevNet" sort={sort} onSort={toggleSort} className="px-3 py-2" />
                     <SortHeader label="Zmiana" sortKey="netChangePct" sort={sort} onSort={toggleSort} className="px-5 py-2" />
                   </tr>
                 </thead>
