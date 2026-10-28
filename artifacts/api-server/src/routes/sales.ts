@@ -518,6 +518,210 @@ router.get("/sales/category-trend", async (req, res): Promise<void> => {
   res.json({ months: periods, series });
 });
 
+// ─── Trend koncentracji sprzedaży w czasie ─────────────────────────────────────
+// Karta „Koncentracja" na stronie pokazuje tylko BIEŻĄCY miesiąc (% obrotu z TOP10
+// pozycji). Ten endpoint dokłada oś czasu — czy restauracja z czasem robi się
+// coraz bardziej zależna od wąskiej oferty, czy się dywersyfikuje.
+router.get("/sales/concentration-trend", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const monthsRaw = parseInt(String(req.query.months ?? ""), 10);
+  const monthCount = Number.isFinite(monthsRaw) && monthsRaw >= 2 && monthsRaw <= 24 ? monthsRaw : 12;
+
+  const now = new Date();
+  const periods: string[] = [];
+  for (let i = monthCount - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  const rows = await db
+    .select({
+      period: posSalesTable.period,
+      name: posSalesTable.productName,
+      posProductId: posSalesTable.posProductId,
+      net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
+    })
+    .from(posSalesTable)
+    .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, periods)))
+    .groupBy(posSalesTable.period, posSalesTable.productName, posSalesTable.posProductId);
+
+  const byPeriod = new Map<string, Map<string, number>>();
+  for (const r of rows) {
+    let monthMap = byPeriod.get(r.period);
+    if (!monthMap) { monthMap = new Map(); byPeriod.set(r.period, monthMap); }
+    const key = posGroupKey(r);
+    monthMap.set(key, (monthMap.get(key) ?? 0) + toNum(r.net));
+  }
+
+  // `null` (nie 0) dla miesiąca bez sprzedaży — zero udziału wyglądałoby na
+  // „zdywersyfikowany", a to po prostu brak danych za ten miesiąc.
+  const pct = periods.map((period) => {
+    const monthMap = byPeriod.get(period);
+    if (!monthMap || monthMap.size === 0) return null;
+    const values = [...monthMap.values()].sort((a, b) => b - a);
+    const total = values.reduce((s, v) => s + v, 0);
+    if (total <= 0) return null;
+    const top10 = values.slice(0, 10).reduce((s, v) => s + v, 0);
+    return Math.round((top10 / total) * 1000) / 10;
+  });
+
+  res.json({ months: periods, pct });
+});
+
+// ─── Nowości w karcie — jak się przyjęły ────────────────────────────────────────
+// Pozycja, która pojawiła się po raz PIERWSZY w całej historii sprzedaży w ciągu
+// ostatnich `months` miesięcy. Pokazujemy do 3 miesięcy trajektorii od debiutu —
+// restaurator zwykle nie wie, czy nowość „się przyjęła", dopóki nie minie kwartał.
+router.get("/sales/new-items", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const monthsRaw = parseInt(String(req.query.months ?? ""), 10);
+  const lookback = Number.isFinite(monthsRaw) && monthsRaw >= 1 && monthsRaw <= 12 ? monthsRaw : 6;
+
+  // Pierwsze pojawienie się KAŻDEJ pozycji w CAŁEJ historii (bez filtra okresu) —
+  // inaczej pozycja sprzedawana od lat, ale akurat bez wiersza w oknie lookback,
+  // wyglądałaby na nową.
+  const firstSeenRows = await db
+    .select({
+      name: posSalesTable.productName,
+      posProductId: posSalesTable.posProductId,
+      category: sql<string | null>`MAX(${posSalesTable.category})`,
+      firstPeriod: sql<string>`MIN(${posSalesTable.period})`,
+    })
+    .from(posSalesTable)
+    .where(eq(posSalesTable.userId, userId))
+    .groupBy(posSalesTable.productName, posSalesTable.posProductId);
+
+  const now = new Date();
+  const cutoff = new Date(now.getFullYear(), now.getMonth() - lookback + 1, 1);
+  const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}`;
+  const newOnes = firstSeenRows.filter((r) => r.firstPeriod >= cutoffKey);
+  if (newOnes.length === 0) { res.json({ items: [] }); return; }
+
+  const neededPeriods = new Set<string>();
+  for (const r of newOnes) {
+    const [y, m] = r.firstPeriod.split("-").map(Number);
+    for (let i = 0; i < 3; i++) {
+      const d = new Date(y, m - 1 + i, 1);
+      neededPeriods.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    }
+  }
+
+  const rows = await db
+    .select({
+      period: posSalesTable.period,
+      name: posSalesTable.productName,
+      posProductId: posSalesTable.posProductId,
+      qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
+      net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
+    })
+    .from(posSalesTable)
+    .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, [...neededPeriods])))
+    .groupBy(posSalesTable.period, posSalesTable.productName, posSalesTable.posProductId);
+
+  const byProductPeriod = new Map<string, { qty: number; net: number }>();
+  for (const r of rows) {
+    byProductPeriod.set(`${posGroupKey(r)}#${r.period}`, { qty: toNum(r.qty), net: toNum(r.net) });
+  }
+
+  const items = newOnes
+    .map((r) => {
+      const groupKey = posGroupKey(r);
+      const [y, m] = r.firstPeriod.split("-").map(Number);
+      const trajectory = Array.from({ length: 3 }, (_, i) => {
+        const d = new Date(y, m - 1 + i, 1);
+        const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const v = byProductPeriod.get(`${groupKey}#${period}`);
+        return { period, qty: v?.qty ?? 0, netValue: v?.net ?? 0 };
+      });
+      const withSales = trajectory.filter((t) => t.netValue > 0);
+      // Trend tylko przy min. 2 miesiącach z realną sprzedażą — jeden punkt to
+      // debiut, nie trend. Próg 15% odcina szum przy groszowych wahaniach.
+      let trend: "rosnie" | "spada" | "stabilnie" | null = null;
+      if (withSales.length >= 2 && trajectory[0].netValue > 0) {
+        const delta = (trajectory[trajectory.length - 1].netValue - trajectory[0].netValue) / trajectory[0].netValue;
+        trend = delta > 0.15 ? "rosnie" : delta < -0.15 ? "spada" : "stabilnie";
+      }
+      return { key: groupKey, name: r.name, category: r.category, firstPeriod: r.firstPeriod, trajectory, trend };
+    })
+    .sort((a, b) => b.firstPeriod.localeCompare(a.firstPeriod) || b.trajectory[0].netValue - a.trajectory[0].netValue);
+
+  res.json({ items });
+});
+
+// ─── Spadająca sprzedaż ────────────────────────────────────────────────────────
+// Pozycje ze spadkiem ilości sprzedanej 3+ miesiące z rzędu — kandydaci do
+// usunięcia z karty albo promocji. Próg minimalnego udziału w obrocie odcina
+// pozycje, które nigdy nie miały realnego znaczenia (nie ma co „wykrywać"
+// spadku groszowego dania sprzedanego raz w roku).
+router.get("/sales/declining-items", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const monthsRaw = parseInt(String(req.query.months ?? ""), 10);
+  const monthCount = Number.isFinite(monthsRaw) && monthsRaw >= 4 && monthsRaw <= 12 ? monthsRaw : 6;
+
+  const now = new Date();
+  const periods: string[] = [];
+  for (let i = monthCount - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  const rows = await db
+    .select({
+      period: posSalesTable.period,
+      name: posSalesTable.productName,
+      posProductId: posSalesTable.posProductId,
+      category: sql<string | null>`MAX(${posSalesTable.category})`,
+      qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
+      net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
+    })
+    .from(posSalesTable)
+    .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, periods)))
+    .groupBy(posSalesTable.period, posSalesTable.productName, posSalesTable.posProductId);
+
+  type Agg = { name: string; category: string | null; byPeriod: Map<string, { qty: number; net: number }>; totalNet: number };
+  const byProduct = new Map<string, Agg>();
+  let totalNetAll = 0;
+  for (const r of rows) {
+    const key = posGroupKey(r);
+    let a = byProduct.get(key);
+    if (!a) { a = { name: r.name, category: r.category, byPeriod: new Map(), totalNet: 0 }; byProduct.set(key, a); }
+    a.byPeriod.set(r.period, { qty: toNum(r.qty), net: toNum(r.net) });
+    a.totalNet += toNum(r.net);
+    a.category = a.category ?? r.category;
+    totalNetAll += toNum(r.net);
+  }
+  // Próg: 0,5% obrotu CAŁEGO okna (luźniejszy niż 1% w „Najmocniejsze zmiany",
+  // bo to trend wieloMIESIĘCZNY, nie pojedynczy miesiąc).
+  const minTotalNet = totalNetAll * 0.005;
+
+  const items = [...byProduct.entries()]
+    .map(([key, a]) => {
+      const series = periods.map((period) => ({ period, ...(a.byPeriod.get(period) ?? { qty: 0, net: 0 }) }));
+      // Najdłuższa seria spadków licząc OD KOŃCA — tylko realny spadek z
+      // dodatniej wartości, nie plateau zer.
+      let streak = 0;
+      for (let i = series.length - 1; i > 0; i--) {
+        if (series[i - 1].qty > 0 && series[i].qty < series[i - 1].qty) streak++;
+        else break;
+      }
+      return { key, name: a.name, category: a.category, streak, totalNet: a.totalNet, series };
+    })
+    .filter((i) => i.streak >= 3 && i.totalNet >= minTotalNet)
+    .sort((a, b) => b.streak - a.streak || b.totalNet - a.totalNet)
+    .slice(0, 10);
+
+  res.json({
+    items: items.map((i) => ({
+      key: i.key,
+      name: i.name,
+      category: i.category,
+      streak: i.streak,
+      totalNet: i.totalNet,
+      series: i.series.map((s) => ({ period: s.period, qty: s.qty, netValue: s.net })),
+    })),
+  });
+});
+
 // ─── Eksport Excel ────────────────────────────────────────────────────────────
 // Formaty i układ celowo takie same jak w raporcie zakupów (`reports-workbook.ts`),
 // żeby oba pliki wyglądały jak z jednego systemu.

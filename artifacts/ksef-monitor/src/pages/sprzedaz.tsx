@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2, LineChart } from "@/lib/icons";
+import { ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2, LineChart, Sparkles, TrendingDown } from "@/lib/icons";
 import { Link } from "wouter";
 import { CHART_COLORS } from "./reports/components";
 
@@ -16,6 +16,7 @@ import { CHART_COLORS } from "./reports/components";
 // głównym chunku strony z tabelą.
 const SalesTrendModal = lazy(() => import("./sprzedaz/sales-trend-modal").then((m) => ({ default: m.SalesTrendModal })));
 const CategoryTrendModal = lazy(() => import("./sprzedaz/category-trend-modal").then((m) => ({ default: m.CategoryTrendModal })));
+const ConcentrationTrendModal = lazy(() => import("./sprzedaz/concentration-trend-modal").then((m) => ({ default: m.ConcentrationTrendModal })));
 
 type SalesLeaf = {
   productName: string;
@@ -52,6 +53,23 @@ type SalesResponse = {
   totalNetYearChangePct: number | null;
   items: SalesItem[];
   categoryBreakdown: CategoryBreakdownEntry[];
+};
+
+type NewItem = {
+  key: string;
+  name: string;
+  category: string | null;
+  firstPeriod: string;
+  trajectory: { period: string; qty: number; netValue: number }[];
+  trend: "rosnie" | "spada" | "stabilnie" | null;
+};
+type DecliningItem = {
+  key: string;
+  name: string;
+  category: string | null;
+  streak: number;
+  totalNet: number;
+  series: { period: string; qty: number; netValue: number }[];
 };
 
 // Musi być identyczne z kluczem w `routes/sales.ts` (buildCategoryBreakdown) —
@@ -159,6 +177,9 @@ export default function Sprzedaz() {
   const [exporting, setExporting] = useState(false);
   const [trend, setTrend] = useState<{ label: string; key?: string; name?: string } | null>(null);
   const [showCategoryTrend, setShowCategoryTrend] = useState(false);
+  const [showConcentrationTrend, setShowConcentrationTrend] = useState(false);
+  const [newItems, setNewItems] = useState<NewItem[]>([]);
+  const [decliningItems, setDecliningItems] = useState<DecliningItem[]>([]);
   const [sort, setSort] = useState<Sort>({ key: "netValue", dir: "desc" });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // Porównanie do poprzedniego miesiąca albo tego samego miesiąca rok wcześniej
@@ -200,6 +221,24 @@ export default function Sprzedaz() {
     })();
     return () => { cancelled = true; };
   }, [month, session]);
+
+  // Nowości i spadające pozycje patrzą zawsze na ostatnie miesiące od DZIŚ
+  // (jak trend kategorii) — niezależnie od miesiąca przeglądanego w tabeli wyżej.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const token = await session?.getToken();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const [newRes, declRes] = await Promise.all([
+        fetch(apiUrl("/api/sales/new-items?months=6"), { headers }),
+        fetch(apiUrl("/api/sales/declining-items?months=6"), { headers }),
+      ]);
+      const newJson = newRes.ok ? ((await newRes.json()) as { items: NewItem[] }) : { items: [] };
+      const declJson = declRes.ok ? ((await declRes.json()) as { items: DecliningItem[] }) : { items: [] };
+      if (!cancelled) { setNewItems(newJson.items); setDecliningItems(declJson.items); }
+    })();
+    return () => { cancelled = true; };
+  }, [session]);
 
   // Podmienia prevQty/prevNet/qtyChangePct/netChangePct na wariant roczny, gdy
   // compareMode === "year" — tabela, sort i karta „Najmocniejsze zmiany" dalej
@@ -392,17 +431,28 @@ export default function Sprzedaz() {
                 )}
                 {concentration != null && (
                   <div className={cn("glass p-4 flex flex-col shrink-0", concentrationOpen ? "md:w-72" : "md:w-48 justify-center")}>
-                    <button
-                      type="button"
-                      onClick={() => setConcentrationOpen((v) => !v)}
-                      className="flex items-center justify-between gap-2 text-left"
-                      aria-expanded={concentrationOpen}
-                    >
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        Koncentracja
-                      </span>
-                      {concentrationOpen ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
-                    </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConcentrationOpen((v) => !v)}
+                        className="flex items-center gap-1.5 text-left"
+                        aria-expanded={concentrationOpen}
+                      >
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Koncentracja
+                        </span>
+                        {concentrationOpen ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowConcentrationTrend(true)}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        title="Trend koncentracji w czasie"
+                        aria-label="Trend koncentracji w czasie"
+                      >
+                        <LineChart className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                     <p className="num-lg text-2xl text-foreground mt-2">{concentration.pct.toFixed(0)}%</p>
                     <p className="text-xs text-muted-foreground mt-1">obrotu robi TOP 10 pozycji</p>
                     {concentrationOpen && (
@@ -421,6 +471,56 @@ export default function Sprzedaz() {
                         ))}
                       </div>
                     )}
+                  </div>
+                )}
+              </div>
+            )}
+            {(newItems.length > 0 || decliningItems.length > 0) && (
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                {newItems.length > 0 && (
+                  <div className="glass p-4">
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Nowości w karcie
+                    </div>
+                    <div className="space-y-2">
+                      {newItems.slice(0, 5).map((i) => (
+                        <button
+                          key={i.key}
+                          type="button"
+                          onClick={() => setTrend({ label: i.name, key: i.key })}
+                          className="flex items-center justify-between gap-2 text-xs w-full text-left hover:text-foreground transition-colors"
+                          title="Pokaż sprzedaż miesiąc po miesiącu"
+                        >
+                          <span className="truncate min-w-0 flex-1 text-foreground">{i.name}</span>
+                          <span className={cn("shrink-0 tabular-nums", i.trend === "rosnie" ? "text-positive" : i.trend === "spada" ? "text-negative" : "text-muted-foreground")}>
+                            {i.trend === "rosnie" ? "rośnie" : i.trend === "spada" ? "spada" : i.trend === "stabilnie" ? "stabilnie" : "debiut"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {decliningItems.length > 0 && (
+                  <div className="glass p-4">
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                      <TrendingDown className="w-3.5 h-3.5" />
+                      Spadająca sprzedaż
+                    </div>
+                    <div className="space-y-2">
+                      {decliningItems.slice(0, 5).map((i) => (
+                        <button
+                          key={i.key}
+                          type="button"
+                          onClick={() => setTrend({ label: i.name, key: i.key })}
+                          className="flex items-center justify-between gap-2 text-xs w-full text-left hover:text-foreground transition-colors"
+                          title="Pokaż sprzedaż miesiąc po miesiącu"
+                        >
+                          <span className="truncate min-w-0 flex-1 text-foreground">{i.name}</span>
+                          <span className="shrink-0 tabular-nums text-negative">{i.streak} mies. z rzędu</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -632,6 +732,12 @@ export default function Sprzedaz() {
       {showCategoryTrend && (
         <Suspense fallback={null}>
           <CategoryTrendModal onClose={() => setShowCategoryTrend(false)} />
+        </Suspense>
+      )}
+
+      {showConcentrationTrend && (
+        <Suspense fallback={null}>
+          <ConcentrationTrendModal onClose={() => setShowConcentrationTrend(false)} />
         </Suspense>
       )}
     </Layout>
