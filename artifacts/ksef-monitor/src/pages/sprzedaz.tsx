@@ -142,7 +142,7 @@ function ChangeCell({ pct }: { pct: number | null }) {
   if (pct == null) return <span className="text-muted-foreground">nowa</span>;
   const up = pct > 0;
   return (
-    <span className={cn("inline-flex items-center justify-end gap-0.5", tone(pct))}>
+    <span className={cn("inline-flex items-center justify-end gap-0.5 tabular-nums", tone(pct))}>
       {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
       {Math.abs(pct).toFixed(0)}%
     </span>
@@ -243,7 +243,9 @@ export default function Sprzedaz() {
   const movers = useMemo(() => {
     if (!data || data.totalNet <= 0) return { up: [], down: [] as SalesItem[] };
     const minNet = data.totalNet * 0.01;
-    const eligible = displayItems.filter((i) => i.netChangePct != null && i.netValue >= minNet);
+    const eligible = displayItems.filter(
+      (i) => i.netChangePct != null && i.netValue >= minNet && i.prevNet != null && i.prevNet >= minNet,
+    );
     const up = eligible.filter((i) => i.netChangePct! > 0).sort((a, b) => b.netChangePct! - a.netChangePct!).slice(0, 3);
     const down = eligible.filter((i) => i.netChangePct! < 0).sort((a, b) => a.netChangePct! - b.netChangePct!).slice(0, 3);
     return { up, down };
@@ -361,7 +363,7 @@ export default function Sprzedaz() {
                               className="flex items-center justify-between gap-2 text-xs w-full text-left hover:text-foreground transition-colors"
                               title="Pokaż sprzedaż miesiąc po miesiącu"
                             >
-                              <span className="truncate text-foreground">{i.productName}</span>
+                              <span className="truncate min-w-0 flex-1 text-foreground">{i.productName}</span>
                               <ChangeCell pct={i.netChangePct} />
                             </button>
                           ))}
@@ -379,7 +381,7 @@ export default function Sprzedaz() {
                               className="flex items-center justify-between gap-2 text-xs w-full text-left hover:text-foreground transition-colors"
                               title="Pokaż sprzedaż miesiąc po miesiącu"
                             >
-                              <span className="truncate text-foreground">{i.productName}</span>
+                              <span className="truncate min-w-0 flex-1 text-foreground">{i.productName}</span>
                               <ChangeCell pct={i.netChangePct} />
                             </button>
                           ))}
@@ -413,7 +415,7 @@ export default function Sprzedaz() {
                             className="flex items-center justify-between gap-2 text-xs w-full text-left hover:text-foreground transition-colors"
                             title="Pokaż sprzedaż miesiąc po miesiącu"
                           >
-                            <span className="truncate text-foreground">{i.name}</span>
+                            <span className="truncate min-w-0 flex-1 text-foreground">{i.name}</span>
                             <span className="shrink-0 tabular-nums text-muted-foreground">{i.share.toFixed(0)}% · {formatPrice(i.netValue)}</span>
                           </button>
                         ))}
