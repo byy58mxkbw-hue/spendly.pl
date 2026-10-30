@@ -12,7 +12,7 @@ import {
 import { apiUrl } from "@/lib/api-base";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowDown, ArrowUp, Minus } from "@/lib/icons";
+import { ArrowDown, ArrowUp, ArrowLeft, Minus } from "@/lib/icons";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { CHART_COLORS, fmtQty, signedPct } from "../reports/components";
@@ -36,7 +36,24 @@ function monthLong(ym: string): string {
 type TrendMonth = { month: string; qty: number; netValue: number; avgPrice: number | null };
 type TrendResponse = { productName: string; variantCount: number; months: TrendMonth[] };
 
+type DailyRow = { date: string; qty: number; netValue: number };
+type DailyResponse = { days: DailyRow[] };
+
 type Metric = "qty" | "net";
+
+const WEEKDAY_SHORT = ["niedz.", "pon.", "wt.", "śr.", "czw.", "pt.", "sob."];
+
+function dayOfMonth(dateStr: string): string {
+  return String(parseInt(dateStr.split("-")[2] ?? "", 10));
+}
+function weekdayLabel(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  return WEEKDAY_SHORT[d.getDay()] ?? "";
+}
+function dayLong(dateStr: string): string {
+  const [, mm, dd] = dateStr.split("-");
+  return `${parseInt(dd, 10)} ${MONTH_NAMES[parseInt(mm, 10) - 1] ?? mm}, ${weekdayLabel(dateStr)}`;
+}
 
 // Sprzedaż to przychód, więc więcej = lepiej. Odwrotnie niż przy kosztach,
 // gdzie wzrost jest zły — dlatego NIE reużywamy `qtyTone` z raportów.
@@ -66,6 +83,26 @@ function ChartTooltip({ active, payload, metric }: {
   );
 }
 
+function DailyChartTooltip({ active, payload, metric }: {
+  active?: boolean;
+  payload?: Array<{ payload: DailyRow }>;
+  metric: Metric;
+}) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="bg-card border border-border px-3 py-2 text-xs">
+      <p className="label-caps mb-1">{dayLong(d.date)}</p>
+      <p className="text-sm font-semibold text-foreground tabular-nums">
+        {metric === "qty" ? `${fmtQty(d.qty)} szt.` : formatPrice(d.netValue)}
+      </p>
+      <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
+        {metric === "qty" ? formatPrice(d.netValue) : `${fmtQty(d.qty)} szt.`}
+      </p>
+    </div>
+  );
+}
+
 export function SalesTrendModal({ label, groupKey, productName, onClose }: {
   /** Nazwa do nagłówka — mamy ją od razu, więc tytuł nie mruga po wczytaniu. */
   label: string;
@@ -80,6 +117,13 @@ export function SalesTrendModal({ label, groupKey, productName, onClose }: {
   const [loading, setLoading] = useState(true);
   const [metric, setMetric] = useState<Metric>("qty");
   const [showTable, setShowTable] = useState(false);
+  // Klik w słupek miesiąca pokazuje rozbicie dzień po dniu — dociągane z GoPOS
+  // na żądanie (patrz routes/sales.ts `/sales/trend/daily`), więc pierwsze
+  // wejście w zamknięty miesiąc trwa chwilę dłużej niż kolejne (cache).
+  const [drillMonth, setDrillMonth] = useState<string | null>(null);
+  const [dailyData, setDailyData] = useState<DailyResponse | null>(null);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyError, setDailyError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,10 +142,40 @@ export function SalesTrendModal({ label, groupKey, productName, onClose }: {
     return () => { cancelled = true; };
   }, [groupKey, productName, session]);
 
+  useEffect(() => {
+    if (!drillMonth) return;
+    let cancelled = false;
+    setDailyLoading(true);
+    setDailyError(false);
+    void (async () => {
+      const token = await session?.getToken();
+      const q = groupKey
+        ? `key=${encodeURIComponent(groupKey)}`
+        : `productName=${encodeURIComponent(productName ?? "")}`;
+      const res = await fetch(apiUrl(`/api/sales/trend/daily?${q}&month=${drillMonth}`), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = res.ok ? ((await res.json()) as DailyResponse) : null;
+      if (!cancelled) {
+        setDailyData(json);
+        setDailyError(!res.ok);
+        setDailyLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [drillMonth, groupKey, productName, session]);
+
   const rows = useMemo(
     () => (data?.months ?? []).map((m) => ({ ...m, label: monthShort(m.month) })),
     [data],
   );
+
+  const dailyRows = useMemo(
+    () => (dailyData?.days ?? []).map((d) => ({ ...d, label: dayOfMonth(d.date) })),
+    [dailyData],
+  );
+  const dailyValue = (r: DailyRow | undefined) => (metric === "qty" ? r?.qty ?? 0 : r?.netValue ?? 0);
+  const dailyMax = dailyRows.reduce((m, r) => Math.max(m, dailyValue(r)), 0);
 
   const last = rows[rows.length - 1];
   const prev = rows[rows.length - 2];
@@ -221,11 +295,18 @@ export function SalesTrendModal({ label, groupKey, productName, onClose }: {
                       }}
                     />
                     {rows.map((r) => (
-                      <Cell key={r.month} fill={CHART_COLORS[0]} fillOpacity={r.month === last?.month ? 1 : 0.45} />
+                      <Cell
+                        key={r.month}
+                        fill={CHART_COLORS[0]}
+                        fillOpacity={r.month === last?.month ? 1 : 0.45}
+                        cursor="pointer"
+                        onClick={() => setDrillMonth(r.month)}
+                      />
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
+              <p className="text-[11px] text-muted-foreground -mt-1">Kliknij słupek, by zobaczyć dni tego miesiąca.</p>
             </div>
 
             <div className="pt-3 border-t border-border">
@@ -264,6 +345,60 @@ export function SalesTrendModal({ label, groupKey, productName, onClose }: {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {drillMonth && (
+              <div className="pt-4 border-t border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <button
+                    type="button"
+                    onClick={() => { setDrillMonth(null); setDailyData(null); }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Wróć do miesięcy
+                  </button>
+                  <p className="label-caps">{monthLong(drillMonth)} — dni</p>
+                </div>
+
+                {dailyLoading ? (
+                  <Skeleton className="h-56 w-full" />
+                ) : dailyError ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Nie udało się pobrać rozbicia dziennego z GoPOS. Spróbuj ponownie za chwilę.
+                  </p>
+                ) : dailyMax <= 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Brak sprzedaży tej pozycji w {monthLong(drillMonth)}.
+                  </p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={dailyRows} margin={{ top: 4, right: 8, left: -8, bottom: 0 }} barCategoryGap="18%">
+                      <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "hsl(var(--border))" }}
+                        interval={dailyRows.length > 20 ? 1 : 0}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={48}
+                        tickFormatter={(v: number) => (metric === "qty" ? fmtQty(v) : String(Math.round(v)))}
+                      />
+                      <Tooltip content={<DailyChartTooltip metric={metric} />} cursor={{ fill: "hsl(var(--muted))" }} />
+                      <Bar dataKey={metric === "qty" ? "qty" : "netValue"} radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                        {dailyRows.map((r) => (
+                          <Cell key={r.date} fill={CHART_COLORS[0]} fillOpacity={dailyValue(r) > 0 ? 0.85 : 0.15} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             )}
           </>

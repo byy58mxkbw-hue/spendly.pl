@@ -80,6 +80,32 @@ export async function ensurePreListenColumns(log: Logger): Promise<void> {
   await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS iwz_invoice_number_uniq ON invoice_wz_documents (invoice_id, wz_number)`);
   await db.execute(sql`CREATE INDEX IF NOT EXISTS iwz_user_idx ON invoice_wz_documents (user_id)`);
   await db.execute(sql`ALTER TABLE IF EXISTS invoices ADD COLUMN IF NOT EXISTS wz_mismatches integer`);
+  // Dzienny cache sprzedaży POS (2026-10-30) — leniwie dociągany z GoPOS per dzień,
+  // dopiero gdy user kliknie w słupek miesiąca w trendzie sprzedaży (patrz gopos-daily.ts).
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS pos_sales_daily (
+      id serial PRIMARY KEY,
+      user_id text NOT NULL,
+      date text NOT NULL,
+      product_name text NOT NULL,
+      pos_product_id text,
+      qty numeric(12,3) NOT NULL DEFAULT 0,
+      net_value numeric(12,2) NOT NULL DEFAULT 0,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS pos_sales_daily_user_date_product_uniq ON pos_sales_daily (user_id, date, product_name)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS pos_sales_daily_user_date_idx ON pos_sales_daily (user_id, date)`);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS pos_sales_daily_sync (
+      id serial PRIMARY KEY,
+      user_id text NOT NULL,
+      period text NOT NULL,
+      synced_days numeric(4,0) NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS pos_sales_daily_sync_user_period_uniq ON pos_sales_daily_sync (user_id, period)`);
 }
 
 export async function ensureInvoiceSourceColumn(log: Logger): Promise<void> {

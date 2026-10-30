@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
 import ExcelJS from "exceljs";
-import { db, posSalesTable } from "@workspace/db";
+import { db, posSalesTable, posSalesDailyTable } from "@workspace/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { toNum } from "../lib/parse";
 import { periodFromQuery, previousPeriod, yearAgoPeriod, periodLabel, monthsInRange, type Period } from "../lib/period";
 import { categoryForSaleName, commonWordPrefix, normalizeName, posGroupKey, sharesCommonPrefix, umbrellaFor } from "../lib/pos-group";
 import { captureServer } from "../lib/telemetry";
+import { ensureDailySalesForMonth } from "../services/gopos-daily";
 import { buildDishCategoryIndex } from "./food-cost.js";
 
 // Sprzedaż per pozycja menu z POS (pos_sales) dla wybranego okresu, z porównaniem
@@ -720,6 +721,81 @@ router.get("/sales/declining-items", async (req, res): Promise<void> => {
       series: i.series.map((s) => ({ period: s.period, qty: s.qty, netValue: s.net })),
     })),
   });
+});
+
+// ─── Rozbicie dzienne jednego miesiąca (drill-down z trendu sprzedaży) ─────────
+// GoPOS nie ma wymiaru grupowania po dniu w jednym zapytaniu (Stage B spike,
+// 2026-10) — dociągamy to LENIWIE, dzień po dniu, dopiero gdy user kliknie
+// w słupek konkretnego miesiąca. Wynik cache'owany w pos_sales_daily
+// (ensureDailySalesForMonth), więc kolejne wejścia w ten sam zamknięty
+// miesiąc nie odpytują już GoPOS.
+router.get("/sales/trend/daily", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const key = req.query.key != null ? String(req.query.key) : "";
+  const productName = req.query.productName != null ? String(req.query.productName) : "";
+  const month = String(req.query.month ?? "");
+  if (!key.trim() && !productName.trim()) {
+    res.status(400).json({ error: "Podaj key albo productName" });
+    return;
+  }
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    res.status(400).json({ error: "Podaj month w formacie YYYY-MM" });
+    return;
+  }
+
+  try {
+    await ensureDailySalesForMonth(userId, month, req.log);
+  } catch (err) {
+    req.log.error({ err: String(err), userId, month }, "sales/trend/daily: dociąganie z GoPOS nieudane");
+    res.status(502).json({ error: "Nie udało się pobrać rozbicia dziennego z GoPOS." });
+    return;
+  }
+
+  const rows = await db
+    .select({
+      date: posSalesDailyTable.date,
+      name: posSalesDailyTable.productName,
+      posProductId: posSalesDailyTable.posProductId,
+      qty: posSalesDailyTable.qty,
+      net: posSalesDailyTable.netValue,
+    })
+    .from(posSalesDailyTable)
+    .where(and(eq(posSalesDailyTable.userId, userId), sql`${posSalesDailyTable.date} LIKE ${month + "-%"}`));
+
+  const wantKey = key.trim();
+  const wantName = normalizeName(productName);
+  const wantUmbrella = wantKey.startsWith("um:") ? wantKey.slice(3) : null;
+  const hashIdx = wantKey.indexOf("#");
+  const wantSplit = hashIdx > 0 ? { groupKey: wantKey.slice(0, hashIdx), name: wantKey.slice(hashIdx + 1) } : null;
+
+  const byDate = new Map<string, { qty: number; net: number }>();
+  for (const r of rows) {
+    const match = wantUmbrella
+      ? normalizeName(umbrellaFor(r.name) ?? "") === wantUmbrella
+      : wantSplit
+        ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantSplit.groupKey && normalizeName(r.name) === wantSplit.name
+        : wantKey
+          ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
+          : normalizeName(r.name) === wantName;
+    if (!match) continue;
+    const cur = byDate.get(r.date) ?? { qty: 0, net: 0 };
+    cur.qty += toNum(r.qty);
+    cur.net += toNum(r.net);
+    byDate.set(r.date, cur);
+  }
+
+  const [y, m] = month.split("-").map(Number);
+  const now = new Date();
+  const isCurrentMonth = y === now.getFullYear() && m === now.getMonth() + 1;
+  const lastDay = isCurrentMonth ? now.getDate() : new Date(Date.UTC(y, m, 0)).getUTCDate();
+
+  const days = Array.from({ length: lastDay }, (_, i) => {
+    const date = `${month}-${String(i + 1).padStart(2, "0")}`;
+    const v = byDate.get(date);
+    return { date, qty: v?.qty ?? 0, netValue: v?.net ?? 0 };
+  });
+
+  res.json({ days });
 });
 
 // ─── Eksport Excel ────────────────────────────────────────────────────────────

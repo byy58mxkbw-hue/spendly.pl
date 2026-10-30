@@ -84,6 +84,58 @@ export async function fetchSales(token: string, organizationId: string, from: st
   return { revenueNet, items };
 }
 
+// ─── Sprzedaż per DZIEŃ w zakresie (drill-down z trendu sprzedaży) ────────────
+// Kontrakt potwierdzony przez support GoPOS (mail 2026-10-30, zgłoszenie o
+// grupowanie czasowe): `groups` wspiera też wymiary CLOSED_AT_DAY/HOUR/…
+// Jedno zapytanie na cały miesiąc, 3-poziomowe zagnieżdżenie: dzień →
+// kategoria → produkt. NIE próbowaliśmy tego wcześniej na żywo — `extractDay`
+// sprawdza kilka możliwych pól w `group_by_value`, a nierozpoznany dzień jest
+// pomijany (log ostrzeżenia zamiast wywrotki), żeby nieoczekiwany kształt pola
+// nie ubił całego drill-downu.
+type GoposDayNode = { group_by_value?: Record<string, unknown>; sub_report?: GoposCategoryNode[] };
+
+function extractDayDate(gbv: Record<string, unknown> | undefined): string | null {
+  if (!gbv) return null;
+  for (const field of ["name", "value", "date", "label"]) {
+    const v = gbv[field];
+    if (typeof v === "string") {
+      const m = v.match(/^\d{4}-\d{2}-\d{2}/);
+      if (m) return m[0];
+    }
+  }
+  return null;
+}
+
+export type GoposDailySales = { date: string; items: GoposSalesItem[] }[];
+
+export async function fetchDailySales(token: string, organizationId: string, from: string, to: string): Promise<GoposDailySales> {
+  const dr = `${from.replace("T", "'T'")},${to.replace("T", "'T'")}`;
+  const url = `${API_BASE}/reports/order_items?organization_id=${organizationId}&groups=NONE,CLOSED_AT_DAY,PRODUCT_CATEGORY,PRODUCT&date_range=${dr}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: ACCEPT } });
+  if (!res.ok) throw new GoposError(res.status, `GoPOS raport dzienny: HTTP ${res.status}.`);
+  const json = (await res.json()) as { reports?: Array<{ sub_report?: GoposDayNode[] }> };
+  const dayNodes = json.reports?.[0]?.sub_report ?? [];
+  const out: GoposDailySales = [];
+  for (const day of dayNodes) {
+    const date = extractDayDate(day.group_by_value);
+    if (!date) continue; // kształt pola nie rozpoznany — pomijamy dzień zamiast rzucać błąd
+    const items: GoposSalesItem[] = (day.sub_report ?? [])
+      .flatMap((cat) => {
+        const category = (cat.group_by_value?.name ?? "").trim() || null;
+        return (cat.sub_report ?? []).map((s) => ({
+          name: (s.group_by_value?.name ?? "").trim(),
+          productId: s.group_by_value?.id != null ? String(s.group_by_value.id) : null,
+          category,
+          qty: Number(s.aggregate?.sales?.product_quantity ?? 0),
+          net: amount(s.aggregate?.sales?.net_total_money),
+        }));
+      })
+      .filter((i) => i.name);
+    out.push({ date, items });
+  }
+  return out;
+}
+
 // ─── Aktualne menu (pozycje sprzedawane DZIŚ, nie historia sprzedaży) ─────────
 // Kontrakt z publicznego spec GoPOS (`/v3/api-docs/Public API`):
 // GET /{org}/items?status=ENABLED&include=category,item_group,price_overrides&size=100&page=N

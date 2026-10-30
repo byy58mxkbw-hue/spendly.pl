@@ -18,6 +18,7 @@ export * from "./learned-user-category-terms";
 export * from "./restaurant-revenue";
 export * from "./gopos-config";
 export * from "./pos-sales";
+export * from "./pos-sales-daily";
 export * from "./email-log";
 export * from "./subscriptions";
 export * from "./market-product-aliases";
