@@ -7,9 +7,9 @@ import { mergeSalesByName } from "./gopos-sync";
 
 // Rozbicie dzienne sprzedaży — leniwy cache per (user, miesiąc), dociągany
 // dopiero gdy user kliknie w dany miesiąc w modalu trendu sprzedaży (nigdy
-// przy zwykłym syncu). JEDNO zapytanie do GoPOS na cały miesiąc — support
-// GoPOS potwierdził (2026-10-30), że `groups` wspiera CLOSED_AT_DAY, więc
-// nie trzeba odpytywać dzień po dniu. Miesiące w PRZESZŁOŚCI są trwałe
+// przy zwykłym syncu). JEDNO zapytanie do GoPOS na cały miesiąc — `groups`
+// wspiera CLOSED_AT_DATE (patrz gopos-client.ts), więc nie trzeba odpytywać
+// dzień po dniu. Miesiące w PRZESZŁOŚCI są trwałe
 // (sprzedaż historyczna się nie zmienia) i dociągane raz; bieżący miesiąc
 // odświeżamy przy każdym wejściu, bo dzisiejsza sprzedaż jeszcze rośnie.
 function monthBounds(period: string): { from: string; to: string } {
@@ -42,7 +42,12 @@ export async function ensureDailySalesForMonth(userId: string, period: string, l
   const token = await getGoposToken(cfg.clientId, secret, cfg.locationId);
 
   const { from, to } = monthBounds(period);
-  const days = await fetchDailySales(token, cfg.locationId, from, to);
+  const { days, diagnostic } = await fetchDailySales(token, cfg.locationId, from, to);
+  // Diagnostyka pierwszych wywołań na żywo (2026-10-30) — do usunięcia, gdy
+  // potwierdzimy że `extractDayDate` rozpoznaje realny kształt GoPOS.
+  if (days.length === 0 && diagnostic.dayNodeCount > 0) {
+    log.warn({ userId, period, diagnostic }, "GoPOS: dni z odpowiedzi nie rozpoznane przez extractDayDate");
+  }
 
   // Nadpisujemy cały miesiąc za jednym zamachem (prościej niż diff dzień po
   // dniu) — bieżący miesiąc i tak odświeżamy za każdym razem.

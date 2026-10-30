@@ -110,14 +110,27 @@ function extractDayDate(gbv: Record<string, unknown> | undefined): string | null
 }
 
 export type GoposDailySales = { date: string; items: GoposSalesItem[] }[];
+// Diagnostyka pierwszego wywołania na żywo (2026-10-30): pozwala zobaczyć
+// kształt `group_by_value` dla dni, gdyby `extractDayDate` go nie rozpoznał —
+// bez tego debugowanie wymagałoby odczytu produkcyjnej bazy/sekretów.
+export type GoposDailyDiagnostic = { dayNodeCount: number; firstDayRaw: string | null };
 
-export async function fetchDailySales(token: string, organizationId: string, from: string, to: string): Promise<GoposDailySales> {
+export async function fetchDailySales(
+  token: string,
+  organizationId: string,
+  from: string,
+  to: string,
+): Promise<{ days: GoposDailySales; diagnostic: GoposDailyDiagnostic }> {
   const dr = `${from.replace("T", "'T'")},${to.replace("T", "'T'")}`;
   const url = `${API_BASE}/reports/order_items?organization_id=${organizationId}&groups=NONE,CLOSED_AT_DATE,PRODUCT_CATEGORY,PRODUCT&date_range=${dr}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: ACCEPT } });
   if (!res.ok) throw new GoposError(res.status, `GoPOS raport dzienny: HTTP ${res.status}.`);
   const json = (await res.json()) as { reports?: Array<{ sub_report?: GoposDayNode[] }> };
   const dayNodes = json.reports?.[0]?.sub_report ?? [];
+  const diagnostic: GoposDailyDiagnostic = {
+    dayNodeCount: dayNodes.length,
+    firstDayRaw: dayNodes[0] ? JSON.stringify(dayNodes[0]).slice(0, 500) : null,
+  };
   const out: GoposDailySales = [];
   for (const day of dayNodes) {
     const date = extractDayDate(day.group_by_value);
@@ -136,7 +149,7 @@ export async function fetchDailySales(token: string, organizationId: string, fro
       .filter((i) => i.name);
     out.push({ date, items });
   }
-  return out;
+  return { days: out, diagnostic };
 }
 
 // ─── Aktualne menu (pozycje sprzedawane DZIŚ, nie historia sprzedaży) ─────────
