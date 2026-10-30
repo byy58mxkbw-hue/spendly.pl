@@ -95,7 +95,7 @@ export async function fetchSales(token: string, organizationId: string, from: st
 // kategoria → produkt. `extractDay` sprawdza kilka możliwych pól w
 // `group_by_value`, a nierozpoznany dzień jest pomijany (log ostrzeżenia
 // zamiast wywrotki), żeby nieoczekiwany kształt pola nie ubił całego drill-downu.
-type GoposDayNode = { group_by_value?: Record<string, unknown>; sub_report?: GoposCategoryNode[] };
+type GoposDayNode = { group_by_value?: Record<string, unknown>; group_by_type?: string; sub_report?: GoposCategoryNode[] };
 
 function extractDayDate(gbv: Record<string, unknown> | undefined): string | null {
   if (!gbv) return null;
@@ -113,7 +113,12 @@ export type GoposDailySales = { date: string; items: GoposSalesItem[] }[];
 // Diagnostyka pierwszego wywołania na żywo (2026-10-30): pozwala zobaczyć
 // kształt `group_by_value` dla dni, gdyby `extractDayDate` go nie rozpoznał —
 // bez tego debugowanie wymagałoby odczytu produkcyjnej bazy/sekretów.
-export type GoposDailyDiagnostic = { dayNodeCount: number; firstDayRaw: string | null };
+export type GoposDailyDiagnostic = {
+  dayNodeCount: number;
+  firstDayKeys: string[] | null;
+  firstDayGroupByType: string | null;
+  firstDayGroupByValue: string | null;
+};
 
 export async function fetchDailySales(
   token: string,
@@ -127,9 +132,12 @@ export async function fetchDailySales(
   if (!res.ok) throw new GoposError(res.status, `GoPOS raport dzienny: HTTP ${res.status}.`);
   const json = (await res.json()) as { reports?: Array<{ sub_report?: GoposDayNode[] }> };
   const dayNodes = json.reports?.[0]?.sub_report ?? [];
+  const firstDay = dayNodes[0];
   const diagnostic: GoposDailyDiagnostic = {
     dayNodeCount: dayNodes.length,
-    firstDayRaw: dayNodes[0] ? JSON.stringify(dayNodes[0]).slice(0, 500) : null,
+    firstDayKeys: firstDay ? Object.keys(firstDay) : null,
+    firstDayGroupByType: firstDay?.group_by_type ?? null,
+    firstDayGroupByValue: firstDay?.group_by_value ? JSON.stringify(firstDay.group_by_value) : null,
   };
   const out: GoposDailySales = [];
   for (const day of dayNodes) {
