@@ -85,13 +85,16 @@ export async function fetchSales(token: string, organizationId: string, from: st
 }
 
 // ─── Sprzedaż per DZIEŃ w zakresie (drill-down z trendu sprzedaży) ────────────
-// Kontrakt potwierdzony przez support GoPOS (mail 2026-10-30, zgłoszenie o
-// grupowanie czasowe): `groups` wspiera też wymiary CLOSED_AT_DAY/HOUR/…
+// Kontrakt: support GoPOS (mail 2026-10-30) opisał rodzinę wymiarów CLOSED_AT_*
+// nieformalnie jako „CLOSED_AT_DAY", ale realny enum ze specyfikacji OpenAPI
+// (`app.gopos.io/v3/api-docs/Public API`) to `CLOSED_AT_DATE` (pełna data
+// YYYY-MM-DD) — `CLOSED_AT_DAY` dawał 422 (potwierdzone na żywo 2026-10-30,
+// konto prod). `CLOSED_AT_DAY_OF_MONTH`/`CLOSED_AT_DAY_OF_WEEK` to osobne,
+// węższe wymiary (numer dnia / dzień tygodnia bez daty) — nie to, co chcemy.
 // Jedno zapytanie na cały miesiąc, 3-poziomowe zagnieżdżenie: dzień →
-// kategoria → produkt. NIE próbowaliśmy tego wcześniej na żywo — `extractDay`
-// sprawdza kilka możliwych pól w `group_by_value`, a nierozpoznany dzień jest
-// pomijany (log ostrzeżenia zamiast wywrotki), żeby nieoczekiwany kształt pola
-// nie ubił całego drill-downu.
+// kategoria → produkt. `extractDay` sprawdza kilka możliwych pól w
+// `group_by_value`, a nierozpoznany dzień jest pomijany (log ostrzeżenia
+// zamiast wywrotki), żeby nieoczekiwany kształt pola nie ubił całego drill-downu.
 type GoposDayNode = { group_by_value?: Record<string, unknown>; sub_report?: GoposCategoryNode[] };
 
 function extractDayDate(gbv: Record<string, unknown> | undefined): string | null {
@@ -110,7 +113,7 @@ export type GoposDailySales = { date: string; items: GoposSalesItem[] }[];
 
 export async function fetchDailySales(token: string, organizationId: string, from: string, to: string): Promise<GoposDailySales> {
   const dr = `${from.replace("T", "'T'")},${to.replace("T", "'T'")}`;
-  const url = `${API_BASE}/reports/order_items?organization_id=${organizationId}&groups=NONE,CLOSED_AT_DAY,PRODUCT_CATEGORY,PRODUCT&date_range=${dr}`;
+  const url = `${API_BASE}/reports/order_items?organization_id=${organizationId}&groups=NONE,CLOSED_AT_DATE,PRODUCT_CATEGORY,PRODUCT&date_range=${dr}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, Accept: ACCEPT } });
   if (!res.ok) throw new GoposError(res.status, `GoPOS raport dzienny: HTTP ${res.status}.`);
   const json = (await res.json()) as { reports?: Array<{ sub_report?: GoposDayNode[] }> };
