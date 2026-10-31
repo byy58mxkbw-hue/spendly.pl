@@ -101,9 +101,15 @@ function extractDayDate(gbv: Record<string, unknown> | undefined): string | null
   if (!gbv) return null;
   for (const field of ["name", "value", "date", "label"]) {
     const v = gbv[field];
-    if (typeof v === "string") {
-      const m = v.match(/^\d{4}-\d{2}-\d{2}/);
-      if (m) return m[0];
+    if (typeof v !== "string") continue;
+    const m = v.match(/^\d{4}-\d{2}-\d{2}/);
+    if (m) return m[0];
+    // Potwierdzone na żywo (2026-10-31): dla CLOSED_AT_DATE `group_by_value.name`
+    // to epoch w milisekundach jako string (np. "1792800000000" = 2026-10-24
+    // 00:00 UTC), nie tekstowa data — GoPOS nigdzie tego nie dokumentuje.
+    if (/^\d{10,}$/.test(v)) {
+      const d = new Date(Number(v));
+      if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
     }
   }
   return null;
