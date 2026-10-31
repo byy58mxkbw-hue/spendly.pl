@@ -175,7 +175,7 @@ export default function Sprzedaz() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
-  const [trend, setTrend] = useState<{ label: string; key?: string; name?: string } | null>(null);
+  const [trend, setTrend] = useState<{ label: string; key?: string; name?: string; total?: boolean; metric?: "qty" | "net" } | null>(null);
   const [showCategoryTrend, setShowCategoryTrend] = useState(false);
   const [showConcentrationTrend, setShowConcentrationTrend] = useState(false);
   const [newItems, setNewItems] = useState<NewItem[]>([]);
@@ -585,7 +585,12 @@ export default function Sprzedaz() {
             <div className="px-4 md:px-5 py-3 border-b border-border flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-baseline gap-4 flex-wrap">
                 <div><span className="text-xs text-muted-foreground">Pozycji</span> <span className="text-sm font-semibold">{data!.items.length}</span></div>
-                <div>
+                <button
+                  type="button"
+                  onClick={() => setTrend({ label: "Wszystkie pozycje", total: true, metric: "qty" })}
+                  className="text-left hover:opacity-70 transition-opacity"
+                  title="Pokaż sprzedaż (ilość) miesiąc po miesiącu"
+                >
                   <span className="text-xs text-muted-foreground">Sprzedano</span>{" "}
                   <span className="text-sm font-semibold tabular-nums">{fmtQty(data!.totalQty)}</span>
                   {effTotalQtyChangePct != null && (
@@ -593,8 +598,13 @@ export default function Sprzedaz() {
                       ({effTotalQtyChangePct > 0 ? "+" : ""}{effTotalQtyChangePct.toFixed(0)}%)
                     </span>
                   )}
-                </div>
-                <div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrend({ label: "Wszystkie pozycje", total: true, metric: "net" })}
+                  className="text-left hover:opacity-70 transition-opacity"
+                  title="Pokaż wartość netto miesiąc po miesiącu"
+                >
                   <span className="text-xs text-muted-foreground">Wartość netto</span>{" "}
                   <span className="text-sm font-semibold tabular-nums">{formatPrice(data!.totalNet)}</span>
                   {effTotalNetChangePct != null && (
@@ -602,7 +612,7 @@ export default function Sprzedaz() {
                       ({effTotalNetChangePct > 0 ? "+" : ""}{effTotalNetChangePct.toFixed(0)}%)
                     </span>
                   )}
-                </div>
+                </button>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center rounded-md border border-border p-0.5 text-xs">
@@ -736,6 +746,8 @@ export default function Sprzedaz() {
             label={trend.label}
             groupKey={trend.key}
             productName={trend.name}
+            total={trend.total}
+            initialMetric={trend.metric}
             onClose={() => setTrend(null)}
           />
         </Suspense>

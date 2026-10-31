@@ -344,7 +344,10 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const key = req.query.key != null ? String(req.query.key) : "";
   const productName = req.query.productName != null ? String(req.query.productName) : "";
-  if (!key.trim() && !productName.trim()) {
+  // total=1 — suma WSZYSTKICH pozycji (klik w podsumowanie "Sprzedano"/"Wartość
+  // netto" na górze strony), nie jedna pozycja/wariant.
+  const total = req.query.total === "1";
+  if (!total && !key.trim() && !productName.trim()) {
     res.status(400).json({ error: "Podaj key albo productName" });
     return;
   }
@@ -386,13 +389,15 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
   const byPeriod = new Map<string, { qty: number; net: number }>();
   const names = new Set<string>();
   for (const r of rows) {
-    const match = wantUmbrella
-      ? normalizeName(umbrellaFor(r.name) ?? "") === wantUmbrella
-      : wantSplit
-        ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantSplit.groupKey && normalizeName(r.name) === wantSplit.name
-        : wantKey
-          ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
-          : normalizeName(r.name) === wantName;
+    const match = total
+      ? true
+      : wantUmbrella
+        ? normalizeName(umbrellaFor(r.name) ?? "") === wantUmbrella
+        : wantSplit
+          ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantSplit.groupKey && normalizeName(r.name) === wantSplit.name
+          : wantKey
+            ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
+            : normalizeName(r.name) === wantName;
     if (!match) continue;
     names.add(r.name);
     const cur = byPeriod.get(r.period) ?? { qty: 0, net: 0 };
@@ -402,13 +407,15 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
   }
 
   res.json({
-    productName: wantUmbrella
-      ? (umbrellaFor([...names][0] ?? "") ?? wantUmbrella)
-      : wantSplit
-        ? ([...names][0] ?? productName)
-        : wantKey
-          ? commonWordPrefix([...names])
-          : productName,
+    productName: total
+      ? ""
+      : wantUmbrella
+        ? (umbrellaFor([...names][0] ?? "") ?? wantUmbrella)
+        : wantSplit
+          ? ([...names][0] ?? productName)
+          : wantKey
+            ? commonWordPrefix([...names])
+            : productName,
     variantCount: names.size,
     months: periods.map((month) => {
       const v = byPeriod.get(month);
@@ -733,8 +740,9 @@ router.get("/sales/trend/daily", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const key = req.query.key != null ? String(req.query.key) : "";
   const productName = req.query.productName != null ? String(req.query.productName) : "";
+  const total = req.query.total === "1";
   const month = String(req.query.month ?? "");
-  if (!key.trim() && !productName.trim()) {
+  if (!total && !key.trim() && !productName.trim()) {
     res.status(400).json({ error: "Podaj key albo productName" });
     return;
   }
@@ -770,13 +778,15 @@ router.get("/sales/trend/daily", async (req, res): Promise<void> => {
 
   const byDate = new Map<string, { qty: number; net: number }>();
   for (const r of rows) {
-    const match = wantUmbrella
-      ? normalizeName(umbrellaFor(r.name) ?? "") === wantUmbrella
-      : wantSplit
-        ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantSplit.groupKey && normalizeName(r.name) === wantSplit.name
-        : wantKey
-          ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
-          : normalizeName(r.name) === wantName;
+    const match = total
+      ? true
+      : wantUmbrella
+        ? normalizeName(umbrellaFor(r.name) ?? "") === wantUmbrella
+        : wantSplit
+          ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantSplit.groupKey && normalizeName(r.name) === wantSplit.name
+          : wantKey
+            ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
+            : normalizeName(r.name) === wantName;
     if (!match) continue;
     const cur = byDate.get(r.date) ?? { qty: 0, net: 0 };
     cur.qty += toNum(r.qty);

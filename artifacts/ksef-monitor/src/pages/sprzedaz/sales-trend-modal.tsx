@@ -103,19 +103,22 @@ function DailyChartTooltip({ active, payload, metric }: {
   );
 }
 
-export function SalesTrendModal({ label, groupKey, productName, onClose }: {
+export function SalesTrendModal({ label, groupKey, productName, total, initialMetric, onClose }: {
   /** Nazwa do nagłówka — mamy ją od razu, więc tytuł nie mruga po wczytaniu. */
   label: string;
   /** Klucz grupy z POS: wykres obejmuje wszystkie warianty (np. wszystkie wysmażenia). */
   groupKey?: string;
   /** Pojedynczy wariant — gdy użytkownik kliknął w rozwiniętą pozycję. */
   productName?: string;
+  /** Suma WSZYSTKICH pozycji — klik w podsumowanie "Sprzedano"/"Wartość netto" na górze strony. */
+  total?: boolean;
+  initialMetric?: Metric;
   onClose: () => void;
 }) {
   const { session } = useClerk();
   const [data, setData] = useState<TrendResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [metric, setMetric] = useState<Metric>("qty");
+  const [metric, setMetric] = useState<Metric>(initialMetric ?? "qty");
   const [showTable, setShowTable] = useState(false);
   // Klik w słupek miesiąca pokazuje rozbicie dzień po dniu — dociągane z GoPOS
   // na żądanie (patrz routes/sales.ts `/sales/trend/daily`), więc pierwsze
@@ -130,9 +133,11 @@ export function SalesTrendModal({ label, groupKey, productName, onClose }: {
     setLoading(true);
     void (async () => {
       const token = await session?.getToken();
-      const q = groupKey
-        ? `key=${encodeURIComponent(groupKey)}`
-        : `productName=${encodeURIComponent(productName ?? "")}`;
+      const q = total
+        ? "total=1"
+        : groupKey
+          ? `key=${encodeURIComponent(groupKey)}`
+          : `productName=${encodeURIComponent(productName ?? "")}`;
       const res = await fetch(apiUrl(`/api/sales/trend?${q}&months=${MONTHS}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -140,7 +145,7 @@ export function SalesTrendModal({ label, groupKey, productName, onClose }: {
       if (!cancelled) { setData(json); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [groupKey, productName, session]);
+  }, [groupKey, productName, total, session]);
 
   useEffect(() => {
     if (!drillMonth) return;
@@ -149,9 +154,11 @@ export function SalesTrendModal({ label, groupKey, productName, onClose }: {
     setDailyError(false);
     void (async () => {
       const token = await session?.getToken();
-      const q = groupKey
-        ? `key=${encodeURIComponent(groupKey)}`
-        : `productName=${encodeURIComponent(productName ?? "")}`;
+      const q = total
+        ? "total=1"
+        : groupKey
+          ? `key=${encodeURIComponent(groupKey)}`
+          : `productName=${encodeURIComponent(productName ?? "")}`;
       const res = await fetch(apiUrl(`/api/sales/trend/daily?${q}&month=${drillMonth}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -163,7 +170,7 @@ export function SalesTrendModal({ label, groupKey, productName, onClose }: {
       }
     })();
     return () => { cancelled = true; };
-  }, [drillMonth, groupKey, productName, session]);
+  }, [drillMonth, groupKey, productName, total, session]);
 
   const rows = useMemo(
     () => (data?.months ?? []).map((m) => ({ ...m, label: monthShort(m.month) })),
@@ -205,7 +212,7 @@ export function SalesTrendModal({ label, groupKey, productName, onClose }: {
           <Skeleton className="h-64 w-full" />
         ) : maxVal <= 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">
-            Brak sprzedaży tej pozycji w ostatnich {MONTHS} miesiącach.
+            Brak sprzedaży {total ? "" : "tej pozycji "}w ostatnich {MONTHS} miesiącach.
           </p>
         ) : (
           <>
@@ -370,7 +377,7 @@ export function SalesTrendModal({ label, groupKey, productName, onClose }: {
                   </p>
                 ) : dailyMax <= 0 ? (
                   <p className="py-8 text-center text-sm text-muted-foreground">
-                    Brak sprzedaży tej pozycji w {monthLong(drillMonth)}.
+                    Brak sprzedaży {total ? "" : "tej pozycji "}w {monthLong(drillMonth)}.
                   </p>
                 ) : (
                   <ResponsiveContainer width="100%" height={220}>
