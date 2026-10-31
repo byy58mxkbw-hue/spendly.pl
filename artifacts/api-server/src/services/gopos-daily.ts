@@ -31,7 +31,11 @@ export async function ensureDailySalesForMonth(userId: string, period: string, l
       .from(posSalesDailySyncTable)
       .where(and(eq(posSalesDailySyncTable.userId, userId), eq(posSalesDailySyncTable.period, period)))
       .limit(1);
-    if (sync) return; // miesiąc zamknięty — już dociągnięty, sprzedaż historyczna się nie zmienia
+    // syncedDays=0 traktujemy jak brak synchronizacji — to ślad błędu
+    // extractDayDate sprzed naprawy (2026-10-31): miesiąc oznaczony jako
+    // "gotowy", ale bez ani jednego dnia. Bez tego taki wpis blokowałby
+    // dociągnięcie na zawsze (miesiąc zamknięty nie jest już odpytywany).
+    if (sync && Number(sync.syncedDays) > 0) return;
   }
 
   const [cfg] = await db.select().from(goposConfigTable).where(eq(goposConfigTable.userId, userId)).limit(1);
@@ -43,8 +47,10 @@ export async function ensureDailySalesForMonth(userId: string, period: string, l
 
   const { from, to } = monthBounds(period);
   const { days, diagnostic } = await fetchDailySales(token, cfg.locationId, from, to);
-  // Diagnostyka pierwszych wywołań na żywo (2026-10-30) — do usunięcia, gdy
-  // potwierdzimy że `extractDayDate` rozpoznaje realny kształt GoPOS.
+  // Zabezpieczenie: GoPOS zwrócił dni, ale żaden nie został rozpoznany przez
+  // extractDayDate (np. nowy, nieobsłużony kształt group_by_value) — taki
+  // miesiąc NIE jest oznaczany jako zsynchronizowany (patrz warunek wyżej),
+  // więc kolejny klik spróbuje ponownie; ten log tylko sygnalizuje problem.
   if (days.length === 0 && diagnostic.dayNodeCount > 0) {
     log.warn({ userId, period, diagnostic }, "GoPOS: dni z odpowiedzi nie rozpoznane przez extractDayDate");
   }
