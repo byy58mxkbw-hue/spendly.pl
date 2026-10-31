@@ -679,10 +679,22 @@ export default function Sprzedaz() {
                               )}
                             </span>
                           </td>
-                          <td className="text-right px-3 py-2.5 text-sm font-medium text-foreground">{fmtQty(it.qty)}</td>
+                          <td
+                            className={`text-right px-3 py-2.5 text-sm font-medium text-foreground${hasVariants ? " cursor-pointer" : ""}`}
+                            onClick={hasVariants ? (e) => { e.stopPropagation(); toggleExpanded(it.key); } : undefined}
+                            title={hasVariants ? (isOpen ? "Zwiń warianty" : "Rozwiń warianty") : undefined}
+                          >
+                            {fmtQty(it.qty)}
+                          </td>
                           <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{it.prevQty != null ? fmtQty(it.prevQty) : "—"}</td>
                           <td className="text-right px-3 py-2.5 text-xs font-medium"><ChangeCell pct={it.qtyChangePct} /></td>
-                          <td className="text-right px-3 py-2.5 text-sm font-semibold text-foreground">{formatPrice(it.netValue)}</td>
+                          <td
+                            className={`text-right px-3 py-2.5 text-sm font-semibold text-foreground${hasVariants ? " cursor-pointer" : ""}`}
+                            onClick={hasVariants ? (e) => { e.stopPropagation(); toggleExpanded(it.key); } : undefined}
+                            title={hasVariants ? (isOpen ? "Zwiń warianty" : "Rozwiń warianty") : undefined}
+                          >
+                            {formatPrice(it.netValue)}
+                          </td>
                           <td className="text-right px-3 py-2.5 text-xs text-muted-foreground">{it.prevNet != null ? formatPrice(it.prevNet) : "—"}</td>
                           <td className="text-right px-5 py-2.5 text-xs font-medium"><ChangeCell pct={it.netChangePct} /></td>
                         </tr>
