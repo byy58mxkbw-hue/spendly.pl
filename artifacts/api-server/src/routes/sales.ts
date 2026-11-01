@@ -843,7 +843,26 @@ const round = (n: number, d: number) => Math.round(n * 10 ** d) / 10 ** d;
 router.get("/sales.xlsx", async (req, res): Promise<void> => {
   const userId = req.userId!;
   const period = periodFromQuery(req.query);
-  const { groups, prev } = await buildSalesGroups(userId, period);
+  const { groups: allGroups, prev } = await buildSalesGroups(userId, period);
+
+  // Te same filtry co na ekranie (wyszukiwanie / filtr kategorii / odpięte
+  // kategorie) — inaczej eksport zawsze zawierał WSZYSTKO, nawet gdy user
+  // patrzył akurat na przefiltrowany widok (realny rozjazd ekran vs plik).
+  const q = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
+  const categoryFilterQ = typeof req.query.category === "string" ? req.query.category : "";
+  const excludeCategoriesQ = typeof req.query.excludeCategories === "string" && req.query.excludeCategories
+    ? new Set(req.query.excludeCategories.split(","))
+    : new Set<string>();
+
+  let groups = allGroups;
+  if (q) groups = groups.filter((g) => g.productName.toLowerCase().includes(q));
+  if (categoryFilterQ) {
+    groups = groups.filter((g) => (categoryFilterQ === UNCATEGORIZED ? g.category == null : g.category === categoryFilterQ));
+  }
+  if (excludeCategoriesQ.size > 0) {
+    groups = groups.filter((g) => !excludeCategoriesQ.has(g.category ?? UNCATEGORIZED));
+  }
+  const isFiltered = q !== "" || categoryFilterQ !== "" || excludeCategoriesQ.size > 0;
 
   const label = periodLabel(period);
   const prevLabel = periodLabel(prev);
@@ -876,7 +895,7 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
   };
   ws.headerFooter = { oddFooter: "&C&P / &N", evenFooter: "&C&P / &N" };
 
-  const titleRow = ws.addRow([`Sprzedaż — ${label}`]);
+  const titleRow = ws.addRow([`Sprzedaż — ${label}${isFiltered ? " (widok przefiltrowany)" : ""}`]);
   ws.mergeCells(titleRow.number, 1, titleRow.number, nCols);
   titleRow.getCell(1).font = { bold: true, size: 14 };
   titleRow.height = 22;

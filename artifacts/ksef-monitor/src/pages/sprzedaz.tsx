@@ -79,6 +79,18 @@ type DecliningItem = {
 // pozycje bez dopasowanego dania trafiają pod ten stały klucz.
 const UNCATEGORIZED = "__uncategorized__";
 
+// Współdzielone przez tabelę pozycji ORAZ karty "Nowości"/"Spadająca sprzedaż"
+// (obie mają własne pole `category`) — żeby filtr/odpięcie kategorii na
+// liście działało tak samo wszędzie, nie tylko w głównej tabeli.
+function matchesCategoryFilter(category: string | null, categoryFilter: string): boolean {
+  if (!categoryFilter) return true;
+  return categoryFilter === UNCATEGORIZED ? category == null : category === categoryFilter;
+}
+function matchesHidden(category: string | null, hidden: Set<string>): boolean {
+  if (hidden.size === 0) return true;
+  return !hidden.has(category == null ? UNCATEGORIZED : category);
+}
+
 const MONTHS = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
 function monthLabel(m: string): string { const [y, mm] = m.split("-").map(Number); return `${MONTHS[mm - 1]} ${y}`; }
 function shiftMonth(m: string, d: number): string { const [y, mm] = m.split("-").map(Number); const dt = new Date(Date.UTC(y, mm - 1 + d, 1)); return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}`; }
@@ -284,19 +296,23 @@ export default function Sprzedaz() {
   const items = useMemo(() => {
     const q = search.trim().toLowerCase();
     let filtered = q ? displayItems.filter((i) => i.productName.toLowerCase().includes(q)) : displayItems;
-    if (categoryFilter) {
-      filtered = filtered.filter((i) =>
-        categoryFilter === UNCATEGORIZED ? i.category == null : i.category === categoryFilter,
-      );
-    }
-    if (hiddenBreakdownCategories.size > 0) {
-      filtered = filtered.filter((i) => {
-        const key = i.category == null ? UNCATEGORIZED : i.category;
-        return !hiddenBreakdownCategories.has(key);
-      });
-    }
+    filtered = filtered.filter(
+      (i) => matchesCategoryFilter(i.category, categoryFilter) && matchesHidden(i.category, hiddenBreakdownCategories),
+    );
     return [...filtered].sort((a, b) => compareItems(a, b, sort));
   }, [displayItems, search, sort, categoryFilter, hiddenBreakdownCategories]);
+
+  // "Nowości w karcie" i "Spadająca sprzedaż" mają własne zapytanie (zawsze
+  // ostatnie 6 mies. od dziś, niezależnie od `month`), ale niosą `category` —
+  // ten sam filtr/odpięcie co w tabeli da się nałożyć tu client-side.
+  const visibleNewItems = useMemo(
+    () => newItems.filter((i) => matchesCategoryFilter(i.category, categoryFilter) && matchesHidden(i.category, hiddenBreakdownCategories)),
+    [newItems, categoryFilter, hiddenBreakdownCategories],
+  );
+  const visibleDecliningItems = useMemo(
+    () => decliningItems.filter((i) => matchesCategoryFilter(i.category, categoryFilter) && matchesHidden(i.category, hiddenBreakdownCategories)),
+    [decliningItems, categoryFilter, hiddenBreakdownCategories],
+  );
 
   // Pasek "Pozycji / Sprzedano / Wartość netto" ma liczyć DOKŁADNIE to, co jest
   // w tabeli poniżej — inaczej odpięcie kategorii (albo wyszukiwanie/filtr)
@@ -398,12 +414,18 @@ export default function Sprzedaz() {
 
   const empty = !loading && (!data || data.items.length === 0);
 
-  // Endpoint binarny — poza Orvalem, jak eksport raportów zakupowych.
+  // Endpoint binarny — poza Orvalem, jak eksport raportów zakupowych. Te same
+  // parametry co na ekranie (search/categoryFilter/odpięte kategorie) — plik
+  // ma pokazywać dokładnie to, na co user właśnie patrzy, nie "wszystko".
   async function exportXlsx() {
     setExporting(true);
     try {
       const token = await session?.getToken();
-      const res = await fetch(apiUrl(`/api/sales.xlsx?month=${month}`), {
+      const params = new URLSearchParams({ month });
+      if (search.trim()) params.set("q", search.trim());
+      if (categoryFilter) params.set("category", categoryFilter);
+      if (hiddenBreakdownCategories.size > 0) params.set("excludeCategories", [...hiddenBreakdownCategories].join(","));
+      const res = await fetch(apiUrl(`/api/sales.xlsx?${params.toString()}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
@@ -450,7 +472,7 @@ export default function Sprzedaz() {
               onClick={exportXlsx}
               disabled={exporting || empty}
               className="gap-1.5"
-              title={categoryFilter || hiddenBreakdownCategories.size > 0 ? "Eksport zawiera PEŁNE dane za miesiąc, bez filtra/odpiętych kategorii z ekranu" : undefined}
+              title={categoryFilter || hiddenBreakdownCategories.size > 0 || search.trim() ? "Eksport uwzględnia bieżący filtr/wyszukiwanie/odpięte kategorie z ekranu" : undefined}
             >
               {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
               Excel
@@ -572,16 +594,16 @@ export default function Sprzedaz() {
                 )}
               </div>
             )}
-            {(newItems.length > 0 || decliningItems.length > 0) && (
+            {(visibleNewItems.length > 0 || visibleDecliningItems.length > 0) && (
               <div className="grid md:grid-cols-2 gap-4 mb-4">
-                {newItems.length > 0 && (
+                {visibleNewItems.length > 0 && (
                   <div className="glass p-4">
                     <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
                       <Sparkles className="w-3.5 h-3.5" />
                       Nowości w karcie
                     </div>
                     <div className="space-y-2">
-                      {newItems.slice(0, 5).map((i) => (
+                      {visibleNewItems.slice(0, 5).map((i) => (
                         <button
                           key={i.key}
                           type="button"
@@ -598,14 +620,14 @@ export default function Sprzedaz() {
                     </div>
                   </div>
                 )}
-                {decliningItems.length > 0 && (
+                {visibleDecliningItems.length > 0 && (
                   <div className="glass p-4">
                     <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
                       <TrendingDown className="w-3.5 h-3.5" />
                       Spadająca sprzedaż
                     </div>
                     <div className="space-y-2">
-                      {decliningItems.slice(0, 5).map((i) => (
+                      {visibleDecliningItems.slice(0, 5).map((i) => (
                         <button
                           key={i.key}
                           type="button"
