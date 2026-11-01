@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2, LineChart, Sparkles, TrendingDown, AlertTriangle } from "@/lib/icons";
+import { ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2, LineChart, Sparkles, TrendingDown, AlertTriangle, X } from "@/lib/icons";
 import { Link } from "wouter";
 import { CHART_COLORS } from "./reports/components";
 
@@ -196,6 +196,16 @@ export default function Sprzedaz() {
     setCategoryFilter((prev) => (prev === category ? "" : category));
   }
 
+  // Kategorie odpięte z widoku "Sprzedaż wg kategorii dania" — lista z 15+
+  // pozycjami (dania, bufety, sala weselna...) zaśmieca kartę; user chowa to,
+  // co go nie interesuje. Czysto widokowe, resetuje się przy odświeżeniu —
+  // nie wpływa na filtr tabeli ani na żadne sumy.
+  const [hiddenBreakdownCategories, setHiddenBreakdownCategories] = useState<Set<string>>(new Set());
+  function hideBreakdownCategory(category: string) {
+    setHiddenBreakdownCategories((prev) => new Set(prev).add(category));
+    if (categoryFilter === category) setCategoryFilter("");
+  }
+
   function toggleExpanded(key: string) {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -283,6 +293,21 @@ export default function Sprzedaz() {
     const rest = list.filter((c) => c.category !== UNCATEGORIZED);
     return [...rest, ...uncategorized];
   }, [data]);
+
+  // Kolor liczony z PEŁNEJ listy (nie po odfiltrowaniu ukrytych), żeby kolory
+  // pozostałych kategorii nie przeskakiwały przy chowaniu/przywracaniu wiersza.
+  const categoryColor = useMemo(() => {
+    const m = new Map<string, string>();
+    categoryBreakdown.forEach((c, i) => {
+      m.set(c.category, c.category === UNCATEGORIZED ? "hsl(var(--muted-foreground))" : CHART_COLORS[i % CHART_COLORS.length]);
+    });
+    return m;
+  }, [categoryBreakdown]);
+
+  const visibleCategoryBreakdown = useMemo(
+    () => categoryBreakdown.filter((c) => !hiddenBreakdownCategories.has(c.category)),
+    [categoryBreakdown, hiddenBreakdownCategories],
+  );
 
   // Najmocniej rosnące/spadające pozycje — tylko te o realnym udziale w obrocie
   // (próg 1% totalNet), inaczej kawa za 8 zł z „+300%" zdominowałaby listę obok
@@ -541,47 +566,67 @@ export default function Sprzedaz() {
             )}
             {categoryBreakdown.length > 0 && (
               <div className="glass p-4 mb-4">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3 gap-2">
                   <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     Sprzedaż wg kategorii dania
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowCategoryTrend(true)}
-                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <LineChart className="w-3.5 h-3.5" />
-                    Trend w czasie
-                  </button>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {hiddenBreakdownCategories.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setHiddenBreakdownCategories(new Set())}
+                        className="text-[11px] text-muted-foreground hover:text-foreground transition-colors underline"
+                      >
+                        Pokaż ukryte ({hiddenBreakdownCategories.size})
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryTrend(true)}
+                      className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <LineChart className="w-3.5 h-3.5" />
+                      Trend w czasie
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-3">
-                  {categoryBreakdown.map((c, i) => {
-                    const isUncategorized = c.category === UNCATEGORIZED;
-                    const color = isUncategorized ? "hsl(var(--muted-foreground))" : CHART_COLORS[i % CHART_COLORS.length];
+                  {visibleCategoryBreakdown.map((c) => {
+                    const color = categoryColor.get(c.category)!;
                     const active = categoryFilter === c.category;
                     const dimmed = categoryFilter !== "" && !active;
                     return (
-                      <button
-                        key={c.category}
-                        type="button"
-                        onClick={() => toggleCategoryFilter(c.category)}
-                        aria-pressed={active}
-                        className={cn("w-full text-left transition-opacity", dimmed && "opacity-40")}
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                            <span className="text-xs text-foreground truncate">{c.label}</span>
+                      <div key={c.category} className={cn("group flex items-center gap-2 transition-opacity", dimmed && "opacity-40")}>
+                        <button
+                          type="button"
+                          onClick={() => toggleCategoryFilter(c.category)}
+                          aria-pressed={active}
+                          className="flex-1 min-w-0 text-left"
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                              <span className="text-xs text-foreground truncate">{c.label}</span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[11px] text-muted-foreground tabular-nums">{c.pct.toFixed(0)}%</span>
+                              <span className="text-xs font-semibold tabular-nums">{formatPrice(c.netValue)}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-[11px] text-muted-foreground tabular-nums">{c.pct.toFixed(0)}%</span>
-                            <span className="text-xs font-semibold tabular-nums">{formatPrice(c.netValue)}</span>
+                          <div className="h-1 bg-secondary overflow-hidden">
+                            <div className="h-full transition-all" style={{ width: `${c.pct}%`, background: color }} />
                           </div>
-                        </div>
-                        <div className="h-1 bg-secondary overflow-hidden">
-                          <div className="h-full transition-all" style={{ width: `${c.pct}%`, background: color }} />
-                        </div>
-                      </button>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); hideBreakdownCategory(c.category); }}
+                          title={`Odepnij „${c.label}" z listy`}
+                          aria-label={`Odepnij kategorię ${c.label}`}
+                          className="shrink-0 p-1 text-muted-foreground opacity-30 group-hover:opacity-100 hover:text-foreground transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
