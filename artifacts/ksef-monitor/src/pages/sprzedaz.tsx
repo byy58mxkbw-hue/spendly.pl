@@ -282,8 +282,35 @@ export default function Sprzedaz() {
         categoryFilter === UNCATEGORIZED ? i.category == null : i.category === categoryFilter,
       );
     }
+    if (hiddenBreakdownCategories.size > 0) {
+      filtered = filtered.filter((i) => {
+        const key = i.category == null ? UNCATEGORIZED : i.category;
+        return !hiddenBreakdownCategories.has(key);
+      });
+    }
     return [...filtered].sort((a, b) => compareItems(a, b, sort));
-  }, [displayItems, search, sort, categoryFilter]);
+  }, [displayItems, search, sort, categoryFilter, hiddenBreakdownCategories]);
+
+  // Pasek "Pozycji / Sprzedano / Wartość netto" ma liczyć DOKŁADNIE to, co jest
+  // w tabeli poniżej — inaczej odpięcie kategorii (albo wyszukiwanie/filtr)
+  // zostawiałoby stare, niespójne sumy na górze. prevQty/prevNet na każdej
+  // pozycji już uwzględniają compareMode (patrz withCompareMode), więc % zmiany
+  // liczony z tych sum jest spójny z przełącznikiem "vs poprz. miesiąc/rok".
+  const summaryTotals = useMemo(() => {
+    let qty = 0, net = 0, prevQty = 0, prevNet = 0;
+    for (const i of items) {
+      qty += i.qty;
+      net += i.netValue;
+      if (i.prevQty != null) prevQty += i.prevQty;
+      if (i.prevNet != null) prevNet += i.prevNet;
+    }
+    return {
+      qty,
+      net,
+      qtyChangePct: prevQty > 0 ? Math.round(((qty - prevQty) / prevQty) * 1000) / 10 : null,
+      netChangePct: prevNet > 0 ? Math.round(((net - prevNet) / prevNet) * 1000) / 10 : null,
+    };
+  }, [items]);
 
   // „Niezakategoryzowane" zawsze na końcu, niezależnie od wartości sprzedaży —
   // to podpowiedź do dokończenia powiązania, nie wynik do rywalizacji o pozycję.
@@ -342,8 +369,8 @@ export default function Sprzedaz() {
   const [concentrationOpen, setConcentrationOpen] = useState(false);
 
   const prevPeriodLabel = compareMode === "month" ? "Poprz. mies." : "Rok wcześniej";
-  const effTotalQtyChangePct = data ? (compareMode === "month" ? data.totalQtyChangePct : data.totalQtyYearChangePct) : null;
-  const effTotalNetChangePct = data ? (compareMode === "month" ? data.totalNetChangePct : data.totalNetYearChangePct) : null;
+  const effTotalQtyChangePct = summaryTotals.qtyChangePct;
+  const effTotalNetChangePct = summaryTotals.netChangePct;
 
   const empty = !loading && (!data || data.items.length === 0);
 
@@ -651,7 +678,7 @@ export default function Sprzedaz() {
                   title="Pokaż sprzedaż (ilość) miesiąc po miesiącu"
                 >
                   <span className="text-xs text-muted-foreground">Sprzedano</span>{" "}
-                  <span className="text-sm font-semibold tabular-nums">{fmtQty(data!.totalQty)}</span>
+                  <span className="text-sm font-semibold tabular-nums">{fmtQty(summaryTotals.qty)}</span>
                   {effTotalQtyChangePct != null && (
                     <span className={cn("text-xs ml-1 tabular-nums", tone(effTotalQtyChangePct))}>
                       ({effTotalQtyChangePct > 0 ? "+" : ""}{effTotalQtyChangePct.toFixed(0)}%)
@@ -665,7 +692,7 @@ export default function Sprzedaz() {
                   title="Pokaż wartość netto miesiąc po miesiącu"
                 >
                   <span className="text-xs text-muted-foreground">Wartość netto</span>{" "}
-                  <span className="text-sm font-semibold tabular-nums">{formatPrice(data!.totalNet)}</span>
+                  <span className="text-sm font-semibold tabular-nums">{formatPrice(summaryTotals.net)}</span>
                   {effTotalNetChangePct != null && (
                     <span className={cn("text-xs ml-1 tabular-nums", tone(effTotalNetChangePct))}>
                       ({effTotalNetChangePct > 0 ? "+" : ""}{effTotalNetChangePct.toFixed(0)}%)
