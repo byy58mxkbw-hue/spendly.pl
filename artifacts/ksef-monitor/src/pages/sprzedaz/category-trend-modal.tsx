@@ -4,12 +4,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useClerk } from "@clerk/react";
 import {
-  Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { apiUrl } from "@/lib/api-base";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { CHART_COLORS } from "../reports/components";
 
 const MONTH_NAMES = [
@@ -34,6 +35,18 @@ export function CategoryTrendModal({ onClose }: { onClose: () => void }) {
   const { session } = useClerk();
   const [data, setData] = useState<CategoryTrendResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  // Kategorie ręcznie odznaczone przez usera — wykres z 8+ kategoriami robi
+  // się nieczytelny, więc pozwalamy schować te, które nie interesują (np.
+  // jednorazowa "Sala weselna"). Resetuje się przy ponownym otwarciu modala.
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  function toggleHidden(key: string) {
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -86,42 +99,75 @@ export function CategoryTrendModal({ onClose }: { onClose: () => void }) {
             Brak danych sprzedaży w ostatnich {MONTHS} miesiącach.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[480px]">
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData} margin={{ top: 4, right: 4, left: -8, bottom: 0 }} barCategoryGap="22%">
-                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    tickLine={false}
-                    axisLine={{ stroke: "hsl(var(--border))" }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-                    tickLine={false}
-                    axisLine={false}
-                    width={52}
-                    tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip
-                    labelFormatter={(_, payload) => (payload?.[0]?.payload?.month ? monthLong(payload[0].payload.month as string) : "")}
-                    formatter={(v: number, name: string) => [formatPrice(v), name]}
-                    contentStyle={{
-                      background: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "4px",
-                      fontSize: "12px",
-                    }}
-                  />
-                  <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-                  {categories.map((c) => (
-                    <Bar key={c.key} dataKey={c.key} stackId="a" fill={c.color} name={c.label} isAnimationActive={false} />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
+          <>
+            <div className="overflow-x-auto">
+              <div className="min-w-[480px]">
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartData} margin={{ top: 4, right: 4, left: -8, bottom: 0 }} barCategoryGap="22%">
+                    <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      tickLine={false}
+                      axisLine={{ stroke: "hsl(var(--border))" }}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={52}
+                      tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip
+                      labelFormatter={(_, payload) => (payload?.[0]?.payload?.month ? monthLong(payload[0].payload.month as string) : "")}
+                      formatter={(v: number, name: string) => [formatPrice(v), name]}
+                      contentStyle={{
+                        background: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "4px",
+                        fontSize: "12px",
+                      }}
+                    />
+                    {categories.filter((c) => !hidden.has(c.key)).map((c) => (
+                      <Bar key={c.key} dataKey={c.key} stackId="a" fill={c.color} name={c.label} isAnimationActive={false} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          </div>
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                {categories.map((c) => {
+                  const isHidden = hidden.has(c.key);
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => toggleHidden(c.key)}
+                      aria-pressed={!isHidden}
+                      title={isHidden ? `Pokaż „${c.label}"` : `Schowaj „${c.label}"`}
+                      className={cn(
+                        "flex items-center gap-1.5 text-[11px] transition-opacity max-w-[160px]",
+                        isHidden ? "opacity-40 line-through" : "opacity-100",
+                      )}
+                    >
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
+                      <span className="truncate">{c.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {hidden.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setHidden(new Set())}
+                  className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground transition-colors underline"
+                >
+                  Pokaż wszystkie
+                </button>
+              )}
+            </div>
+          </>
         )}
       </DialogContent>
     </Dialog>
