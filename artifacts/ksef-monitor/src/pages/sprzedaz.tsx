@@ -51,6 +51,9 @@ type SalesResponse = {
   prevYearTotalNet: number;
   totalQtyYearChangePct: number | null;
   totalNetYearChangePct: number | null;
+  /** Wybrany okres jeszcze trwa (bieżący miesiąc) — % zmiany byłby nieuczciwy
+   * (niepełny miesiąc vs pełny poprzedni), więc backend go nie liczy. */
+  periodInProgress: boolean;
   items: SalesItem[];
   categoryBreakdown: CategoryBreakdownEntry[];
 };
@@ -135,16 +138,20 @@ function SortHeader({ label, sortKey, sort, onSort, align = "right", className }
   return (
     <th
       aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
-      className={cn(align === "left" ? "text-left" : "text-right", className)}
+      className={cn(align === "left" ? "text-left" : "text-right", "p-0")}
     >
+      {/* Padding na BUTTONIE, nie na th — inaczej th wygląda na klikalne
+          w całej swojej powierzchni, ale realnym celem dotyku jest tylko
+          ciasny napis+ikona w środku (problem na telefonie). */}
       <button
         type="button"
         onClick={() => onSort(sortKey)}
         aria-label={`Sortuj wg: ${label}`}
         className={cn(
-          "inline-flex items-center gap-1 uppercase tracking-wide transition-colors hover:text-foreground",
-          align === "right" && "flex-row-reverse",
+          "w-full flex items-center gap-1 uppercase tracking-wide transition-colors hover:text-foreground",
+          align === "right" && "flex-row-reverse justify-end",
           active && "text-foreground",
+          className,
         )}
       >
         {label}
@@ -304,13 +311,18 @@ export default function Sprzedaz() {
       if (i.prevQty != null) prevQty += i.prevQty;
       if (i.prevNet != null) prevNet += i.prevNet;
     }
+    // Okres w trakcie (np. dziś 1. dzień miesiąca) — backend już nie liczy %
+    // zmiany dla pozycji (`periodInProgress`), ale ten pasek liczy % SAM z
+    // sum prevQty/prevNet, więc musi tę samą zasadę powtórzyć — inaczej dalej
+    // pokaże fałszywe "-98%" mimo że tabela pod nim już milczy.
+    const suppressChange = data?.periodInProgress ?? false;
     return {
       qty,
       net,
-      qtyChangePct: prevQty > 0 ? Math.round(((qty - prevQty) / prevQty) * 1000) / 10 : null,
-      netChangePct: prevNet > 0 ? Math.round(((net - prevNet) / prevNet) * 1000) / 10 : null,
+      qtyChangePct: !suppressChange && prevQty > 0 ? Math.round(((qty - prevQty) / prevQty) * 1000) / 10 : null,
+      netChangePct: !suppressChange && prevNet > 0 ? Math.round(((net - prevNet) / prevNet) * 1000) / 10 : null,
     };
-  }, [items]);
+  }, [items, data?.periodInProgress]);
 
   // „Niezakategoryzowane" zawsze na końcu, niezależnie od wartości sprzedaży —
   // to podpowiedź do dokończenia powiązania, nie wynik do rywalizacji o pozycję.
@@ -336,36 +348,48 @@ export default function Sprzedaz() {
     [categoryBreakdown, hiddenBreakdownCategories],
   );
 
+  // Modal "Trend w czasie" (category-trend-modal) ma WŁASNY stan ukrytych
+  // kategorii — startuje go wartością stąd, żeby user nie musiał odpinać
+  // "Sali weselnej" drugi raz. Klucz w /sales/category-trend to etykieta
+  // "Niezakategoryzowane" (literał), nie stały UNCATEGORIZED z tej strony.
+  const initialTrendHiddenLabels = useMemo(
+    () => new Set([...hiddenBreakdownCategories].map((c) => (c === UNCATEGORIZED ? "Niezakategoryzowane" : c))),
+    [hiddenBreakdownCategories],
+  );
+
   // Najmocniej rosnące/spadające pozycje — tylko te o realnym udziale w obrocie
-  // (próg 1% totalNet), inaczej kawa za 8 zł z „+300%" zdominowałaby listę obok
-  // steka wartego tysiące. Z `displayItems`, więc respektuje compareMode.
+  // (próg 1% obrotu), inaczej kawa za 8 zł z „+300%" zdominowałaby listę obok
+  // steka wartego tysiące. Z `items` (nie `displayItems`) — ma liczyć się z
+  // DOKŁADNIE tego samego zestawu co tabela i pasek u góry: respektuje
+  // categoryFilter, odpięte kategorie i wyszukiwanie, nie tylko compareMode.
+  // `netChangePct == null` samo odsiewa okres w trakcie (backend go nie liczy).
   const movers = useMemo(() => {
-    if (!data || data.totalNet <= 0) return { up: [], down: [] as SalesItem[] };
-    const minNet = data.totalNet * 0.01;
-    const eligible = displayItems.filter(
+    if (summaryTotals.net <= 0) return { up: [], down: [] as SalesItem[] };
+    const minNet = summaryTotals.net * 0.01;
+    const eligible = items.filter(
       (i) => i.netChangePct != null && i.netValue >= minNet && i.prevNet != null && i.prevNet >= minNet,
     );
     const up = eligible.filter((i) => i.netChangePct! > 0).sort((a, b) => b.netChangePct! - a.netChangePct!).slice(0, 3);
     const down = eligible.filter((i) => i.netChangePct! < 0).sort((a, b) => a.netChangePct! - b.netChangePct!).slice(0, 3);
     return { up, down };
-  }, [data, displayItems]);
+  }, [items, summaryTotals.net]);
 
-  // Udział TOP 10 pozycji w całym obrocie — im wyższy, tym bardziej restauracja
-  // zależy od kilku hitów (zasada Pareto).
+  // Udział TOP 10 pozycji w obrocie — im wyższy, tym bardziej restauracja
+  // zależy od kilku hitów (zasada Pareto). Z `items`, z tych samych powodów co movers.
   const concentration = useMemo(() => {
-    if (!data || data.items.length === 0 || data.totalNet <= 0) return null;
-    const top10 = [...data.items].sort((a, b) => b.netValue - a.netValue).slice(0, 10);
+    if (items.length === 0 || summaryTotals.net <= 0) return null;
+    const top10 = [...items].sort((a, b) => b.netValue - a.netValue).slice(0, 10);
     const top10Net = top10.reduce((s, i) => s + i.netValue, 0);
     return {
-      pct: Math.round((top10Net / data.totalNet) * 1000) / 10,
+      pct: Math.round((top10Net / summaryTotals.net) * 1000) / 10,
       items: top10.map((i) => ({
         key: i.key,
         name: i.productName,
         netValue: i.netValue,
-        share: Math.round((i.netValue / data.totalNet) * 1000) / 10,
+        share: Math.round((i.netValue / summaryTotals.net) * 1000) / 10,
       })),
     };
-  }, [data]);
+  }, [items, summaryTotals.net]);
   const [concentrationOpen, setConcentrationOpen] = useState(false);
 
   const prevPeriodLabel = compareMode === "month" ? "Poprz. mies." : "Rok wcześniej";
@@ -420,7 +444,14 @@ export default function Sprzedaz() {
             <p className="text-xs text-muted-foreground mt-0.5">Ile czego sprzedano i za ile — z GoPOS, z porównaniem do poprzedniego miesiąca.</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={exportXlsx} disabled={exporting || empty} className="gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportXlsx}
+              disabled={exporting || empty}
+              className="gap-1.5"
+              title={categoryFilter || hiddenBreakdownCategories.size > 0 ? "Eksport zawiera PEŁNE dane za miesiąc, bez filtra/odpiętych kategorii z ekranu" : undefined}
+            >
               {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
               Excel
             </Button>
@@ -501,7 +532,7 @@ export default function Sprzedaz() {
                       <button
                         type="button"
                         onClick={() => setConcentrationOpen((v) => !v)}
-                        className="flex items-center gap-1.5 text-left"
+                        className="flex items-center gap-1.5 text-left p-1.5 -m-1.5"
                         aria-expanded={concentrationOpen}
                       >
                         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -512,7 +543,7 @@ export default function Sprzedaz() {
                       <button
                         type="button"
                         onClick={() => setShowConcentrationTrend(true)}
-                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-muted-foreground hover:text-foreground transition-colors p-1.5 -m-1.5"
                         title="Trend koncentracji w czasie"
                         aria-label="Trend koncentracji w czasie"
                       >
@@ -649,9 +680,9 @@ export default function Sprzedaz() {
                           onClick={(e) => { e.stopPropagation(); hideBreakdownCategory(c.category); }}
                           title={`Odepnij „${c.label}" z listy`}
                           aria-label={`Odepnij kategorię ${c.label}`}
-                          className="shrink-0 p-1 text-muted-foreground opacity-30 group-hover:opacity-100 hover:text-foreground transition-opacity"
+                          className="shrink-0 p-2 -m-0.5 text-muted-foreground opacity-60 group-hover:opacity-100 hover:text-foreground transition-opacity"
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     );
@@ -699,6 +730,11 @@ export default function Sprzedaz() {
                     </span>
                   )}
                 </button>
+                {data?.periodInProgress && (
+                  <span className="text-[11px] text-muted-foreground italic">
+                    miesiąc w trakcie — porównanie po jego zakończeniu
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center rounded-md border border-border p-0.5 text-xs">
@@ -723,6 +759,7 @@ export default function Sprzedaz() {
                 </div>
               </div>
             </div>
+            <div className="relative">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] tabular-nums">
                 <thead>
@@ -757,12 +794,12 @@ export default function Sprzedaz() {
                                   onClick={(e) => { e.stopPropagation(); toggleExpanded(it.key); }}
                                   aria-expanded={isOpen}
                                   aria-label={isOpen ? "Zwiń warianty" : "Rozwiń warianty"}
-                                  className="p-0.5 -ml-1 text-muted-foreground hover:text-foreground shrink-0"
+                                  className="p-1.5 -ml-1.5 -my-1.5 text-muted-foreground hover:text-foreground shrink-0"
                                 >
                                   {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                                 </button>
                               ) : (
-                                <span className="w-[18px] shrink-0" aria-hidden />
+                                <span className="w-[24px] shrink-0" aria-hidden />
                               )}
                               <span className="min-w-0 flex-1">
                                 <span className="text-sm text-foreground truncate block">{it.productName}</span>
@@ -821,6 +858,10 @@ export default function Sprzedaz() {
                 </tbody>
               </table>
             </div>
+            {/* Tabela ma 7 kolumn i przy ~375px mieści ~2 — bez tego user nie wie,
+                że trzeba przewinąć w bok, żeby zobaczyć resztę. */}
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-card to-transparent sm:hidden" aria-hidden />
+            </div>
           </div>
           </>
         )}
@@ -834,6 +875,11 @@ export default function Sprzedaz() {
             productName={trend.name}
             total={trend.total}
             initialMetric={trend.metric}
+            // "Wszystkie pozycje" pyta backend o PRAWDZIWY globalny total (12 mies.),
+            // niezależnie od filtra/odpiętych kategorii na liście — inaczej pasek
+            // nad tabelą (przefiltrowany) i ten modal (otwierany z tych samych
+            // przycisków) pokazywałyby dwie sprzeczne liczby bez wyjaśnienia.
+            filtersActive={trend.total === true && (categoryFilter !== "" || hiddenBreakdownCategories.size > 0)}
             onClose={() => setTrend(null)}
           />
         </Suspense>
@@ -841,7 +887,11 @@ export default function Sprzedaz() {
 
       {showCategoryTrend && (
         <Suspense fallback={null}>
-          <CategoryTrendModal onClose={() => setShowCategoryTrend(false)} />
+          <CategoryTrendModal
+            onClose={() => setShowCategoryTrend(false)}
+            initialHidden={initialTrendHiddenLabels}
+            filtersActive={categoryFilter !== ""}
+          />
         </Suspense>
       )}
 

@@ -3,7 +3,7 @@ import ExcelJS from "exceljs";
 import { db, posSalesTable, posSalesDailyTable } from "@workspace/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { toNum } from "../lib/parse";
-import { periodFromQuery, previousPeriod, yearAgoPeriod, periodLabel, monthsInRange, type Period } from "../lib/period";
+import { periodFromQuery, previousPeriod, yearAgoPeriod, periodLabel, monthsInRange, isPeriodInProgress, type Period } from "../lib/period";
 import { categoryForSaleName, commonWordPrefix, normalizeName, posGroupKey, sharesCommonPrefix, umbrellaFor } from "../lib/pos-group";
 import { captureServer } from "../lib/telemetry";
 import { ensureDailySalesForMonth } from "../services/gopos-daily";
@@ -273,6 +273,25 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
   // Sortowanie po WARTOŚCI, nie ilości — 300 kaw po 4 zł znaczy dla wyniku
   // mniej niż 40 dań po 90 zł. Front i tak pozwala przesortować.
   groups.sort((a, b) => b.netValue - a.netValue);
+
+  // Okres w trakcie (np. dziś to 2026-11-01, a `period` to cały listopad) —
+  // suma bieżącego okresu jest z definicji niepełna, więc % zmiany względem
+  // PEŁNEGO poprzedniego okresu byłby fałszywy (1 dzień vs 30 dni = -98%,
+  // mimo że sprzedaż realnie nie spadła). Surowe `prevQty`/`prevNet` zostają —
+  // to prawdziwe dane, tylko procent porównania chowamy do zakończenia okresu.
+  if (isPeriodInProgress(period)) {
+    const clearChange = (l: { qtyChangePct: number | null; netChangePct: number | null; qtyYearChangePct: number | null; netYearChangePct: number | null }) => {
+      l.qtyChangePct = null;
+      l.netChangePct = null;
+      l.qtyYearChangePct = null;
+      l.netYearChangePct = null;
+    };
+    for (const g of groups) {
+      clearChange(g);
+      for (const v of g.variants) clearChange(v);
+    }
+  }
+
   return { groups, prev, prevYear };
 }
 
@@ -314,6 +333,9 @@ router.get("/sales", async (req, res): Promise<void> => {
   const prevTotalNet = groups.reduce((s, g) => s + (g.prevNet ?? 0), 0);
   const prevYearTotalQty = groups.reduce((s, g) => s + (g.prevYearQty ?? 0), 0);
   const prevYearTotalNet = groups.reduce((s, g) => s + (g.prevYearNet ?? 0), 0);
+  // Patrz komentarz w buildSalesGroups — okres w trakcie nie ma uczciwej bazy
+  // porównania z pełnym poprzednim okresem.
+  const inProgress = isPeriodInProgress(period);
 
   res.json({
     from: period.from,
@@ -322,12 +344,13 @@ router.get("/sales", async (req, res): Promise<void> => {
     totalNet,
     prevTotalQty,
     prevTotalNet,
-    totalQtyChangePct: changePct(totalQty, prevTotalQty),
-    totalNetChangePct: changePct(totalNet, prevTotalNet),
+    totalQtyChangePct: inProgress ? null : changePct(totalQty, prevTotalQty),
+    totalNetChangePct: inProgress ? null : changePct(totalNet, prevTotalNet),
     prevYearTotalQty,
     prevYearTotalNet,
-    totalQtyYearChangePct: changePct(totalQty, prevYearTotalQty),
-    totalNetYearChangePct: changePct(totalNet, prevYearTotalNet),
+    totalQtyYearChangePct: inProgress ? null : changePct(totalQty, prevYearTotalQty),
+    totalNetYearChangePct: inProgress ? null : changePct(totalNet, prevYearTotalNet),
+    periodInProgress: inProgress,
     items: groups,
     categoryBreakdown: buildCategoryBreakdown(groups),
   });

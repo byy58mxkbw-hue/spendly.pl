@@ -24,6 +24,13 @@ export function periodFromQuery(q: { from?: unknown; to?: unknown; month?: unkno
   return { from: `${month}-01`, to: `${month}-${pad(lastDayOfMonth(y, m))}` };
 }
 
+// Czy okres jeszcze trwa (jego koniec jest w przyszłości względem dziś) — np.
+// bieżący miesiąc w trakcie. Porównanie z PEŁNYM poprzednim okresem byłoby
+// wtedy nieuczciwe (1 dzień listopada vs 30 dni października = fałszywe -98%).
+export function isPeriodInProgress(p: Period): boolean {
+  return p.to > ymdUTC(new Date());
+}
+
 const isFirstOfMonth = (d: string) => d.slice(8, 10) === "01";
 const isLastOfMonth = (d: string) => {
   const [y, m, day] = d.split("-").map(Number);

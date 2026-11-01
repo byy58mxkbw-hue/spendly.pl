@@ -55,12 +55,13 @@ export function ConcentrationTrendModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl max-h-[88vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="head-display text-lg">Koncentracja sprzedaży w czasie</DialogTitle>
         </DialogHeader>
         <p className="text-xs text-muted-foreground -mt-2">Jaki % obrotu robi TOP 10 pozycji, miesiąc po miesiącu.</p>
 
+        <div className="flex-1 overflow-y-auto min-h-0">
         {loading ? (
           <Skeleton className="h-64 w-full" />
         ) : !hasAnyData ? (
@@ -109,8 +110,10 @@ export function ConcentrationTrendModal({ onClose }: { onClose: () => void }) {
                 </RLineChart>
               </ResponsiveContainer>
             </div>
+            <p className="text-[11px] text-muted-foreground sm:hidden mt-1">Przewiń wykres w bok, by zobaczyć więcej miesięcy.</p>
           </div>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );

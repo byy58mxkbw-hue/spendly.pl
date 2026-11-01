@@ -31,14 +31,23 @@ function monthLong(ym: string): string {
 
 type CategoryTrendResponse = { months: string[]; series: Array<{ label: string; isUncategorized?: boolean; data: number[] }> };
 
-export function CategoryTrendModal({ onClose }: { onClose: () => void }) {
+export function CategoryTrendModal({ onClose, initialHidden, filtersActive }: {
+  onClose: () => void;
+  /** Kategorie już odpięte na liście "Sprzedaż wg kategorii dania" — wykres
+   * startuje z tymi samymi schowanymi, żeby user nie odpinał drugi raz. */
+  initialHidden?: Set<string>;
+  /** Strona ma aktywny filtr pojedynczej kategorii — ten wykres go NIE
+   * respektuje (zawsze pokazuje wszystkie, poza initialHidden), stąd notka. */
+  filtersActive?: boolean;
+}) {
   const { session } = useClerk();
   const [data, setData] = useState<CategoryTrendResponse | null>(null);
   const [loading, setLoading] = useState(true);
   // Kategorie ręcznie odznaczone przez usera — wykres z 8+ kategoriami robi
   // się nieczytelny, więc pozwalamy schować te, które nie interesują (np.
-  // jednorazowa "Sala weselna"). Resetuje się przy ponownym otwarciu modala.
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  // jednorazowa "Sala weselna"). Startuje od `initialHidden` (zsynchronizowane
+  // z listą na stronie), dalsze zmiany tutaj są lokalne dla tego wykresu.
+  const [hidden, setHidden] = useState<Set<string>>(() => new Set(initialHidden));
   function toggleHidden(key: string) {
     setHidden((prev) => {
       const next = new Set(prev);
@@ -87,11 +96,17 @@ export function CategoryTrendModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl max-h-[88vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="head-display text-lg">Kategorie dań w czasie</DialogTitle>
         </DialogHeader>
+        {filtersActive && (
+          <p className="text-xs text-muted-foreground -mt-2">
+            Ten wykres zawsze pokazuje wszystkie kategorie (poza ręcznie schowanymi niżej), niezależnie od filtra na liście.
+          </p>
+        )}
 
+        <div className="flex-1 overflow-y-auto min-h-0">
         {loading ? (
           <Skeleton className="h-64 w-full" />
         ) : !hasAnyData ? (
@@ -100,7 +115,7 @@ export function CategoryTrendModal({ onClose }: { onClose: () => void }) {
           </p>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto -mx-1 px-1">
               <div className="min-w-[480px]">
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={chartData} margin={{ top: 4, right: 4, left: -8, bottom: 0 }} barCategoryGap="22%">
@@ -135,8 +150,9 @@ export function CategoryTrendModal({ onClose }: { onClose: () => void }) {
                 </ResponsiveContainer>
               </div>
             </div>
+            <p className="text-[11px] text-muted-foreground sm:hidden -mt-1">Przewiń wykres w bok, by zobaczyć więcej miesięcy.</p>
             <div className="flex items-center justify-between gap-2 mt-2">
-              <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+              <div className="flex flex-wrap gap-x-1 gap-y-1">
                 {categories.map((c) => {
                   const isHidden = hidden.has(c.key);
                   return (
@@ -147,7 +163,7 @@ export function CategoryTrendModal({ onClose }: { onClose: () => void }) {
                       aria-pressed={!isHidden}
                       title={isHidden ? `Pokaż „${c.label}"` : `Schowaj „${c.label}"`}
                       className={cn(
-                        "flex items-center gap-1.5 text-[11px] transition-opacity max-w-[160px]",
+                        "flex items-center gap-1.5 text-[11px] transition-opacity max-w-[160px] px-1.5 py-1.5 -my-1.5",
                         isHidden ? "opacity-40 line-through" : "opacity-100",
                       )}
                     >
@@ -169,6 +185,7 @@ export function CategoryTrendModal({ onClose }: { onClose: () => void }) {
             </div>
           </>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );

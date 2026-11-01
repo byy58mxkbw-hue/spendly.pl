@@ -32,6 +32,10 @@ function monthLong(ym: string): string {
   const [y, mm] = ym.split("-");
   return `${MONTH_NAMES[parseInt(mm, 10) - 1] ?? mm} ${y}`;
 }
+function isCurrentCalendarMonth(ym: string): boolean {
+  const d = new Date();
+  return ym === `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
 type TrendMonth = { month: string; qty: number; netValue: number; avgPrice: number | null };
 type TrendResponse = { productName: string; variantCount: number; months: TrendMonth[] };
@@ -103,7 +107,7 @@ function DailyChartTooltip({ active, payload, metric }: {
   );
 }
 
-export function SalesTrendModal({ label, groupKey, productName, total, initialMetric, onClose }: {
+export function SalesTrendModal({ label, groupKey, productName, total, initialMetric, filtersActive, onClose }: {
   /** Nazwa do nagłówka — mamy ją od razu, więc tytuł nie mruga po wczytaniu. */
   label: string;
   /** Klucz grupy z POS: wykres obejmuje wszystkie warianty (np. wszystkie wysmażenia). */
@@ -113,6 +117,10 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
   /** Suma WSZYSTKICH pozycji — klik w podsumowanie "Sprzedano"/"Wartość netto" na górze strony. */
   total?: boolean;
   initialMetric?: Metric;
+  /** Strona ma aktywny filtr/odpięte kategorie — ten modal ich NIE respektuje
+   * (zawsze liczy globalnie), więc pokazujemy o tym jawną notkę zamiast
+   * cichej sprzeczności z liczbą na pasku, z którego go otwarto. */
+  filtersActive?: boolean;
   onClose: () => void;
 }) {
   const { session } = useClerk();
@@ -187,7 +195,11 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
   const last = rows[rows.length - 1];
   const prev = rows[rows.length - 2];
   const value = (r: typeof last) => (metric === "qty" ? r?.qty ?? 0 : r?.netValue ?? 0);
-  const delta = last && prev && value(prev) > 0 ? ((value(last) - value(prev)) / value(prev)) * 100 : null;
+  // `last` to zawsze najświeższy miesiąc w oknie — gdy to BIEŻĄCY, niepełny
+  // miesiąc (np. 1 dzień listopada), porównanie z pełnym październikiem daje
+  // fałszywe "-98%". Zamiast liczyć, oznaczamy to jawnie (patrz niżej).
+  const lastInProgress = last ? isCurrentCalendarMonth(last.month) : false;
+  const delta = last && prev && !lastInProgress && value(prev) > 0 ? ((value(last) - value(prev)) / value(prev)) * 100 : null;
   const maxVal = rows.reduce((m, r) => Math.max(m, value(r)), 0);
   const avg = rows.length ? rows.reduce((s, r) => s + value(r), 0) / rows.length : 0;
   const fmt = (v: number) => (metric === "qty" ? `${fmtQty(v)} szt.` : formatPrice(v));
@@ -196,15 +208,24 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl max-h-[88vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="head-display text-lg">{label}</DialogTitle>
         </DialogHeader>
+        {/* Treść może być dłuższa niż ekran telefonu (wykres + tabela + drill-down
+            dzienny) — scrolluje się ONA, nie cały dialog, żeby nagłówek i przełącznik
+            ilość/wartość zostały na widoku. */}
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-0">
         {/* Bez tego wykres grupy wyglądałby na sprzedaż jednej pozycji,
             a jest sumą kilku wariantów. */}
         {groupKey && (data?.variantCount ?? 0) > 1 && (
           <p className="text-xs text-muted-foreground -mt-2">
             Razem {data!.variantCount} warianty tej pozycji.
+          </p>
+        )}
+        {filtersActive && (
+          <p className="text-xs text-muted-foreground -mt-2">
+            Ten wykres liczy WSZYSTKIE pozycje za ostatnie {MONTHS} miesięcy, niezależnie od filtra/odpiętych kategorii na liście.
           </p>
         )}
 
@@ -243,7 +264,14 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
                 <p className="label-caps">{prev ? monthLong(prev.month) : "poprzedni"}</p>
                 <p className="num text-lg font-semibold text-muted-foreground mt-1">{fmt(value(prev))}</p>
               </div>
-              {delta != null && (
+              {lastInProgress ? (
+                <div>
+                  <p className="label-caps">Zmiana</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[10rem] italic">
+                    miesiąc w trakcie — porównanie po jego zakończeniu
+                  </p>
+                </div>
+              ) : delta != null && (
                 <div>
                   <p className="label-caps">Zmiana</p>
                   <p className={cn("num text-lg font-semibold mt-1 flex items-center gap-1", salesTone(delta))}>
@@ -410,6 +438,7 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
             )}
           </>
         )}
+        </div>
       </DialogContent>
     </Dialog>
   );
