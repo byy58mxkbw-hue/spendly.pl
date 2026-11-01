@@ -897,11 +897,11 @@ export default function Sprzedaz() {
             productName={trend.name}
             total={trend.total}
             initialMetric={trend.metric}
-            // "Wszystkie pozycje" pyta backend o PRAWDZIWY globalny total (12 mies.),
-            // niezależnie od filtra/odpiętych kategorii na liście — inaczej pasek
-            // nad tabelą (przefiltrowany) i ten modal (otwierany z tych samych
-            // przycisków) pokazywałyby dwie sprzeczne liczby bez wyjaśnienia.
-            filtersActive={trend.total === true && (categoryFilter !== "" || hiddenBreakdownCategories.size > 0)}
+            // "Wszystkie pozycje" ma pokazywać DOKŁADNIE to, co pasek nad tabelą,
+            // z którego się go otwiera — więc dostaje te same filtry (tylko gdy
+            // total, pojedyncza pozycja i tak nie ma własnej kategorii-filtra).
+            category={trend.total ? categoryFilter : undefined}
+            excludeCategories={trend.total ? hiddenBreakdownCategories : undefined}
             onClose={() => setTrend(null)}
           />
         </Suspense>

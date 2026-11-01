@@ -375,6 +375,15 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
     return;
   }
 
+  // Tylko w trybie `total` — filtr/odpięte kategorie z listy na stronie.
+  // Inaczej pasek "Sprzedano/Wartość netto" (przefiltrowany) i ten wykres
+  // (otwierany z tych samych przycisków) pokazywałyby sprzeczne liczby.
+  const categoryFilterQ = total && typeof req.query.category === "string" ? req.query.category : "";
+  const excludeCategoriesQ = total && typeof req.query.excludeCategories === "string" && req.query.excludeCategories
+    ? new Set(req.query.excludeCategories.split(",").map((c) => (c === UNCATEGORIZED ? UNCATEGORIZED : normalizeName(c))))
+    : new Set<string>();
+  const needsCategory = categoryFilterQ !== "" || excludeCategoriesQ.size > 0;
+
   const monthsRaw = parseInt(String(req.query.months ?? ""), 10);
   const monthCount = Number.isFinite(monthsRaw) && monthsRaw >= 2 && monthsRaw <= 24 ? monthsRaw : 12;
 
@@ -387,17 +396,21 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
     periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
 
-  const rows = await db
-    .select({
-      period: posSalesTable.period,
-      name: posSalesTable.productName,
-      posProductId: posSalesTable.posProductId,
-      qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
-      net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
-    })
-    .from(posSalesTable)
-    .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, periods)))
-    .groupBy(posSalesTable.period, posSalesTable.productName, posSalesTable.posProductId);
+  const [rows, dishIndex] = await Promise.all([
+    db
+      .select({
+        period: posSalesTable.period,
+        name: posSalesTable.productName,
+        posProductId: posSalesTable.posProductId,
+        category: sql<string | null>`MAX(${posSalesTable.category})`,
+        qty: sql<number>`SUM(${posSalesTable.qty}::numeric)::float`,
+        net: sql<number>`SUM(${posSalesTable.netValue}::numeric)::float`,
+      })
+      .from(posSalesTable)
+      .where(and(eq(posSalesTable.userId, userId), inArray(posSalesTable.period, periods)))
+      .groupBy(posSalesTable.period, posSalesTable.productName, posSalesTable.posProductId),
+    needsCategory ? buildDishCategoryIndex(userId) : Promise.resolve(null),
+  ]);
 
   const wantKey = key.trim();
   const wantName = normalizeName(productName);
@@ -409,6 +422,14 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
   // na liście. Trend musi dopasować i id, I nazwę — samo id złapałoby oba dania.
   const hashIdx = wantKey.indexOf("#");
   const wantSplit = hashIdx > 0 ? { groupKey: wantKey.slice(0, hashIdx), name: wantKey.slice(hashIdx + 1) } : null;
+  // Normalizacja przez normalizeName (nie dokładny string) — kategoria na
+  // wierszu bywa w innej wielkości liter niż kanoniczna etykieta z listy
+  // (buildSalesGroups ujednolica to dopiero PO zbudowaniu grup, których tu
+  // nie budujemy).
+  const categoryKeyOf = (r: { name: string; category: string | null }): string => {
+    const cat = r.category ?? (dishIndex ? categoryForSaleName(r.name, dishIndex) : null);
+    return cat ? normalizeName(cat) : UNCATEGORIZED;
+  };
   const byPeriod = new Map<string, { qty: number; net: number }>();
   const names = new Set<string>();
   for (const r of rows) {
@@ -422,6 +443,11 @@ router.get("/sales/trend", async (req, res): Promise<void> => {
             ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
             : normalizeName(r.name) === wantName;
     if (!match) continue;
+    if (needsCategory) {
+      const catKey = categoryKeyOf(r);
+      if (categoryFilterQ && catKey !== (categoryFilterQ === UNCATEGORIZED ? UNCATEGORIZED : normalizeName(categoryFilterQ))) continue;
+      if (excludeCategoriesQ.has(catKey)) continue;
+    }
     names.add(r.name);
     const cur = byPeriod.get(r.period) ?? { qty: 0, net: 0 };
     cur.qty += toNum(r.qty);
@@ -775,6 +801,13 @@ router.get("/sales/trend/daily", async (req, res): Promise<void> => {
     return;
   }
 
+  // Tylko w trybie `total` — patrz komentarz w /sales/trend.
+  const categoryFilterQ = total && typeof req.query.category === "string" ? req.query.category : "";
+  const excludeCategoriesQ = total && typeof req.query.excludeCategories === "string" && req.query.excludeCategories
+    ? new Set(req.query.excludeCategories.split(",").map((c) => (c === UNCATEGORIZED ? UNCATEGORIZED : normalizeName(c))))
+    : new Set<string>();
+  const needsCategory = categoryFilterQ !== "" || excludeCategoriesQ.size > 0;
+
   try {
     await ensureDailySalesForMonth(userId, month, req.log);
   } catch (err) {
@@ -783,16 +816,35 @@ router.get("/sales/trend/daily", async (req, res): Promise<void> => {
     return;
   }
 
-  const rows = await db
-    .select({
-      date: posSalesDailyTable.date,
-      name: posSalesDailyTable.productName,
-      posProductId: posSalesDailyTable.posProductId,
-      qty: posSalesDailyTable.qty,
-      net: posSalesDailyTable.netValue,
-    })
-    .from(posSalesDailyTable)
-    .where(and(eq(posSalesDailyTable.userId, userId), sql`${posSalesDailyTable.date} LIKE ${month + "-%"}`));
+  // `pos_sales_daily` NIE ma kolumny category (patrz ensureDailySalesForMonth) —
+  // gdy trzeba filtrować wg kategorii, kategorię per nazwa produktu bierzemy
+  // z miesięcznego `pos_sales` (ten sam miesiąc) + fallback Food Cost, tak
+  // samo jak /sales/trend.
+  const [rows, categoryRows, dishIndex] = await Promise.all([
+    db
+      .select({
+        date: posSalesDailyTable.date,
+        name: posSalesDailyTable.productName,
+        posProductId: posSalesDailyTable.posProductId,
+        qty: posSalesDailyTable.qty,
+        net: posSalesDailyTable.netValue,
+      })
+      .from(posSalesDailyTable)
+      .where(and(eq(posSalesDailyTable.userId, userId), sql`${posSalesDailyTable.date} LIKE ${month + "-%"}`)),
+    needsCategory
+      ? db
+          .select({ name: posSalesTable.productName, category: sql<string | null>`MAX(${posSalesTable.category})` })
+          .from(posSalesTable)
+          .where(and(eq(posSalesTable.userId, userId), eq(posSalesTable.period, month)))
+          .groupBy(posSalesTable.productName)
+      : Promise.resolve([] as Array<{ name: string; category: string | null }>),
+    needsCategory ? buildDishCategoryIndex(userId) : Promise.resolve(null),
+  ]);
+  const categoryByName = new Map(categoryRows.map((r) => [r.name, r.category]));
+  const categoryKeyOf = (name: string): string => {
+    const cat = categoryByName.get(name) ?? (dishIndex ? categoryForSaleName(name, dishIndex) : null);
+    return cat ? normalizeName(cat) : UNCATEGORIZED;
+  };
 
   const wantKey = key.trim();
   const wantName = normalizeName(productName);
@@ -812,6 +864,11 @@ router.get("/sales/trend/daily", async (req, res): Promise<void> => {
             ? posGroupKey({ name: r.name, posProductId: r.posProductId }) === wantKey
             : normalizeName(r.name) === wantName;
     if (!match) continue;
+    if (needsCategory) {
+      const catKey = categoryKeyOf(r.name);
+      if (categoryFilterQ && catKey !== (categoryFilterQ === UNCATEGORIZED ? UNCATEGORIZED : normalizeName(categoryFilterQ))) continue;
+      if (excludeCategoriesQ.has(catKey)) continue;
+    }
     const cur = byDate.get(r.date) ?? { qty: 0, net: 0 };
     cur.qty += toNum(r.qty);
     cur.net += toNum(r.net);

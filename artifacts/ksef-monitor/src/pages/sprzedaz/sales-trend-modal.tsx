@@ -107,7 +107,7 @@ function DailyChartTooltip({ active, payload, metric }: {
   );
 }
 
-export function SalesTrendModal({ label, groupKey, productName, total, initialMetric, filtersActive, onClose }: {
+export function SalesTrendModal({ label, groupKey, productName, total, initialMetric, category, excludeCategories, onClose }: {
   /** Nazwa do nagłówka — mamy ją od razu, więc tytuł nie mruga po wczytaniu. */
   label: string;
   /** Klucz grupy z POS: wykres obejmuje wszystkie warianty (np. wszystkie wysmażenia). */
@@ -117,10 +117,10 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
   /** Suma WSZYSTKICH pozycji — klik w podsumowanie "Sprzedano"/"Wartość netto" na górze strony. */
   total?: boolean;
   initialMetric?: Metric;
-  /** Strona ma aktywny filtr/odpięte kategorie — ten modal ich NIE respektuje
-   * (zawsze liczy globalnie), więc pokazujemy o tym jawną notkę zamiast
-   * cichej sprzeczności z liczbą na pasku, z którego go otwarto. */
-  filtersActive?: boolean;
+  /** Tylko w trybie `total` — te same filtr/odpięte kategorie co pasek nad
+   * tabelą, z którego ten modal się otwiera (patrz routes/sales.ts). */
+  category?: string;
+  excludeCategories?: Set<string>;
   onClose: () => void;
 }) {
   const { session } = useClerk();
@@ -136,6 +136,16 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
   const [dailyLoading, setDailyLoading] = useState(false);
   const [dailyError, setDailyError] = useState(false);
 
+  // Zbudowane raz na zmianę filtrów — oba efekty (miesięczny i dzienny) pytają
+  // z tymi samymi parametrami, żeby słupek i jego drill-down zawsze się zgadzały.
+  const excludeKey = excludeCategories ? [...excludeCategories].sort().join(",") : "";
+  const filterQuery = useMemo(() => {
+    const parts: string[] = [];
+    if (category) parts.push(`category=${encodeURIComponent(category)}`);
+    if (excludeKey) parts.push(`excludeCategories=${encodeURIComponent(excludeKey)}`);
+    return parts.join("&");
+  }, [category, excludeKey]);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -146,14 +156,14 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
         : groupKey
           ? `key=${encodeURIComponent(groupKey)}`
           : `productName=${encodeURIComponent(productName ?? "")}`;
-      const res = await fetch(apiUrl(`/api/sales/trend?${q}&months=${MONTHS}`), {
+      const res = await fetch(apiUrl(`/api/sales/trend?${q}&months=${MONTHS}${filterQuery ? `&${filterQuery}` : ""}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const json = res.ok ? ((await res.json()) as TrendResponse) : null;
       if (!cancelled) { setData(json); setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [groupKey, productName, total, session]);
+  }, [groupKey, productName, total, session, filterQuery]);
 
   useEffect(() => {
     if (!drillMonth) return;
@@ -167,7 +177,7 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
         : groupKey
           ? `key=${encodeURIComponent(groupKey)}`
           : `productName=${encodeURIComponent(productName ?? "")}`;
-      const res = await fetch(apiUrl(`/api/sales/trend/daily?${q}&month=${drillMonth}`), {
+      const res = await fetch(apiUrl(`/api/sales/trend/daily?${q}&month=${drillMonth}${filterQuery ? `&${filterQuery}` : ""}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const json = res.ok ? ((await res.json()) as DailyResponse) : null;
@@ -178,7 +188,7 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
       }
     })();
     return () => { cancelled = true; };
-  }, [drillMonth, groupKey, productName, total, session]);
+  }, [drillMonth, groupKey, productName, total, session, filterQuery]);
 
   const rows = useMemo(
     () => (data?.months ?? []).map((m) => ({ ...m, label: monthShort(m.month) })),
@@ -223,9 +233,9 @@ export function SalesTrendModal({ label, groupKey, productName, total, initialMe
             Razem {data!.variantCount} warianty tej pozycji.
           </p>
         )}
-        {filtersActive && (
+        {total && (category || excludeKey) && (
           <p className="text-xs text-muted-foreground -mt-2">
-            Ten wykres liczy WSZYSTKIE pozycje za ostatnie {MONTHS} miesięcy, niezależnie od filtra/odpiętych kategorii na liście.
+            Liczone z tym samym filtrem/odpiętymi kategoriami co lista na stronie.
           </p>
         )}
 
