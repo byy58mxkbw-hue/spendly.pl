@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2, LineChart, Sparkles, TrendingDown } from "@/lib/icons";
+import { ChevronLeft, ChevronRight, ChevronDown, ArrowUp, ArrowDown, ChevronsUpDown, Search, ShoppingBag, Download, Loader2, LineChart, Sparkles, TrendingDown, AlertTriangle } from "@/lib/icons";
 import { Link } from "wouter";
 import { CHART_COLORS } from "./reports/components";
 
@@ -173,6 +173,7 @@ export default function Sprzedaz() {
   const [month, setMonth] = useState(currentMonth());
   const [data, setData] = useState<SalesResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
   const [trend, setTrend] = useState<{ label: string; key?: string; name?: string; total?: boolean; metric?: "qty" | "net" } | null>(null);
@@ -213,11 +214,18 @@ export default function Sprzedaz() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setFetchError(false);
     void (async () => {
-      const token = await session?.getToken();
-      const res = await fetch(apiUrl(`/api/sales?month=${month}`), { headers: token ? { Authorization: `Bearer ${token}` } : {} });
-      const json = res.ok ? ((await res.json()) as SalesResponse) : null;
-      if (!cancelled) { setData(json); setLoading(false); }
+      try {
+        const token = await session?.getToken();
+        const res = await fetch(apiUrl(`/api/sales?month=${month}`), { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as SalesResponse;
+        if (!cancelled) { setData(json); setLoading(false); }
+      } catch (err) {
+        console.error("Nie udało się wczytać danych sprzedaży:", err);
+        if (!cancelled) { setData(null); setFetchError(true); setLoading(false); }
+      }
     })();
     return () => { cancelled = true; };
   }, [month, session]);
@@ -374,6 +382,12 @@ export default function Sprzedaz() {
 
         {loading ? (
           <Skeleton className="h-64 rounded-xl" />
+        ) : fetchError ? (
+          <div className="glass py-20 text-center px-4">
+            <AlertTriangle className="w-10 h-10 text-negative mx-auto mb-3" />
+            <p className="text-foreground font-medium mb-1">Nie udało się wczytać danych sprzedaży</p>
+            <p className="text-sm text-muted-foreground">Spróbuj odświeżyć stronę za chwilę.</p>
+          </div>
         ) : empty ? (
           <div className="glass py-20 text-center px-4">
             <ShoppingBag className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
@@ -564,8 +578,8 @@ export default function Sprzedaz() {
                             <span className="text-xs font-semibold tabular-nums">{formatPrice(c.netValue)}</span>
                           </div>
                         </div>
-                        <div className="h-1 bg-secondary rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${c.pct}%`, background: color }} />
+                        <div className="h-1 bg-secondary overflow-hidden">
+                          <div className="h-full transition-all" style={{ width: `${c.pct}%`, background: color }} />
                         </div>
                       </button>
                     );
@@ -584,7 +598,7 @@ export default function Sprzedaz() {
           <div className="glass overflow-hidden">
             <div className="px-4 md:px-5 py-3 border-b border-border flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-baseline gap-4 flex-wrap">
-                <div><span className="text-xs text-muted-foreground">Pozycji</span> <span className="text-sm font-semibold">{data!.items.length}</span></div>
+                <div><span className="text-xs text-muted-foreground">Pozycji</span> <span className="text-sm font-semibold">{items.length}</span></div>
                 <button
                   type="button"
                   onClick={() => setTrend({ label: "Wszystkie pozycje", total: true, metric: "qty" })}

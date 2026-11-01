@@ -28,7 +28,7 @@ function monthLong(ym: string): string {
   return `${MONTH_NAMES[parseInt(mm, 10) - 1] ?? mm} ${y}`;
 }
 
-type CategoryTrendResponse = { months: string[]; series: Array<{ label: string; data: number[] }> };
+type CategoryTrendResponse = { months: string[]; series: Array<{ label: string; isUncategorized?: boolean; data: number[] }> };
 
 export function CategoryTrendModal({ onClose }: { onClose: () => void }) {
   const { session } = useClerk();
@@ -52,12 +52,12 @@ export function CategoryTrendModal({ onClose }: { onClose: () => void }) {
   // „Niezakategoryzowane" zawsze na szarym, na końcu legendy — spójnie z resztą strony.
   const categories = useMemo(() => {
     if (!data) return [];
-    const uncategorized = data.series.filter((s) => s.label === "Niezakategoryzowane");
-    const rest = data.series.filter((s) => s.label !== "Niezakategoryzowane");
+    const uncategorized = data.series.filter((s) => s.isUncategorized);
+    const rest = data.series.filter((s) => !s.isUncategorized);
     return [...rest, ...uncategorized].map((s, i) => ({
       key: s.label,
       label: s.label,
-      color: s.label === "Niezakategoryzowane" ? "hsl(var(--muted-foreground))" : CHART_COLORS[i % CHART_COLORS.length],
+      color: s.isUncategorized ? "hsl(var(--muted-foreground))" : CHART_COLORS[i % CHART_COLORS.length],
     }));
   }, [data]);
 

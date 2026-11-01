@@ -510,6 +510,7 @@ router.get("/sales/category-trend", async (req, res): Promise<void> => {
 
   const series = seriesLabels.map((label) => ({
     label,
+    isUncategorized: label === "Niezakategoryzowane",
     data: periods.map((period) => {
       const monthMap = byMonthCategory.get(period);
       if (!monthMap) return 0;
