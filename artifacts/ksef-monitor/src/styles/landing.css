@@ -41,10 +41,14 @@ html { scroll-behavior: smooth; }
 /* Papier kremowy. --acc-text jest ciemniejszy od --acc, bo terakota #C4562F na
    kremie daje 3,8:1 — za mało na drobny tekst (AA wymaga 4,5:1). */
 .spendly-site[data-theme="light"]{
-  --bg:#F4EDE0;--bg2:#EFE7D6;--text:#211B12;--muted:#8A7C63;--faint:rgba(33,27,18,.60);
+  --bg:#F4EDE0;--bg2:#EFE7D6;--text:#211B12;--muted:#716551;--faint:rgba(33,27,18,.63);
   --panel:#FBF7EF;--panel-solid:#FFFFFF;--brd:#E2D8C6;--brd-soft:rgba(33,27,18,.07);
   --acc:#C4562F;--acc-text:#A8431F;--acc-soft:#EFE0C6;
   --btn-bg:#A8431F;--btn-ink:#FFFFFF;
+  /* Audyt kontrastu PageSpeed 2026-11: #C68A1E (dziedziczony z :root) na białym
+     mockupie dashboardu to 2,98:1. Przyciemnione tylko w light — w dark oryginał
+     ma 5,2-6,2:1, nie wymaga zmiany. */
+  --warn:#9B6C17;
 }
 
 .spendly-site *{box-sizing:border-box;margin:0;padding:0;}
@@ -141,7 +145,7 @@ html { scroll-behavior: smooth; }
 /* logos strip */
 .spendly-site .trust{padding:44px 0;text-align:center;}
 .spendly-site .trust p{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:22px;}
-.spendly-site .trust-row{display:flex;gap:44px;justify-content:center;align-items:center;flex-wrap:wrap;opacity:.72;}
+.spendly-site .trust-row{display:flex;gap:44px;justify-content:center;align-items:center;flex-wrap:wrap;opacity:.97;}
 .spendly-site .trust-row .b{font-size:19px;font-weight:600;letter-spacing:-0.01em;color:var(--muted);}
 
 /* section */
@@ -153,7 +157,7 @@ html { scroll-behavior: smooth; }
 
 /* Siatka kart z ciągłym hairline'em zamiast morza zaokrąglonych kafli. */
 .spendly-site .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--brd);border:1px solid var(--brd);}
-.spendly-site .feat{padding:26px;transition:background .14s;}
+.spendly-site .feat{padding:26px;background:var(--panel);transition:background .14s;}
 .spendly-site .feat:hover{background:var(--panel-solid);}
 .spendly-site .feat .fic{width:38px;height:38px;border-radius:var(--r-xs);display:grid;place-items:center;margin-bottom:16px;background:var(--acc-soft);border:1px solid var(--brd);}
 .spendly-site .feat .fic svg{width:20px;height:20px;color:var(--acc-text);}
