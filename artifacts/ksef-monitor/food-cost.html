@@ -114,7 +114,8 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <!-- Font aplikacji (Space Grotesk/Baloo 2/Inter) idzie przez @fontsource w bundlu CSS —
-         mają hashowane nazwy, więc nie da się ich preloadować ze statycznej ścieżki (patrz index.html). -->
+         preload z prawdziwym hashem dokłada plugin `fontPreloadPlugin` w vite.config.ts
+         (czyta ctx.bundle po zbudowaniu, patrz index.html). -->
   </head>
   <body>
     <div id="root">

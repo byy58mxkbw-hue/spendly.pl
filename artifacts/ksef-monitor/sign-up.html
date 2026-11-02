@@ -30,8 +30,11 @@
     <meta name="twitter:description" content="Zarejestruj się w Spendly za darmo. Kontroluj food cost, importuj faktury z KSeF i monitoruj koszty swojej restauracji." />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="/fonts/inter-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
+    <!-- Było: preload /fonts/inter-latin*.woff2 — pliki statyczne, LEGACY, nic ich
+         nie używa (patrz index.css / redesign „edytorski gastro"); strona renderuje
+         Space Grotesk z @fontsource (hashowane). Usunięte jako martwy, zbędny
+         request; prawdziwy preload (ctx.bundle) dokłada `fontPreloadPlugin`
+         w vite.config.ts. -->
   </head>
   <body>
     <div id="root"></div>

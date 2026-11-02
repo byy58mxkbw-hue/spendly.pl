@@ -165,6 +165,52 @@ function securityHeadersPlugin(): Plugin {
   };
 }
 
+// ── Preload fontów o hashowanych nazwach ─────────────────────────────────────
+// index.html/ksef.html mają komentarz "nie da się ich preloadować ze statycznej
+// ścieżki" — prawda dla ręcznego <link>, ale nie dla pluginu: transformIndexHtml
+// z ctx.bundle widzi PRAWDZIWE nazwy po zbudowaniu, więc hash zawsze się zgadza
+// (też po aktualizacji @fontsource). Audyt PageSpeed 2026-11: brak preloadu →
+// fonty wchodzą do łańcucha żądań ZA CSS (network-dependency-tree-insight) i
+// dociągają się późno → font-swap reflow = CLS 0.108 (layout-shifts: hero .mock
+// -0.1026 z Inter/Baloo 2, #pre-hero -0.0058 z Space Grotesk). Preload nie
+// zmienia wyglądu — tylko przyspiesza start pobierania.
+// Space Grotesk: jedyny font panelu, używany też na landingu (liczby/.num) —
+// preloadujemy WSZĘDZIE. Inter/Baloo 2: wyłącznie strony marketingowe
+// (`.spendly-site`, patrz main.tsx) — bez sign-in/sign-up (czysty Clerk).
+function fontPreloadPlugin(): Plugin {
+  const FONT_PATTERNS: { re: RegExp; marketingOnly: boolean }[] = [
+    { re: /^assets\/space-grotesk-latin(?:-ext)?-wght-normal-[\w-]+\.woff2$/, marketingOnly: false },
+    { re: /^assets\/inter-latin(?:-ext)?-wght-normal-[\w-]+\.woff2$/, marketingOnly: true },
+    { re: /^assets\/baloo-2-latin(?:-ext)?-wght-normal-[\w-]+\.woff2$/, marketingOnly: true },
+  ];
+  const AUTH_ONLY_ENTRIES = new Set(["sign-in.html", "sign-up.html"]);
+
+  return {
+    name: "font-preload",
+    transformIndexHtml: {
+      order: "post",
+      handler(html, ctx) {
+        const bundle = ctx.bundle;
+        if (!bundle) return html;
+        const isAuthEntry = AUTH_ONLY_ENTRIES.has(path.basename(ctx.filename));
+        const links: string[] = [];
+        for (const output of Object.values(bundle)) {
+          if (output.type !== "asset") continue;
+          for (const { re, marketingOnly } of FONT_PATTERNS) {
+            if (!re.test(output.fileName)) continue;
+            if (marketingOnly && isAuthEntry) continue;
+            const href = basePath.endsWith("/") ? `${basePath}${output.fileName}` : `${basePath}/${output.fileName}`;
+            links.push(`<link rel="preload" as="font" type="font/woff2" href="${href}" crossorigin>`);
+            break;
+          }
+        }
+        if (links.length === 0) return html;
+        return html.replace("</head>", `    ${links.join("\n    ")}\n  </head>`);
+      },
+    },
+  };
+}
+
 const rawPort = process.env.PORT;
 const port = Number(rawPort ?? "3000");
 
@@ -180,6 +226,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     securityHeadersPlugin(),
+    fontPreloadPlugin(),
     // Analiza bundla: `ANALYZE=true pnpm --filter @workspace/ksef-monitor build`
     // → dist/stats.html (nie generowane w zwykłym buildzie).
     ...(process.env.ANALYZE === "true"
