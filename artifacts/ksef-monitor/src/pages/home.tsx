@@ -133,7 +133,19 @@ export default function Home() {
             <a href="#faq">FAQ</a>
           </div>
           <div className="nav-right">
-            <div className="tgl" title="Zmień motyw" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            <div
+              className="tgl"
+              role="button"
+              tabIndex={0}
+              aria-label={theme === "dark" ? "Włącz tryb jasny" : "Włącz tryb ciemny"}
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setTheme(theme === "dark" ? "light" : "dark");
+                }
+              }}
+            >
               {theme === "dark" ? <Moon /> : <Sun />}
             </div>
             <a className="btn btn-ghost nav-desktop" href="/sign-in" onClick={go("/sign-in")}>Zaloguj się</a>
@@ -400,7 +412,20 @@ export default function Home() {
         </div>
         <div className="faq">
           {FAQS.map((f, i) => (
-            <div className={`qa${openFaq.has(i) ? " open" : ""}`} key={f.q} onClick={() => toggleFaq(i)}>
+            <div
+              className={`qa${openFaq.has(i) ? " open" : ""}`}
+              key={f.q}
+              role="button"
+              tabIndex={0}
+              aria-expanded={openFaq.has(i)}
+              onClick={() => toggleFaq(i)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggleFaq(i);
+                }
+              }}
+            >
               <div className="q">{f.q}<Plus /></div>
               <div className="a">{f.a}</div>
             </div>
