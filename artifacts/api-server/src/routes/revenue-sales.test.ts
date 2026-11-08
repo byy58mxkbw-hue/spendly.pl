@@ -196,13 +196,23 @@ describe.skipIf(!RUN_DB)("Sprzedaż wg kategorii dania", () => {
 
   it("/sales: categoryBreakdown sumuje po kategorii, sortuje malejąco, pct ≈ 100", async () => {
     const r = (await get("/api/sales?month=2026-07")) as {
-      categoryBreakdown: Array<{ category: string; label: string; netValue: number; qty: number; pct: number }>;
+      categoryBreakdown: Array<{
+        category: string; label: string; netValue: number; qty: number; pct: number;
+        prevNetValue: number | null; netChangePct: number | null;
+      }>;
     };
     expect(r.categoryBreakdown).toHaveLength(4); // Dania główne, Burgery, ZUPY R, Niezakategoryzowane
     // 4000 > 2500 > 600 > 500 — posortowane malejąco po wartości.
     expect(r.categoryBreakdown[0].label).toBe("Dania główne");
     expect(r.categoryBreakdown[0].netValue).toBeCloseTo(4000, 2);
+    // "Filet z kurczaka": lipiec 4000 vs czerwiec 3200 → +25% (klik w kategorię
+    // na ekranie Sprzedaż ma pokazać tę zmianę vs poprzedni miesiąc).
+    expect(r.categoryBreakdown[0].prevNetValue).toBeCloseTo(3200, 2);
+    expect(r.categoryBreakdown[0].netChangePct).toBeCloseTo(25, 1);
     expect(r.categoryBreakdown[1].label).toBe("Burgery");
+    // "Burger" nie miał sprzedaży w czerwcu — nowa pozycja, nie fałszywy spadek z zera.
+    expect(r.categoryBreakdown[1].prevNetValue).toBeNull();
+    expect(r.categoryBreakdown[1].netChangePct).toBeNull();
     expect(r.categoryBreakdown[2].label).toBe("ZUPY R");
     expect(r.categoryBreakdown[2].netValue).toBeCloseTo(600, 2);
     const uncategorized = r.categoryBreakdown.find((c) => c.label === "Niezakategoryzowane");

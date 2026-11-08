@@ -37,7 +37,10 @@ type SalesLeaf = {
 // Grupa = pozycja menu. Warianty (stopnie wysmażenia, smaki) mają w POS wspólne
 // id produktu i są tu składowymi, nie osobnymi pozycjami.
 type SalesItem = SalesLeaf & { key: string; variants: SalesLeaf[]; category: string | null };
-type CategoryBreakdownEntry = { category: string; label: string; netValue: number; qty: number; pct: number };
+type CategoryBreakdownEntry = {
+  category: string; label: string; netValue: number; qty: number; pct: number;
+  prevNetValue: number | null; netChangePct: number | null;
+};
 type SalesResponse = {
   from: string;
   to: string;
@@ -696,6 +699,19 @@ export default function Sprzedaz() {
                           <div className="h-1 bg-secondary overflow-hidden">
                             <div className="h-full transition-all" style={{ width: `${c.pct}%`, background: color }} />
                           </div>
+                          {active && (
+                            <div className="mt-1 text-[11px] text-muted-foreground">
+                              {c.netChangePct != null ? (
+                                <span className={cn("tabular-nums", tone(c.netChangePct))}>
+                                  {c.netChangePct > 0 ? "+" : ""}{c.netChangePct.toFixed(1)}% vs poprz. mies. ({formatPrice(c.prevNetValue ?? 0)})
+                                </span>
+                              ) : c.prevNetValue == null ? (
+                                <span>nowa kategoria — brak sprzedaży w poprzednim miesiącu</span>
+                              ) : (
+                                <span>miesiąc w trakcie — porównanie po jego zakończeniu</span>
+                              )}
+                            </div>
+                          )}
                         </button>
                         <button
                           type="button"

@@ -295,30 +295,43 @@ async function buildSalesGroups(userId: string, period: Period): Promise<{ group
   return { groups, prev, prevYear };
 }
 
-export type CategoryBreakdownEntry = { category: string; label: string; netValue: number; qty: number; pct: number };
+export type CategoryBreakdownEntry = {
+  category: string; label: string; netValue: number; qty: number; pct: number;
+  /** Suma `prevNet` grup tej kategorii — `null`, gdy ŻADNA grupa nie miała
+   * sprzedaży w poprzednim okresie (cała kategoria jest nowa w tym miesiącu). */
+  prevNetValue: number | null;
+  /** `null` też gdy okres jeszcze trwa — patrz isPeriodInProgress w buildSalesGroups. */
+  netChangePct: number | null;
+};
 
 const UNCATEGORIZED = "__uncategorized__";
 
 // Rozkład wartości sprzedaży wg kategorii dania — grupy bez dopasowania trafiają
 // pod jeden stały klucz, żeby front mógł je zawsze pokazać na końcu listy.
-function buildCategoryBreakdown(groups: SalesGroup[]): CategoryBreakdownEntry[] {
-  const byCategory = new Map<string, { label: string; netValue: number; qty: number }>();
+function buildCategoryBreakdown(groups: SalesGroup[], inProgress: boolean): CategoryBreakdownEntry[] {
+  const byCategory = new Map<string, { label: string; netValue: number; qty: number; prevNetValue: number; hasPrev: boolean }>();
   for (const g of groups) {
     const key = g.category ?? UNCATEGORIZED;
-    const cur = byCategory.get(key) ?? { label: g.category ?? "Niezakategoryzowane", netValue: 0, qty: 0 };
+    const cur = byCategory.get(key) ?? { label: g.category ?? "Niezakategoryzowane", netValue: 0, qty: 0, prevNetValue: 0, hasPrev: false };
     cur.netValue += g.netValue;
     cur.qty += g.qty;
+    if (g.prevNet != null) { cur.prevNetValue += g.prevNet; cur.hasPrev = true; }
     byCategory.set(key, cur);
   }
   const totalNet = [...byCategory.values()].reduce((s, v) => s + v.netValue, 0);
   return [...byCategory.entries()]
-    .map(([category, v]) => ({
-      category,
-      label: v.label,
-      netValue: v.netValue,
-      qty: v.qty,
-      pct: totalNet > 0 ? Math.round((v.netValue / totalNet) * 1000) / 10 : 0,
-    }))
+    .map(([category, v]) => {
+      const prevNetValue = v.hasPrev ? v.prevNetValue : null;
+      return {
+        category,
+        label: v.label,
+        netValue: v.netValue,
+        qty: v.qty,
+        pct: totalNet > 0 ? Math.round((v.netValue / totalNet) * 1000) / 10 : 0,
+        prevNetValue,
+        netChangePct: inProgress ? null : changePct(v.netValue, prevNetValue),
+      };
+    })
     .sort((a, b) => b.netValue - a.netValue);
 }
 
@@ -352,7 +365,7 @@ router.get("/sales", async (req, res): Promise<void> => {
     totalNetYearChangePct: inProgress ? null : changePct(totalNet, prevYearTotalNet),
     periodInProgress: inProgress,
     items: groups,
-    categoryBreakdown: buildCategoryBreakdown(groups),
+    categoryBreakdown: buildCategoryBreakdown(groups, inProgress),
   });
 });
 
@@ -1041,7 +1054,7 @@ router.get("/sales.xlsx", async (req, res): Promise<void> => {
   // Sekcje wg kategorii — w tej samej kolejności i z tym samym kluczowaniem co
   // wykres „Sprzedaż wg kategorii" (`buildCategoryBreakdown`), żeby plik i ekran
   // pokazywały to samo. „Niezakategoryzowane" zawsze na końcu.
-  const breakdown = buildCategoryBreakdown(groups);
+  const breakdown = buildCategoryBreakdown(groups, isPeriodInProgress(period));
   const sections = breakdown
     .slice()
     .sort((a, b) => Number(a.category === UNCATEGORIZED) - Number(b.category === UNCATEGORIZED))
